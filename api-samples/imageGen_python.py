@@ -11,15 +11,38 @@ Demonstrates the full ArtSmoker image generation pipeline:
   5. Poll for async job completion   GET  /api/generate/async-jobs
   6. Download completed images      GET  /api/gallery/{asset_id}/png
 
+Sync vs. async models:
+  - Bedrock models (e.g. nova_canvas, sd35_large) return images INLINE — by the
+    time the SSE stream ends, the PNGs are already in the gallery.
+  - Self-hosted SageMaker (custom_hosted) models are ASYNC: the stream emits an
+    `async_submitted` event with a job_id, then this script polls
+    /api/generate/async-jobs until each job is `complete` before downloading.
+
+Note on server-side defaults (important):
+  - `remove_background` and `generate_svg` default to TRUE server-side. This
+    "raw image" sample sends them EXPLICITLY as False so you get the unmodified
+    generated PNG (no cutout, no vectorization). Flip them on if you want that
+    post-processing.
+  - `num_options` × `num_variations` default to 5 × 5 = 25 images. This sample
+    uses 2 × 2 = 4 by default for a quick, cheap run.
+
 Prerequisites:
   - Python 3.10+
   - pip install requests sseclient-py
   - ArtSmoker server running at http://localhost:8000
+  - At least one image model enabled (Bedrock models work out of the box with
+    AWS credentials; custom SageMaker models must be deployed first)
 
 How to run:
   python imageGen_python.py
   python imageGen_python.py --prompt "a medieval castle on a cliff" --model nova_canvas
-  python imageGen_python.py --prompt "a cyberpunk warrior" --width 1024 --height 1024 --options 2 --variations 2
+  python imageGen_python.py --prompt "a cyberpunk warrior" --options 2 --variations 2
+  # Post-processing / options:
+  python imageGen_python.py --prompt "sticker of a fox" --remove-background --generate-svg
+  python imageGen_python.py --prompt "a serene lake" --region us-east-1
+  # Reference-guided generation (1-3 images):
+  python imageGen_python.py --prompt "same character, new pose" \
+      --reference-image face.png --reference-mode inspired
 
 Full API docs:     http://localhost:8000/docs
 Detailed spec:     See SPEC.md in the project root
@@ -86,16 +109,18 @@ def print_step(step: int, description: str):
 def print_event(event_type: str, message: str):
     """Print an SSE event with color coding."""
     color_map = {
+        "asset_type_suggestion": Color.YELLOW,
         "started":          Color.GREEN,
         "stage":            Color.YELLOW,
         "prompts_ready":    Color.MAGENTA,
         "image_done":       Color.GREEN,
-        "option_complete":  Color.GREEN,
+        "model_status":     Color.DIM,
         "async_submitted":  Color.CYAN,
-        "done":             Color.GREEN,
         "complete":         Color.GREEN,
         "error":            Color.RED,
         "image_error":      Color.RED,
+        "moderation_blocked": Color.RED,
+        "prompt_refused":   Color.RED,
     }
     color = color_map.get(event_type, Color.DIM)
     print(f"  {color}[{event_type}]{Color.RESET} {message}")
@@ -106,22 +131,40 @@ def print_event(event_type: str, message: str):
 def list_models() -> list[dict]:
     """Fetch available image generation models from the server.
 
-    GET /api/admin/models/image-options returns the list of enabled
-    text-to-image models with their metadata (label, region, pricing).
+    GET /api/admin/models/image-options returns:
+        {"models": [ {key, label, provider, region, base_price_usd,
+                      model_source, custom_hourly_usd, supported_sizes, ...} ],
+         "available_regions": [...]}
+
+    Note the response is an OBJECT with a "models" list — not a bare array.
+    `base_price_usd` is null for custom (SageMaker) models, which are billed
+    per compute-hour (`custom_hourly_usd`) rather than per image.
     """
     print_step(1, "Fetching available image models...")
     url = f"{BASE_URL}/api/admin/models/image-options"
     resp = requests.get(url, timeout=10)
     resp.raise_for_status()
-    models = resp.json()
-    print(f"  Found {colored(str(len(models)), Color.GREEN)} available models:")
+    payload = resp.json()
+    # Be tolerant: the endpoint returns {"models": [...]}, but fall back to a
+    # bare list just in case an older build is running.
+    models = payload.get("models", []) if isinstance(payload, dict) else payload
+    print(f"  Found {colored(str(len(models)), Color.GREEN)} available model(s):")
     for m in models:
         key = m.get("key", "")
         label = m.get("label", key)
         region = m.get("region", "")
-        price = m.get("base_price_usd", 0)
-        print(f"    {Color.DIM}-{Color.RESET} {colored(key, Color.BOLD)} ({label}) "
-              f"[{region}] ~${price:.4f}/image")
+        source = m.get("model_source", "")
+        price = m.get("base_price_usd")
+        hourly = m.get("custom_hourly_usd")
+        if price is not None:
+            cost = f"~${price:.4f}/image"
+        elif hourly is not None:
+            cost = f"~${hourly:.2f}/hr (self-hosted)"
+        else:
+            cost = "price unavailable"
+        tag = " [custom]" if source == "custom_hosted" else ""
+        print(f"    {Color.DIM}-{Color.RESET} {colored(key, Color.BOLD)} ({label}){tag} "
+              f"[{region}] {cost}")
     return models
 
 
@@ -208,39 +251,81 @@ def generate_images(
     height: int = 1024,
     num_options: int = 2,
     num_variations: int = 2,
+    remove_background: bool = False,
+    generate_svg: bool = False,
+    upscale: bool = False,
+    region: str | None = None,
+    model_optimized_prompts: bool = False,
+    reference_images: list[str] | None = None,
+    reference_mode: str = "inspired",
 ) -> dict:
     """Generate images using the SSE streaming endpoint.
 
-    POST /api/generate/stream
-    The server sends Server-Sent Events with real-time progress:
-      - started:          Generation batch has begun
-      - stage:            Pipeline stage update (prompts, generating, etc.)
-      - prompts_ready:    Enhanced prompts are ready
-      - image_done:       A single image variant completed (Bedrock models)
-      - option_complete:  An option with all variants completed
-      - async_submitted:  Job submitted to SageMaker (custom models)
-      - complete:         All images done, includes full result
-      - error:            Something went wrong
+    POST /api/generate/stream — returns text/event-stream. Each event's
+    `data:` line is a JSON object with a "type" field. The events this server
+    actually emits (verified against backend/routers/generate.py):
+      - asset_type_suggestion: optional first event — the prompt implies a
+                               better asset_type than the one requested
+      - started:          {batch_id, total, num_options, num_variations}
+      - stage:            {stage, message} — pipeline progress
+      - prompts_ready:    {prompts: [...], negative_prompt, recomposed_prompt}
+      - image_done:       {option, variation, completed, total} — one image
+                          finished inline (Bedrock/sync models)
+      - image_error:      {option, variation, completed, total, error}
+      - async_submitted:  {option, variation, job_id, model_label} — job queued
+                          on SageMaker (custom_hosted models); poll for result
+      - model_status:     per-(model, option, variant) status in all-models runs
+      - moderation_blocked / prompt_refused: content was rejected
+      - complete:         {result: GenerationResult, all_models_summary?} — done
+      - error:            {detail} — a fatal error ended the stream
+
+    NOTE: there is no `option_complete` or `done` event — use `image_done` and
+    `complete`. (Handling for those legacy names is kept below, harmlessly.)
     """
     print_step(4, "Generating images via SSE stream...")
     url = f"{BASE_URL}/api/generate/stream"
 
-    # Build the generation request payload
+    # Build the generation request payload. Field names/defaults mirror
+    # backend/models/generation_request.py (GenerationRequest).
     payload = {
         "prompt": prompt,
         "image_model": model,
         "asset_type": asset_type,
         "width": width,
         "height": height,
+        # Server default is 5 x 5 = 25 images; we keep it small for a cheap run.
         "num_options": num_options,
         "num_variations": num_variations,
-        # Reasonable defaults for API usage
-        "remove_background": False,
-        "generate_svg": False,
-        "upscale": False,
+        # IMPORTANT: these two default to TRUE server-side. We send them
+        # explicitly as False so this sample returns the raw generated PNG —
+        # otherwise you'd unexpectedly get a background-removed cutout + an SVG.
+        "remove_background": remove_background,
+        "generate_svg": generate_svg,
+        "upscale": upscale,
     }
+    # Optional: pin the AWS region (else the model's registry default is used).
+    if region:
+        payload["region"] = region
+    # Optional: tailor the enhanced prompt per model — only meaningful in a
+    # multi-model run (all_models / selected_models); a no-op for one model.
+    if model_optimized_prompts:
+        payload["model_optimized_prompts"] = True
+    # Optional: reference-guided generation. reference_images is a list of
+    # base64-encoded PNGs (1-3). reference_mode:
+    #   "inspired" — a vision LLM reads the reference(s) + prompt and writes an
+    #                enhanced prompt; any text-to-image model renders it.
+    #   "match"    — pixel-faithful edit; requires a deployed edit model
+    #                (e.g. Qwen-Image-Edit), forced to a single option.
+    #   "remix"    — strength-based img2img on a Bedrock image-to-image model.
+    if reference_images:
+        payload["reference_images"] = reference_images
+        payload["reference_mode"] = reference_mode
 
-    print(f"  Payload: {colored(json.dumps(payload, indent=2), Color.DIM)}")
+    # Don't dump multi-KB base64 reference blobs into the console.
+    _printable = dict(payload)
+    if "reference_images" in _printable:
+        _printable["reference_images"] = f"<{len(payload['reference_images'])} image(s)>"
+    print(f"  Payload: {colored(json.dumps(_printable, indent=2), Color.DIM)}")
 
     # Open an SSE connection using sseclient-py.
     # The /api/generate/stream endpoint returns text/event-stream.
@@ -264,7 +349,13 @@ def generate_images(
         event_type = data.get("type", "unknown")
 
         # Handle each event type
-        if event_type == "started":
+        if event_type == "asset_type_suggestion":
+            suggested = data.get("suggested", "")
+            reason = data.get("reason", "")
+            print_event(event_type,
+                        f"Prompt may suit '{suggested}' better — {reason}")
+
+        elif event_type == "started":
             batch_id = data.get("batch_id", "")
             total = data.get("total", 0)
             print_event(event_type,
@@ -297,9 +388,14 @@ def generate_images(
                         f"Option {opt+1}, Variation {var+1} "
                         f"({done}/{total} complete)")
 
-        elif event_type == "option_complete":
+        elif event_type == "model_status":
+            # Per-(model, option, variant) status in an all_models run.
+            mlabel = data.get("model_label", data.get("model", ""))
             opt = data.get("option_index", 0)
-            print_event(event_type, f"Option {opt+1} finished")
+            var = data.get("variant_index", 0)
+            status = data.get("status", "")
+            print_event(event_type,
+                        f"{mlabel} — option {opt+1} var {var+1}: {status}")
 
         elif event_type == "async_submitted":
             # Custom/SageMaker model — job submitted for async processing
@@ -540,6 +636,29 @@ Examples:
                         help="Skip asset type classification")
     parser.add_argument("--skip-decompose", action="store_true",
                         help="Skip prompt decomposition")
+    # Post-processing — OFF by default here (server default is ON for the first two)
+    parser.add_argument("--remove-background", action="store_true",
+                        help="Enable background removal (server default is ON; "
+                             "this sample keeps it OFF)")
+    parser.add_argument("--generate-svg", action="store_true",
+                        help="Enable SVG vectorization (server default is ON; "
+                             "this sample keeps it OFF)")
+    parser.add_argument("--upscale", action="store_true",
+                        help="Enable creative upscale post-processing (extra cost)")
+    # Optional generation controls
+    parser.add_argument("--region", type=str, default=None,
+                        help="Override the model's AWS region (e.g. us-east-1)")
+    parser.add_argument("--model-optimized-prompts", action="store_true",
+                        help="Tailor the enhanced prompt per model "
+                             "(only meaningful in a multi-model run)")
+    parser.add_argument("--reference-image", action="append", default=None,
+                        metavar="PATH",
+                        help="Path to a reference image (repeatable, 1-3) for "
+                             "reference-guided generation")
+    parser.add_argument("--reference-mode", type=str, default="inspired",
+                        choices=["inspired", "match", "remix"],
+                        help="Reference mode: inspired | match | remix "
+                             "(default: inspired)")
     args = parser.parse_args()
 
     print_header("ArtSmoker Image Generation")
@@ -613,6 +732,20 @@ Examples:
         except requests.RequestException as e:
             print(f"  {Color.YELLOW}Decomposition skipped: {e}{Color.RESET}")
 
+    # Load + base64-encode any reference images (1-3) for reference-guided runs.
+    reference_images = None
+    if args.reference_image:
+        import base64
+        reference_images = []
+        for ref_path in args.reference_image[:3]:
+            p = Path(ref_path)
+            if not p.is_file():
+                print(f"  {Color.RED}Reference image not found: {ref_path}{Color.RESET}")
+                sys.exit(1)
+            reference_images.append(base64.b64encode(p.read_bytes()).decode("ascii"))
+        print(f"\n  Reference-guided ({args.reference_mode}): "
+              f"{len(reference_images)} image(s)")
+
     # Step 4: Generate images
     try:
         gen_result = generate_images(
@@ -623,6 +756,13 @@ Examples:
             height=args.height,
             num_options=args.options,
             num_variations=args.variations,
+            remove_background=args.remove_background,
+            generate_svg=args.generate_svg,
+            upscale=args.upscale,
+            region=args.region,
+            model_optimized_prompts=args.model_optimized_prompts,
+            reference_images=reference_images,
+            reference_mode=args.reference_mode,
         )
     except requests.RequestException as e:
         print(f"\n  {Color.RED}Generation failed: {e}{Color.RESET}")

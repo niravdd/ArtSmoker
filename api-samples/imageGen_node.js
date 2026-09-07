@@ -3,37 +3,55 @@
  * ArtSmoker Image Generation — Node.js API Sample
  * =================================================
  *
- * Demonstrates the full ArtSmoker image generation pipeline:
+ * A self-contained client that drives the ArtSmoker image-generation API
+ * end-to-end: list models → (optional) classify + decompose the prompt →
+ * generate over an SSE stream → poll any async (self-hosted) jobs → download
+ * the finished PNGs to disk.
+ *
+ * Pipeline & endpoints
  *   1. List available models          GET  /api/admin/models/image-options
  *   2. Classify asset type            POST /api/refine-prompt/classify-asset-type
  *   3. Decompose the prompt           POST /api/refine-prompt/decompose
- *   4. Generate images via SSE        POST /api/generate/stream
- *   5. Poll for async job completion   GET  /api/generate/async-jobs
- *   6. Download completed images      GET  /api/gallery/{asset_id}/png
+ *   4. Generate images (SSE)          POST /api/generate/stream
+ *   5. Poll async jobs (self-hosted)  GET  /api/generate/async-jobs
+ *   6. Download images                GET  /api/gallery/{asset_id}/png
  *
- * Prerequisites:
- *   - Node.js 18+ (uses built-in fetch and streams)
- *   - ArtSmoker server running at http://localhost:8000
+ * Prerequisites
+ *   - Node.js 18+  (uses the built-in global `fetch`, `AbortController`,
+ *                   `TextDecoder`, and `node:util`'s `parseArgs`)
+ *   - NO dependencies and NO build step — this is a plain CommonJS file.
+ *     Just run it. SSE is parsed by hand (see readSseStream) so there is
+ *     nothing to `npm install`.
+ *   - An ArtSmoker server running at http://localhost:8000 with at least one
+ *     image model enabled (Bedrock models work with AWS credentials; custom
+ *     SageMaker models must be deployed first).
  *
- * Setup (run once in the api-samples/ directory):
- *   npm init -y && npm pkg set type=module && npm install eventsource-parser
- *
- * How to run:
+ * How to run
  *   node imageGen_node.js
  *   node imageGen_node.js --prompt "a medieval castle on a cliff" --model nova_canvas
  *   node imageGen_node.js --prompt "a cyberpunk warrior" --width 1024 --height 1024 --options 2 --variations 2
  *
- * Full API docs:     http://localhost:8000/docs
- * Detailed spec:     See SPEC.md in the project root
+ * Cost note — the sample deliberately keeps a run small and cheap:
+ *   - num_options × num_variations default to 5 × 5 = 25 images SERVER-SIDE.
+ *     This sample uses 2 × 2 = 4 for a quick, inexpensive run.
+ *   - remove_background and generate_svg default to TRUE server-side (extra
+ *     post-processing + cost). This sample sends them as FALSE to get the raw
+ *     generated image only. See the payload in generateImages().
  *
- * Environment:
+ * Reference
+ *   Interactive API docs (source of truth):  http://localhost:8000/docs
+ *   Architecture / data model:                SPEC.md in the project root
+ *   API contract for AI assistants:            api-samples/skill.md
+ *
+ * Environment
  *   ARTSMOKER_URL — base URL (default: http://localhost:8000)
  */
 
-import { createParser } from 'eventsource-parser';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
-import { parseArgs } from 'util';
+'use strict';
+
+const { writeFileSync, mkdirSync, existsSync } = require('node:fs');
+const { join } = require('node:path');
+const { parseArgs } = require('node:util');
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
@@ -73,12 +91,15 @@ function printEvent(type, message) {
         stage:           C.yellow,
         prompts_ready:   C.magenta,
         image_done:      C.green,
-        option_complete: C.green,
+        option_complete: C.green,   // doc alias for image_done
         async_submitted: C.cyan,
-        done:            C.green,
+        model_status:    C.dim,
         complete:        C.green,
+        done:            C.green,   // doc alias for complete
         error:           C.red,
         image_error:     C.red,
+        moderation_blocked: C.red,
+        prompt_refused:  C.red,
     };
     const color = colorMap[type] || C.dim;
     console.log(`  ${color}[${type}]${C.reset} ${message}`);
@@ -87,7 +108,7 @@ function printEvent(type, message) {
 
 // ── HTTP helpers ────────────────────────────────────────────────────────────
 
-/** POST JSON and return parsed response. */
+/** POST JSON and return the parsed response. */
 async function postJson(path, body, timeoutMs = 60000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -108,14 +129,12 @@ async function postJson(path, body, timeoutMs = 60000) {
     }
 }
 
-/** GET JSON and return parsed response. */
+/** GET JSON and return the parsed response. */
 async function getJson(path, timeoutMs = 10000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        const resp = await fetch(`${BASE_URL}${path}`, {
-            signal: controller.signal,
-        });
+        const resp = await fetch(`${BASE_URL}${path}`, { signal: controller.signal });
         if (!resp.ok) {
             const text = await resp.text();
             throw new Error(`HTTP ${resp.status}: ${text.slice(0, 200)}`);
@@ -127,39 +146,104 @@ async function getJson(path, timeoutMs = 10000) {
 }
 
 
-// ── Step 1: List available models ───────────────────────────────────────────
+// ── Minimal SSE stream reader (no dependencies) ───────────────────────────────
 
+/**
+ * Read a `text/event-stream` response body and invoke `onEvent(dataObject)`
+ * for every event whose `data:` payload parses as JSON.
+ *
+ * ArtSmoker frames each event as one or more `data: <json>` lines followed by a
+ * blank line, and sends `: keepalive` comment lines between events. We buffer
+ * raw bytes, split on the blank-line delimiter, concatenate the `data:` lines
+ * of each block, and JSON-parse the result. Comment lines (starting with `:`)
+ * are ignored per the SSE spec.
+ */
+async function readSseStream(resp, onEvent) {
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    const flushBlocks = () => {
+        let idx;
+        // Events are separated by a blank line ("\n\n"); tolerate CRLF too.
+        while ((idx = buffer.search(/\r?\n\r?\n/)) !== -1) {
+            const match = buffer.slice(idx).match(/^\r?\n\r?\n/);
+            const block = buffer.slice(0, idx);
+            buffer = buffer.slice(idx + match[0].length);
+
+            const dataLines = [];
+            for (const line of block.split(/\r?\n/)) {
+                if (line.startsWith(':')) continue;          // comment / keepalive
+                if (line.startsWith('data:')) {
+                    dataLines.push(line.slice(5).replace(/^ /, ''));
+                }
+            }
+            if (dataLines.length === 0) continue;
+            const payload = dataLines.join('\n');
+            let parsed;
+            try {
+                parsed = JSON.parse(payload);
+            } catch {
+                continue;  // skip non-JSON frames
+            }
+            onEvent(parsed);
+        }
+    };
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        flushBlocks();
+    }
+    // Final decode + flush for any trailing bytes/block.
+    buffer += decoder.decode();
+    if (buffer && !/\r?\n\r?\n$/.test(buffer)) buffer += '\n\n';
+    flushBlocks();
+}
+
+
+// ── Step 1: List available models ─────────────────────────────────────────────
+
+/**
+ * Fetch available text-to-image models.
+ *
+ * GET /api/admin/models/image-options
+ * Response shape: { models: [ {key, label, provider, region, base_price_usd,
+ *                   region_pricing:[{region, price_usd, quality_prices}],
+ *                   model_source, supported_sizes, capabilities, ...} ],
+ *                   available_regions: [...] }
+ * NOTE: the payload is an OBJECT with a `models` array — not a bare array.
+ */
 async function listModels() {
-    /**
-     * Fetch available image generation models from the server.
-     *
-     * GET /api/admin/models/image-options returns the list of enabled
-     * text-to-image models with their metadata (label, region, pricing).
-     */
     printStep(1, 'Fetching available image models...');
-    const models = await getJson('/api/admin/models/image-options');
-    console.log(`  Found ${colored(String(models.length), C.green)} available models:`);
+    const data = await getJson('/api/admin/models/image-options');
+    const models = data.models || [];
+    console.log(`  Found ${colored(String(models.length), C.green)} available model(s):`);
     for (const m of models) {
         const key = m.key || '';
         const label = m.label || key;
         const region = m.region || '';
-        const price = m.base_price_usd || 0;
-        console.log(`    ${C.dim}-${C.reset} ${colored(key, C.bold)} (${label}) [${region}] ~$${price.toFixed(4)}/image`);
+        // base_price_usd may be null; fall back to the default region price.
+        const price = m.base_price_usd ?? m.region_pricing?.[0]?.price_usd ?? null;
+        const priceStr = price != null ? `~$${price.toFixed(4)}/image` : 'price n/a';
+        const source = m.model_source && m.model_source !== 'foundation' ? ` {${m.model_source}}` : '';
+        console.log(`    ${C.dim}-${C.reset} ${colored(key, C.bold)} (${label}) [${region}] ${priceStr}${source}`);
     }
     return models;
 }
 
 
-// ── Step 2: Classify asset type ─────────────────────────────────────────────
+// ── Step 2: Classify asset type ───────────────────────────────────────────────
 
+/**
+ * Auto-classify the ideal asset type for the prompt.
+ *
+ * POST /api/refine-prompt/classify-asset-type   body: {prompt, asset_type}
+ * Response (mismatch): {current, suggested, reason, confidence, mismatch:true}
+ * Response (ok):       {current, suggested, mismatch:false}
+ */
 async function classifyAssetType(prompt, currentType = 'photorealistic') {
-    /**
-     * Auto-classify the ideal asset type for the given prompt.
-     *
-     * POST /api/refine-prompt/classify-asset-type
-     * The server uses an LLM to determine whether the prompt better matches
-     * a different asset type (e.g., 'character' instead of 'game_asset').
-     */
     printStep(2, 'Classifying asset type...');
     const result = await postJson('/api/refine-prompt/classify-asset-type', {
         prompt,
@@ -172,23 +256,24 @@ async function classifyAssetType(prompt, currentType = 'photorealistic') {
         console.log(`  ${C.yellow}Suggestion:${C.reset} Switch from '${currentType}' to '${colored(suggested, C.green)}'`);
         console.log(`  ${C.dim}Reason: ${reason}${C.reset}`);
         return suggested;
-    } else {
-        console.log(`  Asset type '${colored(currentType, C.green)}' is appropriate for this prompt.`);
-        return currentType;
     }
+    console.log(`  Asset type '${colored(currentType, C.green)}' is appropriate for this prompt.`);
+    return currentType;
 }
 
 
-// ── Step 3: Decompose prompt ────────────────────────────────────────────────
+// ── Step 3: Decompose prompt ──────────────────────────────────────────────────
 
+/**
+ * Decompose the prompt into structured visual components.
+ *
+ * POST /api/refine-prompt/decompose   body: {prompt, asset_type, image_model}
+ * Response: sections (subject, scene, composition, lighting, style) whose
+ * fields are {value, source} where source is "user" or "inferred", plus a
+ * `_meta` block. This is provenance only — the default path does NOT feed it
+ * back into generation (see the optional `decomposed_data` field below).
+ */
 async function decomposePrompt(prompt, assetType, model = '') {
-    /**
-     * Decompose the user prompt into structured visual components.
-     *
-     * POST /api/refine-prompt/decompose
-     * Returns a JSON structure with editable fields: subject, scene,
-     * composition, lighting, style (including color palette with hex values).
-     */
     printStep(3, 'Decomposing prompt into visual components...');
     const result = await postJson('/api/refine-prompt/decompose', {
         prompt,
@@ -196,10 +281,9 @@ async function decomposePrompt(prompt, assetType, model = '') {
         image_model: model,
     }, 60000);
 
-    // Display the decomposed components
     for (const [sectionName, sectionData] of Object.entries(result)) {
-        if (sectionName.startsWith('_')) continue;  // Skip metadata
-        if (typeof sectionData !== 'object' || Array.isArray(sectionData)) continue;
+        if (sectionName.startsWith('_')) continue;  // Skip _meta
+        if (typeof sectionData !== 'object' || sectionData === null || Array.isArray(sectionData)) continue;
         console.log(`  ${colored(sectionName.toUpperCase(), C.magenta)}:`);
         for (const [fieldName, fieldData] of Object.entries(sectionData)) {
             if (typeof fieldData === 'object' && fieldData !== null && 'value' in fieldData) {
@@ -216,46 +300,70 @@ async function decomposePrompt(prompt, assetType, model = '') {
 }
 
 
-// ── Step 4: Generate images via SSE ─────────────────────────────────────────
+// ── Step 4: Generate images via SSE ────────────────────────────────────────────
 
+/**
+ * Generate images using the SSE streaming endpoint.
+ *
+ * POST /api/generate/stream  (returns text/event-stream)
+ *
+ * Event types actually emitted by the server (see backend/routers/generate.py):
+ *   - asset_type_suggestion : optional first event hinting a better asset_type
+ *   - started               : {batch_id, total, num_options, num_variations}
+ *   - stage                 : {stage, message}   (prompts, canary, generating, finalizing)
+ *   - prompts_ready         : {prompts:[...], negative_prompt, recomposed_prompt}
+ *   - image_done            : {option, variation, completed, total}  (a Bedrock image finished)
+ *   - async_submitted       : {option, variation, job_id, model_label}  (self-hosted job queued)
+ *   - image_error           : {option, variation, error}
+ *   - moderation_blocked     : {message, error}
+ *   - prompt_refused         : {reason, message}
+ *   - model_status           : per-task status (all-models runs only)
+ *   - complete               : {result: GenerationResult, all_models_summary?}  ← terminal
+ *   - error                  : {detail}  (fatal server error)
+ *
+ * (The doc names "option_complete"/"done" are aliases; we handle both.)
+ */
 async function generateImages(prompt, model, assetType, width = 1024, height = 1024, numOptions = 2, numVariations = 2) {
-    /**
-     * Generate images using the SSE streaming endpoint.
-     *
-     * POST /api/generate/stream
-     * The server sends Server-Sent Events with real-time progress:
-     *   - started:          Generation batch has begun
-     *   - stage:            Pipeline stage update (prompts, generating, etc.)
-     *   - prompts_ready:    Enhanced prompts are ready
-     *   - image_done:       A single image variant completed (Bedrock models)
-     *   - async_submitted:  Job submitted to SageMaker (custom models)
-     *   - complete:         All images done, includes full result
-     *   - error:            Something went wrong
-     */
     printStep(4, 'Generating images via SSE stream...');
 
-    // Build the generation request payload
+    // Build the generation request payload.
     const payload = {
         prompt,
         image_model: model,
         asset_type: assetType,
         width,
         height,
+        // Server default is 5 × 5 = 25 images. Keep it small for a quick sample run.
         num_options: numOptions,
         num_variations: numVariations,
-        // Reasonable defaults for API usage
+        // These two POST-PROCESSING flags default to TRUE server-side. Send them
+        // explicitly as FALSE so we get the raw generated PNG only (no background
+        // removal, no SVG vectorization) — faster and cheaper for a sample.
         remove_background: false,
         generate_svg: false,
+        // Creative upscale is off by default (extra cost); shown here for clarity.
         upscale: false,
+
+        // ── Optional newer fields (left at defaults for the simple path) ──
+        // region: null,                 // override the model's AWS region
+        // quality: '',                  // model-specific tier, e.g. "standard"/"premium"
+        // seed: null,                   // base seed for reproducible batches
+        // style_id: null,               // a saved style profile (GET /api/styles/)
+        // all_models: false,            // generate with EVERY enabled model
+        // selected_models: null,        // ["nova_canvas", "sd35_large", ...]
+        // model_optimized_prompts: false, // per-model prompt tailoring (multi-model only)
+        // decomposed_data: null,        // feed Step-3's structured breakdown back in
+        // Reference-guided generation (Reference Studio):
+        // reference_images: null,       // 1–3 base64-encoded PNG references
+        // reference_mode: 'inspired',   // 'match' (keep subject, needs an edit model) or
+        //                               // 'inspired' (vision-LLM composition guidance)
     };
 
     console.log(`  Payload: ${colored(JSON.stringify(payload, null, 2), C.dim)}`);
 
-    // Open the SSE connection.
-    // The /api/generate/stream endpoint returns text/event-stream.
     const resp = await fetch(`${BASE_URL}/api/generate/stream`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
         body: JSON.stringify(payload),
     });
 
@@ -263,189 +371,171 @@ async function generateImages(prompt, model, assetType, width = 1024, height = 1
         const text = await resp.text();
         throw new Error(`Generation failed: HTTP ${resp.status}: ${text.slice(0, 200)}`);
     }
+    if (!resp.body) {
+        throw new Error('Generation stream returned no body.');
+    }
 
     let resultData = null;
-    const asyncJobs = [];
     let batchId = null;
+    let fatalError = null;
+    const asyncJobs = [];
 
     console.log(`\n  ${C.bold}--- SSE Events ---${C.reset}`);
 
-    // Parse the SSE stream using eventsource-parser.
-    // Node.js fetch returns a ReadableStream (Web Streams API).
-    const parser = createParser({
-        onEvent(event) {
-            let data;
-            try {
-                data = JSON.parse(event.data);
-            } catch {
-                return;  // Skip malformed data
+    await readSseStream(resp, (data) => {
+        const eventType = data.type || 'unknown';
+        switch (eventType) {
+            case 'asset_type_suggestion': {
+                printEvent(eventType, `Consider asset type '${data.suggested || ''}' — ${data.reason || ''}`);
+                break;
             }
-
-            const eventType = data.type || 'unknown';
-
-            // Handle each event type
-            switch (eventType) {
-                case 'started': {
-                    batchId = data.batch_id || '';
-                    const total = data.total || 0;
-                    printEvent(eventType, `Batch ${batchId.slice(0, 8)}... - generating ${total} images`);
-                    break;
+            case 'started': {
+                batchId = data.batch_id || '';
+                printEvent(eventType, `Batch ${batchId.slice(0, 8)}... - generating ${data.total || 0} image(s)`);
+                break;
+            }
+            case 'stage': {
+                printEvent(eventType, `[${data.stage || ''}] ${data.message || ''}`);
+                break;
+            }
+            case 'prompts_ready': {
+                const prompts = data.prompts || [];
+                printEvent(eventType, `${prompts.length} enhanced prompt(s) ready`);
+                prompts.forEach((p, i) => {
+                    const display = p.length > 120 ? p.slice(0, 120) + '...' : p;
+                    console.log(`    ${C.dim}Prompt ${i + 1}: ${display}${C.reset}`);
+                });
+                if (data.negative_prompt) {
+                    console.log(`    ${C.dim}Negative: ${String(data.negative_prompt).slice(0, 100)}${C.reset}`);
                 }
-                case 'stage': {
-                    const stage = data.stage || '';
-                    const message = data.message || '';
-                    printEvent(eventType, `[${stage}] ${message}`);
-                    break;
+                break;
+            }
+            case 'image_done':
+            case 'option_complete': {
+                const opt = (data.option ?? data.option_index ?? 0) + 1;
+                const vari = (data.variation ?? data.variant_index ?? 0) + 1;
+                printEvent('image_done', `Option ${opt}, Variation ${vari} (${data.completed || 0}/${data.total || 0} complete)`);
+                break;
+            }
+            case 'async_submitted': {
+                const jobId = data.job_id || '';
+                if (jobId) asyncJobs.push(jobId);
+                printEvent(eventType, `Async job ${jobId.slice(0, 12)}... (${data.model_label || ''}) - will poll for completion`);
+                break;
+            }
+            case 'model_status': {
+                // Per-task status in all-models runs; keep it quiet unless it failed.
+                if (data.status && data.status !== 'success') {
+                    printEvent(eventType, `${data.model_label || data.model || ''}: ${data.status}`);
                 }
-                case 'prompts_ready': {
-                    const prompts = data.prompts || [];
-                    const negative = data.negative_prompt || '';
-                    printEvent(eventType, `${prompts.length} enhanced prompt(s) ready`);
-                    prompts.forEach((p, i) => {
-                        const display = p.length > 120 ? p.slice(0, 120) + '...' : p;
-                        console.log(`    ${C.dim}Prompt ${i + 1}: ${display}${C.reset}`);
-                    });
-                    if (negative) {
-                        console.log(`    ${C.dim}Negative: ${negative.slice(0, 100)}${C.reset}`);
-                    }
-                    break;
+                break;
+            }
+            case 'complete':
+            case 'done': {
+                resultData = data.result || data;
+                if (data.all_models_summary) {
+                    printEvent('complete', `All models: ${data.all_models_summary.summary || ''}`);
+                } else {
+                    const options = (resultData && resultData.options) || [];
+                    const totalImages = options.reduce((sum, o) => sum + (o.variants || []).length, 0);
+                    printEvent('complete', `Done! ${totalImages} image(s) generated`);
                 }
-                case 'image_done': {
-                    const opt = (data.option || 0) + 1;
-                    const vari = (data.variation || 0) + 1;
-                    const done = data.completed || 0;
-                    const total = data.total || 0;
-                    printEvent(eventType, `Option ${opt}, Variation ${vari} (${done}/${total} complete)`);
-                    break;
-                }
-                case 'async_submitted': {
-                    const jobId = data.job_id || '';
-                    const modelLabel = data.model_label || '';
-                    asyncJobs.push(jobId);
-                    printEvent(eventType, `Async job ${jobId.slice(0, 12)}... (${modelLabel}) - will poll for completion`);
-                    break;
-                }
-                case 'complete': {
-                    resultData = data.result || data;
-                    const summary = data.all_models_summary;
-                    if (summary) {
-                        printEvent(eventType, `All models: ${summary.summary || ''}`);
-                    } else {
-                        const options = resultData.options || [];
-                        const totalImages = options.reduce((sum, o) => sum + (o.variants || []).length, 0);
-                        printEvent(eventType, `Done! ${totalImages} images generated`);
-                    }
-                    break;
-                }
-                case 'error':
-                case 'image_error': {
-                    const error = data.detail || data.error || 'Unknown error';
-                    printEvent(eventType, colored(error, C.red));
-                    break;
-                }
-                case 'moderation_blocked': {
-                    const msg = data.message || 'Content moderation blocked this prompt';
-                    printEvent(eventType, colored(msg, C.red));
-                    break;
-                }
-                case 'prompt_refused': {
-                    const reason = data.reason || 'Prompt refused by the AI';
-                    printEvent(eventType, colored(reason, C.red));
-                    break;
-                }
-                default: {
-                    printEvent(eventType, JSON.stringify(data).slice(0, 200));
-                }
+                break;
+            }
+            case 'error':
+            case 'image_error': {
+                const err = data.detail || data.error || 'Unknown error';
+                printEvent(eventType, colored(err, C.red));
+                if (eventType === 'error') fatalError = String(err);
+                break;
+            }
+            case 'moderation_blocked': {
+                printEvent(eventType, colored(data.message || 'Content moderation blocked this generation', C.red));
+                break;
+            }
+            case 'prompt_refused': {
+                printEvent(eventType, colored(data.reason || 'Prompt refused by the AI', C.red));
+                break;
+            }
+            default: {
+                // Forward-compat: unknown event types (e.g. LLM retry notices) print raw.
+                printEvent(eventType, JSON.stringify(data).slice(0, 200));
             }
         }
     });
 
-    // Read the response body as a stream and feed it to the SSE parser.
-    // Node.js 18+ fetch returns a ReadableStream (Web Streams API).
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        // Decode the chunk and feed to the parser
-        const chunk = decoder.decode(value, { stream: true });
-        parser.feed(chunk);
-    }
-
     console.log(`  ${C.bold}--- End SSE ---${C.reset}\n`);
 
+    if (fatalError) throw new Error(fatalError);
     return { result: resultData, asyncJobs, batchId };
 }
 
 
-// ── Step 5: Poll for async job completion ───────────────────────────────────
+// ── Step 5: Poll for async job completion ──────────────────────────────────────
 
-async function pollAsyncJobs(jobIds, timeoutMs = 600000) {
-    /**
-     * Poll for async job completion (SageMaker custom models).
-     *
-     * GET /api/generate/async-jobs
-     * Returns all active and recent jobs with their statuses:
-     *   - pending:    Job submitted, waiting for result
-     *   - generating: Model is actively processing
-     *   - complete:   Image is ready in the gallery
-     *   - failed:     Job failed with an error
-     *
-     * Polls every 5 seconds until all jobs complete or timeout.
-     */
+/**
+ * Poll for async (self-hosted SageMaker) job completion.
+ *
+ * GET /api/generate/async-jobs → {jobs:[{job_id, status, asset_id, image_path,
+ *                                 model_label, error, queue_position, ...}],
+ *                                 pending_count, has_active}
+ * status is one of: "pending" | "generating" | "complete" | "failed".
+ * Polls every 10s until all tracked jobs finish or `timeoutMs` elapses.
+ */
+async function pollAsyncJobs(jobIds, timeoutMs = 900000) {
     if (jobIds.length === 0) return [];
 
     printStep(5, `Polling ${jobIds.length} async job(s)...`);
     const start = Date.now();
     const completedJobs = [];
-    const completedIds = new Set();
+    const settled = new Set();
 
     while (Date.now() - start < timeoutMs) {
-        const data = await getJson('/api/generate/async-jobs');
-        const jobs = data.jobs || [];
+        let jobs = [];
+        try {
+            const data = await getJson('/api/generate/async-jobs');
+            jobs = data.jobs || [];
+        } catch (e) {
+            console.log(`  ${C.yellow}Poll error (will retry): ${e.message}${C.reset}`);
+        }
 
-        let pending = 0;
         for (const jid of jobIds) {
+            if (settled.has(jid)) continue;
             const job = jobs.find(j => j.job_id === jid);
             if (!job) continue;
 
-            if (job.status === 'complete' && !completedIds.has(jid)) {
-                completedIds.add(jid);
+            if (job.status === 'complete') {
+                settled.add(jid);
                 completedJobs.push(job);
                 console.log(`  ${C.green}Job ${jid.slice(0, 12)}... completed! Asset: ${job.asset_id || ''}${C.reset}`);
             } else if (job.status === 'failed') {
-                if (!completedIds.has(jid)) {
-                    completedIds.add(jid);
-                    completedJobs.push(job);
-                    console.log(`  ${C.red}Job ${jid.slice(0, 12)}... failed: ${job.error || 'Unknown'}${C.reset}`);
-                }
+                settled.add(jid);
+                completedJobs.push(job);
+                console.log(`  ${C.red}Job ${jid.slice(0, 12)}... failed: ${job.error || 'Unknown'}${C.reset}`);
             } else {
-                pending++;
                 const elapsed = Math.round((Date.now() - start) / 1000);
-                console.log(`  ${C.dim}Job ${jid.slice(0, 12)}... status: ${job.status} (${elapsed}s elapsed)${C.reset}`);
+                const pos = job.queue_position ? ` queue #${job.queue_position}` : '';
+                console.log(`  ${C.dim}Job ${jid.slice(0, 12)}... status: ${job.status}${pos} (${elapsed}s elapsed)${C.reset}`);
             }
         }
 
-        if (pending === 0) break;
-
-        // Wait 5 seconds before next poll
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        if (settled.size >= jobIds.length) break;
+        await new Promise(resolve => setTimeout(resolve, 10000));
     }
 
     return completedJobs;
 }
 
 
-// ── Step 6: Download completed images ───────────────────────────────────────
+// ── Step 6: Download completed images ──────────────────────────────────────────
 
+/**
+ * Download generated images from the gallery.
+ *
+ * GET /api/gallery/{asset_id}/png → PNG bytes.
+ * Saves each image under `outputDir` with a descriptive, sanitized filename.
+ */
 async function downloadImages(result, outputDir = 'output') {
-    /**
-     * Download generated images from the gallery.
-     *
-     * GET /api/gallery/{asset_id}/png
-     * Saves each image to the output directory with a descriptive filename.
-     */
     if (!result) {
         console.log(`  ${C.yellow}No result data to download.${C.reset}`);
         return [];
@@ -463,38 +553,33 @@ async function downloadImages(result, outputDir = 'output') {
 
     for (const option of options) {
         const optIdx = option.option_index || 0;
-        const variants = option.variants || [];
-
-        for (const variant of variants) {
+        for (const variant of (option.variants || [])) {
             const assetId = variant.id || '';
             const pngPath = variant.png_path || '';
             const varIdx = variant.variant_index || 0;
 
-            // Skip async jobs that haven't completed yet
+            // Async job that hasn't produced a file yet (should have been resolved
+            // by polling in main(); skip defensively).
             if (variant.async_job && !pngPath) {
                 console.log(`  ${C.dim}Skipping opt${optIdx + 1}_var${varIdx + 1} (async pending)${C.reset}`);
                 continue;
             }
-
             if (!assetId || !pngPath) continue;
 
-            // Download the PNG
-            const url = `${BASE_URL}${pngPath}`;
+            const url = pngPath.startsWith('http') ? pngPath : `${BASE_URL}${pngPath}`;
             try {
                 const resp = await fetch(url);
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
                 const buffer = Buffer.from(await resp.arrayBuffer());
-                // Sanitize the server-provided asset id so it can't traverse outside outputDir
+                // Sanitize the server-provided asset id so it can't traverse outside outputDir.
                 const safeAssetId = String(assetId).replace(/[^a-zA-Z0-9_-]/g, '_');
                 const filename = `opt${optIdx + 1}_var${varIdx + 1}_${safeAssetId}.png`;
                 // nosemgrep -- filename is sanitized (alnum/_/- only) and joined under the fixed outputDir
                 const filepath = join(outputDir, filename);
                 // nosemgrep -- writing a downloaded image to the sanitized path under outputDir
                 writeFileSync(filepath, buffer);
-                const sizeKb = (buffer.length / 1024).toFixed(1);
                 downloaded.push(filepath);
-                console.log(`  ${C.green}Saved:${C.reset} ${filepath} (${sizeKb} KB)`);
+                console.log(`  ${C.green}Saved:${C.reset} ${filepath} (${(buffer.length / 1024).toFixed(1)} KB)`);
             } catch (e) {
                 console.log(`  ${C.red}Failed to download ${assetId}: ${e.message}${C.reset}`);
             }
@@ -510,39 +595,29 @@ async function downloadImages(result, outputDir = 'output') {
 function printSummary(result, downloaded, asyncJobs, elapsedMs) {
     printHeader('Generation Summary');
 
-    if (!result) {
+    if (!result || !result.id) {
         console.log(`  ${C.red}No results produced.${C.reset}`);
         return;
     }
 
-    const batchId = result.id || '';
-    const prompt = result.prompt || '';
-    const model = result.image_model || '';
     const options = result.options || [];
     const totalImages = options.reduce((sum, o) => sum + (o.variants || []).length, 0);
     const cost = result.total_cost_usd || 0;
-    const elapsed = (elapsedMs / 1000).toFixed(1);
 
-    console.log(`  Batch ID:    ${colored(batchId.slice(0, 16) + '...', C.cyan)}`);
-    console.log(`  Prompt:      ${prompt.slice(0, 80)}${prompt.length > 80 ? '...' : ''}`);
-    console.log(`  Model:       ${colored(model, C.bold)}`);
+    console.log(`  Batch ID:    ${colored((result.id || '').slice(0, 16) + '...', C.cyan)}`);
+    console.log(`  Prompt:      ${(result.prompt || '').slice(0, 80)}${(result.prompt || '').length > 80 ? '...' : ''}`);
+    console.log(`  Model:       ${colored(result.image_model || '', C.bold)}`);
     console.log(`  Dimensions:  ${result.width || '?'}x${result.height || '?'}`);
     console.log(`  Options:     ${options.length}`);
     console.log(`  Total imgs:  ${colored(String(totalImages), C.green)}`);
     console.log(`  Downloaded:  ${downloaded.length} file(s)`);
-    if (asyncJobs.length > 0) {
-        console.log(`  Async jobs:  ${asyncJobs.length}`);
-    }
-    if (cost) {
-        console.log(`  Est. cost:   ${colored(`~$${cost.toFixed(4)}`, C.yellow)}`);
-    }
-    console.log(`  Elapsed:     ${elapsed}s`);
+    if (asyncJobs.length > 0) console.log(`  Async jobs:  ${asyncJobs.length}`);
+    if (cost) console.log(`  Est. cost:   ${colored(`~$${cost.toFixed(4)}`, C.yellow)}`);
+    console.log(`  Elapsed:     ${(elapsedMs / 1000).toFixed(1)}s`);
 
     if (downloaded.length > 0) {
         console.log(`\n  ${C.bold}Output files:${C.reset}`);
-        for (const fp of downloaded) {
-            console.log(`    ${C.dim}${fp}${C.reset}`);
-        }
+        for (const fp of downloaded) console.log(`    ${C.dim}${fp}${C.reset}`);
     }
 }
 
@@ -580,8 +655,8 @@ Options:
   --asset-type TYPE       photorealistic|game_asset|character|environment|icon|marketing_banner
   --width N               Image width (default: 1024)
   --height N              Image height (default: 1024)
-  --options N             Number of concept options 1-5 (default: 2)
-  --variations N          Number of seed variations 1-5 (default: 2)
+  --options N             Number of concept options 1-5 (default: 2; server default is 5)
+  --variations N          Number of seed variations 1-5 (default: 2; server default is 5)
   --output DIR            Output directory (default: output)
   --skip-classify         Skip asset type classification
   --skip-decompose        Skip prompt decomposition
@@ -594,14 +669,20 @@ Examples:
         process.exit(0);
     }
 
+    const clamp = (n, lo, hi, dflt) => {
+        const v = parseInt(n, 10);
+        if (Number.isNaN(v)) return dflt;
+        return Math.min(hi, Math.max(lo, v));
+    };
+
     return {
         prompt:         values.prompt || null,
         model:          values.model || null,
         assetType:      values['asset-type'] || 'photorealistic',
-        width:          parseInt(values.width) || 1024,
-        height:         parseInt(values.height) || 1024,
-        numOptions:     parseInt(values.options) || 2,
-        numVariations:  parseInt(values.variations) || 2,
+        width:          parseInt(values.width, 10) || 1024,
+        height:         parseInt(values.height, 10) || 1024,
+        numOptions:     clamp(values.options, 1, 5, 2),
+        numVariations:  clamp(values.variations, 1, 5, 2),
         outputDir:      values.output || 'output',
         skipClassify:   values['skip-classify'] || false,
         skipDecompose:  values['skip-decompose'] || false,
@@ -614,7 +695,6 @@ Examples:
 function readLine(question) {
     return new Promise(resolve => {
         process.stdout.write(question);
-        let input = '';
         process.stdin.setEncoding('utf8');
         process.stdin.resume();
         process.stdin.once('data', data => {
@@ -633,7 +713,7 @@ async function main() {
     printHeader('ArtSmoker Image Generation');
     console.log(`  Server: ${colored(BASE_URL, C.cyan)}`);
 
-    // Check server connectivity
+    // Check server connectivity.
     try {
         await getJson('/api/admin/models/image-options');
     } catch (e) {
@@ -647,37 +727,34 @@ async function main() {
 
     const startTime = Date.now();
 
-    // Step 1: List models and select one
+    // Step 1: List models.
     const models = await listModels();
     if (models.length === 0) {
         console.log(`  ${C.red}No models available. Check your ArtSmoker configuration.${C.reset}`);
         process.exit(1);
     }
 
-    // Select model
+    // Select model.
     let modelKey = args.model;
     if (!modelKey) {
+        const defaultKey = models[0]?.key || 'nova_canvas';
         if (!args.prompt) {
-            // Interactive model selection
-            const defaultKey = models[0]?.key || 'nova_canvas';
             const input = await readLine(`\n  Enter model key (or press Enter for '${defaultKey}'):\n  ${C.cyan}>${C.reset} `);
             modelKey = input || defaultKey;
         } else {
-            modelKey = models[0]?.key || 'nova_canvas';
+            modelKey = defaultKey;
         }
     }
 
-    // Validate model key
     const validKeys = models.map(m => m.key || '');
     if (!validKeys.includes(modelKey)) {
         console.log(`\n  ${C.red}Unknown model: '${modelKey}'${C.reset}`);
         console.log(`  Available: ${validKeys.join(', ')}`);
         process.exit(1);
     }
-
     console.log(`\n  Using model: ${colored(modelKey, C.green)}`);
 
-    // Get prompt
+    // Get prompt.
     let prompt = args.prompt;
     if (!prompt) {
         prompt = await readLine(`\n  Enter your image prompt:\n  ${C.cyan}>${C.reset} `);
@@ -689,7 +766,7 @@ async function main() {
 
     let assetType = args.assetType;
 
-    // Step 2: Classify asset type (optional)
+    // Step 2: Classify asset type (optional).
     if (!args.skipClassify) {
         try {
             assetType = await classifyAssetType(prompt, assetType);
@@ -698,7 +775,7 @@ async function main() {
         }
     }
 
-    // Step 3: Decompose prompt (optional)
+    // Step 3: Decompose prompt (optional — provenance/preview only).
     if (!args.skipDecompose) {
         try {
             await decomposePrompt(prompt, assetType, modelKey);
@@ -707,7 +784,7 @@ async function main() {
         }
     }
 
-    // Step 4: Generate images
+    // Step 4: Generate images.
     let genResult;
     try {
         genResult = await generateImages(
@@ -723,36 +800,30 @@ async function main() {
     const resultData = genResult.result;
     const asyncJobs = genResult.asyncJobs;
 
-    // Step 5: Poll async jobs if any (custom/SageMaker models)
+    // Step 5: Poll async jobs if any (self-hosted / SageMaker models).
     if (asyncJobs.length > 0) {
-        const completed = await pollAsyncJobs(asyncJobs, 600000);
-        // Update result with completed async job asset IDs
+        const completed = await pollAsyncJobs(asyncJobs);
+        // Resolve each completed job's asset back onto its variant so it downloads.
         if (completed.length > 0 && resultData) {
             for (const option of (resultData.options || [])) {
                 for (const variant of (option.variants || [])) {
-                    if (variant.async_job) {
-                        const jobId = variant.async_job.job_id || '';
-                        const comp = completed.find(
-                            j => j.job_id === jobId && j.status === 'complete'
-                        );
-                        if (comp) {
-                            variant.id = comp.asset_id || '';
-                            variant.png_path = `/api/gallery/${variant.id}/png`;
-                        }
+                    const jobId = variant.async_job?.job_id;
+                    if (!jobId) continue;
+                    const comp = completed.find(j => j.job_id === jobId && j.status === 'complete');
+                    if (comp) {
+                        variant.id = comp.asset_id || variant.id;
+                        variant.png_path = comp.image_path || `/api/gallery/${variant.id}/png`;
                     }
                 }
             }
         }
     }
 
-    // Step 6: Download images
-    const downloaded = resultData
-        ? await downloadImages(resultData, args.outputDir)
-        : [];
+    // Step 6: Download images.
+    const downloaded = resultData ? await downloadImages(resultData, args.outputDir) : [];
 
-    // Summary
-    const elapsed = Date.now() - startTime;
-    printSummary(resultData || {}, downloaded, asyncJobs, elapsed);
+    // Summary.
+    printSummary(resultData || {}, downloaded, asyncJobs, Date.now() - startTime);
 }
 
 main().catch(e => {

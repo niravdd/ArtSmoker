@@ -44,9 +44,11 @@ All endpoints are REST (JSON). The generation endpoint uses Server-Sent Events (
    ├── event: started          → batch_id, total count
    ├── event: stage            → pipeline progress
    ├── event: prompts_ready    → enhanced prompts
-   ├── event: option_complete  → image ready (Bedrock)
-   ├── event: async_submitted  → job queued (SageMaker)
-   └── event: done             → summary
+   ├── event: image_done       → one image ready (Bedrock, inline)
+   ├── event: model_status     → per-model status (multi-model runs)
+   ├── event: async_submitted  → job queued (SageMaker — poll separately)
+   ├── event: image_error / moderation_blocked / prompt_refused → per-image issue
+   └── event: complete         → final summary
 5. GET  /api/generate/async-jobs            → Poll async jobs (SageMaker only)
 6. GET  /api/gallery/{asset_id}/png         → Download generated image
 ```
@@ -89,14 +91,17 @@ Content-Type: application/json
 {"prompt": "A woman standing at a rainy intersection at night"}
 ```
 
-Response:
+Response (the endpoint suggests a change only when it differs from `current` with high/medium confidence):
 ```json
 {
-  "recommended": "photorealistic",
-  "reason": "Real-world scene with a person, no art style mentioned",
-  "confidence": "high"
+  "current": "photorealistic",
+  "suggested": "character",
+  "reason": "A single figure is the clear subject",
+  "confidence": "high",
+  "mismatch": true
 }
 ```
+The field is **`suggested`** (not `recommended`). Use it as the `asset_type` for the next steps.
 
 Asset types: `photorealistic`, `character`, `environment`, `game_asset`, `marketing_banner`, `icon`
 
@@ -143,12 +148,15 @@ Content-Type: application/json
 
 Response: Server-Sent Events stream. Parse each `data:` line as JSON.
 
-Key events:
+Key events (these are the names the backend actually emits — it does **not** send `option_complete` or `done`):
 - `{"type": "started", "batch_id": "uuid", "total": 4}` — generation begun
 - `{"type": "prompts_ready", "prompts": ["enhanced prompt 1", ...]}` — AI-enhanced prompts
-- `{"type": "option_complete", "option_index": 0, "variant_index": 0, "asset_id": "uuid_o0_v0", "status": "success"}` — image ready
-- `{"type": "async_submitted", "option_index": 0, "variant_index": 0, "job_id": "abc123"}` — SageMaker job queued
-- `{"type": "done", "summary": {"total": 4, "succeeded": 4, "failed": 0}}` — all done
+- `{"type": "image_done", "option": 0, "variation": 0, "asset_id": "uuid_o0_v0"}` — a Bedrock image is ready inline
+- `{"type": "model_status", ...}` — per-model status in an all-models / multi-model run
+- `{"type": "async_submitted", "job_id": "abc123", "model_label": "..."}` — a SageMaker job was queued → poll `/api/generate/async-jobs`
+- `{"type": "image_error" | "moderation_blocked" | "prompt_refused", ...}` — a per-image problem (generation continues)
+- `{"type": "complete", "result": {...}, "all_models_summary": {...}}` — final summary
+- `{"type": "error", "detail": "..."}` — a fatal stream error (stop)
 
 ### 5. Poll Async Jobs (SageMaker models only)
 
@@ -164,13 +172,16 @@ Response:
       "job_id": "abc123",
       "status": "generating",
       "model_label": "HunyuanImage 3.0...",
-      "image_path": "/api/gallery/uuid_o0_v0/png"
+      "image_path": "/api/gallery/uuid_o0_v0/png",
+      "queue_position": 0
     }
-  ]
+  ],
+  "pending_count": 1,
+  "has_active": true
 }
 ```
 
-Poll every 10-15 seconds until all jobs are `complete` or `failed`.
+Status values: `pending` → `generating` → `complete` (or `failed`). Poll every 10–15 seconds until `has_active` is false (or all jobs are `complete`/`failed`). Download a finished job's image from its `image_path`.
 
 ### 6. Download Image
 

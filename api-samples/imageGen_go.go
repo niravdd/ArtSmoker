@@ -1,26 +1,46 @@
 // ArtSmoker Image Generation — Go API Sample
 // =============================================
 //
-// Demonstrates the full ArtSmoker image generation pipeline:
+// A self-contained, end-to-end client for the ArtSmoker image-generation API.
+// It drives the full pipeline and saves the finished PNGs to disk:
+//
 //   1. List available models          GET  /api/admin/models/image-options
-//   2. Classify asset type            POST /api/refine-prompt/classify-asset-type
-//   3. Decompose the prompt           POST /api/refine-prompt/decompose
+//   2. Classify asset type (optional) POST /api/refine-prompt/classify-asset-type
+//   3. Decompose the prompt (optional) POST /api/refine-prompt/decompose
 //   4. Generate images via SSE        POST /api/generate/stream
 //   5. Poll for async job completion   GET  /api/generate/async-jobs
 //   6. Download completed images      GET  /api/gallery/{asset_id}/png
 //
+// Sync vs async: Amazon Bedrock models return images inline over the SSE
+// stream (event "image_done"). Self-hosted SageMaker models return
+// "async_submitted" and finish in the background — this sample then polls
+// /api/generate/async-jobs until each job is "complete" or "failed" before
+// downloading.
+//
 // Prerequisites:
-//   - Go 1.21+
-//   - No external dependencies (uses stdlib only)
-//   - ArtSmoker server running at http://localhost:8000
+//   - Go 1.21+ (uses the built-in min())
+//   - No external dependencies — Go standard library only
+//   - A running ArtSmoker server (default: http://localhost:8000) with at
+//     least one image model enabled. Bedrock models work out of the box with
+//     valid AWS credentials; custom SageMaker models must be deployed first.
 //
 // How to run:
 //   go run imageGen_go.go
 //   go run imageGen_go.go -prompt "a medieval castle on a cliff" -model nova_canvas
 //   go run imageGen_go.go -prompt "a cyberpunk warrior" -width 1024 -height 1024 -options 2 -variations 2
 //
-// Full API docs:     http://localhost:8000/docs
-// Detailed spec:     See SPEC.md in the project root
+// Cost note: num_options × num_variations = the number of images per model, and
+// each image is a billed model call. The server DEFAULTS both to 5 (25 images).
+// This sample defaults to 2 × 2 = 4 images so a test run stays quick and cheap.
+//
+// Post-processing note: the server DEFAULTS remove_background AND generate_svg to
+// TRUE. This sample sends both as false to keep the raw generated image (see the
+// GenerationRequest struct — the booleans are deliberately NOT `omitempty`, so a
+// false value is actually transmitted rather than silently dropped).
+//
+// Full API docs:     http://localhost:8000/docs   (live Swagger — source of truth)
+// Detailed spec:     SPEC.md in the project root
+// Skill / contract:  api-samples/skill.md
 //
 // Environment:
 //   ARTSMOKER_URL — base URL (default: http://localhost:8000)
@@ -82,16 +102,18 @@ func printStep(step int, description string) {
 
 func printEvent(eventType, message string) {
 	colorMap := map[string]string{
-		"started":         colorGreen,
-		"stage":           colorYellow,
-		"prompts_ready":   colorMagenta,
-		"image_done":      colorGreen,
-		"option_complete": colorGreen,
-		"async_submitted": colorCyan,
-		"done":            colorGreen,
-		"complete":        colorGreen,
-		"error":           colorRed,
-		"image_error":     colorRed,
+		"started":               colorGreen,
+		"stage":                 colorYellow,
+		"prompts_ready":         colorMagenta,
+		"image_done":            colorGreen,
+		"model_status":          colorGreen,
+		"async_submitted":       colorCyan,
+		"asset_type_suggestion": colorYellow,
+		"complete":              colorGreen,
+		"error":                 colorRed,
+		"image_error":           colorRed,
+		"moderation_blocked":    colorRed,
+		"prompt_refused":        colorRed,
 	}
 	color, ok := colorMap[eventType]
 	if !ok {
@@ -100,12 +122,20 @@ func printEvent(eventType, message string) {
 	fmt.Printf("  %s[%s]%s %s\n", color, eventType, colorReset, message)
 }
 
+// truncate shortens a string for display (rune-safe enough for logging).
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
+}
+
 // ── HTTP helpers ────────────────────────────────────────────────────────────
 
 var httpClient = &http.Client{Timeout: 60 * time.Second}
 
 // postJSON sends a POST request with a JSON body and decodes the response.
-func postJSON(path string, body interface{}, result interface{}) error {
+func postJSON(path string, body, result interface{}) error {
 	payload, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
@@ -117,7 +147,7 @@ func postJSON(path string, body interface{}, result interface{}) error {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes[:min(len(bodyBytes), 200)]))
+		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes[:min(len(bodyBytes), 400)]))
 	}
 	return json.NewDecoder(resp.Body).Decode(result)
 }
@@ -131,45 +161,63 @@ func getJSON(path string, result interface{}) error {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes[:min(len(bodyBytes), 200)]))
+		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes[:min(len(bodyBytes), 400)]))
 	}
 	return json.NewDecoder(resp.Body).Decode(result)
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // ── Step 1: List available models ───────────────────────────────────────────
 
-// Model represents a model entry from /api/admin/models/image-options.
+// Model is one entry from /api/admin/models/image-options → "models".
 type Model struct {
-	Key          string  `json:"key"`
-	Label        string  `json:"label"`
-	Region       string  `json:"region"`
-	BasePriceUSD float64 `json:"base_price_usd"`
+	Key         string `json:"key"`
+	Label       string `json:"label"`
+	Provider    string `json:"provider"`
+	Region      string `json:"region"` // default (cheapest known) region
+	ModelSource string `json:"model_source"`
+	// base_price_usd may be null in the registry ("pricing unavailable"), so it
+	// is a pointer — nil means no price is known (never assume $0).
+	BasePriceUSD *float64 `json:"base_price_usd"`
+}
+
+// imageOptionsResponse is the ACTUAL envelope returned by the endpoint.
+// NOTE: the endpoint returns an object {"models": [...], "available_regions": [...]},
+// NOT a bare JSON array — decode into this wrapper, not into []Model directly.
+type imageOptionsResponse struct {
+	Models           []Model  `json:"models"`
+	AvailableRegions []string `json:"available_regions"`
+}
+
+func fetchModels() ([]Model, error) {
+	var resp imageOptionsResponse
+	if err := getJSON("/api/admin/models/image-options", &resp); err != nil {
+		return nil, err
+	}
+	return resp.Models, nil
 }
 
 func listModels() ([]Model, error) {
-	// GET /api/admin/models/image-options returns the list of enabled
-	// text-to-image models with their metadata (label, region, pricing).
 	printStep(1, "Fetching available image models...")
-	var models []Model
-	if err := getJSON("/api/admin/models/image-options", &models); err != nil {
+	models, err := fetchModels()
+	if err != nil {
 		return nil, err
 	}
 	fmt.Printf("  Found %s available models:\n", colored(fmt.Sprintf("%d", len(models)), colorGreen))
 	for _, m := range models {
-		key := m.Key
 		label := m.Label
 		if label == "" {
-			label = key
+			label = m.Key
 		}
-		fmt.Printf("    %s- %s%s (%s) [%s] ~$%.4f/image\n",
-			colorDim, colorReset, colored(key, colorBold), label, m.Region, m.BasePriceUSD)
+		price := "price n/a"
+		if m.BasePriceUSD != nil {
+			price = fmt.Sprintf("~$%.4f/image", *m.BasePriceUSD)
+		}
+		source := m.ModelSource
+		if source == "" {
+			source = "foundation"
+		}
+		fmt.Printf("    %s-%s %s (%s) [%s | %s] %s\n",
+			colorDim, colorReset, colored(m.Key, colorBold), label, m.Region, source, price)
 	}
 	return models, nil
 }
@@ -177,26 +225,34 @@ func listModels() ([]Model, error) {
 // ── Step 2: Classify asset type ─────────────────────────────────────────────
 
 func classifyAssetType(prompt, currentType string) (string, error) {
-	// POST /api/refine-prompt/classify-asset-type
-	// The server uses an LLM to determine whether the prompt better matches
-	// a different asset type (e.g., 'character' instead of 'game_asset').
+	// POST /api/refine-prompt/classify-asset-type (body: PromptRefineRequest).
+	// An LLM decides whether the prompt better matches a different asset type.
+	// Response when it disagrees:
+	//   {"current","suggested","reason","confidence","mismatch": true}
+	// Response when the current type is fine:
+	//   {"current","suggested","mismatch": false}
 	printStep(2, "Classifying asset type...")
 	reqBody := map[string]string{
 		"prompt":     prompt,
 		"asset_type": currentType,
 	}
-	var result map[string]interface{}
+	var result struct {
+		Current   string `json:"current"`
+		Suggested string `json:"suggested"`
+		Reason    string `json:"reason"`
+		Mismatch  bool   `json:"mismatch"`
+	}
 	if err := postJSON("/api/refine-prompt/classify-asset-type", reqBody, &result); err != nil {
 		return currentType, err
 	}
 
-	if mismatch, ok := result["mismatch"].(bool); ok && mismatch {
-		suggested := fmt.Sprintf("%v", result["suggested"])
-		reason := fmt.Sprintf("%v", result["reason"])
+	if result.Mismatch && result.Suggested != "" {
 		fmt.Printf("  %sSuggestion:%s Switch from '%s' to '%s'\n",
-			colorYellow, colorReset, currentType, colored(suggested, colorGreen))
-		fmt.Printf("  %sReason: %s%s\n", colorDim, reason, colorReset)
-		return suggested, nil
+			colorYellow, colorReset, currentType, colored(result.Suggested, colorGreen))
+		if result.Reason != "" {
+			fmt.Printf("  %sReason: %s%s\n", colorDim, result.Reason, colorReset)
+		}
+		return result.Suggested, nil
 	}
 	fmt.Printf("  Asset type '%s' is appropriate for this prompt.\n", colored(currentType, colorGreen))
 	return currentType, nil
@@ -205,9 +261,10 @@ func classifyAssetType(prompt, currentType string) (string, error) {
 // ── Step 3: Decompose prompt ────────────────────────────────────────────────
 
 func decomposePrompt(prompt, assetType, model string) (map[string]interface{}, error) {
-	// POST /api/refine-prompt/decompose
-	// Returns a JSON structure with editable fields: subject, scene,
-	// composition, lighting, style (including color palette with hex values).
+	// POST /api/refine-prompt/decompose (body: prompt, asset_type, image_model,
+	// style_id). Returns structured sections (subject, scene, composition,
+	// lighting, style) plus a "_meta" translation block. Each field is
+	// {value, source} where source is "user" or "inferred".
 	printStep(3, "Decomposing prompt into visual components...")
 	reqBody := map[string]string{
 		"prompt":      prompt,
@@ -219,10 +276,10 @@ func decomposePrompt(prompt, assetType, model string) (map[string]interface{}, e
 		return nil, err
 	}
 
-	// Display the decomposed components
+	// Display the decomposed components (skip "_meta" and other underscore keys).
 	for sectionName, sectionRaw := range result {
 		if strings.HasPrefix(sectionName, "_") {
-			continue // Skip metadata
+			continue
 		}
 		sectionData, ok := sectionRaw.(map[string]interface{})
 		if !ok {
@@ -251,21 +308,73 @@ func decomposePrompt(prompt, assetType, model string) (map[string]interface{}, e
 
 // ── Step 4: Generate images via SSE ─────────────────────────────────────────
 
-// GenerationResult holds the full result from the generation pipeline.
+// GenerationRequest mirrors backend/models/generation_request.py.
+//
+// Struct-tag discipline (READ THIS before adding fields):
+//   - Booleans the server defaults to TRUE (remove_background, generate_svg)
+//     must NOT use `omitempty` — otherwise a false value is dropped from the
+//     JSON and the server silently re-enables the default. They are sent
+//     unconditionally here.
+//   - Truly optional fields use pointers + `omitempty` so they are sent ONLY
+//     when set, letting the server apply its own defaults otherwise.
+type GenerationRequest struct {
+	Prompt        string `json:"prompt"`
+	ImageModel    string `json:"image_model"`
+	AssetType     string `json:"asset_type"`
+	Width         int    `json:"width"`
+	Height        int    `json:"height"`
+	NumOptions    int    `json:"num_options"`    // 1–5; server default 5
+	NumVariations int    `json:"num_variations"` // 1–5; server default 5
+
+	// Post-processing — sent explicitly (no omitempty) so `false` is transmitted.
+	RemoveBackground bool `json:"remove_background"` // server default TRUE
+	GenerateSVG      bool `json:"generate_svg"`      // server default TRUE
+	Upscale          bool `json:"upscale"`           // server default false (extra cost)
+
+	// Optional — only encoded when set.
+	Seed    *int64  `json:"seed,omitempty"`    // base seed 0…2^31-1 (nil = server-random)
+	Quality *string `json:"quality,omitempty"` // model-specific tier, e.g. "standard"
+	Region  *string `json:"region,omitempty"`  // override the model's AWS region
+
+	// Multi-model generation (leave zero/nil for the simple single-model path).
+	// Set AllModels=true to fan out across every enabled model, or list specific
+	// keys in SelectedModels. ModelOptimizedPrompts tailors the enhanced prompt
+	// per model — only meaningful with AllModels/SelectedModels.
+	AllModels             bool     `json:"all_models,omitempty"`
+	SelectedModels        []string `json:"selected_models,omitempty"`
+	ModelOptimizedPrompts bool     `json:"model_optimized_prompts,omitempty"`
+
+	// Reference-guided generation (advanced — omitted on the default path). To
+	// use it, supply 1–3 base64-encoded PNGs in ReferenceImages and set
+	// ReferenceMode to "inspired" (vision-LLM writes a prompt, any text-to-image
+	// model renders), "match" (pixel-faithful edit via a deployed edit model), or
+	// "remix" (Stability image-to-image at a strength ladder).
+	ReferenceImages []string `json:"reference_images,omitempty"`
+	ReferenceMode   string   `json:"reference_mode,omitempty"`
+}
+
+// GenerationResult mirrors backend/models/generation_result.py (the payload of
+// the SSE "complete" event, under "result").
 type GenerationResult struct {
-	ID           string                   `json:"id"`
-	Prompt       string                   `json:"prompt"`
-	ImageModel   string                   `json:"image_model"`
-	Width        int                      `json:"width"`
-	Height       int                      `json:"height"`
-	Options      []OptionResult           `json:"options"`
-	TotalCostUSD float64                  `json:"total_cost_usd"`
+	ID           string         `json:"id"` // batch_id
+	Prompt       string         `json:"prompt"`
+	ImageModel   string         `json:"image_model"` // "all_models" in multi-model mode
+	AssetType    string         `json:"asset_type"`
+	Width        int            `json:"width"`
+	Height       int            `json:"height"`
+	AllModels    bool           `json:"all_models"`
+	Options      []OptionResult `json:"options"`
+	BlockedCount int            `json:"blocked_count"`
+	TotalCostUSD float64        `json:"total_cost_usd"`
 }
 
 // OptionResult holds a single concept option with its variants.
 type OptionResult struct {
 	OptionIndex    int             `json:"option_index"`
 	EnhancedPrompt string          `json:"enhanced_prompt"`
+	ImageModel     string          `json:"image_model"`
+	ModelLabel     string          `json:"model_label"`
+	Status         string          `json:"status"` // "success" | "moderation_blocked" | "error"
 	Variants       []VariantResult `json:"variants"`
 }
 
@@ -273,7 +382,7 @@ type OptionResult struct {
 type VariantResult struct {
 	ID           string                 `json:"id"`
 	VariantIndex int                    `json:"variant_index"`
-	PNGPath      string                 `json:"png_path"`
+	PNGPath      string                 `json:"png_path"` // "" while an async job is pending
 	AsyncJob     map[string]interface{} `json:"async_job"`
 }
 
@@ -284,33 +393,20 @@ type GenOutput struct {
 	BatchID   string
 }
 
-func generateImages(prompt, model, assetType string, width, height, numOptions, numVariations int) (*GenOutput, error) {
-	// POST /api/generate/stream
-	// The server sends Server-Sent Events with real-time progress.
-	// We parse the SSE stream manually since Go stdlib doesn't include an SSE client.
+func generateImages(req GenerationRequest) (*GenOutput, error) {
+	// POST /api/generate/stream returns text/event-stream. The Go standard
+	// library has no SSE client, so we parse the stream by hand below.
 	printStep(4, "Generating images via SSE stream...")
 
-	// Build the generation request payload
-	payload := map[string]interface{}{
-		"prompt":            prompt,
-		"image_model":       model,
-		"asset_type":        assetType,
-		"width":             width,
-		"height":            height,
-		"num_options":       numOptions,
-		"num_variations":    numVariations,
-		"remove_background": false,
-		"generate_svg":      false,
-		"upscale":           false,
-	}
-
-	payloadBytes, _ := json.MarshalIndent(payload, "  ", "  ")
+	payloadBytes, _ := json.MarshalIndent(req, "  ", "  ")
 	fmt.Printf("  Payload: %s%s%s\n", colorDim, string(payloadBytes), colorReset)
 
-	// Open the SSE connection.
-	// We need a long timeout since generation can take minutes.
-	sseClient := &http.Client{Timeout: 5 * time.Minute}
-	body, _ := json.Marshal(payload)
+	// Long timeout — a full batch can take minutes (especially cold custom models).
+	sseClient := &http.Client{Timeout: 15 * time.Minute}
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
 	resp, err := sseClient.Post(baseURL+"/api/generate/stream", "application/json", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("SSE connect: %w", err)
@@ -319,148 +415,173 @@ func generateImages(prompt, model, assetType string, width, height, numOptions, 
 
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes[:min(len(bodyBytes), 200)]))
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes[:min(len(bodyBytes), 400)]))
 	}
 
 	output := &GenOutput{}
-
 	fmt.Printf("\n  %s--- SSE Events ---%s\n", colorBold, colorReset)
 
-	// Parse SSE stream manually.
-	// SSE format: "data: {json}\n\n" with optional ":" comment lines for keepalive.
+	// SSE framing: an event is a run of lines terminated by a blank line. A
+	// line beginning ":" is a comment/keepalive. We accumulate consecutive
+	// "data:" lines (per spec they are joined with "\n") and dispatch on blank.
 	scanner := bufio.NewScanner(resp.Body)
-	// Increase buffer size for potentially large SSE payloads
-	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
+	scanner.Buffer(make([]byte, 0, 256*1024), 4*1024*1024) // large buffer for big result payloads
+
+	var dataBuf []string
+	flush := func() {
+		if len(dataBuf) == 0 {
+			return
+		}
+		handleSSEEvent(strings.Join(dataBuf, "\n"), output)
+		dataBuf = dataBuf[:0]
+	}
 
 	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Skip empty lines (SSE event delimiter) and keepalive comments
-		if line == "" || strings.HasPrefix(line, ":") {
+		line := strings.TrimRight(scanner.Text(), "\r")
+		if line == "" {
+			flush() // end of one event
 			continue
 		}
-
-		// SSE data lines start with "data: "
-		if !strings.HasPrefix(line, "data: ") {
-			continue
+		if strings.HasPrefix(line, ":") {
+			continue // comment / keepalive
 		}
-
-		jsonStr := strings.TrimPrefix(line, "data: ")
-		var data map[string]interface{}
-		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
-			continue // Skip malformed data
+		if strings.HasPrefix(line, "data:") {
+			dataBuf = append(dataBuf, strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " "))
 		}
+		// Other SSE fields (event:, id:, retry:) are unused by this API.
+	}
+	flush() // dispatch a trailing event with no terminating blank line
 
-		eventType, _ := data["type"].(string)
-
-		// Handle each event type
-		switch eventType {
-		case "started":
-			batchID, _ := data["batch_id"].(string)
-			total, _ := data["total"].(float64)
-			output.BatchID = batchID
-			printEvent(eventType, fmt.Sprintf("Batch %s... - generating %.0f images", batchID[:min(8, len(batchID))], total))
-
-		case "stage":
-			stage, _ := data["stage"].(string)
-			message, _ := data["message"].(string)
-			printEvent(eventType, fmt.Sprintf("[%s] %s", stage, message))
-
-		case "prompts_ready":
-			prompts, _ := data["prompts"].([]interface{})
-			negative, _ := data["negative_prompt"].(string)
-			printEvent(eventType, fmt.Sprintf("%d enhanced prompt(s) ready", len(prompts)))
-			for i, p := range prompts {
-				ps, _ := p.(string)
-				if len(ps) > 120 {
-					ps = ps[:120] + "..."
-				}
-				fmt.Printf("    %sPrompt %d: %s%s\n", colorDim, i+1, ps, colorReset)
-			}
-			if negative != "" {
-				if len(negative) > 100 {
-					negative = negative[:100]
-				}
-				fmt.Printf("    %sNegative: %s%s\n", colorDim, negative, colorReset)
-			}
-
-		case "image_done":
-			opt, _ := data["option"].(float64)
-			vari, _ := data["variation"].(float64)
-			done, _ := data["completed"].(float64)
-			total, _ := data["total"].(float64)
-			printEvent(eventType, fmt.Sprintf("Option %.0f, Variation %.0f (%.0f/%.0f complete)",
-				opt+1, vari+1, done, total))
-
-		case "async_submitted":
-			jobID, _ := data["job_id"].(string)
-			modelLabel, _ := data["model_label"].(string)
-			output.AsyncJobs = append(output.AsyncJobs, jobID)
-			printEvent(eventType, fmt.Sprintf("Async job %s... (%s) - will poll for completion",
-				jobID[:min(12, len(jobID))], modelLabel))
-
-		case "complete":
-			// Parse the full result from the complete event
-			resultRaw, ok := data["result"]
-			if !ok {
-				resultRaw = data
-			}
-			resultBytes, _ := json.Marshal(resultRaw)
-			var result GenerationResult
-			if err := json.Unmarshal(resultBytes, &result); err == nil {
-				output.Result = &result
-			}
-			totalImages := 0
-			for _, opt := range result.Options {
-				totalImages += len(opt.Variants)
-			}
-			printEvent(eventType, fmt.Sprintf("Done! %d images generated", totalImages))
-
-		case "error", "image_error":
-			detail, _ := data["detail"].(string)
-			if detail == "" {
-				detail, _ = data["error"].(string)
-			}
-			if detail == "" {
-				detail = "Unknown error"
-			}
-			printEvent(eventType, colored(detail, colorRed))
-
-		case "moderation_blocked":
-			msg, _ := data["message"].(string)
-			if msg == "" {
-				msg = "Content moderation blocked this prompt"
-			}
-			printEvent(eventType, colored(msg, colorRed))
-
-		case "prompt_refused":
-			reason, _ := data["reason"].(string)
-			if reason == "" {
-				reason = "Prompt refused by the AI"
-			}
-			printEvent(eventType, colored(reason, colorRed))
-
-		default:
-			truncated, _ := json.Marshal(data)
-			s := string(truncated)
-			if len(s) > 200 {
-				s = s[:200]
-			}
-			printEvent(eventType, s)
-		}
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("  %sSSE read error: %s%s\n", colorRed, err, colorReset)
 	}
 
 	fmt.Printf("  %s--- End SSE ---%s\n\n", colorBold, colorReset)
-
 	return output, nil
+}
+
+// handleSSEEvent parses one SSE data payload and updates output. The event
+// names match what backend/routers/generate.py actually emits — note the skill
+// flow-diagram aliases: the code emits "image_done" (not "option_complete") and
+// "complete" (not "done").
+func handleSSEEvent(jsonStr string, output *GenOutput) {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		return // skip malformed / partial data
+	}
+	eventType, _ := data["type"].(string)
+
+	switch eventType {
+	case "asset_type_suggestion":
+		suggested, _ := data["suggested"].(string)
+		printEvent(eventType, fmt.Sprintf("Consider asset type '%s' for this prompt", suggested))
+
+	case "started":
+		batchID, _ := data["batch_id"].(string)
+		total, _ := data["total"].(float64)
+		output.BatchID = batchID
+		printEvent(eventType, fmt.Sprintf("Batch %s — generating %.0f image(s)", truncate(batchID, 8), total))
+
+	case "stage":
+		stage, _ := data["stage"].(string)
+		message, _ := data["message"].(string)
+		printEvent(eventType, fmt.Sprintf("[%s] %s", stage, message))
+
+	case "prompts_ready":
+		prompts, _ := data["prompts"].([]interface{})
+		negative, _ := data["negative_prompt"].(string)
+		printEvent(eventType, fmt.Sprintf("%d enhanced prompt(s) ready", len(prompts)))
+		for i, p := range prompts {
+			ps, _ := p.(string)
+			fmt.Printf("    %sPrompt %d: %s%s\n", colorDim, i+1, truncate(ps, 120), colorReset)
+		}
+		if negative != "" {
+			fmt.Printf("    %sNegative: %s%s\n", colorDim, truncate(negative, 100), colorReset)
+		}
+
+	case "image_done": // single-model: one image finished (Bedrock, inline)
+		opt, _ := data["option"].(float64)
+		vari, _ := data["variation"].(float64)
+		done, _ := data["completed"].(float64)
+		total, _ := data["total"].(float64)
+		printEvent(eventType, fmt.Sprintf("Option %.0f, Variation %.0f (%.0f/%.0f complete)",
+			opt+1, vari+1, done, total))
+
+	case "model_status": // all-models mode: per (model, concept, variation) result
+		label, _ := data["model_label"].(string)
+		status, _ := data["status"].(string)
+		done, _ := data["completed"].(float64)
+		total, _ := data["total"].(float64)
+		printEvent(eventType, fmt.Sprintf("%s → %s (%.0f/%.0f)", label, status, done, total))
+
+	case "async_submitted": // self-hosted SageMaker model queued a background job
+		jobID, _ := data["job_id"].(string)
+		modelLabel, _ := data["model_label"].(string)
+		if jobID != "" {
+			output.AsyncJobs = append(output.AsyncJobs, jobID)
+		}
+		printEvent(eventType, fmt.Sprintf("Async job %s (%s) — will poll for completion",
+			truncate(jobID, 12), modelLabel))
+
+	case "complete": // terminal success event — carries the full GenerationResult
+		resultRaw, ok := data["result"]
+		if !ok {
+			resultRaw = data
+		}
+		resultBytes, _ := json.Marshal(resultRaw)
+		var result GenerationResult
+		if err := json.Unmarshal(resultBytes, &result); err == nil {
+			output.Result = &result
+		}
+		totalImages := 0
+		for _, opt := range result.Options {
+			totalImages += len(opt.Variants)
+		}
+		printEvent(eventType, fmt.Sprintf("Done! %d image(s) in result", totalImages))
+
+	case "image_error":
+		detail, _ := data["error"].(string)
+		if detail == "" {
+			detail = "Unknown error"
+		}
+		printEvent(eventType, colored(detail, colorRed))
+
+	case "error": // terminal failure from the streaming endpoint
+		detail, _ := data["detail"].(string)
+		if detail == "" {
+			detail, _ = data["error"].(string)
+		}
+		if detail == "" {
+			detail = "Unknown error"
+		}
+		printEvent(eventType, colored(detail, colorRed))
+
+	case "moderation_blocked":
+		msg, _ := data["message"].(string)
+		if msg == "" {
+			msg = "Content moderation blocked this generation"
+		}
+		printEvent(eventType, colored(msg, colorRed))
+
+	case "prompt_refused":
+		reason, _ := data["reason"].(string)
+		if reason == "" {
+			reason = "Prompt refused by the AI"
+		}
+		printEvent(eventType, colored(reason, colorRed))
+
+	default:
+		printEvent(eventType, truncate(jsonStr, 200))
+	}
 }
 
 // ── Step 5: Poll for async job completion ───────────────────────────────────
 
 func pollAsyncJobs(jobIDs []string, timeout time.Duration) []map[string]interface{} {
-	// GET /api/generate/async-jobs
-	// Returns all active and recent jobs with their statuses.
-	// Polls every 5 seconds until all jobs complete or timeout.
+	// GET /api/generate/async-jobs → {"jobs": [...], "pending_count", "has_active"}.
+	// Each job has: job_id, status ("pending"|"generating"|"complete"|"failed"),
+	// asset_id, model_label, image_path, error, queue_position, queue_total.
+	// Poll every ~10s until all our jobs are complete/failed or we time out.
 	if len(jobIDs) == 0 {
 		return nil
 	}
@@ -476,13 +597,12 @@ func pollAsyncJobs(jobIDs []string, timeout time.Duration) []map[string]interfac
 		}
 		if err := getJSON("/api/generate/async-jobs", &data); err != nil {
 			fmt.Printf("  %sPoll error: %s%s\n", colorRed, err, colorReset)
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 
 		pending := 0
 		for _, jid := range jobIDs {
-			// Find this job in the response
 			var job map[string]interface{}
 			for _, j := range data.Jobs {
 				if id, _ := j["job_id"].(string); id == jid {
@@ -501,31 +621,33 @@ func pollAsyncJobs(jobIDs []string, timeout time.Duration) []map[string]interfac
 					completedIDs[jid] = true
 					completedJobs = append(completedJobs, job)
 					assetID, _ := job["asset_id"].(string)
-					fmt.Printf("  %sJob %s... completed! Asset: %s%s\n",
-						colorGreen, jid[:min(12, len(jid))], assetID, colorReset)
+					fmt.Printf("  %sJob %s completed! Asset: %s%s\n",
+						colorGreen, truncate(jid, 12), assetID, colorReset)
 				}
 			case "failed":
 				if !completedIDs[jid] {
 					completedIDs[jid] = true
 					completedJobs = append(completedJobs, job)
 					errMsg, _ := job["error"].(string)
-					fmt.Printf("  %sJob %s... failed: %s%s\n",
-						colorRed, jid[:min(12, len(jid))], errMsg, colorReset)
+					fmt.Printf("  %sJob %s failed: %s%s\n",
+						colorRed, truncate(jid, 12), errMsg, colorReset)
 				}
-			default:
+			default: // "pending" | "generating"
 				pending++
 				elapsed := int(time.Since(start).Seconds())
-				fmt.Printf("  %sJob %s... status: %s (%ds elapsed)%s\n",
-					colorDim, jid[:min(12, len(jid))], status, elapsed, colorReset)
+				pos := ""
+				if p, ok := job["queue_position"].(float64); ok {
+					pos = fmt.Sprintf(", queue #%.0f", p)
+				}
+				fmt.Printf("  %sJob %s status: %s (%ds elapsed%s)%s\n",
+					colorDim, truncate(jid, 12), status, elapsed, pos, colorReset)
 			}
 		}
 
 		if pending == 0 {
 			break
 		}
-
-		// Wait 5 seconds before next poll
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 
 	return completedJobs
@@ -534,8 +656,8 @@ func pollAsyncJobs(jobIDs []string, timeout time.Duration) []map[string]interfac
 // ── Step 6: Download completed images ───────────────────────────────────────
 
 func downloadImages(result *GenerationResult, outputDir string) []string {
-	// GET /api/gallery/{asset_id}/png
-	// Saves each image to the output directory with a descriptive filename.
+	// GET /api/gallery/{asset_id}/png returns the PNG bytes. We build the URL
+	// from each variant's asset id, saving to a descriptive filename.
 	if result == nil {
 		fmt.Printf("  %sNo result data to download.%s\n", colorYellow, colorReset)
 		return nil
@@ -554,44 +676,42 @@ func downloadImages(result *GenerationResult, outputDir string) []string {
 		optIdx := option.OptionIndex
 		for _, variant := range option.Variants {
 			assetID := variant.ID
-			pngPath := variant.PNGPath
-			varIdx := variant.VariantIndex
 
-			// Skip async jobs that haven't completed yet
-			if variant.AsyncJob != nil && pngPath == "" {
-				fmt.Printf("  %sSkipping opt%d_var%d (async pending)%s\n",
-					colorDim, optIdx+1, varIdx+1, colorReset)
+			// Skip async jobs that haven't completed yet (no PNG path resolved).
+			if variant.PNGPath == "" {
+				fmt.Printf("  %sSkipping opt%d_var%d (async pending or no image)%s\n",
+					colorDim, optIdx+1, variant.VariantIndex+1, colorReset)
+				continue
+			}
+			if assetID == "" {
 				continue
 			}
 
-			if assetID == "" || pngPath == "" {
-				continue
-			}
-
-			// Download the PNG
-			url := baseURL + pngPath
+			// Download via the canonical gallery route (never trust a relative
+			// path blindly — build it from the asset id we know).
+			url := baseURL + fmt.Sprintf("/api/gallery/%s/png", assetID)
 			resp, err := httpClient.Get(url)
 			if err != nil {
 				fmt.Printf("  %sFailed to download %s: %s%s\n", colorRed, assetID, err, colorReset)
 				continue
 			}
-			imgBytes, err := io.ReadAll(resp.Body)
+			imgBytes, readErr := io.ReadAll(resp.Body)
+			status := resp.StatusCode
 			resp.Body.Close()
-			if err != nil || resp.StatusCode >= 400 {
-				fmt.Printf("  %sFailed to download %s: HTTP %d%s\n", colorRed, assetID, resp.StatusCode, colorReset)
+			if readErr != nil || status >= 400 {
+				fmt.Printf("  %sFailed to download %s: HTTP %d%s\n", colorRed, assetID, status, colorReset)
 				continue
 			}
 
-			filename := fmt.Sprintf("opt%d_var%d_%s.png", optIdx+1, varIdx+1, assetID)
-			filepath_ := filepath.Join(outputDir, filename)
-			if err := os.WriteFile(filepath_, imgBytes, 0644); err != nil {
-				fmt.Printf("  %sFailed to write %s: %s%s\n", colorRed, filepath_, err, colorReset)
+			filename := fmt.Sprintf("opt%d_var%d_%s.png", optIdx+1, variant.VariantIndex+1, assetID)
+			outPath := filepath.Join(outputDir, filename)
+			if err := os.WriteFile(outPath, imgBytes, 0o644); err != nil {
+				fmt.Printf("  %sFailed to write %s: %s%s\n", colorRed, outPath, err, colorReset)
 				continue
 			}
 
-			sizeKB := float64(len(imgBytes)) / 1024
-			downloaded = append(downloaded, filepath_)
-			fmt.Printf("  %sSaved:%s %s (%.1f KB)\n", colorGreen, colorReset, filepath_, sizeKB)
+			downloaded = append(downloaded, outPath)
+			fmt.Printf("  %sSaved:%s %s (%.1f KB)\n", colorGreen, colorReset, outPath, float64(len(imgBytes))/1024)
 		}
 	}
 
@@ -613,17 +733,8 @@ func printSummary(result *GenerationResult, downloaded, asyncJobs []string, elap
 		totalImages += len(opt.Variants)
 	}
 
-	prompt := result.Prompt
-	if len(prompt) > 80 {
-		prompt = prompt[:80] + "..."
-	}
-	batchID := result.ID
-	if len(batchID) > 16 {
-		batchID = batchID[:16] + "..."
-	}
-
-	fmt.Printf("  Batch ID:    %s\n", colored(batchID, colorCyan))
-	fmt.Printf("  Prompt:      %s\n", prompt)
+	fmt.Printf("  Batch ID:    %s\n", colored(truncate(result.ID, 16), colorCyan))
+	fmt.Printf("  Prompt:      %s\n", truncate(result.Prompt, 80))
 	fmt.Printf("  Model:       %s\n", colored(result.ImageModel, colorBold))
 	fmt.Printf("  Dimensions:  %dx%d\n", result.Width, result.Height)
 	fmt.Printf("  Options:     %d\n", len(result.Options))
@@ -631,6 +742,9 @@ func printSummary(result *GenerationResult, downloaded, asyncJobs []string, elap
 	fmt.Printf("  Downloaded:  %d file(s)\n", len(downloaded))
 	if len(asyncJobs) > 0 {
 		fmt.Printf("  Async jobs:  %d\n", len(asyncJobs))
+	}
+	if result.BlockedCount > 0 {
+		fmt.Printf("  Blocked:     %d (content moderation on specific seeds)\n", result.BlockedCount)
 	}
 	if result.TotalCostUSD > 0 {
 		fmt.Printf("  Est. cost:   %s\n", colored(fmt.Sprintf("~$%.4f", result.TotalCostUSD), colorYellow))
@@ -659,14 +773,14 @@ func readLine(prompt string) string {
 // ── Main ────────────────────────────────────────────────────────────────────
 
 func main() {
-	// Parse command-line flags
 	promptFlag := flag.String("prompt", "", "Image generation prompt (interactive if not provided)")
 	modelFlag := flag.String("model", "", "Model key (e.g. nova_canvas, sd35_large)")
 	assetTypeFlag := flag.String("asset-type", "photorealistic", "Asset type: photorealistic, game_asset, character, environment, icon, marketing_banner")
 	widthFlag := flag.Int("width", 1024, "Image width")
 	heightFlag := flag.Int("height", 1024, "Image height")
-	optionsFlag := flag.Int("options", 2, "Number of concept options 1-5")
-	variationsFlag := flag.Int("variations", 2, "Number of seed variations 1-5")
+	optionsFlag := flag.Int("options", 2, "Number of concept options 1-5 (server default is 5)")
+	variationsFlag := flag.Int("variations", 2, "Number of seed variations 1-5 (server default is 5)")
+	regionFlag := flag.String("region", "", "Override the model's AWS region (empty = model default)")
 	outputFlag := flag.String("output", "output", "Output directory")
 	skipClassify := flag.Bool("skip-classify", false, "Skip asset type classification")
 	skipDecompose := flag.Bool("skip-decompose", false, "Skip prompt decomposition")
@@ -675,35 +789,27 @@ func main() {
 	printHeader("ArtSmoker Image Generation")
 	fmt.Printf("  Server: %s\n", colored(baseURL, colorCyan))
 
-	// Check server connectivity
-	var testModels []Model
-	if err := getJSON("/api/admin/models/image-options", &testModels); err != nil {
-		fmt.Printf("\n  %sCannot connect to ArtSmoker at %s\n", colorRed, baseURL)
+	startTime := time.Now()
+
+	// Step 1: List models (also serves as the connectivity check).
+	models, err := listModels()
+	if err != nil {
+		fmt.Printf("\n  %sCannot reach ArtSmoker at %s: %s\n", colorRed, baseURL, err)
 		fmt.Printf("  Make sure the server is running:%s\n", colorReset)
 		fmt.Printf("  %s  cd /path/to/ArtSmoker\n", colorDim)
 		fmt.Printf("    source .venv/bin/activate\n")
 		fmt.Printf("    uvicorn backend.main:app --reload%s\n", colorReset)
 		os.Exit(1)
 	}
-
-	startTime := time.Now()
-
-	// Step 1: List models and select one
-	models, err := listModels()
-	if err != nil {
-		fmt.Printf("  %sFailed to list models: %s%s\n", colorRed, err, colorReset)
-		os.Exit(1)
-	}
 	if len(models) == 0 {
-		fmt.Printf("  %sNo models available. Check your ArtSmoker configuration.%s\n", colorRed, colorReset)
+		fmt.Printf("  %sNo image models are enabled. Check your ArtSmoker configuration.%s\n", colorRed, colorReset)
 		os.Exit(1)
 	}
 
-	// Select model — from CLI flag, or interactive, or first available
+	// Select model — from CLI flag, or interactive, or first available.
 	modelKey := *modelFlag
 	if modelKey == "" {
 		if *promptFlag == "" {
-			// Interactive model selection
 			defaultKey := models[0].Key
 			input := readLine(fmt.Sprintf("\n  Enter model key (or press Enter for '%s'):\n  %s>%s ", defaultKey, colorCyan, colorReset))
 			if input != "" {
@@ -716,7 +822,7 @@ func main() {
 		}
 	}
 
-	// Validate model key
+	// Validate the model key against the live list.
 	valid := false
 	for _, m := range models {
 		if m.Key == modelKey {
@@ -736,7 +842,7 @@ func main() {
 
 	fmt.Printf("\n  Using model: %s\n", colored(modelKey, colorGreen))
 
-	// Get prompt — from CLI flag or interactive
+	// Get the prompt — from CLI flag or interactively.
 	prompt := *promptFlag
 	if prompt == "" {
 		prompt = readLine(fmt.Sprintf("\n  Enter your image prompt:\n  %s>%s ", colorCyan, colorReset))
@@ -748,7 +854,7 @@ func main() {
 
 	assetType := *assetTypeFlag
 
-	// Step 2: Classify asset type (optional)
+	// Step 2: Classify asset type (optional).
 	if !*skipClassify {
 		suggested, err := classifyAssetType(prompt, assetType)
 		if err != nil {
@@ -758,37 +864,55 @@ func main() {
 		}
 	}
 
-	// Step 3: Decompose prompt (optional)
+	// Step 3: Decompose prompt (optional, display only in this sample).
 	if !*skipDecompose {
-		_, err := decomposePrompt(prompt, assetType, modelKey)
-		if err != nil {
+		if _, err := decomposePrompt(prompt, assetType, modelKey); err != nil {
 			fmt.Printf("  %sDecomposition skipped: %s%s\n", colorYellow, err, colorReset)
 		}
 	}
 
-	// Step 4: Generate images
-	genResult, err := generateImages(prompt, modelKey, assetType,
-		*widthFlag, *heightFlag, *optionsFlag, *variationsFlag)
+	// Step 4: Build the request and generate.
+	req := GenerationRequest{
+		Prompt:        prompt,
+		ImageModel:    modelKey,
+		AssetType:     assetType,
+		Width:         *widthFlag,
+		Height:        *heightFlag,
+		NumOptions:    *optionsFlag,
+		NumVariations: *variationsFlag,
+		// Keep the raw generated image: the server defaults these to TRUE, so we
+		// must send them as false explicitly (see the struct's tag notes).
+		RemoveBackground: false,
+		GenerateSVG:      false,
+		Upscale:          false,
+	}
+	if *regionFlag != "" {
+		req.Region = regionFlag
+	}
+
+	genResult, err := generateImages(req)
 	if err != nil {
 		fmt.Printf("\n  %sGeneration failed: %s%s\n", colorRed, err, colorReset)
 		os.Exit(1)
 	}
 
-	// Step 5: Poll async jobs if any (custom/SageMaker models)
+	// Step 5: Poll async jobs if any (self-hosted SageMaker models).
 	if len(genResult.AsyncJobs) > 0 {
-		completed := pollAsyncJobs(genResult.AsyncJobs, 10*time.Minute)
-		// Update result with completed async job asset IDs
+		completed := pollAsyncJobs(genResult.AsyncJobs, 15*time.Minute)
+		// Resolve completed async jobs into downloadable variants.
 		if len(completed) > 0 && genResult.Result != nil {
 			for i := range genResult.Result.Options {
 				for j := range genResult.Result.Options[i].Variants {
 					v := &genResult.Result.Options[i].Variants[j]
-					if v.AsyncJob != nil {
-						jobID, _ := v.AsyncJob["job_id"].(string)
-						for _, c := range completed {
-							cID, _ := c["job_id"].(string)
-							cStatus, _ := c["status"].(string)
-							if cID == jobID && cStatus == "complete" {
-								assetID, _ := c["asset_id"].(string)
+					if v.AsyncJob == nil {
+						continue
+					}
+					jobID, _ := v.AsyncJob["job_id"].(string)
+					for _, c := range completed {
+						cID, _ := c["job_id"].(string)
+						cStatus, _ := c["status"].(string)
+						if cID == jobID && cStatus == "complete" {
+							if assetID, _ := c["asset_id"].(string); assetID != "" {
 								v.ID = assetID
 								v.PNGPath = fmt.Sprintf("/api/gallery/%s/png", assetID)
 							}
@@ -799,13 +923,11 @@ func main() {
 		}
 	}
 
-	// Step 6: Download images
+	// Step 6: Download images.
 	var downloaded []string
 	if genResult.Result != nil {
 		downloaded = downloadImages(genResult.Result, *outputFlag)
 	}
 
-	// Summary
-	elapsed := time.Since(startTime)
-	printSummary(genResult.Result, downloaded, genResult.AsyncJobs, elapsed)
+	printSummary(genResult.Result, downloaded, genResult.AsyncJobs, time.Since(startTime))
 }

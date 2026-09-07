@@ -9,6 +9,15 @@
 //   5. Poll for async job completion   GET  /api/generate/async-jobs
 //   6. Download completed images      GET  /api/gallery/{asset_id}/png
 //
+// Notes:
+//   - This sample requests the RAW generated image: it sends
+//     remove_background=false and generate_svg=false (both default to TRUE
+//     server-side) and downloads the plain PNG.
+//   - num_options × num_variations default to 5 × 5 = 25 images server-side;
+//     this sample uses a small 2 × 2 grid so a test run is quick and cheap.
+//   - Bedrock models return images inline over SSE; custom SageMaker models
+//     return an async job that this sample polls to completion.
+//
 // Prerequisites:
 //   - Rust 1.70+ with Cargo
 //   - ArtSmoker server running at http://localhost:8000
@@ -46,7 +55,7 @@
 use clap::Parser;
 use futures_util::StreamExt;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -56,6 +65,18 @@ use std::time::{Duration, Instant};
 
 fn base_url() -> String {
     std::env::var("ARTSMOKER_URL").unwrap_or_else(|_| "http://localhost:8000".to_string())
+}
+
+/// Truncate a string to at most `max` characters, appending "…" if it was cut.
+///
+/// Slices on a CHAR boundary — prompts and model labels may contain multi-byte
+/// UTF-8 (the API accepts and translates non-English prompts), so naive byte
+/// slicing like `&s[..80]` can panic mid-codepoint.
+fn truncate(s: &str, max: usize) -> String {
+    match s.char_indices().nth(max) {
+        Some((byte_idx, _)) => format!("{}…", &s[..byte_idx]),
+        None => s.to_string(),
+    }
 }
 
 // ANSI color codes for terminal output
@@ -103,12 +124,28 @@ fn print_event(event_type: &str, message: &str) {
 
 // ── Data types ──────────────────────────────────────────────────────────────
 
+/// The `/api/admin/models/image-options` response envelope.
+///
+/// NOTE: this endpoint returns a JSON OBJECT — `{"models": [...],
+/// "available_regions": [...]}` — NOT a bare array. Deserializing straight
+/// into `Vec<ModelOption>` fails at runtime; always unwrap `.models`.
+#[derive(Debug, Deserialize)]
+struct ModelOptionsResponse {
+    #[serde(default)]
+    models: Vec<ModelOption>,
+}
+
 /// A model entry from /api/admin/models/image-options.
+///
+/// Only the fields this sample uses are declared; serde ignores the rest
+/// (provider, capabilities, region_pricing, supported_sizes, model_source, …).
 #[derive(Debug, Deserialize)]
 struct ModelOption {
     key: Option<String>,
     label: Option<String>,
+    /// Default (cheapest-known) region for the model.
     region: Option<String>,
+    /// Flat per-image list price; may be null when pricing is unavailable.
     base_price_usd: Option<f64>,
 }
 
@@ -175,11 +212,11 @@ struct Args {
     #[arg(long, default_value = "1024")]
     height: u32,
 
-    /// Number of concept options (1-5)
+    /// Number of concept options, 1-5 (server default is 5; kept small here)
     #[arg(long, default_value = "2")]
     options: u32,
 
-    /// Number of seed variations (1-5)
+    /// Seed variations per concept, 1-5 (server default is 5; kept small here)
     #[arg(long, default_value = "2")]
     variations: u32,
 
@@ -198,14 +235,17 @@ struct Args {
 
 // ── Step 1: List available models ───────────────────────────────────────────
 
+/// Fetch available image generation models from the server.
+///
+/// GET /api/admin/models/image-options returns the list of enabled
+/// text-to-image models with their metadata (label, region, pricing).
 async fn list_models(client: &Client) -> Result<Vec<ModelOption>, Box<dyn std::error::Error>> {
-    /// Fetch available image generation models from the server.
-    ///
-    /// GET /api/admin/models/image-options returns the list of enabled
-    /// text-to-image models with their metadata (label, region, pricing).
     print_step(1, "Fetching available image models...");
     let url = format!("{}/api/admin/models/image-options", base_url());
-    let models: Vec<ModelOption> = client.get(&url).send().await?.json().await?;
+    // The endpoint returns {"models": [...], "available_regions": [...]} — parse
+    // the envelope and take .models (a bare `Vec<ModelOption>` would not match).
+    let resp: ModelOptionsResponse = client.get(&url).send().await?.json().await?;
+    let models = resp.models;
     println!(
         "  Found {}{}{} available models:",
         color::GREEN,
@@ -238,11 +278,11 @@ async fn classify_asset_type(
     prompt: &str,
     current_type: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    /// Auto-classify the ideal asset type for the given prompt.
-    ///
-    /// POST /api/refine-prompt/classify-asset-type
-    /// The server uses an LLM to determine whether the prompt better matches
-    /// a different asset type (e.g., 'character' instead of 'game_asset').
+    // Auto-classify the ideal asset type for the given prompt.
+    //
+    // POST /api/refine-prompt/classify-asset-type
+    // The server uses an LLM to determine whether the prompt better matches
+    // a different asset type (e.g., 'character' instead of 'game_asset').
     print_step(2, "Classifying asset type...");
     let url = format!("{}/api/refine-prompt/classify-asset-type", base_url());
     let body = serde_json::json!({
@@ -282,11 +322,11 @@ async fn decompose_prompt(
     asset_type: &str,
     model: &str,
 ) -> Result<Value, Box<dyn std::error::Error>> {
-    /// Decompose the user prompt into structured visual components.
-    ///
-    /// POST /api/refine-prompt/decompose
-    /// Returns a JSON structure with editable fields: subject, scene,
-    /// composition, lighting, style (including color palette with hex values).
+    // Decompose the user prompt into structured visual components.
+    //
+    // POST /api/refine-prompt/decompose
+    // Returns a JSON structure with editable fields: subject, scene,
+    // composition, lighting, style (including color palette with hex values).
     print_step(3, "Decomposing prompt into visual components...");
     let url = format!("{}/api/refine-prompt/decompose", base_url());
     let body = serde_json::json!({
@@ -350,31 +390,63 @@ async fn generate_images(
     num_options: u32,
     num_variations: u32,
 ) -> Result<GenOutput, Box<dyn std::error::Error>> {
-    /// Generate images using the SSE streaming endpoint.
-    ///
-    /// POST /api/generate/stream
-    /// The server sends Server-Sent Events with real-time progress:
-    ///   - started:          Generation batch has begun
-    ///   - stage:            Pipeline stage update (prompts, generating, etc.)
-    ///   - prompts_ready:    Enhanced prompts are ready
-    ///   - image_done:       A single image variant completed (Bedrock models)
-    ///   - async_submitted:  Job submitted to SageMaker (custom models)
-    ///   - complete:         All images done, includes full result
-    ///   - error:            Something went wrong
+    // Generate images using the SSE streaming endpoint.
+    //
+    // POST /api/generate/stream  (media type: text/event-stream)
+    // Each event is a `data: {json}` line; the JSON's `type` field names it.
+    // The event names below are the ones the backend actually emits:
+    //   - asset_type_suggestion: (optional first event) prompt implies a
+    //                            different asset_type than requested
+    //   - started:          {batch_id, total, num_options, num_variations}
+    //   - stage:            {stage, message} pipeline progress
+    //   - prompts_ready:    {prompts, negative_prompt, ...} enhanced prompts
+    //   - image_done:       {option, variation, completed, total} one variant done (sync/Bedrock)
+    //   - image_error:      {option, variation, error} one variant failed
+    //   - async_submitted:  {option, variation, job_id, model_label} SageMaker job queued
+    //   - model_status:     per-(model,option,variant) status (all_models mode only)
+    //   - moderation_blocked: content moderation stopped the batch
+    //   - prompt_refused:   the AI declined to process the prompt
+    //   - complete:         {result: GenerationResult} — final payload
+    //   - error:            {detail} — the generation thread raised
     print_step(4, "Generating images via SSE stream...");
 
-    // Build the generation request payload
+    // Build the generation request payload.
+    //
+    // We build it with the `json!` macro (a `serde_json::Value`) rather than a
+    // `#[derive(Serialize)]` struct on purpose: `json!` ALWAYS emits every field
+    // as written. A typed struct would need `remove_background`/`generate_svg`
+    // fields WITHOUT `#[serde(skip_serializing_if = ...)]`, or the explicit
+    // `false` below would be dropped and the server defaults (see next comment)
+    // would silently apply.
     let payload = serde_json::json!({
         "prompt": prompt,
         "image_model": model,
         "asset_type": asset_type,
         "width": width,
         "height": height,
+        // Server default is 5 × 5 = 25 images. This sample uses a small grid
+        // (e.g. 2 × 2) so a test run is quick and cheap.
         "num_options": num_options,
         "num_variations": num_variations,
+        // IMPORTANT: both of these default to `true` server-side. For a raw
+        // image sample we send an explicit `false` so we get the unmodified
+        // generated PNG — no background removal, no SVG vectorization.
         "remove_background": false,
         "generate_svg": false,
         "upscale": false,
+        // ── Optional newer fields (omitted here to keep the default path simple):
+        //   "region": "us-west-2",       // override the model's default AWS region
+        //   "quality": "premium",        // model-specific quality tier
+        //   "seed": 12345,               // base seed → reproducible batches
+        //   "style_id": "my-style",      // a saved style profile (GET /api/styles/)
+        // Multi-model fan-out (each emits its own SSE events; result.image_model
+        // becomes "all_models"):
+        //   "all_models": true,
+        //   "selected_models": ["nova_canvas", "sd35_large"],
+        //   "model_optimized_prompts": true,   // tailor the enhanced prompt per model
+        // Reference-guided generation (1–3 base64 PNGs guide the output):
+        //   "reference_images": ["<base64-png>"],
+        //   "reference_mode": "inspired",      // "inspired" | "match" | "remix"
     });
 
     println!(
@@ -397,7 +469,7 @@ async fn generate_images(
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.text().await?;
-        return Err(format!("HTTP {}: {}", status, &body[..body.len().min(200)]).into());
+        return Err(format!("HTTP {}: {}", status, truncate(&body, 200)).into());
     }
 
     let mut output = GenOutput {
@@ -447,14 +519,24 @@ async fn generate_images(
 
             // Handle each event type
             match event_type {
+                "asset_type_suggestion" => {
+                    // Optional first event: the prompt implies a different
+                    // asset_type than requested. Purely advisory — generation
+                    // proceeds with the type we sent.
+                    let suggested = data["suggested"].as_str().unwrap_or("");
+                    let reason = data["reason"].as_str().unwrap_or("");
+                    print_event(
+                        event_type,
+                        &format!("Prompt may suit '{}' ({})", suggested, truncate(reason, 100)),
+                    );
+                }
                 "started" => {
                     let batch_id = data["batch_id"].as_str().unwrap_or("");
                     let total = data["total"].as_u64().unwrap_or(0);
                     output.batch_id = batch_id.to_string();
-                    let display_id = &batch_id[..batch_id.len().min(8)];
                     print_event(
                         event_type,
-                        &format!("Batch {}... - generating {} images", display_id, total),
+                        &format!("Batch {} - generating {} images", truncate(batch_id, 8), total),
                     );
                 }
                 "stage" => {
@@ -473,25 +555,19 @@ async fn generate_images(
                     if let Some(prompts) = prompts {
                         for (i, p) in prompts.iter().enumerate() {
                             let ps = p.as_str().unwrap_or("");
-                            let display = if ps.len() > 120 {
-                                format!("{}...", &ps[..120])
-                            } else {
-                                ps.to_string()
-                            };
                             println!(
                                 "    {}Prompt {}: {}{}",
                                 color::DIM,
                                 i + 1,
-                                display,
+                                truncate(ps, 120),
                                 color::RESET
                             );
                         }
                     }
                     if !negative.is_empty() {
-                        let display = &negative[..negative.len().min(100)];
                         println!(
                             "    {}Negative: {}{}",
-                            color::DIM, display, color::RESET
+                            color::DIM, truncate(negative, 100), color::RESET
                         );
                     }
                 }
@@ -515,13 +591,24 @@ async fn generate_images(
                     let job_id = data["job_id"].as_str().unwrap_or("");
                     let model_label = data["model_label"].as_str().unwrap_or("");
                     output.async_jobs.push(job_id.to_string());
-                    let display_id = &job_id[..job_id.len().min(12)];
                     print_event(
                         event_type,
                         &format!(
-                            "Async job {}... ({}) - will poll for completion",
-                            display_id, model_label
+                            "Async job {} ({}) - will poll for completion",
+                            truncate(job_id, 12), model_label
                         ),
+                    );
+                }
+                "model_status" => {
+                    // Emitted only in all_models mode: per-(model, option, variant)
+                    // status. Async submissions still arrive as async_submitted.
+                    let label = data["model_label"].as_str().unwrap_or("");
+                    let status = data["status"].as_str().unwrap_or("");
+                    let done = data["completed"].as_u64().unwrap_or(0);
+                    let total = data["total"].as_u64().unwrap_or(0);
+                    print_event(
+                        event_type,
+                        &format!("{}: {} ({}/{})", label, status, done, total),
                     );
                 }
                 "complete" => {
@@ -575,8 +662,7 @@ async fn generate_images(
                 }
                 _ => {
                     let s = serde_json::to_string(&data).unwrap_or_default();
-                    let display = &s[..s.len().min(200)];
-                    print_event(event_type, display);
+                    print_event(event_type, &truncate(&s, 200));
                 }
             }
         }
@@ -599,11 +685,11 @@ async fn poll_async_jobs(
     job_ids: &[String],
     timeout: Duration,
 ) -> Vec<Value> {
-    /// Poll for async job completion (SageMaker custom models).
-    ///
-    /// GET /api/generate/async-jobs
-    /// Returns all active and recent jobs with their statuses.
-    /// Polls every 5 seconds until all jobs complete or timeout.
+    // Poll for async job completion (SageMaker custom models).
+    //
+    // GET /api/generate/async-jobs
+    // Returns all active and recent jobs with their statuses.
+    // Polls every 5 seconds until all jobs complete or timeout.
     if job_ids.is_empty() {
         return Vec::new();
     }
@@ -647,9 +733,9 @@ async fn poll_async_jobs(
                         completed_jobs.push(job.clone());
                         let asset_id = job["asset_id"].as_str().unwrap_or("");
                         println!(
-                            "  {}Job {}... completed! Asset: {}{}",
+                            "  {}Job {} completed! Asset: {}{}",
                             color::GREEN,
-                            &jid[..jid.len().min(12)],
+                            truncate(jid, 12),
                             asset_id,
                             color::RESET
                         );
@@ -661,9 +747,9 @@ async fn poll_async_jobs(
                         completed_jobs.push(job.clone());
                         let err = job["error"].as_str().unwrap_or("Unknown");
                         println!(
-                            "  {}Job {}... failed: {}{}",
+                            "  {}Job {} failed: {}{}",
                             color::RED,
-                            &jid[..jid.len().min(12)],
+                            truncate(jid, 12),
                             err,
                             color::RESET
                         );
@@ -673,9 +759,9 @@ async fn poll_async_jobs(
                     pending += 1;
                     let elapsed = start.elapsed().as_secs();
                     println!(
-                        "  {}Job {}... status: {} ({}s elapsed){}",
+                        "  {}Job {} status: {} ({}s elapsed){}",
                         color::DIM,
-                        &jid[..jid.len().min(12)],
+                        truncate(jid, 12),
                         status,
                         elapsed,
                         color::RESET
@@ -702,10 +788,10 @@ async fn download_images(
     result: &GenerationResult,
     output_dir: &str,
 ) -> Vec<String> {
-    /// Download generated images from the gallery.
-    ///
-    /// GET /api/gallery/{asset_id}/png
-    /// Saves each image to the output directory with a descriptive filename.
+    // Download generated images from the gallery.
+    //
+    // GET /api/gallery/{asset_id}/png
+    // Saves each image to the output directory with a descriptive filename.
     print_step(6, "Downloading generated images...");
     let dir = PathBuf::from(output_dir);
     if let Err(e) = std::fs::create_dir_all(&dir) {
@@ -729,6 +815,18 @@ async fn download_images(
             Some(v) => v,
             None => continue,
         };
+        // Show which concept (enhanced prompt) produced this option's images.
+        if let Some(ep) = option.enhanced_prompt.as_deref() {
+            if !ep.is_empty() {
+                println!(
+                    "  {}Option {}: {}{}",
+                    color::MAGENTA,
+                    opt_idx + 1,
+                    truncate(ep, 100),
+                    color::RESET
+                );
+            }
+        }
 
         for variant in variants {
             let asset_id = variant.id.as_deref().unwrap_or("");
@@ -837,18 +935,10 @@ fn print_summary(
     });
 
     let batch_id = result.id.as_deref().unwrap_or("");
-    let display_id = if batch_id.len() > 16 {
-        format!("{}...", &batch_id[..16])
-    } else {
-        batch_id.to_string()
-    };
+    let display_id = truncate(batch_id, 16);
 
     let prompt = result.prompt.as_deref().unwrap_or("");
-    let display_prompt = if prompt.len() > 80 {
-        format!("{}...", &prompt[..80])
-    } else {
-        prompt.to_string()
-    };
+    let display_prompt = truncate(prompt, 80);
 
     let model = result.image_model.as_deref().unwrap_or("?");
     let num_options = result.options.as_ref().map_or(0, |o| o.len());
@@ -946,7 +1036,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start_time = Instant::now();
 
     // Step 1: List models and select one
-    let models = list_models(&client)?;
+    let models = list_models(&client).await?;
     if models.is_empty() {
         println!(
             "  {}No models available. Check your ArtSmoker configuration.{}",
