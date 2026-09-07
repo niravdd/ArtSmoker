@@ -1868,34 +1868,38 @@ def _reconcile_mantle_models(registry: dict) -> int:
 
 
 def _stamp_all_chat_model_routing(registry: dict) -> int:
-    """Ensure EVERY chat_models entry carries endpoint/API routing fields.
+    """(Re)derive endpoint/API routing for EVERY chat_models entry from the
+    registry's api_compatibility matrix. Runs LAST in Sync (after Mantle
+    reconciliation), so it's the single authoritative pass that makes routing
+    reflect the current matrix + each model's discovered endpoint presence.
 
-    The per-model stamping in _register_chat_model only fires for newly-created
-    entries; pre-existing models and the update-existing branch never got
-    `endpoints`/`apis`/`invoke_endpoint`/`invoke_api`. This backfills any entry
-    missing them (runtime-reachable unless Mantle reconciliation already marked
-    it otherwise), so routing is explicit for all models — not relying on the
-    invoke-time Converse default. Idempotent. Returns count stamped.
+    It re-derives ALWAYS — not just for entries missing fields — because the
+    matrix is the source of truth and derive_model_apis is deterministic. That's
+    what makes a matrix edit (or a model gaining Converse on bedrock-runtime)
+    propagate on the NEXT Sync with no code change. (The earlier skip-if-present
+    optimization silently pinned already-stamped models to stale routing — e.g. a
+    runtime-only GPT-5.x that never hit Mantle reconciliation.) Idempotent;
+    per-model overrides in model_registry.user.json still apply over base at load.
+    Returns the count whose routing actually changed.
     """
     from backend.services.mantle_client import derive_model_apis, resolve_invoke_path
     cm = registry.get("chat_models", {})
-    stamped = 0
+    changed = 0
     for cfg in cm.values():
         if not isinstance(cfg, dict):
             continue
-        if cfg.get("invoke_endpoint") and cfg.get("invoke_api") and cfg.get("apis"):
-            continue  # already stamped (e.g. by Mantle reconciliation)
         eps = cfg.get("endpoints") or ["bedrock-runtime"]
         cfg["endpoints"] = eps
         apis = derive_model_apis(
             cfg.get("model_id", ""), cfg.get("provider", ""),
             on_mantle=("bedrock-mantle" in eps), on_runtime=("bedrock-runtime" in eps))
-        cfg["apis"] = apis
-        cfg["invoke_endpoint"], cfg["invoke_api"] = resolve_invoke_path(apis)
-        stamped += 1
-    if stamped:
-        logger.info("Routing backfill: stamped %d chat model(s) with endpoint/API fields", stamped)
-    return stamped
+        ep, api = resolve_invoke_path(apis)
+        if (cfg.get("apis"), cfg.get("invoke_endpoint"), cfg.get("invoke_api")) != (apis, ep, api):
+            cfg["apis"], cfg["invoke_endpoint"], cfg["invoke_api"] = apis, ep, api
+            changed += 1
+    if changed:
+        logger.info("Routing: re-derived endpoint/API for %d chat model(s) from the registry matrix", changed)
+    return changed
 
 
 def _backfill_chat_lifecycle(registry: dict) -> int:
