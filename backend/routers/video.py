@@ -343,7 +343,12 @@ async def revise_video(req: VideoReviseRequest):
 
 @router.delete("/{video_id}")
 async def delete_video(video_id: str):
-    """Delete a video asset (local files + optionally S3)."""
+    """Delete a video asset — local files AND its S3 objects.
+
+    Nova Reel/Luma always write the render to S3, and for `video_stored="s3"` the
+    MP4 lives ONLY there. Deleting just the local dir (as before) orphaned
+    output.mp4 + manifest in the bucket forever = silent, growing storage cost. Now
+    the delete also removes the job's S3 prefix (best-effort, safety-guarded)."""
     import shutil
 
     local_dir = settings.video_dir / video_id
@@ -354,10 +359,17 @@ async def delete_video(video_id: str):
         shutil.rmtree(local_dir)
         deleted_local = True
 
+    # Delete the S3 objects too (best-effort; refuses a non per-job prefix).
+    deleted_s3 = 0
+    if job and job.get("s3_bucket") and job.get("s3_prefix"):
+        from backend.services.video_generator import delete_video_from_s3
+        deleted_s3 = delete_video_from_s3(
+            job["s3_bucket"], job["s3_prefix"], job.get("region", "us-east-1"))
+
     # Remove from active jobs
     _active_jobs.pop(video_id, None)
 
-    return {"deleted": video_id, "deleted_local": deleted_local}
+    return {"deleted": video_id, "deleted_local": deleted_local, "deleted_s3_objects": deleted_s3}
 
 
 # ── Internal helpers ─────────────────────────────────────────────────────

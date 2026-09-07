@@ -334,6 +334,40 @@ def download_video_from_s3(s3_bucket: str, s3_prefix: str, local_dir: Path) -> P
     return local_path
 
 
+def delete_video_from_s3(s3_bucket: str, s3_prefix: str, region: str = "us-east-1") -> int:
+    """Delete ALL objects under a video job's S3 prefix (output.mp4, manifest,
+    status, shot fragments). Returns the number deleted. Best-effort — logs and
+    returns 0 on failure so a Gallery delete never errors.
+
+    SAFETY: only a per-job prefix of the `.../video/<id>/` form is accepted (≥3
+    path segments); a broad/empty prefix is refused so a bad value can never wipe
+    the whole bucket. Mirrors download_video_from_s3's client (proven cross-Region)."""
+    prefix = (s3_prefix or "").rstrip("/") + "/"
+    if (not s3_bucket or prefix.count("/") < 3
+            or prefix in ("/", "artsmoker/", "artsmoker/video/")):
+        logger.warning("Refusing S3 video delete for unsafe prefix %r", prefix)
+        return 0
+    s3 = _get_s3_client(region)
+    deleted = 0
+    try:
+        paginator = s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=s3_bucket, Prefix=prefix):
+            objs = [{"Key": o["Key"]} for o in page.get("Contents", [])]
+            if objs:
+                s3.delete_objects(Bucket=s3_bucket, Delete={"Objects": objs, "Quiet": True})
+                deleted += len(objs)
+        if deleted:
+            logger.info("Deleted %d S3 object(s) under s3://%s/%s", deleted, s3_bucket, prefix)
+            try:
+                from backend.services.cost_tracker import add_s3_cost
+                add_s3_cost("delete", 0, f"video S3 cleanup ({deleted} objects)")
+            except Exception:
+                pass
+    except Exception as exc:
+        logger.warning("Video S3 cleanup failed for s3://%s/%s: %s", s3_bucket, prefix, exc)
+    return deleted
+
+
 def extract_thumbnail(video_path: Path, output_path: Path) -> bool:
     """Extract the first frame from an MP4 as a JPEG thumbnail.
 
