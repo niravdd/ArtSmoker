@@ -975,16 +975,14 @@ async def auto_register_image_models(region: str):
 
     registry = get_registry()
 
-    # Record the profiles discovered here into the registry, merging (union of
-    # covered Regions) across every Region a full Sync scans. This is the single
-    # source of truth the residency post-pass (_resolve_residency_pins) reads to
-    # re-derive each model's pin order-independently. Stored as JSON-safe lists.
-    if profile_map:
-        ip = registry.setdefault("inference_profiles", {})
-        for base, profs in profile_map.items():
-            dst = ip.setdefault(base, {})
-            for pre, regs in profs.items():
-                dst[pre] = sorted(set(dst.get(pre, [])) | set(regs))
+    # NOTE: the discovered profile_map is NOT merged into the registry here. During a
+    # full Sync this function makes system writes via add/update_image_model, whose
+    # registry_transaction() reloads _registry from disk mid-call and would wipe any
+    # in-memory accumulation (SPEC §17 batch-Sync rule). Instead we RETURN it and let
+    # _run_refresh_all_regions accumulate it in a local dict, then assign it to the
+    # registry in the transaction-free tail right before _resolve_residency_pins.
+    # profile_map is still used below (per-Region effective_id); the post-pass is the
+    # authoritative re-derivation.
 
     # Build model_id → list of registry keys lookup for existing models
     # Map both the stored model_id and the raw version (without us. prefix)
@@ -1477,6 +1475,11 @@ async def auto_register_image_models(region: str):
         "updated": updated,
         "new_count": len(registered),
         "updated_count": len(updated),
+        # JSON-safe {base: {prefix: [regions]}} for this Region — accumulated by the
+        # Sync (survives the transactional registry reloads above) and consumed by
+        # the residency post-pass.
+        "inference_profiles": {b: {p: sorted(r) for p, r in profs.items()}
+                               for b, profs in profile_map.items()},
         "message": (
             f"Registered {len(registered)} new, updated {len(updated)} existing"
             if registered or updated else "No changes — all models already registered"
@@ -2547,9 +2550,6 @@ def _run_refresh_all_regions():
         # Also reset chat_models regions
         for key in list(registry.get("chat_models", {}).keys()):
             registry["chat_models"][key]["available_regions"] = []
-        # Reset the discovered inference-profile map — each region scan re-merges
-        # its own, so stale profiles (removed models/regions) prune automatically.
-        registry["inference_profiles"] = {}
 
         # Step 3: Scan each ENABLED region for foundation + custom + imported models
         _progress(f"Scanning {len(scan_regions)} enabled regions for available models...")
@@ -2559,6 +2559,11 @@ def _run_refresh_all_regions():
         total_updated = 0
         total_custom = 0
         errors = 0
+        # Accumulate discovered inference profiles in a LOCAL dict (immune to the
+        # registry_transaction reloads inside auto_register's image writes). Assigned
+        # to the registry once, in the transaction-free tail, before the residency
+        # post-pass. {normalized_base: {prefix: set(covered Regions)}}.
+        combined_profiles: dict = {}
 
         for idx, region in enumerate(scan_regions):
             _progress(f"Scanning region {idx + 1}/{len(scan_regions)}: {region}...")
@@ -2568,6 +2573,10 @@ def _run_refresh_all_regions():
                     "new": result["new_count"],
                     "updated": result["updated_count"],
                 }
+                for base, profs in (result.get("inference_profiles") or {}).items():
+                    dst = combined_profiles.setdefault(base, {})
+                    for pre, regs in profs.items():
+                        dst[pre] = sorted(set(dst.get(pre, [])) | set(regs))
                 total_new += result["new_count"]
                 total_updated += result["updated_count"]
                 region_total = result["new_count"] + result["updated_count"]
@@ -2616,6 +2625,15 @@ def _run_refresh_all_regions():
                 _progress(f"Mantle: {mantle_added} model(s) reconciled")
         except Exception as exc:
             logger.warning("Mantle reconciliation skipped: %s", exc)
+
+        # Publish the accumulated inference-profile map to the registry now — in the
+        # transaction-free Sync tail, so it isn't wiped by the registry_transaction
+        # reloads that ran during per-Region discovery. This is the single source of
+        # truth the residency post-pass reads.
+        registry["inference_profiles"] = {
+            b: {p: sorted(r) for p, r in profs.items()}
+            for b, profs in combined_profiles.items()
+        }
 
         # Step 4b-bis: Residency post-pass — re-derive each model's Region + profile
         # prefix from the profiles discovered this Sync, toward the configured
