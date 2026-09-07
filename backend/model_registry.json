@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-09-07T02:45:09.761151+00:00",
+  "last_updated": "2026-09-07T04:58:35.748917+00:00",
   "api_compatibility": {
     "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'.",
     "api_priority": [
@@ -271,7 +271,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_image_remove_background_v1": {
       "label": "Stable Image Remove Background",
@@ -306,7 +310,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_image_control_sketch_v1": {
       "label": "Stable Image Control Sketch",
@@ -341,7 +349,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_conservative_upscale_v1": {
       "label": "Stable Image Conservative Upscale",
@@ -376,7 +388,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_image_search_recolor_v1": {
       "label": "Stable Image Search and Recolor",
@@ -411,7 +427,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_fast_upscale_v1": {
       "label": "Stable Image Fast Upscale",
@@ -446,7 +466,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_image_erase_object_v1": {
       "label": "Stable Image Erase Object",
@@ -481,7 +505,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_image_control_structure_v1": {
       "label": "Stable Image Control Structure",
@@ -516,7 +544,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_outpaint_v1": {
       "label": "Stable Image Outpaint",
@@ -551,7 +583,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_image_inpaint_v1": {
       "label": "Stable Image Inpaint",
@@ -586,7 +622,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_image_style_guide_v1": {
       "label": "Stable Image Style Guide",
@@ -621,7 +661,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_style_transfer_v1": {
       "label": "Stable Image Style Transfer",
@@ -656,7 +700,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "stable_image_search_replace_v1": {
       "label": "Stable Image Search and Replace",
@@ -691,7 +739,11 @@
       "model_source": "foundation",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "nova_canvas_v1": {
       "label": "Nova Canvas",
@@ -2095,7 +2147,7 @@
     "nemotron_nano_12b_v2": {
       "label": "NVIDIA Nemotron Nano 12B v2 VL BF16",
       "model_id": "nvidia.nemotron-nano-12b-v2",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -2130,12 +2182,14 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_sonnet_4_20250514_v1": {
       "label": "Claude Sonnet 4",
       "model_id": "us.anthropic.claude-sonnet-4-20250514-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -2176,12 +2230,19 @@
       "legacy_time": "2026-04-14T08:00:00+00:00",
       "end_of_life_time": "2026-10-14T08:00:00+00:00",
       "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0.015
+      "output_price_per_1k": 0.015,
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "apac",
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "claude_haiku_4_5_20251001_v1": {
       "label": "Claude Haiku 4.5",
       "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -2225,12 +2286,18 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "input_price_per_1k": 0.0011,
-      "output_price_per_1k": 0.0055
+      "output_price_per_1k": 0.0055,
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "qwen3_235b_a22b_2507_v1": {
       "label": "Qwen3 235B A22B 2507",
       "model_id": "qwen.qwen3-235b-a22b-2507-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -2317,12 +2384,14 @@
           "input_per_1k": 0.00013,
           "output_per_1k": 0.00052
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "kimi_k2_5": {
       "label": "Kimi K2.5",
       "model_id": "moonshotai.kimi-k2.5",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -2413,12 +2482,14 @@
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "gpt_oss_120b_1": {
       "label": "gpt-oss-120b",
       "model_id": "openai.gpt-oss-120b-1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -2521,12 +2592,14 @@
           "input_per_1k": 9e-05,
           "output_per_1k": 0.000365
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "qwen3_next_80b_a3b": {
       "label": "Qwen3 Next 80B A3B",
       "model_id": "qwen.qwen3-next-80b-a3b",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -2615,7 +2688,9 @@
           "input_per_1k": 8.4e-05,
           "output_per_1k": 0.00072
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_fable_5": {
       "label": "Claude Fable 5",
@@ -2623,7 +2698,7 @@
       "input_price_per_1k": 0.01,
       "output_price_per_1k": 0.05,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -2665,12 +2740,17 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "global",
+        "us"
+      ]
     },
     "v3_2": {
       "label": "DeepSeek V3.2",
       "model_id": "deepseek.v3.2",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -2769,12 +2849,14 @@
           "input_per_1k": 0.00012,
           "output_per_1k": 0.00036
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "nemotron_nano_3_30b": {
       "label": "Nemotron Nano 3 30B",
       "model_id": "nvidia.nemotron-nano-3-30b",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -2873,12 +2955,14 @@
           "input_per_1k": 3.09e-05,
           "output_per_1k": 0.0001236
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_sonnet_4_6": {
       "label": "Claude Sonnet 4.6",
       "model_id": "us.anthropic.claude-sonnet-4-6",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -2923,12 +3007,18 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0.015
+      "output_price_per_1k": 0.015,
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "minimax_m2": {
       "label": "MiniMax M2",
       "model_id": "minimax.minimax-m2",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3019,12 +3109,14 @@
           "input_per_1k": 0.00018,
           "output_per_1k": 0.00072
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "glm_4_7_flash": {
       "label": "GLM 4.7 Flash",
       "model_id": "zai.glm-4.7-flash",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3117,12 +3209,14 @@
           "input_per_1k": 4e-05,
           "output_per_1k": 0.00024
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "voxtral_mini_3b_2507": {
       "label": "Voxtral Mini 3B 2507",
       "model_id": "mistral.voxtral-mini-3b-2507",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3157,12 +3251,14 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "nova_2_lite_v1": {
       "label": "Nova 2 Lite",
       "model_id": "us.amazon.nova-2-lite-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -3301,12 +3397,18 @@
           "input_per_1k": 7.2e-05,
           "output_per_1k": 0
         }
-      }
+      },
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "minimax_m2_5": {
       "label": "MiniMax M2.5",
       "model_id": "minimax.minimax-m2.5",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3399,12 +3501,14 @@
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "gemma_3_12b_it": {
       "label": "Gemma 3 12B IT",
       "model_id": "google.gemma-3-12b-it",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3495,12 +3599,14 @@
           "input_per_1k": 5.4e-05,
           "output_per_1k": 0.000174
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "kimi_k2_thinking": {
       "label": "Kimi K2 Thinking",
       "model_id": "moonshot.kimi-k2-thinking",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3587,12 +3693,14 @@
           "input_per_1k": 0.000309,
           "output_per_1k": 0.0012875
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "mistral_large_3_675b_instruct": {
       "label": "Mistral Large 3",
       "model_id": "mistral.mistral-large-3-675b-instruct",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3681,12 +3789,14 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.0009
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "pegasus_1_2_v1": {
       "label": "Pegasus v1.2",
       "model_id": "us.twelvelabs.pegasus-1-2-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -3727,12 +3837,19 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "apac",
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "devstral_2_123b": {
       "label": "Devstral 2 123B",
       "model_id": "mistral.devstral-2-123b",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3825,12 +3942,14 @@
           "input_per_1k": 0.00024,
           "output_per_1k": 0.0012
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "minimax_m2_1": {
       "label": "MiniMax M2.1",
       "model_id": "minimax.minimax-m2.1",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3923,12 +4042,14 @@
           "input_per_1k": 0.000348,
           "output_per_1k": 0.001008
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "nemotron_super_3_120b": {
       "label": "NVIDIA Nemotron 3 Super 120B A12B",
       "model_id": "nvidia.nemotron-super-3-120b",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4029,12 +4150,14 @@
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00039
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "qwen3_32b_v1": {
       "label": "Qwen3 32B (dense)",
       "model_id": "qwen.qwen3-32b-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4127,12 +4250,14 @@
           "input_per_1k": 9e-05,
           "output_per_1k": 0.000365
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "ministral_3_14b_instruct": {
       "label": "Ministral 14B 3.0",
       "model_id": "mistral.ministral-3-14b-instruct",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4167,7 +4292,9 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_opus_4_6_v1": {
       "label": "Claude Opus 4.6",
@@ -4175,7 +4302,7 @@
       "input_price_per_1k": 0.005,
       "output_price_per_1k": 0.025,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -4217,12 +4344,18 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "nemotron_nano_9b_v2": {
       "label": "NVIDIA Nemotron Nano 9B v2",
       "model_id": "nvidia.nemotron-nano-9b-v2",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4257,12 +4390,14 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "ministral_3_8b_instruct": {
       "label": "Ministral 3 8B",
       "model_id": "mistral.ministral-3-8b-instruct",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4297,12 +4432,14 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "voxtral_small_24b_2507": {
       "label": "Voxtral Small 24B 2507",
       "model_id": "mistral.voxtral-small-24b-2507",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4337,12 +4474,14 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "glm_5": {
       "label": "GLM 5",
       "model_id": "zai.glm-5",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4433,12 +4572,14 @@
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "gpt_oss_20b_1": {
       "label": "gpt-oss-20b",
       "model_id": "openai.gpt-oss-20b-1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4541,12 +4682,14 @@
           "input_per_1k": 5.5e-05,
           "output_per_1k": 0.000235
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "gemma_3_4b_it": {
       "label": "Gemma 3 4B IT",
       "model_id": "google.gemma-3-4b-it",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4637,7 +4780,9 @@
           "input_per_1k": 3e-05,
           "output_per_1k": 5e-05
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_opus_4_8": {
       "label": "Claude Opus 4.8",
@@ -4645,7 +4790,7 @@
       "input_price_per_1k": 0.005,
       "output_price_per_1k": 0.025,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -4687,7 +4832,13 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "claude_opus_4_7": {
       "label": "Claude Opus 4.7",
@@ -4695,7 +4846,7 @@
       "input_price_per_1k": 0.005,
       "output_price_per_1k": 0.025,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -4737,12 +4888,18 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "gpt_oss_safeguard_120b": {
       "label": "GPT OSS Safeguard 120B",
       "model_id": "openai.gpt-oss-safeguard-120b",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4843,12 +5000,14 @@
           "input_per_1k": 9e-05,
           "output_per_1k": 0.000365
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "gemma_3_27b_it": {
       "label": "Gemma 3 27B PT",
       "model_id": "google.gemma-3-27b-it",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -4939,12 +5098,14 @@
           "input_per_1k": 0.00014,
           "output_per_1k": 0.00022
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_sonnet_4_5_20250929_v1": {
       "label": "Claude Sonnet 4.5",
       "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -4989,12 +5150,18 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0.015
+      "output_price_per_1k": 0.015,
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "qwen3_vl_235b_a22b": {
       "label": "Qwen3 VL 235B A22B",
       "model_id": "qwen.qwen3-vl-235b-a22b",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -5083,12 +5250,14 @@
           "input_per_1k": 0.00032,
           "output_per_1k": 0.00161
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "glm_4_7": {
       "label": "GLM 4.7",
       "model_id": "zai.glm-4.7",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -5179,12 +5348,14 @@
           "input_per_1k": 0.000465,
           "output_per_1k": 0.001705
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "qwen3_coder_480b_a35b_v1": {
       "label": "Qwen3 Coder 480B A35B Instruct",
       "model_id": "qwen.qwen3-coder-480b-a35b-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -5268,12 +5439,14 @@
           "input_per_1k": 0.00027,
           "output_per_1k": 0.00108
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "magistral_small_2509": {
       "label": "Magistral Small 2509",
       "model_id": "mistral.magistral-small-2509",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -5308,12 +5481,14 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "v3_v1": {
       "label": "DeepSeek-V3.1",
       "model_id": "deepseek.v3-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -5341,12 +5516,14 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "ministral_3_3b_instruct": {
       "label": "Ministral 3B",
       "model_id": "mistral.ministral-3-3b-instruct",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -5381,7 +5558,9 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_opus_4_5_20251101_v1": {
       "label": "Claude Opus 4.5",
@@ -5389,7 +5568,7 @@
       "input_price_per_1k": 0.005,
       "output_price_per_1k": 0.025,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -5431,12 +5610,18 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "qwen3_coder_30b_a3b_v1": {
       "label": "Qwen3-Coder-30B-A3B-Instruct",
       "model_id": "qwen.qwen3-coder-30b-a3b-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -5527,12 +5712,14 @@
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.0003
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "gpt_oss_safeguard_20b": {
       "label": "GPT OSS Safeguard 20B",
       "model_id": "openai.gpt-oss-safeguard-20b",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -5633,12 +5820,14 @@
           "input_per_1k": 5.5e-05,
           "output_per_1k": 0.000235
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "rerank_v1": {
       "label": "Rerank 1.0",
       "model_id": "amazon.rerank-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ca-central-1",
@@ -5663,12 +5852,14 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "nova_pro_v1": {
       "label": "Nova Pro",
       "model_id": "us.amazon.nova-pro-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -5806,12 +5997,18 @@
           "input_per_1k": 0.00048,
           "output_per_1k": 0.00192
         }
-      }
+      },
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "apac",
+        "eu",
+        "us"
+      ]
     },
     "nova_lite_v1": {
       "label": "Nova Lite",
       "model_id": "us.amazon.nova-lite-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -5951,12 +6148,18 @@
           "input_per_1k": 7.2e-05,
           "output_per_1k": 0
         }
-      }
+      },
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "apac",
+        "eu",
+        "us"
+      ]
     },
     "nova_micro_v1": {
       "label": "Nova Micro",
       "model_id": "us.amazon.nova-micro-v1:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -6073,12 +6276,18 @@
           "input_per_1k": 3.8e-05,
           "output_per_1k": 0.000152
         }
-      }
+      },
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "apac",
+        "eu",
+        "us"
+      ]
     },
     "claude_3_haiku_20240307_v1": {
       "label": "Claude 3 Haiku",
-      "model_id": "anthropic.claude-3-haiku-20240307-v1:0:200k",
-      "region": "ap-northeast-1",
+      "model_id": "us.anthropic.claude-3-haiku-20240307-v1:0:200k",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -6117,12 +6326,18 @@
       "output_price_per_1k": 0,
       "lifecycle_status": "LEGACY",
       "legacy_time": "2026-03-10T08:00:00+00:00",
-      "end_of_life_time": "2026-09-10T08:00:00+00:00"
+      "end_of_life_time": "2026-09-10T08:00:00+00:00",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "apac",
+        "eu",
+        "us"
+      ]
     },
     "claude_3_5_sonnet_20240620_v1": {
       "label": "Claude 3.5 Sonnet v2",
-      "model_id": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
-      "region": "ap-northeast-1",
+      "model_id": "apac.anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "region": "ap-northeast-2",
       "available_regions": [
         "ap-northeast-2",
         "ap-south-1",
@@ -6149,12 +6364,16 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0
+      "output_price_per_1k": 0,
+      "residency_scope": "geo:apac",
+      "inference_profiles": [
+        "apac"
+      ]
     },
     "claude_3_sonnet_20240229_v1": {
       "label": "Claude 3 Sonnet",
-      "model_id": "anthropic.claude-3-sonnet-20240229-v1:0:28k",
-      "region": "ap-northeast-1",
+      "model_id": "apac.anthropic.claude-3-sonnet-20240229-v1:0:28k",
+      "region": "ap-south-1",
       "available_regions": [
         "ap-south-1",
         "ap-southeast-1",
@@ -6183,12 +6402,18 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0
+      "output_price_per_1k": 0,
+      "residency_scope": "geo:apac",
+      "inference_profiles": [
+        "apac",
+        "eu",
+        "us"
+      ]
     },
     "rerank_v3_5": {
       "label": "Rerank 3.5",
       "model_id": "cohere.rerank-v3-5:0",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ca-central-1",
@@ -6217,11 +6442,13 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_3_7_sonnet_20250219_v1": {
       "label": "Claude 3.7 Sonnet",
-      "model_id": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "model_id": "apac.anthropic.claude-3-7-sonnet-20250219-v1:0",
       "region": "ap-south-1",
       "available_regions": [
         "ap-south-1",
@@ -6248,12 +6475,16 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0
+      "output_price_per_1k": 0,
+      "residency_scope": "geo:apac",
+      "inference_profiles": [
+        "apac"
+      ]
     },
     "llama3_8b_instruct_v1": {
       "label": "Llama 3 8B Instruct",
       "model_id": "meta.llama3-8b-instruct-v1:0",
-      "region": "ap-south-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-south-1",
         "ca-central-1",
@@ -6282,12 +6513,14 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "llama3_70b_instruct_v1": {
       "label": "Llama 3 70B Instruct",
       "model_id": "meta.llama3-70b-instruct-v1:0",
-      "region": "ap-south-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-south-1",
         "ca-central-1",
@@ -6316,12 +6549,14 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "mistral_7b_instruct_v0": {
       "label": "Mistral 7B Instruct",
       "model_id": "mistral.mistral-7b-instruct-v0:2",
-      "region": "ap-south-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-south-1",
         "ap-southeast-2",
@@ -6394,12 +6629,14 @@
           "input_per_1k": 0.00015,
           "output_per_1k": 0.0002
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "mixtral_8x7b_instruct_v0": {
       "label": "Mixtral 8x7B Instruct",
       "model_id": "mistral.mixtral-8x7b-instruct-v0:1",
-      "region": "ap-south-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-south-1",
         "ap-southeast-2",
@@ -6472,12 +6709,14 @@
           "input_per_1k": 0.00054,
           "output_per_1k": 0.00084
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "mistral_large_2402_v1": {
       "label": "Mistral Large (24.02)",
       "model_id": "mistral.mistral-large-2402-v1:0",
-      "region": "ap-south-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-south-1",
         "ap-southeast-2",
@@ -6550,12 +6789,14 @@
           "input_per_1k": 0.0048,
           "output_per_1k": 0.0144
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "qwen3_coder_next": {
       "label": "Qwen3 Coder Next",
       "model_id": "qwen.qwen3-coder-next",
-      "region": "ap-southeast-2",
+      "region": "us-east-1",
       "available_regions": [
         "ap-southeast-2",
         "eu-west-2",
@@ -6640,12 +6881,14 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00072
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "pixtral_large_2502_v1": {
       "label": "Pixtral Large (25.02)",
       "model_id": "us.mistral.pixtral-large-2502-v1:0",
-      "region": "eu-central-1",
+      "region": "us-west-2",
       "available_regions": [
         "eu-central-1",
         "eu-north-1",
@@ -6676,12 +6919,17 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "us"
+      ]
     },
     "palmyra_x5_v1": {
       "label": "Palmyra X5",
       "model_id": "us.writer.palmyra-x5-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -6709,12 +6957,16 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "palmyra_x4_v1": {
       "label": "Palmyra X4",
       "model_id": "us.writer.palmyra-x4-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -6742,12 +6994,16 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "palmyra_vision_7b": {
       "label": "Writer Palmyra Vision 7B",
       "model_id": "writer.palmyra-vision-7b",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -6832,7 +7088,9 @@
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00036
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_opus_4_1_20250805_v1": {
       "label": "Claude Opus 4.1",
@@ -6840,7 +7098,7 @@
       "input_price_per_1k": 0.015,
       "output_price_per_1k": 0.075,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -6868,12 +7126,16 @@
       "invoke_api": "converse",
       "lifecycle_status": "LEGACY",
       "legacy_time": "2026-07-08T08:00:00+00:00",
-      "end_of_life_time": "2027-01-08T08:00:00+00:00"
+      "end_of_life_time": "2027-01-08T08:00:00+00:00",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "nova_2_pro_preview_20251202_v1": {
       "label": "Nova 2 Pro Preview",
       "model_id": "us.amazon.nova-2-pro-preview-20251202-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -7001,12 +7263,16 @@
           "input_per_1k": 0.00048,
           "output_per_1k": 0.00192
         }
-      }
+      },
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "nova_premier_v1": {
       "label": "Nova Premier",
-      "model_id": "amazon.nova-premier-v1:0:8k",
-      "region": "us-east-1",
+      "model_id": "us.amazon.nova-premier-v1:0:8k",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -7033,7 +7299,11 @@
       "output_price_per_1k": 0.00625,
       "lifecycle_status": "LEGACY",
       "legacy_time": "2026-03-13T07:00:00+00:00",
-      "end_of_life_time": "2026-09-14T07:00:00+00:00"
+      "end_of_life_time": "2026-09-14T07:00:00+00:00",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "jamba_1_5_large_v1": {
       "label": "Jamba 1.5 Large",
@@ -7063,7 +7333,9 @@
       "invoke_api": "converse",
       "lifecycle_status": "LEGACY",
       "legacy_time": "2026-05-26T08:00:00+00:00",
-      "end_of_life_time": "2026-11-26T08:00:00+00:00"
+      "end_of_life_time": "2026-11-26T08:00:00+00:00",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "jamba_1_5_mini_v1": {
       "label": "Jamba 1.5 Mini",
@@ -7093,12 +7365,14 @@
       "invoke_api": "converse",
       "lifecycle_status": "LEGACY",
       "legacy_time": "2026-05-26T08:00:00+00:00",
-      "end_of_life_time": "2026-11-26T08:00:00+00:00"
+      "end_of_life_time": "2026-11-26T08:00:00+00:00",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "command_r_v1": {
       "label": "Command R",
       "model_id": "cohere.command-r-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-west-2"
@@ -7121,12 +7395,14 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "command_r_plus_v1": {
       "label": "Command R+",
       "model_id": "cohere.command-r-plus-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-west-2"
@@ -7149,12 +7425,14 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "r1_v1": {
       "label": "DeepSeek-R1",
       "model_id": "us.deepseek.r1-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -7183,12 +7461,16 @@
       "output_price_per_1k": 0.0054,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "llama3_1_8b_instruct_v1": {
       "label": "Llama 3.1 8B Instruct",
       "model_id": "us.meta.llama3-1-8b-instruct-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -7215,12 +7497,16 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "llama3_1_70b_instruct_v1": {
       "label": "Llama 3.1 70B Instruct",
       "model_id": "us.meta.llama3-1-70b-instruct-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -7247,12 +7533,16 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "llama3_3_70b_instruct_v1": {
       "label": "Llama 3.3 70B Instruct",
       "model_id": "us.meta.llama3-3-70b-instruct-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -7279,12 +7569,16 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "llama4_scout_17b_instruct_v1": {
       "label": "Llama 4 Scout 17B Instruct",
       "model_id": "us.meta.llama4-scout-17b-instruct-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -7312,12 +7606,16 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "llama4_maverick_17b_instruct_v1": {
       "label": "Llama 4 Maverick 17B Instruct",
       "model_id": "us.meta.llama4-maverick-17b-instruct-v1:0",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -7345,7 +7643,11 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "us"
+      ]
     },
     "mistral_small_2402_v1": {
       "label": "Mistral Small (24.02)",
@@ -7377,7 +7679,9 @@
       "output_price_per_1k": 0.003,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "mistral_large_2407_v1": {
       "label": "Mistral Large (24.07)",
@@ -7444,7 +7748,9 @@
           "input_per_1k": 0.0048,
           "output_per_1k": 0.0144
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_sonnet_5": {
       "label": "Claude Sonnet 5",
@@ -7452,7 +7758,7 @@
       "input_price_per_1k": 0.002,
       "output_price_per_1k": 0.01,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -7495,7 +7801,13 @@
       "supports_temperature": false,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "claude_opus_5": {
       "label": "Claude Opus 5",
@@ -7503,7 +7815,7 @@
       "input_price_per_1k": 0.005,
       "output_price_per_1k": 0.025,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -7546,12 +7858,18 @@
       "supports_temperature": false,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ]
     },
     "gpt_5_6_terra": {
       "label": "GPT-5.6 Terra",
       "model_id": "us.openai.gpt-5.6-terra",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -7584,12 +7902,18 @@
       "output_price_per_1k": 0.00792,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "global",
+        "in",
+        "us"
+      ]
     },
     "gpt_5_6_luna": {
       "label": "GPT-5.6 Luna",
       "model_id": "us.openai.gpt-5.6-luna",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "us-east-1",
         "us-east-2",
@@ -7622,7 +7946,13 @@
       "output_price_per_1k": 0.000792,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "global",
+        "in",
+        "us"
+      ]
     },
     "gpt_5_6_sol": {
       "label": "GPT-5.6 Sol",
@@ -7656,7 +7986,12 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "global",
+        "us"
+      ]
     },
     "gemma_4_26b_a4b": {
       "label": "google.gemma-4-26b-a4b",
@@ -7705,7 +8040,9 @@
           "input_per_1k": 7.8e-05,
           "output_per_1k": 0.00024
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "qwen3_coder_30b_a3b_instruct": {
       "label": "qwen.qwen3-coder-30b-a3b-instruct",
@@ -7786,7 +8123,9 @@
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.0003
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "grok_4_3": {
       "label": "xai.grok-4.3",
@@ -7867,7 +8206,9 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.0009
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "glm_4_6": {
       "label": "zai.glm-4.6",
@@ -8040,7 +8381,9 @@
           "input_per_1k": 0.001,
           "output_per_1k": 0.003
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "gpt_5_4": {
       "label": "openai.gpt-5.4",
@@ -8213,7 +8556,9 @@
           "input_per_1k": 0.001,
           "output_per_1k": 0.003
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "qwen3_coder_480b_a35b_instruct": {
       "label": "qwen.qwen3-coder-480b-a35b-instruct",
@@ -8294,7 +8639,9 @@
           "input_per_1k": 0.00027,
           "output_per_1k": 0.00108
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "v3_1": {
       "label": "deepseek.v3.1",
@@ -8375,7 +8722,9 @@
           "input_per_1k": 0.000348,
           "output_per_1k": 0.001008
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "gemma_4_e2b": {
       "label": "google.gemma-4-e2b",
@@ -8424,7 +8773,9 @@
           "input_per_1k": 2.4e-05,
           "output_per_1k": 4.8e-05
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "claude_haiku_4_5": {
       "label": "anthropic.claude-haiku-4-5",
@@ -8451,7 +8802,9 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "messages",
       "input_price_per_1k": 0.0011,
-      "output_price_per_1k": 0.0055
+      "output_price_per_1k": 0.0055,
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "moonshotai_kimi_k2_thinking": {
       "label": "moonshotai.kimi-k2-thinking",
@@ -8532,7 +8885,9 @@
           "input_per_1k": 0.000309,
           "output_per_1k": 0.0012875
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "qwen3_vl_235b_a22b_instruct": {
       "label": "qwen.qwen3-vl-235b-a22b-instruct",
@@ -8613,7 +8968,9 @@
           "input_per_1k": 0.00032,
           "output_per_1k": 0.00161
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "qwen3_next_80b_a3b_instruct": {
       "label": "qwen.qwen3-next-80b-a3b-instruct",
@@ -8694,7 +9051,9 @@
           "input_per_1k": 8.4e-05,
           "output_per_1k": 0.00072
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "gemma_4_31b": {
       "label": "google.gemma-4-31b",
@@ -8743,11 +9102,13 @@
           "input_per_1k": 8.4e-05,
           "output_per_1k": 0.00024
         }
-      }
+      },
+      "residency_scope": "in-region",
+      "inference_profiles": []
     },
     "grok_4_6": {
       "label": "xai.grok-4.6",
-      "model_id": "xai.grok-4.6",
+      "model_id": "us.xai.grok-4.6",
       "region": "us-west-2",
       "available_regions": [
         "us-west-2"
@@ -8916,7 +9277,12 @@
           "input_per_1k": 0.001,
           "output_per_1k": 0.003
         }
-      }
+      },
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "global",
+        "us"
+      ]
     }
   },
   "custom_model_catalog": {
@@ -11810,6 +12176,1071 @@
     "video": {
       "nova_reel": 0.08,
       "luma_ray": 1.5
+    }
+  },
+  "inference_profiles": {
+    "anthropic.claude-3-sonnet-20240229": {
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-3-5-sonnet-20240620": {
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2"
+      ]
+    },
+    "anthropic.claude-3-haiku-20240307": {
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-3-5-sonnet-20241022": {
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2"
+      ]
+    },
+    "amazon.nova-micro": {
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "amazon.nova-lite": {
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "amazon.nova-pro": {
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "cohere.embed": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-sonnet-4-20250514": {
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-south-2",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ap-southeast-4"
+      ],
+      "global": [
+        "ap-northeast-1",
+        "eu-west-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "twelvelabs.pegasus-1-2": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-south-2",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ap-southeast-4"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "amazon.nova-2-lite": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-opus-4-5-20251101": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-opus-4-6": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-sonnet-4-5-20250929": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-opus-4-7": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-opus-4-8": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-haiku-4-5-20251001": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-fable-5": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-sonnet-5": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-opus-5": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "openai.gpt-5.6-sol": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "openai.gpt-5.6-terra": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "in": [
+        "ap-south-1",
+        "ap-south-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "openai.gpt-5.6-luna": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "in": [
+        "ap-south-1",
+        "ap-south-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "xai.grok-4.6": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-fable-5-1": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-sonnet-4-6": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "twelvelabs.marengo-embed-2-7": {
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-south-2",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ap-southeast-3",
+        "ap-southeast-4"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-3-7-sonnet-20250219": {
+      "apac": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-south-2",
+        "ap-southeast-1",
+        "ap-southeast-2"
+      ]
+    },
+    "meta.llama3-2-3b-instruct": {
+      "eu": [
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "meta.llama3-2-1b-instruct": {
+      "eu": [
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "mistral.pixtral-large-2502": {
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "twelvelabs.marengo-embed-3-0": {
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-3"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "meta.llama3-2-11b-instruct": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "meta.llama3-2-90b-instruct": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "meta.llama3-1-8b-instruct": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "meta.llama3-1-70b-instruct": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "meta.llama3-3-70b-instruct": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "deepseek.r1": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "amazon.nova-premier": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-conservative-upscale": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-creative-upscale": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-fast-upscale": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-image-control-sketch": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-image-control-structure": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-image-erase-object": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-image-inpaint": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-image-remove-background": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-image-search-replace": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-image-search-recolor": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-image-style-guide": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-outpaint": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "stability.stable-style-transfer": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "writer.palmyra-x4": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "writer.palmyra-x5": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "amazon.nova-2-pro-preview-20251202": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-opus-4-1-20250805": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "meta.llama4-maverick-17b-instruct": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "meta.llama4-scout-17b-instruct": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "meta.llama3-1-405b-instruct": {
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
     }
   }
 }
