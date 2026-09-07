@@ -636,6 +636,69 @@ def _profile_prefix_for_region(region: str) -> str:
     return "us." if (region or "").startswith("us-") else "global."
 
 
+def _discover_inference_profiles(bedrock_client) -> dict:
+    """Map ``normalized base model id -> {geo_prefix: set(Regions the profile covers)}``.
+
+    Built from ``list_inference_profiles(SYSTEM_DEFINED)`` in ONE Region: it returns
+    the cross-region profiles usable FROM that Region (its geo + ``global``) and,
+    per profile, the underlying model Regions (parsed from each ``models[].modelArn``).
+    This is the AUTHORITATIVE source for residency-aware routing — no guessing a geo
+    from a Region name. Empty on any error (caller falls back to the Region heuristic).
+    """
+    out: dict = {}
+    try:
+        token = None
+        while True:
+            kw = {"typeEquals": "SYSTEM_DEFINED", "maxResults": 200}
+            if token:
+                kw["nextToken"] = token
+            resp = bedrock_client.list_inference_profiles(**kw)
+            for p in resp.get("inferenceProfileSummaries", []):
+                pid = p.get("inferenceProfileId", "")
+                if "." not in pid or p.get("status") != "ACTIVE":
+                    continue
+                prefix, base = pid.split(".", 1)
+                if prefix not in ("us", "eu", "apac", "in", "global"):
+                    continue
+                regions = {a.split(":")[3] for m in (p.get("models") or [])
+                           if len((a := m.get("modelArn", "")).split(":")) > 4 and a.split(":")[3]}
+                out.setdefault(_normalize_model_id(base), {}).setdefault(prefix, set()).update(regions)
+            token = resp.get("nextToken")
+            if not token:
+                break
+    except Exception as exc:
+        logger.debug("inference-profile discovery failed: %s", exc)
+    return out
+
+
+def _select_profile_prefix(model_id: str, region: str, profile_map: dict):
+    """Residency-aware inference-profile prefix for invoking ``model_id`` from ``region``.
+
+    Prefers a GEO profile that ACTUALLY covers the Region (``us.``/``eu.``/``apac.``/
+    ``in.`` — keeps data in that geography); falls back to ``global.`` (worldwide,
+    residency NOT enforceable) only when no geo profile covers it; ``""`` when only
+    the in-Region base id exists. Returns ``None`` when the model isn't in the
+    discovered map (caller then uses the Region heuristic).
+    """
+    profs = profile_map.get(_normalize_model_id(model_id))
+    if not profs:
+        return None
+    geo = sorted(pre for pre, regs in profs.items() if pre != "global" and region in regs)
+    if geo:
+        return geo[0] + "."            # residency-preserving geo profile
+    if "global" in profs:
+        return "global."               # no in-geo profile → worldwide routing
+    return ""                          # only the in-Region base id exists
+
+
+def _residency_scope(effective_id: str, base_id: str) -> str:
+    """Human/label form of the residency posture implied by a chosen model id."""
+    if effective_id == base_id:
+        return "in-region"
+    pre = effective_id.split(".", 1)[0]
+    return "global" if pre == "global" else f"geo:{pre}"
+
+
 def _normalize_model_id(model_id: str) -> str:
     """Bare, comparable form of a model id for cross-endpoint matching.
 
@@ -759,6 +822,13 @@ async def auto_register_image_models(region: str):
         response = bedrock.list_foundation_models()
     except Exception as exc:
         raise HTTPException(502, detail=f"Failed to list models in {region}: {exc}")
+
+    # Residency-aware routing: the cross-region inference profiles usable FROM this
+    # Region (its geo + global), each with the exact model Regions it covers. Drives
+    # _select_profile_prefix so we pin the in-geography profile when one exists and
+    # only fall through to global. when it doesn't (see _register_chat_model). Empty
+    # on failure → callers fall back to the region heuristic.
+    profile_map = _discover_inference_profiles(bedrock)
 
     from backend.services.model_registry import (
         get_registry, add_image_model, get_image_model, update_image_model,
@@ -884,7 +954,13 @@ async def auto_register_image_models(region: str):
 
         effective_id = model_id
         if "INFERENCE_PROFILE" in inference_types and not model_id.startswith(_GEO_PREFIXES):
-            effective_id = _profile_prefix_for_region(region) + model_id
+            # Discovered profiles decide the prefix (residency-first); fall back to the
+            # region heuristic only when this model isn't in the profile map.
+            sel = _select_profile_prefix(model_id, region, profile_map)
+            prefix = sel if sel is not None else _profile_prefix_for_region(region)
+            effective_id = prefix + model_id
+        avail_profiles = sorted((profile_map.get(_normalize_model_id(model_id)) or {}).keys())
+        residency_scope = _residency_scope(effective_id, model_id)
 
         chat_models = registry.setdefault("chat_models", {})
 
@@ -925,6 +1001,8 @@ async def auto_register_image_models(region: str):
                 existing["model_arn"] = m.get("modelArn", "")
                 existing["label"] = new_name
                 existing["inference_types"] = inference_types
+                existing["inference_profiles"] = avail_profiles
+                existing["residency_scope"] = residency_scope
                 # Keep the existing key — renaming causes conflicts between
                 # base and user registry files on reload.
             # Lifecycle for pre-existing entries is refreshed authoritatively by
@@ -956,6 +1034,8 @@ async def auto_register_image_models(region: str):
             "max_context_tokens": 128000,  # Default — admin can override per model
             "customizations_supported": m.get("customizationsSupported", []),
             "inference_types": inference_types,
+            "inference_profiles": avail_profiles,
+            "residency_scope": residency_scope,
             **_lifecycle_fields(m),
             "endpoints": ["bedrock-runtime"],
             "apis": apis,
@@ -1168,12 +1248,16 @@ async def auto_register_image_models(region: str):
         if get_image_model(key):
             key = f"{key}_{region.replace('-', '_')}"
 
-        # Models that require INFERENCE_PROFILE need the US prefix (us.{model_id})
-        # This is determined by the inferenceTypesSupported field from Bedrock discovery
+        # Models that require INFERENCE_PROFILE need a geo/global prefix. The prefix is
+        # residency-aware: the discovered in-geography profile when one covers this
+        # Region, else global.; fall back to the region heuristic when the model isn't
+        # in the discovered profile map.
         inference_types = m.get("inferenceTypesSupported", [])
         effective_model_id = model_id
         if "INFERENCE_PROFILE" in inference_types and not model_id.startswith(_GEO_PREFIXES):
-            effective_model_id = _profile_prefix_for_region(region) + model_id
+            sel = _select_profile_prefix(model_id, region, profile_map)
+            prefix = sel if sel is not None else _profile_prefix_for_region(region)
+            effective_model_id = prefix + model_id
 
         config = {
             "label": m.get("modelName", model_id),
