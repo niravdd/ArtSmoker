@@ -2512,6 +2512,11 @@ def _run_refresh_all_regions():
 
     # Silence per-model save logs during bulk Sync (save once at the end)
     _save._silent = True
+    # Batch-write mode: transactional system writes (add/update_image_model, …)
+    # mutate the live registry directly instead of reload→save, so net-new in-memory
+    # entries (e.g. a freshly-discovered chat model) aren't wiped mid-Sync (SPEC §17).
+    from backend.services.model_registry import set_batch_write
+    set_batch_write(True)
     _server_state["sync_in_progress"] = True
     _server_state["sync_log"] = []
 
@@ -2598,6 +2603,7 @@ def _run_refresh_all_regions():
         # to the registry once, in the transaction-free tail, before the residency
         # post-pass. {normalized_base: {prefix: set(covered Regions)}}.
         combined_profiles: dict = {}
+        new_model_ids: set = set()  # net-new model ids this Sync (for an auditable log)
 
         for idx, region in enumerate(scan_regions):
             _progress(f"Scanning region {idx + 1}/{len(scan_regions)}: {region}...")
@@ -2607,6 +2613,9 @@ def _run_refresh_all_regions():
                     "new": result["new_count"],
                     "updated": result["updated_count"],
                 }
+                for r in result.get("registered", []):
+                    if r.get("model_id"):
+                        new_model_ids.add(r["model_id"])
                 for base, profs in (result.get("inference_profiles") or {}).items():
                     dst = combined_profiles.setdefault(base, {})
                     for pre, regs in profs.items():
@@ -2645,6 +2654,12 @@ def _run_refresh_all_regions():
         # Models with empty available_regions (not found in any region) get disabled.
         # Custom-hosted models are EXEMPT — they don't use Bedrock regions.
         registry = get_registry()
+
+        # Auditable net-new log: names the models registered fresh this Sync. With
+        # batch-write mode these now persist, so a steady-state re-Sync should log 0.
+        if new_model_ids:
+            logger.info("Sync: %d net-new model(s) this run: %s",
+                        len(new_model_ids), ", ".join(sorted(new_model_ids)))
 
         # Step 4b: Reconcile the bedrock-mantle catalog FIRST (before pruning) —
         # mark which discovered models are ALSO on Mantle, and add Mantle-only
@@ -2775,6 +2790,7 @@ def _run_refresh_all_regions():
 
     finally:
         _save._silent = False
+        set_batch_write(False)   # restore normal reload→save transactions
         _server_state["sync_in_progress"] = False
         _server_state["sync_message"] = ""
 

@@ -231,6 +231,21 @@ def _save():
 
 _save._silent = False
 
+# Batch AWS-Sync mode (SPEC §17). When True, registry_transaction() mutates the
+# live in-memory registry DIRECTLY and does NOT reload/save — the batch mutates the
+# shared dict and persists ONCE at the end (_save()). Without this, a transactional
+# system write mid-Sync (add/update_image_model, …) reloads _registry from disk and
+# WIPES net-new in-memory entries accumulated this batch (e.g. a freshly-discovered
+# chat model like a new Claude tier), so those never persist and re-appear as "new"
+# every Sync. The Sync sets this for the duration of the scan.
+_batch_write = False
+
+
+def set_batch_write(on: bool) -> None:
+    """Enable/disable batch-Sync write mode (see _batch_write). Sync-only."""
+    global _batch_write
+    _batch_write = bool(on)
+
 
 @contextmanager
 def registry_transaction():
@@ -254,6 +269,11 @@ def registry_transaction():
     """
     global _registry
     with named_write_lock("model_registry"):
+        if _batch_write:
+            # Batch AWS-Sync: mutate the live registry in place; the batch reloads
+            # nothing (would wipe net-new in-memory entries) and saves once at the end.
+            yield _registry
+            return
         prev = _registry
         _load()               # rebase the in-memory cache onto the latest disk state
         # _load() REBINDS _registry to a fresh dict. Copy the reloaded content
