@@ -200,8 +200,12 @@ def _save_nolock():
 
     output = dict(_registry)
     # Strip sections that belong in the git-tracked main file, not user.json
-    # (custom_model_catalog is in model_registry.json — only user OVERRIDES go to user.json)
+    # (custom_model_catalog + api_compatibility are base-authoritative matrices —
+    # only per-model overrides go to user.json, e.g. chat_models[].apis. Keeping a
+    # copy in user.json would SHADOW base edits on load and get promoted back over
+    # them on the next Sync.)
     output.pop("custom_model_catalog", None)
+    output.pop("api_compatibility", None)
     # Merge preserved metadata back in
     for k, v in existing_meta.items():
         if k not in output:

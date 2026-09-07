@@ -334,7 +334,9 @@ def _restart_recommendation(base, want):
     )
 
 
-def run_chat(base, model, region, max_tokens, timeout=25):
+def run_chat(base, model, region, max_tokens, timeout=45):
+    # 45s (not 25) so slow REASONING models (grok, kimi-thinking) that legitimately
+    # take ~20-40s aren't flagged as cross-geo hangs.
     payload = {
         "model_id": model["model_id"], "region": region, "messages": CHAT_PROMPT,
         "system_prompt": "", "temperature": 0.7, "max_tokens": max_tokens,
@@ -421,7 +423,9 @@ def main():
                     help="also test self-deployed custom models (default: native/foundation only)")
     ap.add_argument("--skip-server-check", action="store_true",
                     help="skip the concurrency preflight (run even if the server serializes)")
-    ap.add_argument("--max-tokens", type=int, default=64, help="chat max_tokens (min>8 for gpt-5.x)")
+    ap.add_argument("--max-tokens", type=int, default=512,
+                    help="chat max_tokens — 512 so reasoning models (grok/kimi-thinking) emit a "
+                         "final answer rather than spending the whole budget on hidden reasoning")
     ap.add_argument("--video-timeout", type=int, default=600, help="per-video poll timeout (s)")
     ap.add_argument("--limit", type=int, default=0, help="cap invocations per stage (0=all)")
     ap.add_argument("--report", default=str(ROOT / "tools" / "sanity_report.json"))

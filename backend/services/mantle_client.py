@@ -221,17 +221,25 @@ def mantle_available(region: str | None = None) -> bool:
 
 # ── OpenAI SDK client pointed at bedrock-mantle ─────────────────────────────
 
-def _base_url(region: str) -> str:
-    return f"https://bedrock-mantle.{region}.api.aws/v1"
+# Mantle serves the OpenAI-compatible APIs under TWO base paths that host DISJOINT
+# model sets (verified live 2026-09-07): "/v1" (qwen/glm/deepseek/kimi/…) and
+# "/openai/v1" (openai/xai/google). The per-model path is registry-driven
+# (api_compatibility[].mantle_base); "/v1" is the default.
+MANTLE_BASE_PATHS = ("/v1", "/openai/v1")
 
 
-def _build_client(region: str, token: str | None = None):
+def _base_url(region: str, base_path: str = "/v1") -> str:
+    return f"https://bedrock-mantle.{region}.api.aws{base_path}"
+
+
+def _build_client(region: str, token: str | None = None, base_path: str = "/v1"):
     """Build a fresh OpenAI client for the Mantle endpoint in ``region``.
 
     Not cached: the bearer token rotates, and the OpenAI client captures the
     key at construction. Construction is cheap (no network), so we build per
     call with a current token. Pass ``token`` to use a specific (e.g. freshly
-    re-derived) token; otherwise the standard priority applies.
+    re-derived) token; otherwise the standard priority applies. ``base_path``
+    picks the Mantle API path (/v1 vs /openai/v1 — see MANTLE_BASE_PATHS).
     ``region`` must already be Mantle-supported (callers pass mantle_region_for).
     """
     from openai import OpenAI
@@ -248,7 +256,7 @@ def _build_client(region: str, token: str | None = None):
         )
     # Bounded timeout so an unresponsive route can't hang a request forever
     # (some models accept a request on the wrong route and never respond).
-    return OpenAI(api_key=tok, base_url=_base_url(region), timeout=90.0, max_retries=0)
+    return OpenAI(api_key=tok, base_url=_base_url(region, base_path), timeout=90.0, max_retries=0)
 
 
 # Mantle uses BARE model ids — it doesn't understand Bedrock geo/inference-profile
@@ -265,9 +273,57 @@ def _bare_mantle_id(model_id: str) -> str:
     return mid
 
 
-def _get_openai_client(region: str):
-    """Back-compat: build a client for an arbitrary region (region-mapped)."""
-    return _build_client(mantle_region_for(region))
+def _get_openai_client(region: str, base_path: str = "/v1"):
+    """Build a client for an arbitrary region (region-mapped) + Mantle base path."""
+    return _build_client(mantle_region_for(region), base_path=base_path)
+
+
+def mantle_base_for(model_id: str, provider: str = "") -> str:
+    """Registry-driven Mantle base path for a model (/v1 or /openai/v1), from the
+    matching api_compatibility rule's ``mantle_base`` (default /v1). No hardcoded
+    per-model list — new models of a known provider inherit the right path."""
+    compat = _api_compat()
+    prov, mid = (provider or "").lower(), (model_id or "").lower()
+    for rule in (compat.get("rules") or []):
+        if _rule_matches(rule.get("match") or {}, prov, mid):
+            return rule.get("mantle_base") or "/v1"
+    return (compat.get("default", {}) or {}).get("mantle_base") or "/v1"
+
+
+def mantle_invocation_candidates(model_id: str, provider: str, route: str = "") -> list[tuple]:
+    """Ordered (base_path, route) combos to try for a Mantle model. The registry-
+    derived (base, route) is FIRST; the remaining known combos follow as a self-
+    healing fallback so a model whose stored routing is stale — or a brand-new
+    provider not yet in the matrix — still resolves. Forward + backward compatible:
+    the fast path is one attempt; discovery only kicks in on failure."""
+    primary_base = mantle_base_for(model_id, provider)
+    primary_route = route or resolve_invoke_path(
+        derive_model_apis(model_id, provider, on_mantle=True, on_runtime=False))[1]
+    combos = [(primary_base, primary_route)]
+    # Fallback universe (each real Mantle route × each base), minus the primary.
+    for b in MANTLE_BASE_PATHS:
+        for r in ("chat_completions", "responses", "messages"):
+            if (b, r) not in combos:
+                combos.append((b, r))
+    return combos
+
+
+def record_mantle_route(model_id: str, base_path: str, route: str) -> None:
+    """Persist the working (mantle_base, invoke_api) for a model (thread/process-
+    safe), so the self-healed combo becomes the fast path next time. Registry-
+    driven, self-learned — no code edit when Mantle routing shifts."""
+    try:
+        from backend.services.model_registry import registry_transaction
+        with registry_transaction() as reg:
+            for cfg in (reg.get("chat_models") or {}).values():
+                if cfg.get("model_id") == model_id or cfg.get("model_arn", "").endswith(model_id):
+                    cfg["mantle_base"] = base_path
+                    cfg["invoke_api"] = route
+                    cfg["invoke_endpoint"] = "bedrock-mantle"
+                    break
+        logger.info("Mantle route learned for %s → %s %s", model_id, base_path, route)
+    except Exception:
+        logger.debug("Could not record Mantle route for %s", model_id, exc_info=True)
 
 
 # ── Invokers (one per Mantle API surface) ───────────────────────────────────

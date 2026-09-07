@@ -82,84 +82,111 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
     for m in req.messages:
         msgs.append({"role": m.get("role", "user"), "content": m.get("content", "")})
 
+    # Provider (for the registry-driven Mantle base/route lookup).
+    from backend.services.model_registry import get_registry as _gr
+    provider = next((c.get("provider", "") for c in _gr().get("chat_models", {}).values()
+                     if c.get("model_id") == model_id), "")
+
     def generate():
+        from backend.services import mantle_client as mc
+        from backend.services.bedrock_client import _model_supports_temperature
         start = time.time()
         full = ""
-        in_tok = 0
-        out_tok = 0
-        try:
-            from backend.services import mantle_client as mc
-            client = mc._get_openai_client(region)
-            # Mantle uses BARE model ids (no us./eu./… geo prefix); the registry may
-            # store a geo-pinned id. Strip it for the API call; keep model_id (with
-            # prefix) for cost/registry lookup + display.
-            api_model = mc._bare_mantle_id(model_id)
-            if invoke_api == "responses":
-                # include_usage → the terminal event carries token counts.
-                stream = client.responses.create(
-                    model=api_model, input=msgs,
-                    max_output_tokens=req.max_tokens, store=False, stream=True)
-                for event in stream:
-                    delta = getattr(event, "delta", None)
-                    if isinstance(delta, str) and delta:
-                        full += delta
-                        yield sse({"type": "delta", "text": delta})
-                    # Final "response.completed" event exposes cumulative usage.
-                    ev_resp = getattr(event, "response", None)
-                    ev_usage = getattr(ev_resp, "usage", None) if ev_resp else None
-                    if ev_usage is not None:
-                        in_tok = getattr(ev_usage, "input_tokens", 0) or 0
-                        out_tok = getattr(ev_usage, "output_tokens", 0) or 0
-            elif invoke_api == "messages":
-                # Non-streaming Messages → single delta (keeps deps minimal).
+        usage = {"in": 0, "out": 0}
+        api_model = mc._bare_mantle_id(model_id)
+
+        # Per-route openers. Each returns an iterator of text pieces; usage is
+        # captured into `usage` as it streams. Raise on an unsupported combo.
+        def _open(base_path, route):
+            client = mc._get_openai_client(region, base_path)
+            if route == "responses":
+                # NON-streaming: some Mantle Responses models (e.g. reasoning models
+                # like Grok) accept a streaming request but never emit stream events
+                # (it hangs); the non-streaming call returns output_text reliably.
+                r = client.responses.create(model=api_model, input=msgs,
+                                            max_output_tokens=req.max_tokens, store=False)
+                ev = getattr(r, "usage", None)
+                if ev is not None:
+                    usage["in"] = getattr(ev, "input_tokens", 0) or 0
+                    usage["out"] = getattr(ev, "output_tokens", 0) or 0
+                text = getattr(r, "output_text", "") or ""
+                return iter([text] if text else [])
+            if route == "chat_completions":
+                kw = {"model": api_model, "messages": msgs, "max_completion_tokens": req.max_tokens,
+                      "stream": True, "stream_options": {"include_usage": True}}
+                if req.temperature is not None and _model_supports_temperature(model_id):
+                    kw["temperature"] = req.temperature
+                s = client.chat.completions.create(**kw)
+
+                def it():
+                    for chunk in s:
+                        if chunk.choices and chunk.choices[0].delta.content:
+                            yield chunk.choices[0].delta.content
+                        cu = getattr(chunk, "usage", None)
+                        if cu is not None:
+                            usage["in"] = getattr(cu, "prompt_tokens", 0) or 0
+                            usage["out"] = getattr(cu, "completion_tokens", 0) or 0
+                return it()
+            if route == "messages":
                 _u = {}
                 text = mc.invoke_messages(
                     model_id, [{"role": m["role"], "content": m["content"]} for m in msgs],
                     region=region, system=req.system_prompt or "",
                     max_tokens=req.max_tokens, temperature=req.temperature, usage_out=_u)
-                full = text
-                in_tok = _u.get("input_tokens", 0)
-                out_tok = _u.get("output_tokens", 0)
-                if text:
-                    yield sse({"type": "delta", "text": text})
-            else:  # chat_completions
-                kwargs = {"model": api_model, "messages": msgs,
-                          "max_completion_tokens": req.max_tokens, "stream": True,
-                          "stream_options": {"include_usage": True}}
-                if req.temperature is not None:
-                    kwargs["temperature"] = req.temperature
-                # Same registry-driven temperature gate as the Converse path.
-                from backend.services.bedrock_client import _model_supports_temperature
-                if req.temperature is not None and not _model_supports_temperature(model_id):
-                    kwargs.pop("temperature", None)
-                stream = client.chat.completions.create(**kwargs)
-                for chunk in stream:
-                    if chunk.choices and chunk.choices[0].delta.content:
-                        piece = chunk.choices[0].delta.content
-                        full += piece
-                        yield sse({"type": "delta", "text": piece})
-                    # The usage-only final chunk (no choices) carries token counts.
-                    cu = getattr(chunk, "usage", None)
-                    if cu is not None:
-                        in_tok = getattr(cu, "prompt_tokens", 0) or 0
-                        out_tok = getattr(cu, "completion_tokens", 0) or 0
+                usage["in"] = _u.get("input_tokens", 0)
+                usage["out"] = _u.get("output_tokens", 0)
+                return iter([text] if text else [])
+            return iter([])
+
+        try:
+            # Try the registry-derived (base, route) first; self-heal through the
+            # remaining combos if it's stale/unsupported, and LEARN the winner so
+            # the fast path is correct next time (forward + backward compatible).
+            # Derive the primary (base, route) FRESH from the matrix (not the stored
+            # invoke_api, which may be stale) so a corrected rule takes effect without
+            # a re-Sync; the self-heal fallback covers anything the matrix misses.
+            candidates = mc.mantle_invocation_candidates(model_id, provider)
+            committed = False
+            used = None
+            errors = []
+            for idx, (base_path, route) in enumerate(candidates):
+                try:
+                    for piece in _open(base_path, route):
+                        if not committed:
+                            committed = True
+                            used = (base_path, route)
+                            if idx > 0:  # self-healed to a non-primary combo → persist it
+                                mc.record_mantle_route(model_id, base_path, route)
+                        if piece:
+                            full += piece
+                            yield sse({"type": "delta", "text": piece})
+                    if committed:
+                        break
+                    errors.append(f"{base_path}|{route}: no output")
+                except Exception as e:
+                    if committed:
+                        raise  # already streaming — don't restart, surface below
+                    errors.append(f"{base_path}|{route}: {str(e)[:50]}")
+
+            if not committed:
+                yield sse({"type": "error",
+                           "detail": f"Mantle: no working route for {model_id} — {'; '.join(errors[:4])}"})
+                return
 
             latency_ms = round((time.time() - start) * 1000)
-            # Real cost from captured usage (was hardcoded to 0 tokens → $0).
-            cost = compute_llm_cost(model_id, in_tok, out_tok, region=region)
+            cost = compute_llm_cost(model_id, usage["in"], usage["out"], region=region)
             try:
                 if cost > 0:
                     from backend.services.cost_tracker import add_cost
-                    add_cost("chat_llm", cost, f"{model_id} (mantle): {in_tok} in, {out_tok} out")
-                    # Server-side authoritative cost (see Converse path note).
+                    add_cost("chat_llm", cost, f"{model_id} (mantle): {usage['in']} in, {usage['out']} out")
                     from backend.services.telemetry import track_chat_cost
                     track_chat_cost(cost_usd=cost, model=model_id)
             except Exception:
                 pass
-            yield sse({"type": "metadata", "input_tokens": in_tok, "output_tokens": out_tok,
+            yield sse({"type": "metadata", "input_tokens": usage["in"], "output_tokens": usage["out"],
                        "latency_ms": latency_ms, "cost_usd": cost,
                        "model_id": model_id, "region": region,
-                       "endpoint": "bedrock-mantle", "api": invoke_api})
+                       "endpoint": "bedrock-mantle", "api": (used or ("", invoke_api))[1]})
             yield sse({"type": "stop", "stop_reason": "end_turn"})
         except Exception as exc:
             logger.error("Mantle chat stream error (%s/%s): %s", model_id, invoke_api, exc)

@@ -2,7 +2,7 @@
   "version": 2,
   "last_updated": "2026-09-07T04:58:35.748917+00:00",
   "api_compatibility": {
-    "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'.",
+    "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'. Per rule, 'mantle_base' selects the Mantle base path for the OpenAI SDK (/v1 for most; /openai/v1 for openai/xai/google) \u2014 the two paths serve DISJOINT model sets, verified live 2026-09-07.",
     "api_priority": [
       "converse",
       "chat_completions",
@@ -36,10 +36,11 @@
         ],
         "mantle_only": [
           "messages"
-        ]
+        ],
+        "mantle_base": "/v1"
       },
       {
-        "_family": "OpenAI GPT-5.x (frontier) \u2014 Converse-able via a cross-region inference profile (live-verified 2026-09-07: 'global.openai.gpt-5.6-*' Converse works in us-west-2 AND ap-northeast-1). Runtime-listed \u2192 Converse; Responses on Mantle for mantle-only variants.",
+        "_family": "OpenAI GPT-5.x (frontier) \u2014 Converse-able via cross-region inference profile; Responses on Mantle (/openai/v1) for mantle-only variants (e.g. gpt-5.4).",
         "match": {
           "id_substr": [
             "gpt-5",
@@ -54,10 +55,11 @@
         ],
         "mantle": [
           "responses"
-        ]
+        ],
+        "mantle_base": "/openai/v1"
       },
       {
-        "_family": "OpenAI gpt-oss (open weights) \u2014 Converse (+Invoke) on runtime, Chat Completions always, Responses on Mantle",
+        "_family": "OpenAI gpt-oss (open weights) \u2014 Converse (+Invoke) on runtime, Chat Completions always, Responses on Mantle (/openai/v1)",
         "match": {
           "id_substr": [
             "gpt-oss"
@@ -72,10 +74,53 @@
         ],
         "mantle": [
           "responses"
-        ]
+        ],
+        "mantle_base": "/openai/v1"
       },
       {
-        "_family": "Other OpenAI \u2014 Converse on runtime, Chat Completions on Mantle",
+        "_family": "xAI Grok \u2014 Mantle only via the Responses API on /openai/v1 (verified: chat_completions times out; responses returns). Converse if ever runtime-listed.",
+        "match": {
+          "provider_substr": [
+            "xai"
+          ],
+          "id_substr": [
+            "grok"
+          ]
+        },
+        "runtime": [
+          "converse"
+        ],
+        "mantle": [
+          "responses"
+        ],
+        "mantle_only": [
+          "responses"
+        ],
+        "mantle_base": "/openai/v1"
+      },
+      {
+        "_family": "Google Gemma \u2014 Gemma 4 on Mantle via Chat Completions on /openai/v1 (verified); Gemma 3 is Converse on runtime.",
+        "match": {
+          "provider_substr": [
+            "google"
+          ],
+          "id_substr": [
+            "gemma"
+          ]
+        },
+        "runtime": [
+          "converse"
+        ],
+        "mantle": [
+          "chat_completions"
+        ],
+        "mantle_only": [
+          "chat_completions"
+        ],
+        "mantle_base": "/openai/v1"
+      },
+      {
+        "_family": "Other OpenAI \u2014 Converse on runtime; Responses on Mantle (/openai/v1)",
         "match": {
           "provider_substr": [
             "openai"
@@ -88,8 +133,9 @@
           "converse"
         ],
         "mantle": [
-          "chat_completions"
-        ]
+          "responses"
+        ],
+        "mantle_base": "/openai/v1"
       }
     ],
     "default": {
@@ -98,7 +144,8 @@
       ],
       "mantle": [
         "chat_completions"
-      ]
+      ],
+      "mantle_base": "/v1"
     }
   },
   "categories": {
