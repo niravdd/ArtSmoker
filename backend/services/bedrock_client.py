@@ -145,6 +145,21 @@ def _report_permission_denied(service: str, operation: str, code: str, message: 
             return
         _perm_seen[key] = now
 
+    # AWS returns AccessDenied with the GENERIC wording "Your account is not
+    # authorized to invoke this API operation" when an operation/feature simply
+    # isn't offered in this Region (or for the account) — NOT an IAM gap. A real
+    # IAM denial instead names the action: "... is not authorized to perform:
+    # <service:Action> because no identity-based policy allows ...". Don't nag the
+    # user to widen IAM for a feature-availability condition (e.g. Bedrock Custom
+    # Model Import APIs only exist in some Regions) the app already handles in-flow.
+    msg_l = (message or "").lower()
+    if ("not authorized to invoke this api operation" in msg_l
+            and "is not authorized to perform" not in msg_l):
+        logger.info(
+            "AWS operation not offered in this Region/account: %s (%s) — skipped, "
+            "no IAM change needed", key, code)
+        return
+
     quiet = service in _PERM_QUIET_SERVICES
     logger.warning(
         "AWS permission denied: %s (%s: %s)%s",

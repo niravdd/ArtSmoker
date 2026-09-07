@@ -93,7 +93,19 @@ def _save(notices: list):
             except Exception:
                 pass
         except Exception as exc:
-            logger.warning("Notices S3 save failed: %s", exc)
+            # A configured-but-missing/unreachable bucket (e.g. video_settings.
+            # s3_bucket points at a bucket that doesn't exist, or S3 access isn't
+            # set up) is a VALID state — notices simply stay in memory. Degrade
+            # quietly for those; only WARN on genuinely unexpected failures so the
+            # log isn't spammed every save.
+            s = str(exc)
+            expected = any(m in s for m in (
+                "NoSuchBucket", "does not exist", "NoSuchKey", "Not Found",
+                "AccessDenied", "AllAccessDisabled", "EndpointConnection",
+                "Could not connect",
+            ))
+            (logger.debug if expected else logger.warning)(
+                "Notices S3 persist skipped (kept in memory): %s", exc)
 
 
 def add_notice(kind: str, title: str, message: str, level: str = "info",
