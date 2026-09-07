@@ -1,9 +1,14 @@
 {
   "version": 2,
-  "last_updated": "2026-08-26T04:41:25.033664+00:00",
+  "last_updated": "2026-09-07T00:56:53.170477+00:00",
   "api_compatibility": {
     "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'.",
-    "api_priority": ["converse", "chat_completions", "responses", "messages"],
+    "api_priority": [
+      "converse",
+      "chat_completions",
+      "responses",
+      "messages"
+    ],
     "endpoint_for_api": {
       "converse": "bedrock-runtime",
       "invoke": "bedrock-runtime",
@@ -13,33 +18,88 @@
     },
     "rules": [
       {
-        "_family": "Anthropic Claude — Converse (+Invoke) on runtime; Messages on Mantle; mantle-only Claude (e.g. Mythos) is Messages-only",
-        "match": {"provider_substr": ["anthropic"], "id_substr": ["claude"]},
-        "runtime": ["converse", "invoke"],
-        "mantle": ["messages"],
-        "mantle_only": ["messages"]
+        "_family": "Anthropic Claude \u2014 Converse (+Invoke) on runtime; Messages on Mantle; mantle-only Claude (e.g. Mythos) is Messages-only",
+        "match": {
+          "provider_substr": [
+            "anthropic"
+          ],
+          "id_substr": [
+            "claude"
+          ]
+        },
+        "runtime": [
+          "converse",
+          "invoke"
+        ],
+        "mantle": [
+          "messages"
+        ],
+        "mantle_only": [
+          "messages"
+        ]
       },
       {
-        "_family": "OpenAI GPT-5.x (frontier) — Converse/Chat-Completions/Responses on bedrock-runtime where GA; Responses on Mantle. Converse-first means a runtime-listed GPT-5.x routes natively.",
-        "match": {"id_substr": ["gpt-5", "gpt5"]},
-        "runtime": ["converse", "invoke", "chat_completions", "responses"],
-        "mantle": ["responses"]
+        "_family": "OpenAI GPT-5.x (frontier) \u2014 Converse/Chat-Completions/Responses on bedrock-runtime where GA; Responses on Mantle. Converse-first means a runtime-listed GPT-5.x routes natively.",
+        "match": {
+          "id_substr": [
+            "gpt-5",
+            "gpt5"
+          ]
+        },
+        "runtime": [
+          "converse",
+          "invoke",
+          "chat_completions",
+          "responses"
+        ],
+        "mantle": [
+          "responses"
+        ]
       },
       {
-        "_family": "OpenAI gpt-oss (open weights) — Converse (+Invoke) on runtime, Chat Completions always, Responses on Mantle",
-        "match": {"id_substr": ["gpt-oss"]},
-        "always": ["chat_completions"],
-        "runtime": ["converse", "invoke"],
-        "mantle": ["responses"]
+        "_family": "OpenAI gpt-oss (open weights) \u2014 Converse (+Invoke) on runtime, Chat Completions always, Responses on Mantle",
+        "match": {
+          "id_substr": [
+            "gpt-oss"
+          ]
+        },
+        "always": [
+          "chat_completions"
+        ],
+        "runtime": [
+          "converse",
+          "invoke"
+        ],
+        "mantle": [
+          "responses"
+        ]
       },
       {
-        "_family": "Other OpenAI — Converse on runtime, Chat Completions on Mantle",
-        "match": {"provider_substr": ["openai"], "id_substr": ["openai."]},
-        "runtime": ["converse"],
-        "mantle": ["chat_completions"]
+        "_family": "Other OpenAI \u2014 Converse on runtime, Chat Completions on Mantle",
+        "match": {
+          "provider_substr": [
+            "openai"
+          ],
+          "id_substr": [
+            "openai."
+          ]
+        },
+        "runtime": [
+          "converse"
+        ],
+        "mantle": [
+          "chat_completions"
+        ]
       }
     ],
-    "default": {"runtime": ["converse"], "mantle": ["chat_completions"]}
+    "default": {
+      "runtime": [
+        "converse"
+      ],
+      "mantle": [
+        "chat_completions"
+      ]
+    }
   },
   "categories": {
     "fast_llm": {
@@ -72,7 +132,9 @@
       "current": "amazon.nova-2-sonic-v1:0",
       "region": "us-east-1",
       "provider": "Amazon",
-      "api_type": "streaming"
+      "api_type": "streaming",
+      "input_price_per_1k": 0.00033,
+      "output_price_per_1k": 0.00275
     }
   },
   "image_models": {
@@ -934,7 +996,7 @@
       }
     },
     "stability_text_to_image": {
-      "description": "Stability AI text-to-image models. Flat prompt field with aspect ratios. Also serves image-to-image (Remix): the reference image lands in 'image', with 'mode'/'strength' via extra_params (aspect_ratio is then omitted — output follows the input image).",
+      "description": "Stability AI text-to-image models. Flat prompt field with aspect ratios. Also serves image-to-image (Remix): the reference image lands in 'image', with 'mode'/'strength' via extra_params (aspect_ratio is then omitted \u2014 output follows the input image).",
       "prompt_path": "prompt",
       "negative_prompt_path": "negative_prompt",
       "seed_path": "seed",
@@ -2112,7 +2174,9 @@
       "invoke_api": "converse",
       "lifecycle_status": "LEGACY",
       "legacy_time": "2026-04-14T08:00:00+00:00",
-      "end_of_life_time": "2026-10-14T08:00:00+00:00"
+      "end_of_life_time": "2026-10-14T08:00:00+00:00",
+      "input_price_per_1k": 0.003,
+      "output_price_per_1k": 0.015
     },
     "claude_haiku_4_5_20251001_v1": {
       "label": "Claude Haiku 4.5",
@@ -2159,7 +2223,9 @@
       "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "input_price_per_1k": 0.0011,
+      "output_price_per_1k": 0.0055
     },
     "qwen3_235b_a22b_2507_v1": {
       "label": "Qwen3 235B A22B 2507",
@@ -2199,25 +2265,25 @@
       "input_price_per_1k": 0.000135,
       "output_price_per_1k": 0.00053,
       "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 0.000132,
+          "output_per_1k": 0.000528
+        },
         "eu-central-1": {
           "input_per_1k": 0.000145,
           "output_per_1k": 0.00058
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.00011,
-          "output_per_1k": 0.000455
         },
         "ap-northeast-1": {
           "input_per_1k": 0.000135,
           "output_per_1k": 0.00053
         },
-        "ap-southeast-2": {
-          "input_per_1k": 0.0001133,
-          "output_per_1k": 0.0004532
+        "ap-southeast-3": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000455
         },
-        "eu-west-1": {
-          "input_per_1k": 0.000132,
-          "output_per_1k": 0.000528
+        "us-east-2": {
+          "input_per_1k": 0.00011,
+          "output_per_1k": 0.00044
         },
         "eu-west-2": {
           "input_per_1k": 0.00017,
@@ -2227,7 +2293,19 @@
           "input_per_1k": 0.00011,
           "output_per_1k": 0.00044
         },
-        "us-east-2": {
+        "us-east-1": {
+          "input_per_1k": 0.00011,
+          "output_per_1k": 0.00044
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.000132,
+          "output_per_1k": 0.000528
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0001133,
+          "output_per_1k": 0.0004532
+        },
+        "us-west-2": {
           "input_per_1k": 0.00011,
           "output_per_1k": 0.00044
         },
@@ -2235,21 +2313,9 @@
           "input_per_1k": 0.000145,
           "output_per_1k": 0.00058
         },
-        "sa-east-1": {
-          "input_per_1k": 0.000132,
-          "output_per_1k": 0.000528
-        },
-        "us-east-1": {
-          "input_per_1k": 0.00011,
-          "output_per_1k": 0.00044
-        },
         "ap-south-1": {
           "input_per_1k": 0.00013,
           "output_per_1k": 0.00052
-        },
-        "us-west-2": {
-          "input_per_1k": 0.00011,
-          "output_per_1k": 0.00044
         }
       }
     },
@@ -2299,11 +2365,11 @@
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         },
-        "us-east-2": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.0016
+        "eu-central-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
         },
-        "us-west-2": {
+        "us-east-2": {
           "input_per_1k": 0.0005,
           "output_per_1k": 0.0016
         },
@@ -2315,18 +2381,6 @@
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         },
-        "eu-north-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
         "eu-south-1": {
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
@@ -2335,7 +2389,11 @@
           "input_per_1k": 0.000775,
           "output_per_1k": 0.00248
         },
-        "ap-south-1": {
+        "eu-north-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "sa-east-1": {
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         },
@@ -2344,6 +2402,14 @@
           "output_per_1k": 0.0016
         },
         "eu-west-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "ap-south-1": {
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         }
@@ -2382,36 +2448,24 @@
         "bedrock-runtime"
       ],
       "apis": [
+        "chat_completions",
         "converse",
         "invoke",
-        "chat_completions",
         "responses"
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.00036,
+      "output_price_per_1k": 0.000365,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "sa-east-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
-        },
         "us-east-2": {
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.0003
         },
-        "eu-west-2": {
-          "input_per_1k": 0.000115,
-          "output_per_1k": 0.000465
-        },
         "eu-west-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00035
-        },
-        "ap-south-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00035
         },
@@ -2419,33 +2473,33 @@
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.0003
         },
-        "us-gov-east-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
-        },
         "eu-south-1": {
           "input_per_1k": 0.0001,
           "output_per_1k": 0.000395
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 7.725e-05,
-          "output_per_1k": 0.000309
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
         },
         "us-east-1": {
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.0003
         },
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000465
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.725e-05,
+          "output_per_1k": 0.000309
+        },
         "eu-central-1": {
           "input_per_1k": 0.0001,
           "output_per_1k": 0.000395
         },
-        "us-gov-west-1": {
+        "ap-northeast-1": {
           "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
+          "output_per_1k": 0.000365
         },
         "us-west-2": {
           "input_per_1k": 7.5e-05,
@@ -2454,6 +2508,18 @@
         "ap-southeast-3": {
           "input_per_1k": 8e-05,
           "output_per_1k": 0.00031
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000355
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000365
         }
       }
     },
@@ -2491,14 +2557,14 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 8.4e-05,
+      "input_price_per_1k": 9e-05,
       "output_price_per_1k": 0.00072,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
         "ap-south-1": {
-          "input_per_1k": 8.4e-05,
+          "input_per_1k": 9e-05,
           "output_per_1k": 0.00071
         },
         "us-east-1": {
@@ -2510,7 +2576,7 @@
           "output_per_1k": 0.000618
         },
         "sa-east-1": {
-          "input_per_1k": 8.4e-05,
+          "input_per_1k": 9e-05,
           "output_per_1k": 0.00072
         },
         "us-east-2": {
@@ -2522,7 +2588,7 @@
           "output_per_1k": 0.00072
         },
         "eu-west-1": {
-          "input_per_1k": 8.4e-05,
+          "input_per_1k": 9e-05,
           "output_per_1k": 0.00071
         },
         "us-west-2": {
@@ -2530,20 +2596,20 @@
           "output_per_1k": 0.0006
         },
         "eu-south-1": {
-          "input_per_1k": 8.4e-05,
+          "input_per_1k": 9e-05,
           "output_per_1k": 0.00071
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00093
         },
         "eu-north-1": {
           "input_per_1k": 8.4e-05,
           "output_per_1k": 0.00072
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 8.4e-05,
-          "output_per_1k": 0.00072
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.0001085,
-          "output_per_1k": 0.00093
         },
         "ap-southeast-3": {
           "input_per_1k": 8.4e-05,
@@ -2637,63 +2703,71 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00037,
-      "output_price_per_1k": 0.00111,
+      "input_price_per_1k": 0.00012,
+      "output_price_per_1k": 0.00036,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "us-east-2": {
-          "input_per_1k": 0.00031,
-          "output_per_1k": 0.000925
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.00037,
-          "output_per_1k": 0.00111
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.00037,
-          "output_per_1k": 0.00111
-        },
-        "eu-south-1": {
-          "input_per_1k": 0.00037,
-          "output_per_1k": 0.00111
-        },
-        "us-west-2": {
-          "input_per_1k": 0.00031,
-          "output_per_1k": 0.000925
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.0004805,
-          "output_per_1k": 0.00143375
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 0.00037,
-          "output_per_1k": 0.00111
-        },
-        "eu-west-1": {
-          "input_per_1k": 0.00037,
-          "output_per_1k": 0.00111
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.00037,
-          "output_per_1k": 0.00111
-        },
-        "us-east-1": {
-          "input_per_1k": 0.00031,
-          "output_per_1k": 0.000925
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.00037,
-          "output_per_1k": 0.00111
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.00037,
-          "output_per_1k": 0.00111
+        "us-gov-west-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00036
         },
         "ap-southeast-2": {
-          "input_per_1k": 0.00032,
-          "output_per_1k": 0.000955
+          "input_per_1k": 0.000103,
+          "output_per_1k": 0.000309
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.0003
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00036
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00035
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00036
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.0003
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00036
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.0003
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.00047
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00036
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00035
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00036
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00036
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00036
         }
       }
     },
@@ -2747,19 +2821,7 @@
           "input_per_1k": 3e-05,
           "output_per_1k": 0.00015
         },
-        "eu-west-2": {
-          "input_per_1k": 5e-05,
-          "output_per_1k": 0.00018
-        },
-        "eu-south-1": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.00014
-        },
         "us-gov-west-1": {
-          "input_per_1k": 3.6e-05,
-          "output_per_1k": 0.000144
-        },
-        "eu-north-1": {
           "input_per_1k": 3.6e-05,
           "output_per_1k": 0.000144
         },
@@ -2767,9 +2829,9 @@
           "input_per_1k": 3e-05,
           "output_per_1k": 0.00015
         },
-        "us-east-1": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.00012
+        "ap-southeast-3": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
         },
         "us-east-2": {
           "input_per_1k": 3e-05,
@@ -2779,19 +2841,31 @@
           "input_per_1k": 3e-05,
           "output_per_1k": 0.00014
         },
-        "ap-southeast-3": {
-          "input_per_1k": 3.6e-05,
-          "output_per_1k": 0.000144
-        },
-        "ap-south-1": {
+        "us-east-1": {
           "input_per_1k": 3e-05,
-          "output_per_1k": 0.00014
+          "output_per_1k": 0.00012
+        },
+        "eu-west-2": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 0.00018
         },
         "us-west-2": {
           "input_per_1k": 3e-05,
           "output_per_1k": 0.00012
         },
+        "ap-south-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00014
+        },
         "eu-central-1": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "eu-south-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00014
+        },
+        "eu-north-1": {
           "input_per_1k": 3.6e-05,
           "output_per_1k": 0.000144
         },
@@ -2847,7 +2921,9 @@
       "supports_temperature": true,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "input_price_per_1k": 0.003,
+      "output_price_per_1k": 0.015
     },
     "minimax_m2": {
       "label": "MiniMax M2",
@@ -2899,39 +2975,27 @@
           "input_per_1k": 0.00017,
           "output_per_1k": 0.00071
         },
-        "us-west-2": {
-          "input_per_1k": 0.00015,
-          "output_per_1k": 0.0006
-        },
         "ap-south-1": {
           "input_per_1k": 0.00017,
           "output_per_1k": 0.00071
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.00018,
-          "output_per_1k": 0.00072
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.00018,
-          "output_per_1k": 0.00072
         },
         "eu-west-2": {
           "input_per_1k": 0.00023,
           "output_per_1k": 0.00093
         },
-        "us-east-1": {
-          "input_per_1k": 0.00015,
-          "output_per_1k": 0.0006
+        "eu-north-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
         },
         "ap-southeast-2": {
           "input_per_1k": 0.0001545,
           "output_per_1k": 0.000618
         },
-        "ap-northeast-1": {
-          "input_per_1k": 0.00018,
-          "output_per_1k": 0.00072
+        "us-east-1": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
         },
-        "eu-central-1": {
+        "ap-northeast-1": {
           "input_per_1k": 0.00018,
           "output_per_1k": 0.00072
         },
@@ -2939,7 +3003,19 @@
           "input_per_1k": 0.00017,
           "output_per_1k": 0.00071
         },
+        "eu-central-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
+        },
         "ap-southeast-3": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "sa-east-1": {
           "input_per_1k": 0.00018,
           "output_per_1k": 0.00072
         }
@@ -3001,10 +3077,6 @@
           "input_per_1k": 4e-05,
           "output_per_1k": 0.00024
         },
-        "eu-central-1": {
-          "input_per_1k": 4e-05,
-          "output_per_1k": 0.00024
-        },
         "sa-east-1": {
           "input_per_1k": 4e-05,
           "output_per_1k": 0.00024
@@ -3013,15 +3085,15 @@
           "input_per_1k": 3.5e-05,
           "output_per_1k": 0.0002
         },
-        "ap-northeast-1": {
-          "input_per_1k": 4e-05,
-          "output_per_1k": 0.00024
-        },
         "eu-north-1": {
           "input_per_1k": 4e-05,
           "output_per_1k": 0.00024
         },
         "ap-southeast-3": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00024
+        },
+        "eu-central-1": {
           "input_per_1k": 4e-05,
           "output_per_1k": 0.00024
         },
@@ -3034,6 +3106,10 @@
           "output_per_1k": 0.00031
         },
         "ap-south-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00024
+        },
+        "ap-northeast-1": {
           "input_per_1k": 4e-05,
           "output_per_1k": 0.00024
         },
@@ -3123,91 +3199,71 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 3.6e-05,
-      "output_price_per_1k": 0.000144,
+      "input_price_per_1k": 7.2e-05,
+      "output_price_per_1k": 0.000288,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "ap-southeast-4": {
-          "input_per_1k": 3.25e-05,
-          "output_per_1k": 0.00013
-        },
         "ap-southeast-5": {
           "input_per_1k": 7.2e-05,
           "output_per_1k": 0.000288
         },
         "us-east-1": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.00012
-        },
-        "me-central-1": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.00012
-        },
-        "ap-northeast-2": {
-          "input_per_1k": 3.55e-05,
-          "output_per_1k": 0.000142
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00024
         },
         "eu-south-1": {
           "input_per_1k": 9.6e-05,
           "output_per_1k": 0.000384
-        },
-        "ca-central-1": {
-          "input_per_1k": 3.2e-05,
-          "output_per_1k": 0.000128
         },
         "eu-west-2": {
           "input_per_1k": 8.4e-05,
           "output_per_1k": 0.000336
         },
         "ap-southeast-1": {
-          "input_per_1k": 4.05e-05,
-          "output_per_1k": 0.000162
+          "input_per_1k": 8.1e-05,
+          "output_per_1k": 0.000324
         },
         "eu-north-1": {
-          "input_per_1k": 3.25e-05,
-          "output_per_1k": 0.00013
+          "input_per_1k": 6.5e-05,
+          "output_per_1k": 0.00026
         },
         "us-gov-west-1": {
-          "input_per_1k": 3.6e-05,
-          "output_per_1k": 0.000144
+          "input_per_1k": 7.2e-05,
+          "output_per_1k": 0.000288
         },
         "us-east-2": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.00012
-        },
-        "ap-east-2": {
-          "input_per_1k": 3.6e-05,
-          "output_per_1k": 0.000144
-        },
-        "ap-south-1": {
-          "input_per_1k": 3.55e-05,
-          "output_per_1k": 0.000142
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00024
         },
         "ap-southeast-7": {
           "input_per_1k": 7.2e-05,
           "output_per_1k": 0.000288
         },
-        "il-central-1": {
-          "input_per_1k": 3.75e-05,
-          "output_per_1k": 0.00015
+        "ap-southeast-4": {
+          "input_per_1k": 6.5e-05,
+          "output_per_1k": 0.00026
         },
-        "eu-west-3": {
-          "input_per_1k": 4.4e-05,
-          "output_per_1k": 0.000176
+        "ca-central-1": {
+          "input_per_1k": 6.4e-05,
+          "output_per_1k": 0.000256
         },
         "eu-central-1": {
-          "input_per_1k": 3.9e-05,
-          "output_per_1k": 0.000156
+          "input_per_1k": 7.8e-05,
+          "output_per_1k": 0.000312
         },
-        "eu-west-1": {
-          "input_per_1k": 3.45e-05,
-          "output_per_1k": 0.000138
+        "me-central-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00024
         },
         "ap-southeast-2": {
-          "input_per_1k": 3.15e-05,
-          "output_per_1k": 0.000126
+          "input_per_1k": 6.3e-05,
+          "output_per_1k": 0.000252
+        },
+        "il-central-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
         },
         "eu-south-2": {
           "input_per_1k": 6.6e-05,
@@ -3217,13 +3273,33 @@
           "input_per_1k": 7.7e-05,
           "output_per_1k": 0.000308
         },
+        "ap-northeast-2": {
+          "input_per_1k": 7.1e-05,
+          "output_per_1k": 0.000284
+        },
         "ap-northeast-1": {
-          "input_per_1k": 3.6e-05,
-          "output_per_1k": 0.000144
+          "input_per_1k": 7.2e-05,
+          "output_per_1k": 0.000288
         },
         "us-west-2": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.00012
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00024
+        },
+        "ap-south-1": {
+          "input_per_1k": 7.1e-05,
+          "output_per_1k": 0.000284
+        },
+        "eu-west-1": {
+          "input_per_1k": 6.9e-05,
+          "output_per_1k": 0.000276
+        },
+        "eu-west-3": {
+          "input_per_1k": 8.8e-05,
+          "output_per_1k": 0.000352
+        },
+        "ap-east-2": {
+          "input_per_1k": 7.2e-05,
+          "output_per_1k": 0
         }
       }
     },
@@ -3275,11 +3351,11 @@
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         },
-        "us-east-2": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.0016
+        "eu-central-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
         },
-        "us-west-2": {
+        "us-east-2": {
           "input_per_1k": 0.0005,
           "output_per_1k": 0.0016
         },
@@ -3291,18 +3367,6 @@
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         },
-        "eu-north-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
         "eu-south-1": {
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
@@ -3311,7 +3375,11 @@
           "input_per_1k": 0.000775,
           "output_per_1k": 0.00248
         },
-        "ap-south-1": {
+        "eu-north-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "sa-east-1": {
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         },
@@ -3320,6 +3388,14 @@
           "output_per_1k": 0.0016
         },
         "eu-west-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "ap-south-1": {
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         }
@@ -3367,29 +3443,17 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "eu-west-1": {
-          "input_per_1k": 6e-05,
-          "output_per_1k": 0.00017
+        "ap-southeast-2": {
+          "input_per_1k": 4.635e-05,
+          "output_per_1k": 0.00014935
         },
-        "sa-east-1": {
+        "eu-west-1": {
           "input_per_1k": 6e-05,
           "output_per_1k": 0.00017
         },
         "eu-central-1": {
           "input_per_1k": 5.4e-05,
           "output_per_1k": 0.000174
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 4.635e-05,
-          "output_per_1k": 0.00014935
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 5.4e-05,
-          "output_per_1k": 0.000174
-        },
-        "us-east-2": {
-          "input_per_1k": 5e-05,
-          "output_per_1k": 0.00015
         },
         "ap-northeast-1": {
           "input_per_1k": 6e-05,
@@ -3403,21 +3467,33 @@
           "input_per_1k": 7e-05,
           "output_per_1k": 0.00022
         },
-        "us-east-1": {
-          "input_per_1k": 5e-05,
-          "output_per_1k": 0.00015
+        "ap-southeast-3": {
+          "input_per_1k": 5.4e-05,
+          "output_per_1k": 0.000174
         },
         "ap-south-1": {
           "input_per_1k": 6e-05,
           "output_per_1k": 0.00017
         },
-        "eu-north-1": {
-          "input_per_1k": 5.4e-05,
-          "output_per_1k": 0.000174
-        },
         "us-west-2": {
           "input_per_1k": 5e-05,
           "output_per_1k": 0.00015
+        },
+        "us-east-1": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 0.00015
+        },
+        "sa-east-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00017
+        },
+        "us-east-2": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 0.00015
+        },
+        "eu-north-1": {
+          "input_per_1k": 5.4e-05,
+          "output_per_1k": 0.000174
         }
       }
     },
@@ -3467,10 +3543,6 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00125
         },
-        "us-east-2": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.00125
-        },
         "eu-north-1": {
           "input_per_1k": 0.00036,
           "output_per_1k": 0.0015
@@ -3487,9 +3559,9 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00125
         },
-        "ap-southeast-2": {
-          "input_per_1k": 0.000309,
-          "output_per_1k": 0.0012875
+        "us-east-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00125
         },
         "ap-south-1": {
           "input_per_1k": 0.00036,
@@ -3499,17 +3571,21 @@
           "input_per_1k": 0.00036,
           "output_per_1k": 0.0015
         },
-        "eu-south-1": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.0015
-        },
         "ap-northeast-1": {
           "input_per_1k": 0.00036,
           "output_per_1k": 0.00152
         },
+        "eu-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
         "eu-west-2": {
           "input_per_1k": 0.000465,
           "output_per_1k": 0.0019375
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000309,
+          "output_per_1k": 0.0012875
         }
       }
     },
@@ -3557,10 +3633,6 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.0009
         },
-        "eu-central-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0009
-        },
         "ap-southeast-2": {
           "input_per_1k": 0.0002575,
           "output_per_1k": 0.0007725
@@ -3573,15 +3645,23 @@
           "input_per_1k": 0.00025,
           "output_per_1k": 0.00075
         },
+        "us-east-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00075
+        },
         "ap-northeast-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00091
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
         },
         "ap-south-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00088
         },
-        "us-east-2": {
+        "us-west-2": {
           "input_per_1k": 0.00025,
           "output_per_1k": 0.00075
         },
@@ -3589,19 +3669,15 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00091
         },
-        "eu-south-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0009
-        },
-        "us-west-2": {
-          "input_per_1k": 0.00025,
-          "output_per_1k": 0.00075
-        },
-        "ap-southeast-3": {
+        "eu-central-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.0009
         },
         "eu-north-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        },
+        "eu-south-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.0009
         }
@@ -3705,31 +3781,11 @@
           "input_per_1k": 0.0002,
           "output_per_1k": 0.001
         },
-        "eu-west-1": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.00031,
-          "output_per_1k": 0.00155
-        },
         "eu-north-1": {
           "input_per_1k": 0.00024,
           "output_per_1k": 0.0012
         },
-        "sa-east-1": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        },
-        "us-east-2": {
-          "input_per_1k": 0.0002,
-          "output_per_1k": 0.001
-        },
-        "eu-south-1": {
+        "eu-west-1": {
           "input_per_1k": 0.00024,
           "output_per_1k": 0.0012
         },
@@ -3744,6 +3800,26 @@
         "ap-northeast-1": {
           "input_per_1k": 0.00024,
           "output_per_1k": 0.0012
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.00155
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0002,
+          "output_per_1k": 0.001
         },
         "eu-central-1": {
           "input_per_1k": 0.00024,
@@ -3799,17 +3875,17 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00087
         },
-        "eu-north-1": {
-          "input_per_1k": 0.00029,
-          "output_per_1k": 0.00084
-        },
         "us-east-2": {
           "input_per_1k": 0.00029,
           "output_per_1k": 0.00084
         },
-        "ap-south-1": {
-          "input_per_1k": 0.00034121,
-          "output_per_1k": 0.00098834
+        "us-west-2": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0002987,
+          "output_per_1k": 0.0008652
         },
         "ap-northeast-1": {
           "input_per_1k": 0.00035083,
@@ -3818,18 +3894,6 @@
         "eu-central-1": {
           "input_per_1k": 0.000348,
           "output_per_1k": 0.001008
-        },
-        "us-west-2": {
-          "input_per_1k": 0.00029,
-          "output_per_1k": 0.00084
-        },
-        "us-east-1": {
-          "input_per_1k": 0.00029,
-          "output_per_1k": 0.00084
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.0002987,
-          "output_per_1k": 0.0008652
         },
         "sa-east-1": {
           "input_per_1k": 0.000348,
@@ -3842,6 +3906,18 @@
         "eu-west-1": {
           "input_per_1k": 0.000348,
           "output_per_1k": 0.001008
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00034121,
+          "output_per_1k": 0.00098834
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
         },
         "eu-south-1": {
           "input_per_1k": 0.000348,
@@ -3905,22 +3981,6 @@
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.000325
         },
-        "eu-west-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00039
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00039
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.000115,
-          "output_per_1k": 0.000505
-        },
-        "eu-north-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00039
-        },
         "ap-southeast-2": {
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.000335
@@ -3949,7 +4009,23 @@
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00039
         },
+        "eu-north-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
         "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000505
+        },
+        "eu-west-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00039
         }
@@ -3999,25 +4075,9 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "eu-west-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00035
-        },
-        "us-east-2": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.000115,
-          "output_per_1k": 0.000465
-        },
         "ap-southeast-3": {
           "input_per_1k": 8e-05,
           "output_per_1k": 0.00031
-        },
-        "ap-south-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.000355
         },
         "sa-east-1": {
           "input_per_1k": 9e-05,
@@ -4027,19 +4087,15 @@
           "input_per_1k": 0.0001,
           "output_per_1k": 0.000395
         },
-        "ap-northeast-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.000365
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000465
         },
-        "us-west-2": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
+        "eu-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00035
         },
         "us-east-1": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
-        },
-        "eu-north-1": {
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.0003
         },
@@ -4047,9 +4103,29 @@
           "input_per_1k": 0.0001,
           "output_per_1k": 0.000395
         },
+        "us-west-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000355
+        },
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
         "ap-southeast-2": {
           "input_per_1k": 7.725e-05,
           "output_per_1k": 0.000309
+        },
+        "eu-north-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000365
         }
       }
     },
@@ -4309,11 +4385,11 @@
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         },
-        "us-east-2": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.0016
+        "eu-central-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
         },
-        "us-west-2": {
+        "us-east-2": {
           "input_per_1k": 0.0005,
           "output_per_1k": 0.0016
         },
@@ -4325,18 +4401,6 @@
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         },
-        "eu-north-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
         "eu-south-1": {
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
@@ -4345,7 +4409,11 @@
           "input_per_1k": 0.000775,
           "output_per_1k": 0.00248
         },
-        "ap-south-1": {
+        "eu-north-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "sa-east-1": {
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         },
@@ -4354,6 +4422,14 @@
           "output_per_1k": 0.0016
         },
         "eu-west-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "ap-south-1": {
           "input_per_1k": 0.0006,
           "output_per_1k": 0.00192
         }
@@ -4392,9 +4468,9 @@
         "bedrock-runtime"
       ],
       "apis": [
+        "chat_completions",
         "converse",
         "invoke",
-        "chat_completions",
         "responses"
       ],
       "invoke_endpoint": "bedrock-runtime",
@@ -4408,18 +4484,6 @@
         "ap-southeast-3": {
           "input_per_1k": 3.5e-05,
           "output_per_1k": 0.000155
-        },
-        "ap-south-1": {
-          "input_per_1k": 4e-05,
-          "output_per_1k": 0.000175
-        },
-        "eu-south-1": {
-          "input_per_1k": 4.5e-05,
-          "output_per_1k": 0.0002
-        },
-        "eu-west-1": {
-          "input_per_1k": 4e-05,
-          "output_per_1k": 0.000175
         },
         "us-east-2": {
           "input_per_1k": 3.5e-05,
@@ -4437,6 +4501,10 @@
           "input_per_1k": 3.5e-05,
           "output_per_1k": 0.00015
         },
+        "eu-south-1": {
+          "input_per_1k": 4.5e-05,
+          "output_per_1k": 0.0002
+        },
         "sa-east-1": {
           "input_per_1k": 4e-05,
           "output_per_1k": 0.00018
@@ -4445,7 +4513,19 @@
           "input_per_1k": 4.5e-05,
           "output_per_1k": 0.0002
         },
+        "eu-west-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.000175
+        },
         "us-west-2": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00015
+        },
+        "ap-south-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.000175
+        },
+        "eu-north-1": {
           "input_per_1k": 3.5e-05,
           "output_per_1k": 0.00015
         },
@@ -4458,12 +4538,8 @@
           "output_per_1k": 0.00018
         },
         "eu-west-2": {
-          "input_per_1k": 5e-05,
-          "output_per_1k": 0.00023
-        },
-        "eu-north-1": {
-          "input_per_1k": 3.5e-05,
-          "output_per_1k": 0.00015
+          "input_per_1k": 5.5e-05,
+          "output_per_1k": 0.000235
         }
       }
     },
@@ -4513,53 +4589,53 @@
           "input_per_1k": 3e-05,
           "output_per_1k": 5e-05
         },
-        "ap-south-1": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 5e-05
-        },
         "ap-northeast-1": {
           "input_per_1k": 3e-05,
           "output_per_1k": 5e-05
-        },
-        "eu-south-1": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 5e-05
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 2.06e-05,
-          "output_per_1k": 4.12e-05
         },
         "us-east-2": {
           "input_per_1k": 2e-05,
           "output_per_1k": 4e-05
         },
-        "eu-north-1": {
-          "input_per_1k": 2.4e-05,
-          "output_per_1k": 4.8e-05
-        },
         "ap-southeast-3": {
           "input_per_1k": 2.4e-05,
           "output_per_1k": 4.8e-05
         },
-        "sa-east-1": {
+        "ap-south-1": {
           "input_per_1k": 3e-05,
           "output_per_1k": 5e-05
-        },
-        "eu-central-1": {
-          "input_per_1k": 2.4e-05,
-          "output_per_1k": 4.8e-05
-        },
-        "us-west-2": {
-          "input_per_1k": 2e-05,
-          "output_per_1k": 4e-05
         },
         "eu-west-2": {
           "input_per_1k": 3e-05,
           "output_per_1k": 6e-05
         },
+        "sa-east-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 5e-05
+        },
+        "us-west-2": {
+          "input_per_1k": 2e-05,
+          "output_per_1k": 4e-05
+        },
         "us-east-1": {
           "input_per_1k": 2e-05,
           "output_per_1k": 4e-05
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 2.06e-05,
+          "output_per_1k": 4.12e-05
+        },
+        "eu-central-1": {
+          "input_per_1k": 2.4e-05,
+          "output_per_1k": 4.8e-05
+        },
+        "eu-north-1": {
+          "input_per_1k": 2.4e-05,
+          "output_per_1k": 4.8e-05
+        },
+        "eu-south-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 5e-05
         }
       }
     },
@@ -4694,36 +4770,24 @@
         "bedrock-runtime"
       ],
       "apis": [
+        "chat_completions",
         "converse",
         "invoke",
-        "chat_completions",
         "responses"
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.00036,
+      "output_price_per_1k": 0.000365,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "sa-east-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
-        },
         "us-east-2": {
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.0003
         },
-        "eu-west-2": {
-          "input_per_1k": 0.000115,
-          "output_per_1k": 0.000465
-        },
         "eu-west-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00035
-        },
-        "ap-south-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00035
         },
@@ -4731,33 +4795,33 @@
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.0003
         },
-        "us-gov-east-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
-        },
         "eu-south-1": {
           "input_per_1k": 0.0001,
           "output_per_1k": 0.000395
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 7.725e-05,
-          "output_per_1k": 0.000309
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
         },
         "us-east-1": {
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.0003
         },
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000465
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.725e-05,
+          "output_per_1k": 0.000309
+        },
         "eu-central-1": {
           "input_per_1k": 0.0001,
           "output_per_1k": 0.000395
         },
-        "us-gov-west-1": {
+        "ap-northeast-1": {
           "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
+          "output_per_1k": 0.000365
         },
         "us-west-2": {
           "input_per_1k": 7.5e-05,
@@ -4766,6 +4830,18 @@
         "ap-southeast-3": {
           "input_per_1k": 8e-05,
           "output_per_1k": 0.00031
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000355
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000365
         }
       }
     },
@@ -4823,18 +4899,6 @@
           "input_per_1k": 0.000138,
           "output_per_1k": 0.000228
         },
-        "eu-central-1": {
-          "input_per_1k": 0.000138,
-          "output_per_1k": 0.000228
-        },
-        "us-east-1": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00019
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.00014,
-          "output_per_1k": 0.00023
-        },
         "eu-west-2": {
           "input_per_1k": 0.00018,
           "output_per_1k": 0.0003
@@ -4843,17 +4907,29 @@
           "input_per_1k": 0.00011845,
           "output_per_1k": 0.0001957
         },
-        "us-east-2": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00019
-        },
         "ap-southeast-3": {
           "input_per_1k": 0.000138,
           "output_per_1k": 0.000228
         },
+        "eu-central-1": {
+          "input_per_1k": 0.000138,
+          "output_per_1k": 0.000228
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00019
+        },
         "ap-south-1": {
           "input_per_1k": 0.00014,
           "output_per_1k": 0.00022
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00014,
+          "output_per_1k": 0.00023
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00019
         },
         "ap-northeast-1": {
           "input_per_1k": 0.00014,
@@ -4911,7 +4987,9 @@
       "supports_temperature": true,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "input_price_per_1k": 0.003,
+      "output_price_per_1k": 0.015
     },
     "qwen3_vl_235b_a22b": {
       "label": "Qwen3 VL 235B A22B",
@@ -4961,17 +5039,37 @@
           "input_per_1k": 0.000318,
           "output_per_1k": 0.001596
         },
+        "us-east-1": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
         "eu-south-1": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.00156
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000318,
+          "output_per_1k": 0.001596
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00041,
+          "output_per_1k": 0.00206
+        },
+        "ap-south-1": {
           "input_per_1k": 0.00031,
           "output_per_1k": 0.00156
         },
         "ap-southeast-3": {
           "input_per_1k": 0.000318,
           "output_per_1k": 0.001596
-        },
-        "us-east-2": {
-          "input_per_1k": 0.00026,
-          "output_per_1k": 0.00133
         },
         "sa-east-1": {
           "input_per_1k": 0.00032,
@@ -4981,29 +5079,9 @@
           "input_per_1k": 0.00027295,
           "output_per_1k": 0.0013699
         },
-        "us-east-1": {
-          "input_per_1k": 0.00026,
-          "output_per_1k": 0.00133
-        },
-        "us-west-2": {
-          "input_per_1k": 0.00026,
-          "output_per_1k": 0.00133
-        },
         "ap-northeast-1": {
           "input_per_1k": 0.00032,
           "output_per_1k": 0.00161
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.000318,
-          "output_per_1k": 0.001596
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.00041,
-          "output_per_1k": 0.00206
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.00031,
-          "output_per_1k": 0.00156
         }
       }
     },
@@ -5049,10 +5127,6 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "us-east-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0011
-        },
         "eu-central-1": {
           "input_per_1k": 0.00036,
           "output_per_1k": 0.00132
@@ -5073,11 +5147,11 @@
           "input_per_1k": 0.00036,
           "output_per_1k": 0.00132
         },
-        "ap-south-1": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.00132
+        "us-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0011
         },
-        "eu-north-1": {
+        "ap-south-1": {
           "input_per_1k": 0.00036,
           "output_per_1k": 0.00132
         },
@@ -5085,11 +5159,15 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.0011
         },
-        "ap-northeast-1": {
+        "eu-north-1": {
           "input_per_1k": 0.00036,
           "output_per_1k": 0.00132
         },
         "eu-west-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "ap-northeast-1": {
           "input_per_1k": 0.00036,
           "output_per_1k": 0.00132
         },
@@ -5142,21 +5220,9 @@
           "input_per_1k": 0.00027,
           "output_per_1k": 0.00108
         },
-        "us-east-2": {
-          "input_per_1k": 0.000225,
-          "output_per_1k": 0.0009
-        },
         "ap-southeast-2": {
           "input_per_1k": 0.00023175,
           "output_per_1k": 0.000927
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.00027,
-          "output_per_1k": 0.00108
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.000265,
-          "output_per_1k": 0.00106
         },
         "eu-north-1": {
           "input_per_1k": 0.000225,
@@ -5167,10 +5233,10 @@
           "output_per_1k": 0.00108
         },
         "ap-southeast-3": {
-          "input_per_1k": 0.00023,
-          "output_per_1k": 0.00093
+          "input_per_1k": 0.000235,
+          "output_per_1k": 0.000935
         },
-        "eu-south-1": {
+        "eu-central-1": {
           "input_per_1k": 0.00027,
           "output_per_1k": 0.00108
         },
@@ -5186,9 +5252,21 @@
           "input_per_1k": 0.000225,
           "output_per_1k": 0.0009
         },
+        "ap-south-1": {
+          "input_per_1k": 0.000265,
+          "output_per_1k": 0.00106
+        },
         "us-east-1": {
           "input_per_1k": 0.000225,
           "output_per_1k": 0.0009
+        },
+        "us-east-2": {
+          "input_per_1k": 0.000225,
+          "output_per_1k": 0.0009
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00108
         }
       }
     },
@@ -5397,10 +5475,6 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "us-east-2": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
-        },
         "eu-west-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00035
@@ -5409,15 +5483,15 @@
           "input_per_1k": 0.000115,
           "output_per_1k": 0.000465
         },
-        "eu-central-1": {
-          "input_per_1k": 0.0001,
-          "output_per_1k": 0.000395
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
         },
         "ap-south-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.000355
         },
-        "eu-south-1": {
+        "eu-central-1": {
           "input_per_1k": 0.0001,
           "output_per_1k": 0.000395
         },
@@ -5441,13 +5515,17 @@
           "input_per_1k": 8e-05,
           "output_per_1k": 0.00031
         },
-        "us-west-2": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
+        "eu-south-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
         },
         "ap-southeast-2": {
           "input_per_1k": 7.725e-05,
           "output_per_1k": 0.000309
+        },
+        "us-west-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
         }
       }
     },
@@ -5482,70 +5560,78 @@
         "bedrock-runtime"
       ],
       "apis": [
+        "chat_completions",
         "converse",
         "invoke",
-        "chat_completions",
         "responses"
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 4e-05,
-      "output_price_per_1k": 0.00012,
+      "output_price_per_1k": 0.00018,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "eu-north-1": {
-          "input_per_1k": 4.2e-05,
-          "output_per_1k": 0.00012
-        },
-        "eu-south-1": {
-          "input_per_1k": 4e-05,
-          "output_per_1k": 0.00012
-        },
-        "eu-west-1": {
-          "input_per_1k": 4e-05,
-          "output_per_1k": 0.00012
-        },
-        "eu-west-2": {
-          "input_per_1k": 6e-05,
-          "output_per_1k": 0.00015
-        },
-        "us-east-1": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.0001
+        "ap-southeast-3": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.000155
         },
         "us-east-2": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.0001
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00015
         },
-        "us-west-2": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.0001
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 3.605e-05,
-          "output_per_1k": 0.000103
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 4e-05,
-          "output_per_1k": 0.00012
-        },
-        "ap-southeast-3": {
+        "us-gov-west-1": {
           "input_per_1k": 4.2e-05,
-          "output_per_1k": 0.00012
+          "output_per_1k": 0.00018
         },
-        "ap-south-1": {
-          "input_per_1k": 4e-05,
-          "output_per_1k": 0.00012
+        "us-gov-east-1": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.00018
+        },
+        "us-east-1": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00015
+        },
+        "eu-south-1": {
+          "input_per_1k": 4.5e-05,
+          "output_per_1k": 0.0002
         },
         "sa-east-1": {
           "input_per_1k": 4e-05,
-          "output_per_1k": 0.00012
+          "output_per_1k": 0.00018
         },
         "eu-central-1": {
-          "input_per_1k": 4.2e-05,
-          "output_per_1k": 0.00012
+          "input_per_1k": 4.5e-05,
+          "output_per_1k": 0.0002
+        },
+        "eu-west-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.000175
+        },
+        "us-west-2": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00015
+        },
+        "ap-south-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.000175
+        },
+        "eu-north-1": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00015
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 3.605e-05,
+          "output_per_1k": 0.0001545
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00018
+        },
+        "eu-west-2": {
+          "input_per_1k": 5.5e-05,
+          "output_per_1k": 0.000235
         }
       }
     },
@@ -5632,17 +5718,13 @@
           "input_per_1k": 0.000475,
           "output_per_1k": 0.0019
         },
-        "il-central-1": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.002
+        "eu-north-1": {
+          "input_per_1k": 0.000435,
+          "output_per_1k": 0.00174
         },
         "ap-southeast-1": {
           "input_per_1k": 0.00054,
           "output_per_1k": 0.00216
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.000435,
-          "output_per_1k": 0.00174
         },
         "ap-east-2": {
           "input_per_1k": 0.00048,
@@ -5652,10 +5734,6 @@
           "input_per_1k": 0.00048,
           "output_per_1k": 0.00192
         },
-        "us-west-1": {
-          "input_per_1k": 0.000515,
-          "output_per_1k": 0.00206
-        },
         "ap-northeast-1": {
           "input_per_1k": 0.00048,
           "output_per_1k": 0.00192
@@ -5664,19 +5742,7 @@
           "input_per_1k": 0.00046,
           "output_per_1k": 0.00184
         },
-        "us-west-2": {
-          "input_per_1k": 0.0004,
-          "output_per_1k": 0.0016
-        },
-        "ap-southeast-7": {
-          "input_per_1k": 0.00048,
-          "output_per_1k": 0.00192
-        },
         "me-central-1": {
-          "input_per_1k": 0.0004,
-          "output_per_1k": 0.0016
-        },
-        "us-east-1": {
           "input_per_1k": 0.0004,
           "output_per_1k": 0.0016
         },
@@ -5684,13 +5750,17 @@
           "input_per_1k": 0.00044,
           "output_per_1k": 0.00176
         },
-        "ap-southeast-4": {
-          "input_per_1k": 0.000435,
-          "output_per_1k": 0.00174
-        },
         "eu-west-2": {
           "input_per_1k": 0.000565,
           "output_per_1k": 0.00226
+        },
+        "us-west-1": {
+          "input_per_1k": 0.000515,
+          "output_per_1k": 0.00206
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
         },
         "ap-southeast-2": {
           "input_per_1k": 0.00042,
@@ -5708,6 +5778,10 @@
           "input_per_1k": 0.00048,
           "output_per_1k": 0.00192
         },
+        "il-central-1": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.002
+        },
         "ap-south-1": {
           "input_per_1k": 0.00047,
           "output_per_1k": 0.00188
@@ -5719,6 +5793,18 @@
         "eu-south-1": {
           "input_per_1k": 0.00064,
           "output_per_1k": 0.002605
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.000435,
+          "output_per_1k": 0.00174
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
         }
       }
     },
@@ -5763,91 +5849,71 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 3.6e-05,
-      "output_price_per_1k": 0.000144,
+      "input_price_per_1k": 7.2e-05,
+      "output_price_per_1k": 0.000288,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "ap-southeast-4": {
-          "input_per_1k": 3.25e-05,
-          "output_per_1k": 0.00013
-        },
         "ap-southeast-5": {
           "input_per_1k": 7.2e-05,
           "output_per_1k": 0.000288
         },
         "us-east-1": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.00012
-        },
-        "me-central-1": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.00012
-        },
-        "ap-northeast-2": {
-          "input_per_1k": 3.55e-05,
-          "output_per_1k": 0.000142
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00024
         },
         "eu-south-1": {
           "input_per_1k": 9.6e-05,
           "output_per_1k": 0.000384
-        },
-        "ca-central-1": {
-          "input_per_1k": 3.2e-05,
-          "output_per_1k": 0.000128
         },
         "eu-west-2": {
           "input_per_1k": 8.4e-05,
           "output_per_1k": 0.000336
         },
         "ap-southeast-1": {
-          "input_per_1k": 4.05e-05,
-          "output_per_1k": 0.000162
+          "input_per_1k": 8.1e-05,
+          "output_per_1k": 0.000324
         },
         "eu-north-1": {
-          "input_per_1k": 3.25e-05,
-          "output_per_1k": 0.00013
+          "input_per_1k": 6.5e-05,
+          "output_per_1k": 0.00026
         },
         "us-gov-west-1": {
-          "input_per_1k": 3.6e-05,
-          "output_per_1k": 0.000144
+          "input_per_1k": 7.2e-05,
+          "output_per_1k": 0.000288
         },
         "us-east-2": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.00012
-        },
-        "ap-east-2": {
-          "input_per_1k": 3.6e-05,
-          "output_per_1k": 0.000144
-        },
-        "ap-south-1": {
-          "input_per_1k": 3.55e-05,
-          "output_per_1k": 0.000142
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00024
         },
         "ap-southeast-7": {
           "input_per_1k": 7.2e-05,
           "output_per_1k": 0.000288
         },
-        "il-central-1": {
-          "input_per_1k": 3.75e-05,
-          "output_per_1k": 0.00015
+        "ap-southeast-4": {
+          "input_per_1k": 6.5e-05,
+          "output_per_1k": 0.00026
         },
-        "eu-west-3": {
-          "input_per_1k": 4.4e-05,
-          "output_per_1k": 0.000176
+        "ca-central-1": {
+          "input_per_1k": 6.4e-05,
+          "output_per_1k": 0.000256
         },
         "eu-central-1": {
-          "input_per_1k": 3.9e-05,
-          "output_per_1k": 0.000156
+          "input_per_1k": 7.8e-05,
+          "output_per_1k": 0.000312
         },
-        "eu-west-1": {
-          "input_per_1k": 3.45e-05,
-          "output_per_1k": 0.000138
+        "me-central-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00024
         },
         "ap-southeast-2": {
-          "input_per_1k": 3.15e-05,
-          "output_per_1k": 0.000126
+          "input_per_1k": 6.3e-05,
+          "output_per_1k": 0.000252
+        },
+        "il-central-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
         },
         "eu-south-2": {
           "input_per_1k": 6.6e-05,
@@ -5857,13 +5923,33 @@
           "input_per_1k": 7.7e-05,
           "output_per_1k": 0.000308
         },
+        "ap-northeast-2": {
+          "input_per_1k": 7.1e-05,
+          "output_per_1k": 0.000284
+        },
         "ap-northeast-1": {
-          "input_per_1k": 3.6e-05,
-          "output_per_1k": 0.000144
+          "input_per_1k": 7.2e-05,
+          "output_per_1k": 0.000288
         },
         "us-west-2": {
-          "input_per_1k": 3e-05,
-          "output_per_1k": 0.00012
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00024
+        },
+        "ap-south-1": {
+          "input_per_1k": 7.1e-05,
+          "output_per_1k": 0.000284
+        },
+        "eu-west-1": {
+          "input_per_1k": 6.9e-05,
+          "output_per_1k": 0.000276
+        },
+        "eu-west-3": {
+          "input_per_1k": 8.8e-05,
+          "output_per_1k": 0.000352
+        },
+        "ap-east-2": {
+          "input_per_1k": 7.2e-05,
+          "output_per_1k": 0
         }
       }
     },
@@ -5905,91 +5991,87 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 2.1e-05,
-      "output_price_per_1k": 8.4e-05,
+      "input_price_per_1k": 4.2e-05,
+      "output_price_per_1k": 0.000168,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
         "me-central-1": {
-          "input_per_1k": 1.75e-05,
-          "output_per_1k": 7e-05
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00014
         },
         "ap-south-1": {
-          "input_per_1k": 2.05e-05,
-          "output_per_1k": 8.2e-05
+          "input_per_1k": 4.1e-05,
+          "output_per_1k": 0.000164
         },
         "ap-southeast-2": {
-          "input_per_1k": 1.85e-05,
-          "output_per_1k": 7.4e-05
+          "input_per_1k": 3.7e-05,
+          "output_per_1k": 0.000148
         },
         "eu-west-1": {
-          "input_per_1k": 2e-05,
-          "output_per_1k": 8e-05
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00016
         },
         "eu-south-2": {
           "input_per_1k": 3.9e-05,
           "output_per_1k": 0.000156
         },
         "ap-southeast-1": {
-          "input_per_1k": 2.35e-05,
-          "output_per_1k": 9.4e-05
-        },
-        "eu-north-1": {
-          "input_per_1k": 1.9e-05,
-          "output_per_1k": 7.6e-05
-        },
-        "eu-central-1": {
-          "input_per_1k": 2.3e-05,
-          "output_per_1k": 9.2e-05
-        },
-        "il-central-1": {
-          "input_per_1k": 2.2e-05,
-          "output_per_1k": 8.8e-05
+          "input_per_1k": 4.7e-05,
+          "output_per_1k": 0.000188
         },
         "us-east-2": {
-          "input_per_1k": 1.75e-05,
-          "output_per_1k": 7e-05
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 2.1e-05,
-          "output_per_1k": 8.4e-05
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00014
         },
         "ap-northeast-2": {
-          "input_per_1k": 2.05e-05,
-          "output_per_1k": 8.2e-05
+          "input_per_1k": 4.1e-05,
+          "output_per_1k": 0.000164
         },
         "us-west-2": {
-          "input_per_1k": 1.75e-05,
-          "output_per_1k": 7e-05
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00014
+        },
+        "il-central-1": {
+          "input_per_1k": 4.4e-05,
+          "output_per_1k": 0.000176
         },
         "us-east-1": {
-          "input_per_1k": 1.75e-05,
-          "output_per_1k": 7e-05
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00014
         },
-        "ap-southeast-7": {
-          "input_per_1k": 2.1e-05,
-          "output_per_1k": 8.4e-05
-        },
-        "us-gov-west-1": {
-          "input_per_1k": 2.1e-05,
-          "output_per_1k": 8.4e-05
+        "ap-northeast-1": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.000168
         },
         "ap-southeast-5": {
           "input_per_1k": 4.2e-05,
           "output_per_1k": 0
         },
+        "us-gov-west-1": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.000168
+        },
+        "eu-central-1": {
+          "input_per_1k": 4.6e-05,
+          "output_per_1k": 0.000184
+        },
         "eu-south-1": {
           "input_per_1k": 5.6e-05,
           "output_per_1k": 0.000224
         },
-        "eu-west-3": {
-          "input_per_1k": 2.6e-05,
-          "output_per_1k": 0.000104
-        },
         "eu-west-2": {
           "input_per_1k": 4.9e-05,
           "output_per_1k": 0.000196
+        },
+        "eu-west-3": {
+          "input_per_1k": 5.2e-05,
+          "output_per_1k": 0.000208
+        },
+        "eu-north-1": {
+          "input_per_1k": 3.8e-05,
+          "output_per_1k": 0.000152
         }
       }
     },
@@ -6506,29 +6588,17 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "eu-central-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.00072
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.00072
-        },
         "eu-west-2": {
           "input_per_1k": 0.00039,
           "output_per_1k": 0.00093
         },
-        "ap-southeast-3": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.00072
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.00072
-        },
         "us-west-2": {
           "input_per_1k": 0.00025,
           "output_per_1k": 0.0006
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
         },
         "ap-southeast-2": {
           "input_per_1k": 0.00026,
@@ -6538,7 +6608,19 @@
           "input_per_1k": 0.00025,
           "output_per_1k": 0.0006
         },
+        "eu-north-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        },
         "eu-west-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        },
+        "sa-east-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00072
         },
@@ -6550,11 +6632,11 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00072
         },
-        "eu-south-1": {
+        "ap-northeast-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00072
         },
-        "sa-east-1": {
+        "eu-central-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00072
         }
@@ -6698,21 +6780,9 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "ap-southeast-2": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.00031
-        },
-        "ap-south-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
-        },
         "sa-east-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00036
-        },
-        "us-east-2": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
         },
         "us-west-2": {
           "input_per_1k": 7.5e-05,
@@ -6726,13 +6796,13 @@
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00036
         },
-        "eu-central-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
-        },
         "ap-southeast-3": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00036
+        },
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
         },
         "eu-south-1": {
           "input_per_1k": 9e-05,
@@ -6742,11 +6812,23 @@
           "input_per_1k": 0.000115,
           "output_per_1k": 0.000465
         },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
         "us-east-1": {
           "input_per_1k": 7.5e-05,
           "output_per_1k": 0.0003
         },
         "eu-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.00031
+        },
+        "eu-central-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00036
         }
@@ -6831,17 +6913,13 @@
           "input_per_1k": 0.000475,
           "output_per_1k": 0.0019
         },
-        "il-central-1": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.002
+        "eu-north-1": {
+          "input_per_1k": 0.000435,
+          "output_per_1k": 0.00174
         },
         "ap-southeast-1": {
           "input_per_1k": 0.00054,
           "output_per_1k": 0.00216
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.000435,
-          "output_per_1k": 0.00174
         },
         "ap-east-2": {
           "input_per_1k": 0.00048,
@@ -6851,10 +6929,6 @@
           "input_per_1k": 0.00048,
           "output_per_1k": 0.00192
         },
-        "us-west-1": {
-          "input_per_1k": 0.000515,
-          "output_per_1k": 0.00206
-        },
         "ap-northeast-1": {
           "input_per_1k": 0.00048,
           "output_per_1k": 0.00192
@@ -6863,19 +6937,7 @@
           "input_per_1k": 0.00046,
           "output_per_1k": 0.00184
         },
-        "us-west-2": {
-          "input_per_1k": 0.0004,
-          "output_per_1k": 0.0016
-        },
-        "ap-southeast-7": {
-          "input_per_1k": 0.00048,
-          "output_per_1k": 0.00192
-        },
         "me-central-1": {
-          "input_per_1k": 0.0004,
-          "output_per_1k": 0.0016
-        },
-        "us-east-1": {
           "input_per_1k": 0.0004,
           "output_per_1k": 0.0016
         },
@@ -6883,13 +6945,17 @@
           "input_per_1k": 0.00044,
           "output_per_1k": 0.00176
         },
-        "ap-southeast-4": {
-          "input_per_1k": 0.000435,
-          "output_per_1k": 0.00174
-        },
         "eu-west-2": {
           "input_per_1k": 0.000565,
           "output_per_1k": 0.00226
+        },
+        "us-west-1": {
+          "input_per_1k": 0.000515,
+          "output_per_1k": 0.00206
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
         },
         "ap-southeast-2": {
           "input_per_1k": 0.00042,
@@ -6907,6 +6973,10 @@
           "input_per_1k": 0.00048,
           "output_per_1k": 0.00192
         },
+        "il-central-1": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.002
+        },
         "ap-south-1": {
           "input_per_1k": 0.00047,
           "output_per_1k": 0.00188
@@ -6918,6 +6988,18 @@
         "eu-south-1": {
           "input_per_1k": 0.00064,
           "output_per_1k": 0.002605
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.000435,
+          "output_per_1k": 0.00174
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
         }
       }
     },
@@ -7291,8 +7373,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0005,
-      "output_price_per_1k": 0.0015,
+      "input_price_per_1k": 0.001,
+      "output_price_per_1k": 0.003,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": ""
@@ -7505,10 +7587,13 @@
         "bedrock-runtime"
       ],
       "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
         "responses"
       ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "responses",
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
       "input_price_per_1k": 0.00132,
       "output_price_per_1k": 0.00792,
       "lifecycle_status": "ACTIVE",
@@ -7554,10 +7639,13 @@
         "bedrock-runtime"
       ],
       "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
         "responses"
       ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "responses",
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
       "input_price_per_1k": 0.000132,
       "output_price_per_1k": 0.000792,
       "lifecycle_status": "ACTIVE",
@@ -7602,10 +7690,13 @@
         "bedrock-runtime"
       ],
       "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
         "responses"
       ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "responses",
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": ""
@@ -7645,13 +7736,13 @@
           "input_per_1k": 6.5e-05,
           "output_per_1k": 0.0002
         },
-        "us-gov-west-1": {
-          "input_per_1k": 7.8e-05,
-          "output_per_1k": 0.00024
-        },
         "us-east-2": {
           "input_per_1k": 6.5e-05,
           "output_per_1k": 0.0002
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 7.8e-05,
+          "output_per_1k": 0.00024
         },
         "eu-central-1": {
           "input_per_1k": 7.8e-05,
@@ -7686,10 +7777,6 @@
       "input_price_per_1k": 7.5e-05,
       "output_price_per_1k": 0.0003,
       "token_pricing_by_region": {
-        "us-east-2": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
-        },
         "eu-west-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00035
@@ -7698,15 +7785,15 @@
           "input_per_1k": 0.000115,
           "output_per_1k": 0.000465
         },
-        "eu-central-1": {
-          "input_per_1k": 0.0001,
-          "output_per_1k": 0.000395
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
         },
         "ap-south-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.000355
         },
-        "eu-south-1": {
+        "eu-central-1": {
           "input_per_1k": 0.0001,
           "output_per_1k": 0.000395
         },
@@ -7730,13 +7817,17 @@
           "input_per_1k": 8e-05,
           "output_per_1k": 0.00031
         },
-        "us-west-2": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
+        "eu-south-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
         },
         "ap-southeast-2": {
           "input_per_1k": 7.725e-05,
           "output_per_1k": 0.000309
+        },
+        "us-west-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
         }
       }
     },
@@ -7771,10 +7862,6 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.0009
         },
-        "eu-central-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0009
-        },
         "ap-southeast-2": {
           "input_per_1k": 0.0002575,
           "output_per_1k": 0.0007725
@@ -7787,15 +7874,23 @@
           "input_per_1k": 0.00025,
           "output_per_1k": 0.00075
         },
+        "us-east-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00075
+        },
         "ap-northeast-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00091
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
         },
         "ap-south-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00088
         },
-        "us-east-2": {
+        "us-west-2": {
           "input_per_1k": 0.00025,
           "output_per_1k": 0.00075
         },
@@ -7803,19 +7898,15 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00091
         },
-        "eu-south-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0009
-        },
-        "us-west-2": {
-          "input_per_1k": 0.00025,
-          "output_per_1k": 0.00075
-        },
-        "ap-southeast-3": {
+        "eu-central-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.0009
         },
         "eu-north-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        },
+        "eu-south-1": {
           "input_per_1k": 0.0003,
           "output_per_1k": 0.0009
         }
@@ -7845,8 +7936,154 @@
       ],
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
-      "input_price_per_1k": 0.00132,
-      "output_price_per_1k": 0.00792
+      "input_price_per_1k": 0.001,
+      "output_price_per_1k": 0.003,
+      "token_pricing_by_region": {
+        "ap-southeast-4": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.0012,
+          "output_per_1k": 0.0036
+        },
+        "me-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.0012,
+          "output_per_1k": 0.0036
+        },
+        "us-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-west-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "af-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "me-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "il-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-east-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        }
+      }
     },
     "gpt_5_4": {
       "label": "openai.gpt-5.4",
@@ -7872,60 +8109,152 @@
       ],
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "responses",
-      "input_price_per_1k": 0.0003,
-      "output_price_per_1k": 0.0011,
+      "input_price_per_1k": 0.001,
+      "output_price_per_1k": 0.003,
       "token_pricing_by_region": {
-        "us-east-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0011
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.00132
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.00031,
-          "output_per_1k": 0.001135
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.00132
-        },
-        "us-east-2": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0011
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.00132
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.00132
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.00132
-        },
-        "us-west-2": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0011
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.00132
-        },
-        "eu-west-1": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.00132
+        "ap-southeast-4": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
         },
         "eu-south-1": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.00132
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.0012,
+          "output_per_1k": 0.0036
+        },
+        "me-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.0012,
+          "output_per_1k": 0.0036
+        },
+        "us-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-west-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "af-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "me-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "il-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-east-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
         },
         "eu-west-2": {
-          "input_per_1k": 0.000465,
-          "output_per_1k": 0.001705
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
         }
       }
     },
@@ -7960,21 +8289,9 @@
           "input_per_1k": 0.00027,
           "output_per_1k": 0.00108
         },
-        "us-east-2": {
-          "input_per_1k": 0.000225,
-          "output_per_1k": 0.0009
-        },
         "ap-southeast-2": {
           "input_per_1k": 0.00023175,
           "output_per_1k": 0.000927
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.00027,
-          "output_per_1k": 0.00108
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.000265,
-          "output_per_1k": 0.00106
         },
         "eu-north-1": {
           "input_per_1k": 0.000225,
@@ -7985,10 +8302,10 @@
           "output_per_1k": 0.00108
         },
         "ap-southeast-3": {
-          "input_per_1k": 0.00023,
-          "output_per_1k": 0.00093
+          "input_per_1k": 0.000235,
+          "output_per_1k": 0.000935
         },
-        "eu-south-1": {
+        "eu-central-1": {
           "input_per_1k": 0.00027,
           "output_per_1k": 0.00108
         },
@@ -8004,9 +8321,21 @@
           "input_per_1k": 0.000225,
           "output_per_1k": 0.0009
         },
+        "ap-south-1": {
+          "input_per_1k": 0.000265,
+          "output_per_1k": 0.00106
+        },
         "us-east-1": {
           "input_per_1k": 0.000225,
           "output_per_1k": 0.0009
+        },
+        "us-east-2": {
+          "input_per_1k": 0.000225,
+          "output_per_1k": 0.0009
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00108
         }
       }
     },
@@ -8041,17 +8370,17 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00087
         },
-        "eu-north-1": {
-          "input_per_1k": 0.00029,
-          "output_per_1k": 0.00084
-        },
         "us-east-2": {
           "input_per_1k": 0.00029,
           "output_per_1k": 0.00084
         },
-        "ap-south-1": {
-          "input_per_1k": 0.00034121,
-          "output_per_1k": 0.00098834
+        "us-west-2": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0002987,
+          "output_per_1k": 0.0008652
         },
         "ap-northeast-1": {
           "input_per_1k": 0.00035083,
@@ -8060,18 +8389,6 @@
         "eu-central-1": {
           "input_per_1k": 0.000348,
           "output_per_1k": 0.001008
-        },
-        "us-west-2": {
-          "input_per_1k": 0.00029,
-          "output_per_1k": 0.00084
-        },
-        "us-east-1": {
-          "input_per_1k": 0.00029,
-          "output_per_1k": 0.00084
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.0002987,
-          "output_per_1k": 0.0008652
         },
         "sa-east-1": {
           "input_per_1k": 0.000348,
@@ -8084,6 +8401,18 @@
         "eu-west-1": {
           "input_per_1k": 0.000348,
           "output_per_1k": 0.001008
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00034121,
+          "output_per_1k": 0.00098834
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
         },
         "eu-south-1": {
           "input_per_1k": 0.000348,
@@ -8118,10 +8447,6 @@
       "input_price_per_1k": 2e-05,
       "output_price_per_1k": 4e-05,
       "token_pricing_by_region": {
-        "us-east-1": {
-          "input_per_1k": 2e-05,
-          "output_per_1k": 4e-05
-        },
         "us-east-2": {
           "input_per_1k": 2e-05,
           "output_per_1k": 4e-05
@@ -8133,6 +8458,10 @@
         "us-gov-west-1": {
           "input_per_1k": 2.4e-05,
           "output_per_1k": 4.8e-05
+        },
+        "us-east-1": {
+          "input_per_1k": 2e-05,
+          "output_per_1k": 4e-05
         },
         "eu-central-1": {
           "input_per_1k": 2.4e-05,
@@ -8163,7 +8492,9 @@
         "messages"
       ],
       "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "messages"
+      "invoke_api": "messages",
+      "input_price_per_1k": 0.0011,
+      "output_price_per_1k": 0.0055
     },
     "moonshotai_kimi_k2_thinking": {
       "label": "moonshotai.kimi-k2-thinking",
@@ -8200,10 +8531,6 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00125
         },
-        "us-east-2": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.00125
-        },
         "eu-north-1": {
           "input_per_1k": 0.00036,
           "output_per_1k": 0.0015
@@ -8220,9 +8547,9 @@
           "input_per_1k": 0.0003,
           "output_per_1k": 0.00125
         },
-        "ap-southeast-2": {
-          "input_per_1k": 0.000309,
-          "output_per_1k": 0.0012875
+        "us-east-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00125
         },
         "ap-south-1": {
           "input_per_1k": 0.00036,
@@ -8232,17 +8559,21 @@
           "input_per_1k": 0.00036,
           "output_per_1k": 0.0015
         },
-        "eu-south-1": {
-          "input_per_1k": 0.00036,
-          "output_per_1k": 0.0015
-        },
         "ap-northeast-1": {
           "input_per_1k": 0.00036,
           "output_per_1k": 0.00152
         },
+        "eu-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
         "eu-west-2": {
           "input_per_1k": 0.000465,
           "output_per_1k": 0.0019375
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000309,
+          "output_per_1k": 0.0012875
         }
       }
     },
@@ -8281,17 +8612,37 @@
           "input_per_1k": 0.000318,
           "output_per_1k": 0.001596
         },
+        "us-east-1": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
         "eu-south-1": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.00156
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000318,
+          "output_per_1k": 0.001596
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00041,
+          "output_per_1k": 0.00206
+        },
+        "ap-south-1": {
           "input_per_1k": 0.00031,
           "output_per_1k": 0.00156
         },
         "ap-southeast-3": {
           "input_per_1k": 0.000318,
           "output_per_1k": 0.001596
-        },
-        "us-east-2": {
-          "input_per_1k": 0.00026,
-          "output_per_1k": 0.00133
         },
         "sa-east-1": {
           "input_per_1k": 0.00032,
@@ -8301,29 +8652,9 @@
           "input_per_1k": 0.00027295,
           "output_per_1k": 0.0013699
         },
-        "us-east-1": {
-          "input_per_1k": 0.00026,
-          "output_per_1k": 0.00133
-        },
-        "us-west-2": {
-          "input_per_1k": 0.00026,
-          "output_per_1k": 0.00133
-        },
         "ap-northeast-1": {
           "input_per_1k": 0.00032,
           "output_per_1k": 0.00161
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.000318,
-          "output_per_1k": 0.001596
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.00041,
-          "output_per_1k": 0.00206
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.00031,
-          "output_per_1k": 0.00156
         }
       }
     },
@@ -8355,7 +8686,7 @@
       "output_price_per_1k": 0.0006,
       "token_pricing_by_region": {
         "ap-south-1": {
-          "input_per_1k": 8.4e-05,
+          "input_per_1k": 9e-05,
           "output_per_1k": 0.00071
         },
         "us-east-1": {
@@ -8367,7 +8698,7 @@
           "output_per_1k": 0.000618
         },
         "sa-east-1": {
-          "input_per_1k": 8.4e-05,
+          "input_per_1k": 9e-05,
           "output_per_1k": 0.00072
         },
         "us-east-2": {
@@ -8379,7 +8710,7 @@
           "output_per_1k": 0.00072
         },
         "eu-west-1": {
-          "input_per_1k": 8.4e-05,
+          "input_per_1k": 9e-05,
           "output_per_1k": 0.00071
         },
         "us-west-2": {
@@ -8387,20 +8718,20 @@
           "output_per_1k": 0.0006
         },
         "eu-south-1": {
-          "input_per_1k": 8.4e-05,
+          "input_per_1k": 9e-05,
           "output_per_1k": 0.00071
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00093
         },
         "eu-north-1": {
           "input_per_1k": 8.4e-05,
           "output_per_1k": 0.00072
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 8.4e-05,
-          "output_per_1k": 0.00072
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.0001085,
-          "output_per_1k": 0.00093
         },
         "ap-southeast-3": {
           "input_per_1k": 8.4e-05,
@@ -8435,11 +8766,7 @@
       "input_price_per_1k": 7e-05,
       "output_price_per_1k": 0.0002,
       "token_pricing_by_region": {
-        "us-gov-west-1": {
-          "input_per_1k": 8.4e-05,
-          "output_per_1k": 0.00024
-        },
-        "us-east-1": {
+        "us-west-2": {
           "input_per_1k": 7e-05,
           "output_per_1k": 0.0002
         },
@@ -8447,7 +8774,11 @@
           "input_per_1k": 7e-05,
           "output_per_1k": 0.0002
         },
-        "us-west-2": {
+        "us-gov-west-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00024
+        },
+        "us-east-1": {
           "input_per_1k": 7e-05,
           "output_per_1k": 0.0002
         },
@@ -8481,8 +8812,154 @@
       ],
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
-      "input_price_per_1k": 0.00132,
-      "output_price_per_1k": 0.00792
+      "input_price_per_1k": 0.001,
+      "output_price_per_1k": 0.003,
+      "token_pricing_by_region": {
+        "ap-southeast-4": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.0012,
+          "output_per_1k": 0.0036
+        },
+        "me-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.0012,
+          "output_per_1k": 0.0036
+        },
+        "us-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-west-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "af-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "me-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "il-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "us-east-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.003
+        }
+      }
     }
   },
   "custom_model_catalog": {
