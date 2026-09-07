@@ -1068,7 +1068,7 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
                               pack: str = "none", lods: str = "none",
                               collision: str = "none", uv2: str = "none",
                               check: int = 0, prepare: int = 0):
-    """Serve an engine-tailored export of a generated 3D asset.
+    """Serve a game-engine-tailored export of a generated 3D asset.
 
     fmt ∈ {glb, fbx, usd}. GLB is served PRISTINE (glTF is Y-up by spec and importers
     convert on load — a re-oriented GLB would be malformed). FBX + USD are oriented

@@ -247,11 +247,11 @@ To generate with specific models:
 
 - **400**: Invalid request (bad model key, invalid dimensions)
 - **502**: AI service error (Bedrock/SageMaker failure)
-- **SSE error events**: `{"type": "error", "message": "..."}` during generation
+- **SSE error events**: `{"type": "error", "detail": "..."}` (fatal, stop) or `{"type": "image_error", ...}` (one image failed, generation continues) during generation
 
-Moderation blocks appear as:
+Moderation blocks appear as their own event (not on `image_done`):
 ```json
-{"type": "option_complete", "status": "moderation_blocked", "message": "Content moderation blocked this generation"}
+{"type": "moderation_blocked", "option": 0, "variation": 0, "message": "Content moderation blocked this generation"}
 ```
 
 ## Language Support

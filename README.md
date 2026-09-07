@@ -6,11 +6,11 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
-![ArtSmoker walkthrough — from a text prompt to production-ready 2D art to a fully-textured, engine-tailored 3D model](docs/images/artsmoker-walkthrough.gif)
+![ArtSmoker walkthrough — from a text prompt to production-ready 2D art to a fully-textured, game-engine-tailored 3D model](docs/images/artsmoker-walkthrough.gif)
 
 ## 📌 0. Overview
 
-**ArtSmoker turns an idea into engine-tailored art — in minutes, with no pipeline for you to manage.** Describe a character, prop, environment, or piece of key art in plain language and get production-ready 2D art, fully-textured 3D models, and video — all matched to your project's visual identity, all kept within your own environment. The newest AI image, editing, 3D, and video models sit behind one clean, artist-first interface with real creative controls: ArtSmoker runs the entire production pipeline for you, so your team directs the look instead of wrangling the machinery.
+**ArtSmoker turns an idea into game-engine-tailored art — in minutes, with no pipeline for you to manage.** Describe a character, prop, environment, or piece of key art in plain language and get production-ready 2D art, fully-textured 3D models, and video — all matched to your project's visual identity, all kept within your own environment. The newest AI image, editing, 3D, and video models sit behind one clean, artist-first interface with real creative controls: ArtSmoker runs the entire production pipeline for you, so your team directs the look instead of wrangling the machinery.
 
 ### 📝 The Problem
 
@@ -28,7 +28,7 @@ ArtSmoker is a self-hosted creative studio that puts today's best generative mod
 
 - **Describe it in plain language** — ArtSmoker handles prompt decomposition, enhancement, and model-specific optimization behind the scenes. A guided **Prompt Designer** lets you shape each visual element — subject, scene, lighting, colour — with lock/vary controls to explore genuinely different directions without losing what's already working.
 - **On-brand by default** — feed ArtSmoker your existing art and its vision models learn your visual identity, so every asset comes out matching your project's look and feel.
-- **2D, edited, and in 3D — end to end** — generate, then refine in place with inpainting, outpainting, recoloring, search-and-replace, and reference-guided edits; turn any 2D asset into a **fully-textured, engine-tailored 3D model** that drops straight into Unity, Unreal, or Blender — no manual modeling, UV unwrapping, or texture painting. Plus cinematic video and a multi-model chat studio for ideation.
+- **2D, edited, and in 3D — end to end** — generate, then refine in place with inpainting, outpainting, recoloring, search-and-replace, and reference-guided edits; turn any 2D asset into a **fully-textured, game-engine-tailored 3D model** that drops straight into Unity, Unreal, or Blender — no manual modeling, UV unwrapping, or texture painting. Plus cinematic video and a multi-model chat studio for ideation.
 - **Every model, one click** — use the latest hosted models across regions, or deploy curated open-source models (Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2, and more) to your own GPUs with a single click — packaging, quantization, auto-scaling, and job tracking all handled, every model validated end-to-end before it ships.
 - **Runs where you want — and your IP stays yours** — install it on a single artist's desktop or a shared instance for the whole team; **no GPU of your own required** (the heavy compute runs on managed AWS services, or on auto-scaling endpoints ArtSmoker spins up and scales back to zero for you). It connects only to your own AWS account — artwork, prompts, styles, and generated assets stay in your environment, nothing goes to third-party services, and you keep full ownership of your creative IP.
 
@@ -108,7 +108,7 @@ For teams that want every generated asset to match an existing art style — upl
 - 🌐 **9-Language i18n** — Full UI translation (EN, JA, ZH, KO, HI, RU, FR, ES, DE), auto-detect non-English prompts (English UI skips detection entirely), bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
 - 🔧 **Self-Hosted Models — 1-Click Deploy** — Browse a curated catalog of pre-tested open-source models (Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2, and more), pick a GPU instance, and click Deploy. ArtSmoker handles everything: packaging the inference handler, configuring quantisation, selecting the right CUDA toolkit, setting up auto-scaling, registering CloudWatch alarms, and wiring async job tracking. Every model in the catalog has been validated end-to-end — from cold start through generation to gallery delivery — so you don't have to debug GPU drivers, memory overflows, or container compatibility. Supports BF16 + FlashInfer for best quality, NF4 for cost efficiency, multi-GPU auto-detection, auto-scales to zero ($0 idle), and the same model runs on different instance types without reconfiguration
-- 🧊 **Image-to-3D Generation** — Convert any Game Asset or Character image into a textured 3D mesh (GLB) with one click. Multi-view synthesis + texture baking produces engine-tailored assets. Interactive 3D viewer with orbit/zoom/pan
+- 🧊 **Image-to-3D Generation** — Convert any Game Asset or Character image into a textured 3D mesh (GLB) with one click. Multi-view synthesis + texture baking produces game-engine-tailored assets. Interactive 3D viewer with orbit/zoom/pan
 - 🩹 **Smart source completion for 3D** — image-to-3D can only build what's visible, so a cropped character (legs cut off) becomes a legless mesh. Before generating, ArtSmoker vision-checks the source and, if it's cropped, **offers** to complete it via outpainting (an AI-suggested, fully editable prompt) — previews the before/after, re-reviews the result, lets you extend again or discard, and saves it as a new image version. Opt-in and non-blocking; well-framed images generate straight through
 - 🔄 **Auto-Update** — Version-gated on startup + a 24h periodic check; updates via `git` (checkout) or a **tarball download-and-replace** for installs without git, then restarts in place (supervised respawn / gunicorn reload) or offers a one-click **Restart** — never clobbers your `data/` or `.env` (`ARTSMOKER_AUTO_UPDATE=false` to disable)
 
@@ -172,7 +172,7 @@ After an outpainting round (v3 below), the same tab regenerates all three artefa
 
 ![Asset Viewer — Metadata with full prompt lineage and version history](docs/images/asset-viewer-metadata.png)
 
-*The 3D pipeline's screenshots — generation, source review, engine-tailored export, and variants — are shown in section 1.9 (3D Model Generation) below, alongside the features they illustrate.*
+*The 3D pipeline's screenshots — generation, source review, game-engine-tailored export, and variants — are shown in section 1.9 (3D Model Generation) below, alongside the features they illustrate.*
 
 **Video Studio** — Settings on the left (model, generation mode, duration, region, cost estimate), prompt on the right. Supports Nova Reel (single shot, multi-shot auto/manual up to 2 minutes) and Luma AI Ray (aspect ratios, looping).
 
@@ -300,9 +300,9 @@ This matters at every stage:
 
 ### 📝 1.9 3D Model Generation (Image-to-3D)
 
-Generate fully-textured 3D meshes from any 2D image — directly in the Asset Viewer. Select a **Game Asset** or **Character** image, open the **3D Model** tab, and click Generate. The result is a engine-tailored GLB you can orbit, zoom, and download — with no manual modeling, UV unwrapping, or texture painting.
+Generate fully-textured 3D meshes from any 2D image — directly in the Asset Viewer. Select a **Game Asset** or **Character** image, open the **3D Model** tab, and click Generate. The result is a game-engine-tailored GLB you can orbit, zoom, and download — with no manual modeling, UV unwrapping, or texture painting.
 
-**The end result, first:** an ArtSmoker-generated character, exported as engine-tailored FBX and opened in stock Blender — the LOD chain (LOD0–LOD3) intact in the Outliner, textures bound, nothing re-rigged or fixed by hand. Everything below shows how to get here from a text prompt.
+**The end result, first:** an ArtSmoker-generated character, exported as game-engine-tailored FBX and opened in stock Blender — the LOD chain (LOD0–LOD3) intact in the Outliner, textures bound, nothing re-rigged or fixed by hand. Everything below shows how to get here from a text prompt.
 
 ![ArtSmoker FBX opened in Blender — LOD group hierarchy intact with textures bound](docs/images/fbx-in-blender.png)
 
@@ -352,7 +352,7 @@ Background removal (the cutout step) uses **BiRefNet (MIT)** by default — full
 
 **Output:** Standard GLB with embedded PBR textures — imports directly into Unity, Unreal Engine, Blender, and other game engines. The interactive 3D viewer supports orbit, zoom, and pan for immediate inspection, and the **3D Model** tab lists the exact models & tools used (geometry model, texturing backend, dependencies, instance, parameters) for full provenance.
 
-**Infrastructure:** Both pipelines deploy via the same 1-click Custom Models flow, with the deploy-time picker showing each option's licence, dependency table, instance baseline, and est. cost/time. The full TRELLIS.2 pipeline's right-sized baseline is **`ml.g6e.xlarge`** (~$2.61/hr; measured peak ~6.5 GB VRAM + ~22 GB host RAM — host RAM is the binding constraint, not the GPU). Larger `g6e` sizes are offered as RAM-headroom upsells. Endpoints scale to zero when idle — $0 cost between jobs. First cold start builds the CUDA extensions once (then S3-cached for fast restarts). Before deploying a gated model, the dialog **pre-checks HuggingFace access for every repo it pulls** and shows a ✓/✗ per repo with the exact next step — so you never discover a missing licence acceptance minutes into a cold start.
+**Infrastructure:** Both pipelines deploy via the same 1-click Custom Models flow, with the deploy-time picker showing each option's licence, dependency table, instance baseline, and est. cost/time. The full TRELLIS.2 pipeline's right-sized baseline is **`ml.g5.2xlarge`** (~$1.52/hr; a live run measured peak ~4.78 GB VRAM on the A10G's 24 GB and completed cleanly — chosen over the L40S `g6e.xlarge`, which is hugely over-provisioned for this workload at higher cost). Larger `g6e` sizes remain available as headroom upsells. Endpoints scale to zero when idle — $0 cost between jobs. First cold start builds the CUDA extensions once (then S3-cached for fast restarts). Before deploying a gated model, the dialog **pre-checks HuggingFace access for every repo it pulls** and shows a ✓/✗ per repo with the exact next step — so you never discover a missing licence acceptance minutes into a cold start.
 
 > **Viewing the GLB:** textures are encoded as WebP (`EXT_texture_webp`) to keep files compact — renders perfectly in the in-app viewer, Blender 4.x, three.js, and modern Unity/Unreal importers. macOS Preview/QuickLook doesn't support WebP-in-glTF and will show the model black; use the in-app viewer or any modern glTF tool.
 
@@ -365,7 +365,7 @@ Background removal (the cutout step) uses **BiRefNet (MIT)** by default — full
 
 ### 📝 1.9.1 Engine-Ready Exports (GLB · FBX · USD)
 
-![3D Model viewer with per-variant tools and engine-tailored FBX/USD export options](docs/images/3d-model-viewer-export.png)
+![3D Model viewer with per-variant tools and game-engine-tailored FBX/USD export options](docs/images/3d-model-viewer-export.png)
 
 Every generated 3D model can be exported **prepared for your game engine**, straight from the Asset Viewer's 3D tab:
 

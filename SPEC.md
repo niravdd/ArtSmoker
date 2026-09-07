@@ -116,7 +116,7 @@ Browser (Vanilla JS + Tailwind CSS)
     +-- Video Studio: text-to-video generation (async, S3-backed)
     +-- Chat Studio: multi-model LLM chat with streaming, sessions, vision
     +-- Type Studio: text overlay system (on-image + standalone)
-    +-- Image-to-3D: Asset Viewer 3D tab — image → textured GLB, engine-tailored export (FBX/USDZ), interactive 3D viewer
+    +-- Image-to-3D: Asset Viewer 3D tab — image → textured GLB, game-engine-tailored export (FBX/USDZ), interactive 3D viewer
     +-- Custom Models: 1-click deploy/teardown of self-hosted models with licence gating
     +-- i18n: 9 languages (EN, JA, ZH, KO, FR, ES, HI, RU, DE) with language switcher
     +-- Unified gallery: images + videos with filtering and export
@@ -1509,7 +1509,7 @@ Both take a single image and produce a GLB; the handler routes the job to whiche
 
 > **⚠️ nvdiffrast license (full TRELLIS.2 pipeline).** The mesh/PBR bake (`o_voxel.postprocess.to_glb`) **hard-imports `nvdiffrast`**, which is under the **NVIDIA Source Code License (1-Way Commercial) — non-commercial for general users**, *not* MIT. It is an internal dependency of upstream `o_voxel` and cannot be swapped without patching microsoft/TRELLIS.2, so the full image-to-3D pipeline currently carries a non-commercial rasterizer dependency — surfaced in the deploy dialog (`license_agreement.dependencies` + `warnings`). **Review before commercial use.** The separate **TripoSG + texture-backend** path is unaffected: its bake defaults to **Kaolin (Apache-2.0)** via `ARTSMOKER_RASTERIZER`.
 
-**Full-pipeline resourcing (measured).** The standalone TRELLIS.2 pipeline's baseline is **`ml.g6e.xlarge`** (`recommended_instance`; `allowed_instances` also offers 2xlarge/4xlarge as RAM-headroom upsells). A live run measured peak **~6.5 GB VRAM** (of the L40S's 48 GB — hugely over-provisioned) and **~22 GB host RAM** during the `to_glb` UV-unwrap/bake. Host RAM, not VRAM, is the real constraint: xlarge's 32 GiB holds it with ~9 GB headroom, so `min_ram_gb: 28` is enforced and the handler logs a per-run `TRELLIS.2 RESOURCE PEAK` line (VRAM alloc/reserved + host RAM avail/total) to keep the baseline observable. SageMaker async-inference rates: g6e.xlarge **$2.61/hr**, 2xlarge **$2.80/hr**, 4xlarge **$3.76/hr** (all carry the same single L40S, so the per-hour gap is small).
+**Full-pipeline resourcing (measured).** The standalone TRELLIS.2 pipeline's baseline is **`ml.g5.2xlarge`** (`recommended_instance`; A10G 24 GB, 32 GiB RAM, ~**$1.52/hr**). A live image→3D run (2026-06-25) completed cleanly at peak **~4.78 GB VRAM** (of the A10G's 24 GB — ample headroom) in ~7.5 min, producing an ~18.8 MB PBR GLB; the CUDA exts (o_voxel/cumesh/flex_gemm) + xformers build and run on Ampere sm_86 via the arch-portable builder. It was chosen over `ml.g6e.xlarge` (L40S 48 GB) because that GPU is hugely over-provisioned for this workload at materially higher cost. `min_ram_gb: 28` is enforced and the handler logs a per-run `TRELLIS.2 RESOURCE PEAK` line (VRAM alloc/reserved + host RAM avail/total). `allowed_instances` still offers `g6e.xlarge`/`2xlarge`/`4xlarge` as headroom upsells. **Ground truth:** the live endpoint `artsmoker-trellis2-image-to-3d-2e8c` runs on `ml.g5.2xlarge` (async, InService).
 
 **Texture backends (TripoSG pipeline only).** The backend is chosen **per-deployment** (baked into the endpoint as `ARTSMOKER_TEXTURE_BACKEND`) from the catalog's `texture_backends.options`. Two are offered, each with a distinct license profile that is **disclosed in the deploy dialog and must be explicitly accepted** (`attestation_required`) before deployment proceeds.
 
@@ -1560,7 +1560,7 @@ The whole pre-check is skipped on retry and is purely a pre-submit gate — the 
 
 **3D input = the version CUTOUT (never a persistent `__source`).** Both `generate_3d` and the form's "SOURCE FOR 3D" preview (`GET /source-preview/{id}/{v}`, default `prepared=false`) use `_ensure_cutout` — the SAME artefact the Export tab shows — so the preview, the actual 3D input, and the Export cutout always match. The `__source` sidecar is transient, scoped to an *open* improve dialog: only `source-preview?prepared=true` (the dialog's live view) prefers it, and opening the review dialog first issues `op:reset` to drop any stale/uncommitted `__source` (and clears legacy pre-versioning sidecars), so a session always starts from the clean cutout. Committed improvements reach 3D via their new version's cutout, not `__source`.
 
-### 5.10.3 Engine-Tailored 3D Exports (GLB · FBX · USD)
+### 5.10.3 Game-Engine-Tailored 3D Exports (GLB · FBX · USD)
 
 Every 3D variant can be exported prepared for a target engine, converted **server-side via a managed headless Blender subprocess** (`backend/services/mesh_export.py` + `backend/services/blender/convert.py` — never `import bpy`; subprocess = GPL "mere aggregation").
 
