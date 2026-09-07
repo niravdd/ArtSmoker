@@ -409,79 +409,120 @@ def invoke_messages(
 # invoke_endpoint/invoke_api. Routing policy (user-confirmed): Converse-first,
 # Mantle only when a model can't be reached via Converse.
 
-# Priority order: lowest-friction, most-capable-for-us first. Converse keeps
-# Guardrails + us.* cross-region inference profiles and needs no bearer token.
-_API_PRIORITY = ("converse", "chat_completions", "responses", "messages")
-
-_ENDPOINT_FOR_API = {
+# API-surface routing is DATA, not code: the authoritative matrix lives in the
+# registry (model_registry.json → "api_compatibility"), is git-tracked, and is
+# overridable in model_registry.user.json / per-model via chat_models[].apis.
+# AWS does not report which API surfaces a model exposes, so this is
+# operator-maintained — a correction there + a Sync is all it takes; nothing
+# below encodes per-model facts. The constants here are ONLY a minimal generic
+# FALLBACK used if the registry carries no matrix (e.g. a hand-deleted base).
+_DEFAULT_API_PRIORITY = ("converse", "chat_completions", "responses", "messages")
+_DEFAULT_ENDPOINT_FOR_API = {
     "converse": "bedrock-runtime",
     "invoke": "bedrock-runtime",
     "chat_completions": "bedrock-mantle",   # we call it via Mantle
     "responses": "bedrock-mantle",
     "messages": "bedrock-mantle",
 }
+# Fallback matrix — generic policy only (Converse-first on runtime; the one
+# family fact that must survive a missing registry is Claude→Messages on Mantle).
+# The full family matrix (GPT-5.x, gpt-oss, …) lives in the registry, never here.
+_FALLBACK_API_COMPAT = {
+    "api_priority": list(_DEFAULT_API_PRIORITY),
+    "endpoint_for_api": dict(_DEFAULT_ENDPOINT_FOR_API),
+    "rules": [
+        {"match": {"provider_substr": ["anthropic"], "id_substr": ["claude"]},
+         "runtime": ["converse", "invoke"], "mantle": ["messages"], "mantle_only": ["messages"]},
+    ],
+    "default": {"runtime": ["converse"], "mantle": ["chat_completions"]},
+}
+
+
+def _api_compat() -> dict:
+    """The ``api_compatibility`` matrix from the registry (base+user merged), or a
+    minimal generic fallback if it's absent. Never raises."""
+    try:
+        from backend.services.model_registry import get_registry
+        compat = (get_registry() or {}).get("api_compatibility")
+        if isinstance(compat, dict) and isinstance(compat.get("rules"), list):
+            return compat
+    except Exception:
+        pass
+    return _FALLBACK_API_COMPAT
+
+
+def _rule_matches(match: dict, provider: str, model_id: str) -> bool:
+    """A rule matches if any provider_substr is in the provider OR any id_substr
+    is in the model_id (both already lowercased)."""
+    if any(s in provider for s in (match.get("provider_substr") or [])):
+        return True
+    if any(s in model_id for s in (match.get("id_substr") or [])):
+        return True
+    return False
 
 
 def derive_model_apis(model_id: str, provider: str, *, on_mantle: bool = False,
                       on_runtime: bool = True) -> list[str]:
-    """Best-effort list of APIs a model supports, from provider/family heuristics.
+    """Registry-driven list of API surfaces a model exposes (Converse-first).
 
-    Grounded in the AWS "API compatibility by models" matrix (2026-06):
-      • Anthropic Claude on runtime → Converse (+ Invoke). On Mantle → Messages
-        (NOT Chat Completions). Newer Claude (Mythos) is Messages-only on Mantle.
-      • OpenAI gpt-5.x → Responses-only (Mantle). gpt-oss → Converse + Chat
-        Completions + Responses.
-      • Most other text models on runtime → Converse.
-    ``on_mantle``/``on_runtime`` say which endpoint listings the model appeared
-    in during Sync; they refine the heuristic. This is intentionally
-    conservative and ALWAYS overridable via the registry.
+    A GENERIC engine — it encodes NO per-model/per-family knowledge. It reads the
+    ``api_compatibility`` matrix from the registry (model_registry.json, editable
+    and overridable in user.json) and evaluates the FIRST rule whose provider/id
+    substrings match (else the matrix ``default``):
+      • ``always`` APIs always apply,
+      • ``runtime`` apply when the model was listed on bedrock-runtime,
+      • ``mantle`` apply when it was listed on bedrock-mantle,
+      • ``mantle_only`` (optional) REPLACES the set for a mantle-only model.
+    ``on_mantle``/``on_runtime`` come from which endpoint listings the model
+    appeared in during Sync. The result is always overridable per-model via
+    ``chat_models[].apis``. AWS does not report API-surface, which is exactly why
+    this matrix is operator-maintained data rather than hardcoded logic.
     """
-    mid = (model_id or "").lower()
+    compat = _api_compat()
     prov = (provider or "").lower()
-    apis: list[str] = []
+    mid = (model_id or "").lower()
+    default = compat.get("default", {}) or {}
 
-    if "anthropic" in prov or "claude" in mid:
-        if on_runtime:
-            apis += ["converse", "invoke"]
-        if on_mantle:
-            apis.append("messages")
-        # A Claude that's mantle-only (no runtime) is Messages-only.
-        if on_mantle and not on_runtime and "messages" not in apis:
-            apis = ["messages"]
-        return apis
+    spec = default
+    for rule in (compat.get("rules") or []):
+        if _rule_matches(rule.get("match") or {}, prov, mid):
+            spec = rule
+            break
 
-    if "openai" in prov or mid.startswith("openai.") or "gpt" in mid:
-        if "gpt-5" in mid or "gpt5" in mid:
-            return ["responses"]  # frontier GPT-5.x are Responses-only
-        if "gpt-oss" in mid:
-            out = []
-            if on_runtime:
-                out += ["converse", "invoke"]
-            out += ["chat_completions"]
-            if on_mantle:
-                out.append("responses")
-            return out
-        # Unknown OpenAI model: prefer chat_completions on Mantle.
-        return ["chat_completions"] if on_mantle else (["converse"] if on_runtime else ["chat_completions"])
+    always = spec.get("always") or []
+    runtime = spec.get("runtime", default.get("runtime", ["converse"])) or []
+    mantle = spec.get("mantle", default.get("mantle", ["chat_completions"])) or []
+    mantle_only = spec.get("mantle_only")
 
-    # Everyone else: Converse on runtime is the safe default; add chat on Mantle.
-    out = []
+    apis = list(always)
     if on_runtime:
-        out.append("converse")
+        apis += runtime
     if on_mantle:
-        out.append("chat_completions")
+        apis += mantle
+    if on_mantle and not on_runtime and mantle_only:
+        apis = list(mantle_only)
+
+    # Dedup, preserving first-seen order (routing is priority-based, so order is
+    # cosmetic — but a stable list keeps the stored registry value deterministic).
+    seen: set = set()
+    out = [a for a in apis if not (a in seen or seen.add(a))]
     return out or ["converse"]
 
 
 def resolve_invoke_path(apis: list[str]) -> tuple[str, str]:
     """Pick the single (endpoint, api) our app will use, Converse-first.
 
-    Returns e.g. ("bedrock-runtime","converse") or ("bedrock-mantle","responses").
-    Defaults to runtime/converse if the list is empty/unknown.
+    ``api_priority`` (Converse-first) and the api→endpoint mapping come from the
+    registry's api_compatibility matrix, falling back to code defaults. Returns
+    e.g. ("bedrock-runtime","converse") or ("bedrock-mantle","responses");
+    defaults to runtime/converse if the list is empty/unknown.
     """
-    for api in _API_PRIORITY:
+    compat = _api_compat()
+    priority = compat.get("api_priority") or list(_DEFAULT_API_PRIORITY)
+    ep_for_api = compat.get("endpoint_for_api") or _DEFAULT_ENDPOINT_FOR_API
+    for api in priority:
         if api in (apis or []):
-            return _ENDPOINT_FOR_API.get(api, "bedrock-runtime"), api
+            return ep_for_api.get(api, "bedrock-runtime"), api
     return "bedrock-runtime", "converse"
 
 

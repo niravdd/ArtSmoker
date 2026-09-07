@@ -1,6 +1,46 @@
 {
   "version": 2,
   "last_updated": "2026-08-26T04:41:25.033664+00:00",
+  "api_compatibility": {
+    "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'.",
+    "api_priority": ["converse", "chat_completions", "responses", "messages"],
+    "endpoint_for_api": {
+      "converse": "bedrock-runtime",
+      "invoke": "bedrock-runtime",
+      "chat_completions": "bedrock-mantle",
+      "responses": "bedrock-mantle",
+      "messages": "bedrock-mantle"
+    },
+    "rules": [
+      {
+        "_family": "Anthropic Claude — Converse (+Invoke) on runtime; Messages on Mantle; mantle-only Claude (e.g. Mythos) is Messages-only",
+        "match": {"provider_substr": ["anthropic"], "id_substr": ["claude"]},
+        "runtime": ["converse", "invoke"],
+        "mantle": ["messages"],
+        "mantle_only": ["messages"]
+      },
+      {
+        "_family": "OpenAI GPT-5.x (frontier) — Converse/Chat-Completions/Responses on bedrock-runtime where GA; Responses on Mantle. Converse-first means a runtime-listed GPT-5.x routes natively.",
+        "match": {"id_substr": ["gpt-5", "gpt5"]},
+        "runtime": ["converse", "invoke", "chat_completions", "responses"],
+        "mantle": ["responses"]
+      },
+      {
+        "_family": "OpenAI gpt-oss (open weights) — Converse (+Invoke) on runtime, Chat Completions always, Responses on Mantle",
+        "match": {"id_substr": ["gpt-oss"]},
+        "always": ["chat_completions"],
+        "runtime": ["converse", "invoke"],
+        "mantle": ["responses"]
+      },
+      {
+        "_family": "Other OpenAI — Converse on runtime, Chat Completions on Mantle",
+        "match": {"provider_substr": ["openai"], "id_substr": ["openai."]},
+        "runtime": ["converse"],
+        "mantle": ["chat_completions"]
+      }
+    ],
+    "default": {"runtime": ["converse"], "mantle": ["chat_completions"]}
+  },
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
