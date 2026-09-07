@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-09-07T04:58:35.748917+00:00",
+  "last_updated": "2026-09-07T07:02:50.152841+00:00",
   "api_compatibility": {
     "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'. Per rule, 'mantle_base' selects the Mantle base path for the OpenAI SDK (/v1 for most; /openai/v1 for openai/xai/google) \u2014 the two paths serve DISJOINT model sets, verified live 2026-09-07.",
     "api_priority": [
@@ -2231,7 +2231,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "claude_sonnet_4_20250514_v1": {
       "label": "Claude Sonnet 4",
@@ -2339,7 +2340,8 @@
         "eu",
         "global",
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "qwen3_235b_a22b_2507_v1": {
       "label": "Qwen3 235B A22B 2507",
@@ -2433,7 +2435,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "kimi_k2_5": {
       "label": "Kimi K2.5",
@@ -2531,7 +2534,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "gpt_oss_120b_1": {
       "label": "gpt-oss-120b",
@@ -2641,7 +2645,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "qwen3_next_80b_a3b": {
       "label": "Qwen3 Next 80B A3B",
@@ -2737,7 +2742,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "claude_fable_5": {
       "label": "Claude Fable 5",
@@ -2792,7 +2798,8 @@
       "inference_profiles": [
         "global",
         "us"
-      ]
+      ],
+      "supports_temperature": false
     },
     "v3_2": {
       "label": "DeepSeek V3.2",
@@ -2898,7 +2905,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "nemotron_nano_3_30b": {
       "label": "Nemotron Nano 3 30B",
@@ -3004,7 +3012,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "claude_sonnet_4_6": {
       "label": "Claude Sonnet 4.6",
@@ -3158,7 +3167,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "glm_4_7_flash": {
       "label": "GLM 4.7 Flash",
@@ -3258,7 +3268,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "voxtral_mini_3b_2507": {
       "label": "Voxtral Mini 3B 2507",
@@ -3300,7 +3311,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "nova_2_lite_v1": {
       "label": "Nova 2 Lite",
@@ -3450,7 +3462,8 @@
         "eu",
         "global",
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "minimax_m2_5": {
       "label": "MiniMax M2.5",
@@ -3550,7 +3563,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "gemma_3_12b_it": {
       "label": "Gemma 3 12B IT",
@@ -3648,7 +3662,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "kimi_k2_thinking": {
       "label": "Kimi K2 Thinking",
@@ -3742,7 +3757,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "mistral_large_3_675b_instruct": {
       "label": "Mistral Large 3",
@@ -3838,7 +3854,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "pegasus_1_2_v1": {
       "label": "Pegasus v1.2",
@@ -3991,7 +4008,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "minimax_m2_1": {
       "label": "MiniMax M2.1",
@@ -4091,7 +4109,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "nemotron_super_3_120b": {
       "label": "NVIDIA Nemotron 3 Super 120B A12B",
@@ -4199,7 +4218,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "qwen3_32b_v1": {
       "label": "Qwen3 32B (dense)",
@@ -4299,7 +4319,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "ministral_3_14b_instruct": {
       "label": "Ministral 14B 3.0",
@@ -4341,7 +4362,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "claude_opus_4_6_v1": {
       "label": "Claude Opus 4.6",
@@ -4397,7 +4419,8 @@
         "eu",
         "global",
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "nemotron_nano_9b_v2": {
       "label": "NVIDIA Nemotron Nano 9B v2",
@@ -4439,7 +4462,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "ministral_3_8b_instruct": {
       "label": "Ministral 3 8B",
@@ -4481,7 +4505,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "voxtral_small_24b_2507": {
       "label": "Voxtral Small 24B 2507",
@@ -4523,7 +4548,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "glm_5": {
       "label": "GLM 5",
@@ -4621,7 +4647,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "gpt_oss_20b_1": {
       "label": "gpt-oss-20b",
@@ -4731,7 +4758,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "gemma_3_4b_it": {
       "label": "Gemma 3 4B IT",
@@ -4829,7 +4857,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "claude_opus_4_8": {
       "label": "Claude Opus 4.8",
@@ -4885,7 +4914,8 @@
         "eu",
         "global",
         "us"
-      ]
+      ],
+      "supports_temperature": false
     },
     "claude_opus_4_7": {
       "label": "Claude Opus 4.7",
@@ -4941,7 +4971,8 @@
         "eu",
         "global",
         "us"
-      ]
+      ],
+      "supports_temperature": false
     },
     "gpt_oss_safeguard_120b": {
       "label": "GPT OSS Safeguard 120B",
@@ -5049,7 +5080,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "gemma_3_27b_it": {
       "label": "Gemma 3 27B PT",
@@ -5147,7 +5179,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "claude_sonnet_4_5_20250929_v1": {
       "label": "Claude Sonnet 4.5",
@@ -5299,7 +5332,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "glm_4_7": {
       "label": "GLM 4.7",
@@ -5397,7 +5431,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "qwen3_coder_480b_a35b_v1": {
       "label": "Qwen3 Coder 480B A35B Instruct",
@@ -5488,7 +5523,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "magistral_small_2509": {
       "label": "Magistral Small 2509",
@@ -5530,7 +5566,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "v3_v1": {
       "label": "DeepSeek-V3.1",
@@ -5565,7 +5602,8 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "ministral_3_3b_instruct": {
       "label": "Ministral 3B",
@@ -5607,7 +5645,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "claude_opus_4_5_20251101_v1": {
       "label": "Claude Opus 4.5",
@@ -5663,7 +5702,8 @@
         "eu",
         "global",
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "qwen3_coder_30b_a3b_v1": {
       "label": "Qwen3-Coder-30B-A3B-Instruct",
@@ -5761,7 +5801,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "gpt_oss_safeguard_20b": {
       "label": "GPT OSS Safeguard 20B",
@@ -5869,7 +5910,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "rerank_v1": {
       "label": "Rerank 1.0",
@@ -6050,7 +6092,8 @@
         "apac",
         "eu",
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "nova_lite_v1": {
       "label": "Nova Lite",
@@ -6201,7 +6244,8 @@
         "apac",
         "eu",
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "nova_micro_v1": {
       "label": "Nova Micro",
@@ -6329,7 +6373,8 @@
         "apac",
         "eu",
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "claude_3_haiku_20240307_v1": {
       "label": "Claude 3 Haiku",
@@ -6415,7 +6460,8 @@
       "residency_scope": "geo:apac",
       "inference_profiles": [
         "apac"
-      ]
+      ],
+      "supports_temperature": true
     },
     "claude_3_sonnet_20240229_v1": {
       "label": "Claude 3 Sonnet",
@@ -6526,7 +6572,8 @@
       "residency_scope": "geo:apac",
       "inference_profiles": [
         "apac"
-      ]
+      ],
+      "supports_temperature": true
     },
     "llama3_8b_instruct_v1": {
       "label": "Llama 3 8B Instruct",
@@ -6562,7 +6609,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "llama3_70b_instruct_v1": {
       "label": "Llama 3 70B Instruct",
@@ -6598,7 +6646,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "mistral_7b_instruct_v0": {
       "label": "Mistral 7B Instruct",
@@ -6678,7 +6727,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "mixtral_8x7b_instruct_v0": {
       "label": "Mixtral 8x7B Instruct",
@@ -6758,7 +6808,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "mistral_large_2402_v1": {
       "label": "Mistral Large (24.02)",
@@ -6838,7 +6889,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "qwen3_coder_next": {
       "label": "Qwen3 Coder Next",
@@ -6930,7 +6982,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "pixtral_large_2502_v1": {
       "label": "Pixtral Large (25.02)",
@@ -6971,7 +7024,8 @@
       "inference_profiles": [
         "eu",
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "palmyra_x5_v1": {
       "label": "Palmyra X5",
@@ -7008,7 +7062,8 @@
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "palmyra_x4_v1": {
       "label": "Palmyra X4",
@@ -7045,7 +7100,8 @@
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "palmyra_vision_7b": {
       "label": "Writer Palmyra Vision 7B",
@@ -7137,7 +7193,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "claude_opus_4_1_20250805_v1": {
       "label": "Claude Opus 4.1",
@@ -7314,7 +7371,8 @@
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "nova_premier_v1": {
       "label": "Nova Premier",
@@ -7444,7 +7502,8 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "lifecycle_status": "EOL"
     },
     "command_r_plus_v1": {
       "label": "Command R+",
@@ -7474,7 +7533,8 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "lifecycle_status": "EOL"
     },
     "r1_v1": {
       "label": "DeepSeek-R1",
@@ -7512,7 +7572,8 @@
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "llama3_1_8b_instruct_v1": {
       "label": "Llama 3.1 8B Instruct",
@@ -7548,7 +7609,8 @@
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "llama3_1_70b_instruct_v1": {
       "label": "Llama 3.1 70B Instruct",
@@ -7584,7 +7646,8 @@
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "llama3_3_70b_instruct_v1": {
       "label": "Llama 3.3 70B Instruct",
@@ -7620,7 +7683,8 @@
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "llama4_scout_17b_instruct_v1": {
       "label": "Llama 4 Scout 17B Instruct",
@@ -7657,7 +7721,8 @@
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "llama4_maverick_17b_instruct_v1": {
       "label": "Llama 4 Maverick 17B Instruct",
@@ -7694,7 +7759,8 @@
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
-      ]
+      ],
+      "supports_temperature": true
     },
     "mistral_small_2402_v1": {
       "label": "Mistral Small (24.02)",
@@ -7728,7 +7794,8 @@
       "legacy_time": "",
       "end_of_life_time": "",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "mistral_large_2407_v1": {
       "label": "Mistral Large (24.07)",
@@ -7797,7 +7864,8 @@
         }
       },
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "supports_temperature": true
     },
     "claude_sonnet_5": {
       "label": "Claude Sonnet 5",
@@ -7955,7 +8023,8 @@
         "global",
         "in",
         "us"
-      ]
+      ],
+      "supports_temperature": false
     },
     "gpt_5_6_luna": {
       "label": "GPT-5.6 Luna",
@@ -8038,7 +8107,8 @@
       "inference_profiles": [
         "global",
         "us"
-      ]
+      ],
+      "supports_temperature": false
     },
     "gemma_4_26b_a4b": {
       "label": "google.gemma-4-26b-a4b",
@@ -8194,10 +8264,10 @@
         "bedrock-mantle"
       ],
       "apis": [
-        "chat_completions"
+        "responses"
       ],
       "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions",
+      "invoke_api": "responses",
       "input_price_per_1k": 0.00025,
       "output_price_per_1k": 0.00075,
       "token_pricing_by_region": {
@@ -9173,10 +9243,10 @@
         "bedrock-mantle"
       ],
       "apis": [
-        "chat_completions"
+        "responses"
       ],
       "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions",
+      "invoke_api": "responses",
       "input_price_per_1k": 0.001,
       "output_price_per_1k": 0.003,
       "token_pricing_by_region": {
