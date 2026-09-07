@@ -667,7 +667,10 @@ def _discover_inference_profiles(bedrock_client) -> dict:
             if not token:
                 break
     except Exception as exc:
-        logger.debug("inference-profile discovery failed: %s", exc)
+        # Visible, not silent: an invisible discovery failure would make the whole
+        # residency post-pass no-op with no trace (it keys off this map).
+        logger.warning("inference-profile discovery failed (%s) — residency pins for "
+                       "this Region fall back to the heuristic", exc)
     return out
 
 
@@ -741,9 +744,16 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
     from backend.services.mantle_client import derive_model_apis, resolve_invoke_path
     from backend.config import settings
     pmap = registry.get("inference_profiles", {}) or {}
-    if not pmap:
-        return 0  # nothing discovered → keep existing pins (safe no-op)
     pref = _preferred_residency_geo()
+    if not pmap:
+        # Nothing discovered → keep existing pins (safe no-op). Log it: a silent
+        # skip here is exactly how a stale/failed discovery hides itself.
+        msg = ("Residency: no inference profiles discovered this Sync — pins left "
+               "unchanged (check earlier discovery warnings)")
+        logger.warning(msg)
+        if progress:
+            progress(msg)
+        return 0
     healed = 0
 
     def _best_pin(base: str, avail: list[str], home: str):
@@ -817,8 +827,13 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
     # within-geo tie-break — the residency rank + preferred geo always dominate.
     _heal("chat_models", profile_only=False, home=settings.aws_region_models)
     _heal("image_models", profile_only=True, home=settings.aws_region_images)
-    if healed and progress:
-        progress(f"Residency: realigned {healed} model pin(s) to '{pref}' preference")
+    # Always report the outcome (even 0) — confirms the pass ran and how many
+    # models it evaluated, so a no-op is distinguishable from "didn't run".
+    msg = (f"Residency: realigned {healed} pin(s) to '{pref}' preference "
+           f"({len(pmap)} models in the discovered profile map)")
+    logger.info(msg)
+    if progress:
+        progress(msg)
     return healed
 
 
