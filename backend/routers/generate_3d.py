@@ -516,7 +516,7 @@ def _pipeline_info(key: str, cfg: dict) -> dict:
 
     license_name = ""
     license_url = ""
-    commercial = None
+    commercially_usable = None  # → "commercially_usable_outputs": are the pipeline's OUTPUTS usable commercially
     accepted = None  # {license_name, accepted_at} or None
     try:
         from backend.services.custom_models import get_catalog_model
@@ -529,9 +529,9 @@ def _pipeline_info(key: str, cfg: dict) -> dict:
             # Registry-driven (was hardcoded True): the full pipeline's mesh bake
             # (o_voxel.postprocess) hard-imports nvdiffrast — NVIDIA 1-Way Commercial,
             # non-commercial for general users — so its license_agreement declares
-            # commercial=false. (The commercial-safe path is TripoSG + Kaolin.) None
-            # if unset → the panel shows the license without a commercial ✓.
-            commercial = la.get("commercial")
+            # commercially_usable_outputs=false. (The commercial-safe path is TripoSG +
+            # Kaolin.) None if unset → the panel shows the license without a ✓.
+            commercially_usable = la.get("commercially_usable_outputs")
             accepted = acceptances.get(catalog_key) or acceptances.get(key)
         else:
             # TripoSG: the active TEXTURE BACKEND carries the license that matters.
@@ -545,7 +545,7 @@ def _pipeline_info(key: str, cfg: dict) -> dict:
             lic = tb.get("license", {}) or {}
             license_name = lic.get("name", "")
             license_url = lic.get("url", "")
-            commercial = lic.get("commercial")
+            commercially_usable = lic.get("commercially_usable_outputs")
             # Texture-backend acceptance was recorded under "<model_key>:<backend>".
             accepted = (acceptances.get(f"{key}:{tex_backend}")
                         or acceptances.get(f"{catalog_key}:{tex_backend}")
@@ -557,7 +557,7 @@ def _pipeline_info(key: str, cfg: dict) -> dict:
         "pipeline_type": pipeline_type,
         "license_name": license_name,
         "license_url": license_url,
-        "commercial": commercial,
+        "commercially_usable_outputs": commercially_usable,
         "license_accepted": bool(accepted),
         "license_accepted_at": (accepted or {}).get("accepted_at", ""),
     }
@@ -2037,7 +2037,7 @@ def _finalize_3d_job(job: dict, s3) -> dict:
         pipeline["pipeline_type"] = _ptype
         pipeline["license_name"] = _pinfo.get("license_name", "")
         pipeline["license_accepted_at"] = _pinfo.get("license_accepted_at", "")
-        pipeline["commercial"] = _pinfo.get("commercial")
+        pipeline["commercially_usable_outputs"] = _pinfo.get("commercially_usable_outputs")
 
         # Attribution flags — a durable per-asset record of third-party components
         # whose license REQUIRES visible attribution wherever the asset is surfaced.

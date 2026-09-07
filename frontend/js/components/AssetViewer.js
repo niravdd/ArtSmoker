@@ -545,7 +545,7 @@
                 g += wide('asset_viewer.meta_3d_file', `<span class="text-xs">${v.size_bytes ? this._formatBytes(v.size_bytes) : ''}${v.vertices ? ` / ${v.vertices.toLocaleString()} vertices` : ''}${v.faces ? ` / ${v.faces.toLocaleString()} faces` : ''}</span>`);
             if (pl.license_name)
                 // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
-                g += wide('asset_viewer.meta_3d_license', `<span class="text-xs">${this._esc(pl.license_name)}${pl.commercial === true ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.asset_viewer.meta_3d_commercial')}</span>` : ''}${pl.license_accepted_at ? ` <span class="text-brand-text-muted">— ${window.formatTimestamp(pl.license_accepted_at)}</span>` : ''}</span>`);
+                g += wide('asset_viewer.meta_3d_license', `<span class="text-xs">${this._esc(pl.license_name)}${pl.commercially_usable_outputs === true ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.asset_viewer.meta_3d_commercial')}</span>` : ''}${pl.license_accepted_at ? ` <span class="text-brand-text-muted">— ${window.formatTimestamp(pl.license_accepted_at)}</span>` : ''}</span>`);
             g += `</div>`;
             if (!multi) return g;
             // Multi-variant: wrap in a titled sub-card, default badged.
@@ -2843,9 +2843,9 @@
                 if (!licenseEl) return;
                 const inst = _selectedInstance();
                 if (!inst || !inst.license_name) { licenseEl.classList.add('hidden'); return; }
-                const commercialBadge = inst.commercial === true
+                const commercialBadge = inst.commercially_usable_outputs === true
                     ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.asset_viewer.three_d_lic_commercial')}</span>`
-                    : (inst.commercial === false
+                    : (inst.commercially_usable_outputs === false
                         ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.asset_viewer.three_d_lic_noncommercial')}</span>`
                         : '');
                 const acceptedLine = inst.license_accepted
@@ -4062,8 +4062,8 @@
             if (prm.steps) rows.push([t('artsmoker.ui.asset_viewer.three_d_diffusion_steps'), String(prm.steps)]);
             if (prm.seed !== undefined && prm.seed !== null) rows.push([t('artsmoker.ui.asset_viewer.three_d_seed'), String(prm.seed)]);
             if (pl.license_name) {
-                const commTxt = pl.commercial === true ? ` (${t('artsmoker.ui.asset_viewer.three_d_lic_commercial')})`
-                    : (pl.commercial === false ? ` (${t('artsmoker.ui.asset_viewer.three_d_lic_noncommercial')})` : '');
+                const commTxt = pl.commercially_usable_outputs === true ? ` (${t('artsmoker.ui.asset_viewer.three_d_lic_commercial')})`
+                    : (pl.commercially_usable_outputs === false ? ` (${t('artsmoker.ui.asset_viewer.three_d_lic_noncommercial')})` : '');
                 rows.push([t('artsmoker.ui.asset_viewer.three_d_lic_label'), pl.license_name + commTxt]);
             }
             if (pl.license_accepted_at) rows.push([t('artsmoker.ui.asset_viewer.three_d_lic_accepted_col'), window.formatTimestamp(pl.license_accepted_at)]);

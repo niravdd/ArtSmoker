@@ -9336,7 +9336,7 @@
         "studio": "image",
         "provider": "Alibaba Qwen",
         "license": "Apache-2.0",
-        "commercial": true,
+        "commercially_usable_outputs": true,
         "requires_hf_auth": false,
         "hf_license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
         "model_purpose": "image_edit",
@@ -9355,7 +9355,7 @@
           "required": true,
           "license_name": "Apache-2.0",
           "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511/blob/main/LICENSE",
-          "commercial": true,
+          "commercially_usable_outputs": true,
           "key_terms": [
             "Apache License 2.0 \u2014 commercial use permitted",
             "Modification and redistribution allowed with license notice",
@@ -9462,7 +9462,7 @@
         "studio": "image",
         "provider": "Alibaba Qwen",
         "license": "Apache-2.0",
-        "commercial": true,
+        "commercially_usable_outputs": true,
         "requires_hf_auth": false,
         "hf_license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
         "model_purpose": "text_to_image",
@@ -9471,7 +9471,7 @@
           "required": true,
           "license_name": "Apache-2.0",
           "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512/blob/main/LICENSE",
-          "commercial": true,
+          "commercially_usable_outputs": true,
           "key_terms": [
             "Apache License 2.0 \u2014 commercial use permitted",
             "Modification and redistribution allowed with license notice",
@@ -10450,7 +10450,7 @@
         "hf_license_url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
         "license_agreement": {
           "required": true,
-          "commercial": false,
+          "commercially_usable_outputs": false,
           "license_name": "MIT (TRELLIS.2) + DINOv3 attribution + nvdiffrast (non-commercial bake)",
           "license_url": "https://github.com/microsoft/TRELLIS.2/blob/main/LICENSE",
           "key_terms": [
@@ -10466,7 +10466,7 @@
               "license": "MIT",
               "url": "https://huggingface.co/microsoft/TRELLIS.2-4B",
               "gated": false,
-              "commercial": true,
+              "commercially_usable_outputs": true,
               "role": "Full image-to-3D pipeline (8 checkpoints: sparse-structure + shape-SLAT + tex-SLAT)"
             },
             {
@@ -10474,7 +10474,7 @@
               "license": "DINOv3 License (commercial-OK, attribution required)",
               "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
               "gated": true,
-              "commercial": true,
+              "commercially_usable_outputs": true,
               "role": "Image encoder \u2014 REQUIRES 'Built with DINOv3' attribution"
             },
             {
@@ -10482,7 +10482,7 @@
               "license": "MIT",
               "url": "https://huggingface.co/ZhengPeng7/BiRefNet",
               "gated": false,
-              "commercial": true,
+              "commercially_usable_outputs": true,
               "role": "Background removal (the actual cutout model)"
             },
             {
@@ -10490,7 +10490,7 @@
               "license": "NVIDIA Source Code License (1-Way Commercial) \u2014 non-commercial for general users",
               "url": "https://github.com/NVlabs/nvdiffrast/blob/main/LICENSE.txt",
               "gated": false,
-              "commercial": false,
+              "commercially_usable_outputs": false,
               "role": "Rasterizer hard-imported by o_voxel.postprocess (the to_glb mesh/PBR bake). Built into the full pipeline; cannot be swapped without patching upstream microsoft/TRELLIS.2."
             }
           ],
@@ -10687,7 +10687,7 @@
               "license": {
                 "name": "Tencent Hunyuan 3D 2.0 Community License",
                 "url": "https://github.com/Tencent/Hunyuan3D-2/blob/main/LICENSE",
-                "commercial": false,
+                "commercially_usable_outputs": false,
                 "attestation_required": true,
                 "key_terms": [
                   "Weights tencent/Hunyuan3D-2.1 \u2014 NON-COMMERCIAL community license",
@@ -10702,7 +10702,7 @@
                     "license": "Tencent Hunyuan 3D 2.0 Community (non-commercial)",
                     "url": "https://huggingface.co/tencent/Hunyuan3D-2.1",
                     "gated": true,
-                    "commercial": false,
+                    "commercially_usable_outputs": false,
                     "role": "Multi-view PBR paint weights"
                   },
                   {
@@ -10710,7 +10710,7 @@
                     "license": "CC-BY-NC-4.0 (non-commercial)",
                     "url": "https://huggingface.co/facebook/dinov2-giant",
                     "gated": false,
-                    "commercial": false,
+                    "commercially_usable_outputs": false,
                     "role": "Image/vision encoder"
                   },
                   {
@@ -10718,7 +10718,7 @@
                     "license": "MIT",
                     "url": "https://github.com/xinntao/Real-ESRGAN",
                     "gated": false,
-                    "commercial": true,
+                    "commercially_usable_outputs": true,
                     "role": "View super-resolution"
                   }
                 ],
@@ -10746,7 +10746,7 @@
               "license": {
                 "name": "MIT",
                 "url": "https://github.com/microsoft/TRELLIS.2/blob/main/LICENSE",
-                "commercial": true,
+                "commercially_usable_outputs": true,
                 "attestation_required": true,
                 "key_terms": [
                   "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) \u2014 MIT, commercial use unrestricted",
@@ -10760,7 +10760,7 @@
                     "license": "MIT",
                     "url": "https://huggingface.co/microsoft/TRELLIS.2-4B",
                     "gated": false,
-                    "commercial": true,
+                    "commercially_usable_outputs": true,
                     "role": "SLAT texturing checkpoints"
                   },
                   {
@@ -10768,7 +10768,7 @@
                     "license": "DINOv3 License (commercial-OK, attribution required)",
                     "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
                     "gated": true,
-                    "commercial": true,
+                    "commercially_usable_outputs": true,
                     "role": "Image encoder \u2014 REQUIRES 'Built with DINOv3' attribution"
                   },
                   {
@@ -10776,7 +10776,7 @@
                     "license": "MIT",
                     "url": "https://huggingface.co/ZhengPeng7/BiRefNet",
                     "gated": false,
-                    "commercial": true,
+                    "commercially_usable_outputs": true,
                     "role": "Background removal (the actual cutout model)"
                   }
                 ],

@@ -2002,7 +2002,7 @@
                         // Commercial-OK pipelines don't need the "valid license / will
                         // use within non-commercial terms" wording — just a read-and-agree.
                         const labelEl = attestBox.querySelector('.deploy-tex-attest-labeltext');
-                        if (labelEl) labelEl.textContent = lic.commercial
+                        if (labelEl) labelEl.textContent = lic.commercially_usable_outputs
                             ? t('artsmoker.ui.custom_models.tex_attest_label_commercial')
                             : t('artsmoker.ui.custom_models.tex_attest_label');
                         // nosemgrep
@@ -2020,7 +2020,7 @@
                             if (deps.length) {
                                 // nosemgrep
                                 depsRows.innerHTML = deps.map(d => {
-                                    const comm = d.commercial
+                                    const comm = d.commercially_usable_outputs
                                         ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.custom_models.license_commercial_ok')}</span>`
                                         : html`<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('artsmoker.ui.custom_models.license_commercial_no')}</span>`;
                                     const gated = d.gated
@@ -2214,7 +2214,7 @@
                         <p class="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('artsmoker.ui.custom_models.tex_attest_deps')}</p>
                         <div class="space-y-2">
                             ${deps.map(d => {
-                                const comm = d.commercial
+                                const comm = d.commercially_usable_outputs
                                     ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.custom_models.license_commercial_ok')}</span>`
                                     : html`<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('artsmoker.ui.custom_models.license_commercial_no')}</span>`;
                                 const gated = d.gated
