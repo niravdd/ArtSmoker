@@ -3,13 +3,24 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-APP_VERSION = "1.9-20260907_02"
+APP_VERSION = "1.9-20260907_03"
 
 class Settings(BaseSettings):
     # ── AWS ───────────────────────────────────────────────────────────────
     aws_region_models: str = "us-west-2"
     aws_region_images: str = "us-east-1"
     aws_profile: str | None = None
+
+    # Data-residency preference for cross-region inference-profile routing.
+    # Bedrock exposes geo profiles (us./eu./apac./in. — data stays in that
+    # geography) and a global. profile (routes worldwide, no residency). When
+    # AWS Sync pins each model to a Region + profile it prefers, in order:
+    #   1. a geo profile in THIS geography (residency preserved),
+    #   2. any other geo profile, then
+    #   3. global. (only when no geo profile covers the model).
+    # Change this to eu / apac / in for a non-US deployment; every Sync realigns
+    # its findings to it. One of: us, eu, apac, in. Env: ARTSMOKER_PREFERRED_RESIDENCY_GEO.
+    preferred_residency_geo: str = "us"
 
     # Note: LLM model IDs are configured in model_registry.json (categories section).
     # No hardcoded model IDs here — everything comes from the registry.

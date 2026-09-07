@@ -699,6 +699,120 @@ def _residency_scope(effective_id: str, base_id: str) -> str:
     return "global" if pre == "global" else f"geo:{pre}"
 
 
+def _region_geo(region: str) -> str:
+    """Coarse geography of an AWS Region from its name prefix (us/eu/apac/in/…).
+
+    Used only to prefer a Region in the deployment's preferred residency geo when
+    pinning a model that has no cross-region profile (a plain regional model keeps
+    its data in whatever Region it runs in). ``ap-*`` maps to ``apac`` to match the
+    Bedrock geo-profile prefix.
+    """
+    p = (region or "").split("-")[0]
+    return {"ap": "apac"}.get(p, p)
+
+
+def _preferred_residency_geo() -> str:
+    """The configured data-residency preference (config.py / env), validated.
+
+    Defaults to ``us``; falls back to ``us`` if set to anything that isn't a real
+    geo profile prefix. AWS Sync realigns every model's pin toward this geo.
+    """
+    from backend.config import settings
+    geo = (getattr(settings, "preferred_residency_geo", "us") or "us").strip().lower()
+    return geo if geo in ("us", "eu", "apac", "in") else "us"
+
+
+def _resolve_residency_pins(registry: dict, progress=None) -> int:
+    """Self-healing residency post-pass: re-derive every chat model's pin
+    (``region`` + ``model_id`` prefix) from the profiles discovered this Sync,
+    independent of the (alphabetical) order Regions were scanned in.
+
+    For each model it evaluates ALL Regions where the model was found and picks the
+    one giving the best residency for the configured preferred geo (config.py):
+    a geo profile in the preferred geo → any geo profile → global. → a plain
+    regional pin in the preferred geo. This heals drift (e.g. an old ``us.<id>``
+    stuck on a non-US Region — an invalid combo that fails to invoke) and makes the
+    residency guarantee deterministic rather than an accident of scan order.
+
+    Image models are healed too, but ONLY when they already carry a geo/global
+    prefix (profile-based) — plain regional image pins are admin-curated and left
+    untouched, keeping blast radius contained.
+    """
+    from backend.services.mantle_client import derive_model_apis, resolve_invoke_path
+    pmap = registry.get("inference_profiles", {}) or {}
+    if not pmap:
+        return 0  # nothing discovered → keep existing pins (safe no-op)
+    pref = _preferred_residency_geo()
+    healed = 0
+
+    def _best_pin(base: str, avail: list[str]):
+        """(region, prefix) with the best residency for `pref` among `avail`."""
+        best = None  # (sort_key, region, prefix)
+        for r in avail:
+            sel = _select_profile_prefix(base, r, pmap)  # None | '' | 'us.' | geo | 'global.'
+            if sel is None or sel == "":
+                # Plain regional model → residency IS the Region's own geo.
+                rank, prefix = (0 if _region_geo(r) == pref else 2), ""
+            elif sel == "global.":
+                rank, prefix = 3, "global."
+            else:
+                rank, prefix = (0 if sel.rstrip(".") == pref else 1), sel
+            # Tie-break: prefer a Region in the preferred geo, then name order.
+            key = (rank, 0 if _region_geo(r) == pref else 1, r)
+            if best is None or key < best[0]:
+                best = (key, r, prefix)
+        return (best[1], best[2]) if best else (None, "")
+
+    def _heal(section: str, profile_only: bool):
+        nonlocal healed
+        for key, cfg in (registry.get(section, {}) or {}).items():
+            # Mantle-ONLY models carry no runtime Region, so the region scan leaves
+            # available_regions empty → the check below skips them. Dual models
+            # (bedrock-mantle + bedrock-runtime) DO get scanned Regions and are
+            # residency-pinned on their runtime Region like any other.
+            avail = cfg.get("available_regions") or []
+            if not avail:
+                continue
+            cur_id = cfg.get("model_id", "")
+            if profile_only and not cur_id.startswith(_GEO_PREFIXES):
+                continue  # leave plain regional image pins alone (admin-curated)
+            # id_base preserves the FULL id (version/suffix) — only the geo prefix is
+            # stripped — so the rebuilt model_id stays invokable. lookup_key is the
+            # aggressively-normalized form used ONLY to index the profile map.
+            id_base = _strip_geo_prefix(cur_id)
+            lookup_key = _normalize_model_id(id_base)
+            region, prefix = _best_pin(id_base, avail)
+            if not region:
+                continue
+            new_id = prefix + id_base
+            avail_profiles = sorted((pmap.get(lookup_key) or {}).keys())
+            if cfg.get("model_id") == new_id and cfg.get("region") == region:
+                # Still refresh the recorded posture (cheap, keeps it authoritative).
+                cfg["residency_scope"] = _residency_scope(new_id, id_base)
+                cfg["inference_profiles"] = avail_profiles
+                continue
+            cfg["model_id"] = new_id
+            cfg["region"] = region
+            cfg["residency_scope"] = _residency_scope(new_id, id_base)
+            cfg["inference_profiles"] = avail_profiles
+            if section == "chat_models":
+                # model_id changed → re-derive endpoint/API routing to match.
+                apis = derive_model_apis(
+                    new_id, cfg.get("provider", ""),
+                    on_mantle="bedrock-mantle" in (cfg.get("endpoints") or []),
+                    on_runtime=True,
+                )
+                cfg["apis"] = apis
+                cfg["invoke_endpoint"], cfg["invoke_api"] = resolve_invoke_path(apis)
+            healed += 1
+
+    _heal("chat_models", profile_only=False)
+    _heal("image_models", profile_only=True)
+    if healed and progress:
+        progress(f"Residency: realigned {healed} model pin(s) to '{pref}' preference")
+    return healed
+
+
 def _normalize_model_id(model_id: str) -> str:
     """Bare, comparable form of a model id for cross-endpoint matching.
 
@@ -836,6 +950,18 @@ async def auto_register_image_models(region: str):
     )
 
     registry = get_registry()
+
+    # Record the profiles discovered here into the registry, merging (union of
+    # covered Regions) across every Region a full Sync scans. This is the single
+    # source of truth the residency post-pass (_resolve_residency_pins) reads to
+    # re-derive each model's pin order-independently. Stored as JSON-safe lists.
+    if profile_map:
+        ip = registry.setdefault("inference_profiles", {})
+        for base, profs in profile_map.items():
+            dst = ip.setdefault(base, {})
+            for pre, regs in profs.items():
+                dst[pre] = sorted(set(dst.get(pre, [])) | set(regs))
+
     # Build model_id → list of registry keys lookup for existing models
     # Map both the stored model_id and the raw version (without us. prefix)
     # so that Bedrock's raw IDs match our stored inference profile IDs.
@@ -2397,6 +2523,9 @@ def _run_refresh_all_regions():
         # Also reset chat_models regions
         for key in list(registry.get("chat_models", {}).keys()):
             registry["chat_models"][key]["available_regions"] = []
+        # Reset the discovered inference-profile map — each region scan re-merges
+        # its own, so stale profiles (removed models/regions) prune automatically.
+        registry["inference_profiles"] = {}
 
         # Step 3: Scan each ENABLED region for foundation + custom + imported models
         _progress(f"Scanning {len(scan_regions)} enabled regions for available models...")
@@ -2463,6 +2592,19 @@ def _run_refresh_all_regions():
                 _progress(f"Mantle: {mantle_added} model(s) reconciled")
         except Exception as exc:
             logger.warning("Mantle reconciliation skipped: %s", exc)
+
+        # Step 4b-bis: Residency post-pass — re-derive each model's Region + profile
+        # prefix from the profiles discovered this Sync, toward the configured
+        # preferred geo (config.py). Order-independent; heals drift (e.g. a us.<id>
+        # stuck on a non-US Region). Runs BEFORE routing/lifecycle backfill so those
+        # see the corrected model_ids.
+        try:
+            n_res = _resolve_residency_pins(registry, _progress)
+            if n_res:
+                logger.info("Residency: realigned %d model pin(s) to '%s'",
+                            n_res, _preferred_residency_geo())
+        except Exception as exc:
+            logger.warning("Residency realignment skipped: %s", exc)
 
         # Step 4c: Backfill endpoint/API routing on EVERY chat model (incl.
         # pre-existing + update-path entries the per-model stamping missed), so
