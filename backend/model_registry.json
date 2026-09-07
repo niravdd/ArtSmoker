@@ -39,20 +39,14 @@
         ]
       },
       {
-        "_family": "OpenAI GPT-5.x (frontier) \u2014 Converse/Chat-Completions/Responses on bedrock-runtime where GA; Responses on Mantle. Converse-first means a runtime-listed GPT-5.x routes natively.",
+        "_family": "OpenAI GPT-5.x (frontier) \u2014 served via the OpenAI-compatible Responses API on the Mantle endpoint. NOT invocable via Bedrock Converse: live-verified 2026-09-07 that Converse returns ValidationException for every gpt-5.6 id/region, while gpt-oss IS Converse-able. They are runtime-LISTED foundation models but Responses-only for invocation, so 'always: responses' \u2192 bedrock-mantle. (If AWS later enables Converse for GPT-5.x, add 'converse' here and re-Sync.)",
         "match": {
           "id_substr": [
             "gpt-5",
             "gpt5"
           ]
         },
-        "runtime": [
-          "converse",
-          "invoke",
-          "chat_completions",
-          "responses"
-        ],
-        "mantle": [
+        "always": [
           "responses"
         ]
       },
@@ -7587,13 +7581,10 @@
         "bedrock-runtime"
       ],
       "apis": [
-        "converse",
-        "invoke",
-        "chat_completions",
         "responses"
       ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse",
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "responses",
       "input_price_per_1k": 0.00132,
       "output_price_per_1k": 0.00792,
       "lifecycle_status": "ACTIVE",
@@ -7639,13 +7630,10 @@
         "bedrock-runtime"
       ],
       "apis": [
-        "converse",
-        "invoke",
-        "chat_completions",
         "responses"
       ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse",
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "responses",
       "input_price_per_1k": 0.000132,
       "output_price_per_1k": 0.000792,
       "lifecycle_status": "ACTIVE",
@@ -7690,13 +7678,10 @@
         "bedrock-runtime"
       ],
       "apis": [
-        "converse",
-        "invoke",
-        "chat_completions",
         "responses"
       ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse",
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "responses",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": ""

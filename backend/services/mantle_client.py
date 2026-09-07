@@ -481,17 +481,22 @@ def derive_model_apis(model_id: str, provider: str, *, on_mantle: bool = False,
     compat = _api_compat()
     prov = (provider or "").lower()
     mid = (model_id or "").lower()
-    default = compat.get("default", {}) or {}
 
-    spec = default
+    # Find the first matching rule; fall back to `default` ONLY when nothing matched.
+    # A matched rule is self-contained — it must NOT inherit the default rule's
+    # runtime/mantle (else a rule like GPT-5.x's `always:[responses]`, which
+    # deliberately omits `runtime`, would wrongly pick up the default's `converse`).
+    spec = None
     for rule in (compat.get("rules") or []):
         if _rule_matches(rule.get("match") or {}, prov, mid):
             spec = rule
             break
+    if spec is None:
+        spec = compat.get("default", {}) or {}
 
     always = spec.get("always") or []
-    runtime = spec.get("runtime", default.get("runtime", ["converse"])) or []
-    mantle = spec.get("mantle", default.get("mantle", ["chat_completions"])) or []
+    runtime = spec.get("runtime") or []
+    mantle = spec.get("mantle") or []
     mantle_only = spec.get("mantle_only")
 
     apis = list(always)
