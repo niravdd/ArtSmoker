@@ -369,11 +369,17 @@ def promote_to_base():
                         del base_section[k]
                         logger.debug("Cleanup: removed %s.%s (no available regions — deprecated)", section, k)
 
-                model_id_map: dict[str, list[str]] = {}
+                # Dedup by (model_id, model_purpose): entries sharing a model_id but
+                # serving DIFFERENT purposes are distinct models, not duplicates.
+                # Amazon Nova Canvas exposes text_to_image + inpainting + outpainting
+                # all under ONE model_id (purpose is chosen via params), so a plain
+                # model_id dedup collapsed its variants → they were re-created every
+                # Sync but never persisted (inpaint/outpaint unavailable).
+                model_id_map: dict[tuple, list[str]] = {}
                 for k, v in base_section.items():
                     mid = v.get("model_id", "")
                     if mid:
-                        model_id_map.setdefault(mid, []).append(k)
+                        model_id_map.setdefault((mid, v.get("model_purpose", "")), []).append(k)
                 for mid, keys in model_id_map.items():
                     if len(keys) <= 1:
                         continue
