@@ -526,7 +526,12 @@ def _pipeline_info(key: str, cfg: dict) -> dict:
             la = cat.get("license_agreement", {}) or {}
             license_name = la.get("license_name", cat.get("license", ""))
             license_url = la.get("license_url", "")
-            commercial = True  # MIT + commercial DINOv3 (attribution required)
+            # Registry-driven (was hardcoded True): the full pipeline's mesh bake
+            # (o_voxel.postprocess) hard-imports nvdiffrast — NVIDIA 1-Way Commercial,
+            # non-commercial for general users — so its license_agreement declares
+            # commercial=false. (The commercial-safe path is TripoSG + Kaolin.) None
+            # if unset → the panel shows the license without a commercial ✓.
+            commercial = la.get("commercial")
             accepted = acceptances.get(catalog_key) or acceptances.get(key)
         else:
             # TripoSG: the active TEXTURE BACKEND carries the license that matters.

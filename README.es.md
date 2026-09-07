@@ -6,11 +6,11 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
-![Recorrido por ArtSmoker — del prompt de texto al arte 2D listo para producción y al modelo 3D totalmente texturizado, listo para el motor de juego](docs/images/artsmoker-walkthrough.gif)
+![Recorrido por ArtSmoker — del prompt de texto al arte 2D listo para producción y al modelo 3D totalmente texturizado y adaptado al motor de juego](docs/images/artsmoker-walkthrough.gif)
 
 ## 📌 0. Descripción general
 
-**ArtSmoker convierte una idea en arte listo para el motor de juego — en minutos y sin ningún pipeline que usted deba gestionar.** Describa un personaje, un accesorio, un entorno o una pieza de key art en lenguaje sencillo y obtenga arte 2D listo para producción, modelos 3D completamente texturizados y video — todo en consonancia con la identidad visual de su proyecto, todo dentro de su propio entorno. Los modelos de IA más recientes de imagen, edición, 3D y video se sitúan tras una interfaz única, limpia y orientada al artista, con controles creativos reales: ArtSmoker ejecuta todo el pipeline de producción por usted, para que su equipo dirija la apariencia en lugar de lidiar con la maquinaria.
+**ArtSmoker convierte una idea en arte adaptado al motor de juego — en minutos y sin ningún pipeline que usted deba gestionar.** Describa un personaje, un accesorio, un entorno o una pieza de key art en lenguaje sencillo y obtenga arte 2D listo para producción, modelos 3D completamente texturizados y video — todo en consonancia con la identidad visual de su proyecto, todo dentro de su propio entorno. Los modelos de IA más recientes de imagen, edición, 3D y video se sitúan tras una interfaz única, limpia y orientada al artista, con controles creativos reales: ArtSmoker ejecuta todo el pipeline de producción por usted, para que su equipo dirija la apariencia en lugar de lidiar con la maquinaria.
 
 ### 📝 El problema
 
@@ -28,7 +28,7 @@ ArtSmoker es un estudio creativo autoalojado que pone los mejores modelos genera
 
 - **Descríbalo en lenguaje sencillo** — ArtSmoker se encarga de la descomposición del prompt, la mejora y la optimización específica de cada modelo entre bastidores. Un **Prompt Designer** guiado le permite dar forma a cada elemento visual — sujeto, escena, iluminación, color — con controles de bloquear/variar para explorar direcciones genuinamente distintas sin perder lo que ya funciona.
 - **Fiel a su marca por defecto** — alimente a ArtSmoker con su arte existente y sus modelos de visión aprenden su identidad visual, de modo que cada recurso sale coincidiendo con la apariencia y estética de su proyecto.
-- **2D, editado y en 3D — de extremo a extremo** — genere y luego refine in situ con inpainting, outpainting, recoloreado, búsqueda y reemplazo, y ediciones guiadas por referencia; convierta cualquier recurso 2D en un **modelo 3D completamente texturizado y listo para el motor de juego** que se integra directamente en Unity, Unreal o Blender — sin modelado manual, desenvolvimiento UV ni pintado de texturas. Además, video cinematográfico y un chat studio multimodelo para la ideación.
+- **2D, editado y en 3D — de extremo a extremo** — genere y luego refine in situ con inpainting, outpainting, recoloreado, búsqueda y reemplazo, y ediciones guiadas por referencia; convierta cualquier recurso 2D en un **modelo 3D completamente texturizado y adaptado al motor de juego** que se integra directamente en Unity, Unreal o Blender — sin modelado manual, desenvolvimiento UV ni pintado de texturas. Además, video cinematográfico y un chat studio multimodelo para la ideación.
 - **Cada modelo, un clic** — use los últimos modelos alojados en todas las regiones, o despliegue modelos de código abierto curados (Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2 y más) en sus propias GPUs con un solo clic — empaquetado, cuantización, escalado automático y seguimiento de trabajos, todo gestionado, cada modelo validado de extremo a extremo antes de su publicación.
 - **Se ejecuta donde usted quiera — y su IP sigue siendo suya** — instálelo en el escritorio de un solo artista o en una instancia compartida para todo el equipo; **sin necesidad de una GPU propia** (el cómputo pesado se ejecuta en servicios gestionados de AWS, o en endpoints con escalado automático que ArtSmoker pone en marcha y reduce de nuevo a cero por usted). Se conecta únicamente a su propia cuenta de AWS — obras, prompts, estilos y recursos generados permanecen en su entorno, nada va hacia servicios de terceros, y usted conserva la propiedad total de su IP creativa.
 
@@ -108,7 +108,7 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 - 🌐 **i18n en 9 idiomas** — Traducción completa de la UI (EN, JA, ZH, KO, HI, RU, FR, ES, DE), detección automática de prompts no ingleses (la UI en inglés omite la detección por completo), vista previa bilingüe
 - 🔍 **Soporte de modelos personalizados** — Descubra automáticamente modelos Bedrock personalizados afinados, importados y desplegados
 - 🔧 **Modelos autoalojados — Despliegue en 1 clic** — Explore un catálogo curado de modelos de código abierto preprobados (Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2 y más), elija una instancia de GPU y haga clic en Deploy. ArtSmoker gestiona todo: el empaquetado del manejador de inferencia, la configuración de la cuantización, la selección del toolkit de CUDA correcto, la configuración del escalado automático, el registro de alarmas de CloudWatch y la conexión del seguimiento asíncrono de trabajos. Cada modelo del catálogo se ha validado de extremo a extremo — desde el arranque en frío pasando por la generación hasta la entrega a la galería — para que no tenga que depurar controladores de GPU, desbordamientos de memoria ni compatibilidad de contenedores. Soporta BF16 + FlashInfer para la mejor calidad, NF4 para eficiencia de costos, detección automática multi-GPU, escala a cero automáticamente ($0 en reposo) y el mismo modelo funciona en distintos tipos de instancia sin reconfiguración
-- 🧊 **Generación de imagen a 3D** — Convierta cualquier imagen de Game Asset o Character en una malla 3D texturizada (GLB) con un clic. La síntesis multivista + el baking de texturas producen recursos listos para el motor de juego. Visor 3D interactivo con órbita/zoom/panorámica
+- 🧊 **Generación de imagen a 3D** — Convierta cualquier imagen de Game Asset o Character en una malla 3D texturizada (GLB) con un clic. La síntesis multivista + el baking de texturas producen recursos adaptados al motor de juego. Visor 3D interactivo con órbita/zoom/panorámica
 - 🩹 **Completado inteligente del origen para 3D** — la conversión a 3D solo puede construir lo que es visible, así que un personaje recortado (piernas cortadas) se convierte en una malla sin piernas. Antes de generar, ArtSmoker revisa con visión la imagen de origen y, si está recortada, **ofrece** completarla mediante outpainting (un prompt sugerido por IA, totalmente editable) — muestra una vista previa del antes/después, vuelve a revisar el resultado, permite extender de nuevo o descartar, y lo guarda como una nueva versión de imagen. Opcional y no bloqueante; las imágenes bien encuadradas se generan directamente
 - 🔄 **Auto-Update** — Controlado por versión al inicio + una verificación periódica cada 24h; se actualiza mediante `git` (checkout) o una **descarga y reemplazo de tarball** para instalaciones sin git, y luego se reinicia en el mismo lugar (respawn supervisado / recarga de gunicorn) u ofrece un botón de **Reiniciar** con un solo clic — nunca sobrescribe tu `data/` ni tu `.env` (`ARTSMOKER_AUTO_UPDATE=false` para desactivar)
 
@@ -172,7 +172,7 @@ Tras una ronda de outpainting (v3 abajo), la misma pestaña regenera los tres ar
 
 ![Asset Viewer — Metadata con linaje completo del prompt e historial de versiones](docs/images/asset-viewer-metadata.png)
 
-*Las capturas del pipeline 3D — generación, revisión de la fuente, exportación lista para motores y variantes — se muestran más abajo, en la sección 1.9 (Generación de modelo 3D), junto a las funciones que ilustran.*
+*Las capturas del pipeline 3D — generación, revisión de la fuente, exportación adaptada al motor y variantes — se muestran más abajo, en la sección 1.9 (Generación de modelo 3D), junto a las funciones que ilustran.*
 
 **Video Studio** — Configuración a la izquierda (modelo, modo de generación, duración, región, estimación de costos), prompt a la derecha. Compatible con Nova Reel (toma única, multi-toma automática/manual hasta 2 minutos) y Luma AI Ray (relaciones de aspecto, bucle).
 
@@ -300,9 +300,9 @@ Esto importa en cada etapa:
 
 ### 📝 1.9 Generación de modelos 3D (Imagen a 3D)
 
-Genere mallas 3D completamente texturizadas a partir de cualquier imagen 2D — directamente en el Asset Viewer. Seleccione una imagen de **Game Asset** o **Character**, abra la pestaña **3D Model** y haga clic en Generate. El resultado es un GLB listo para el motor de juego que puede orbitar, ampliar y descargar — sin modelado manual, desenvolvimiento UV ni pintado de texturas.
+Genere mallas 3D completamente texturizadas a partir de cualquier imagen 2D — directamente en el Asset Viewer. Seleccione una imagen de **Game Asset** o **Character**, abra la pestaña **3D Model** y haga clic en Generate. El resultado es un GLB adaptado al motor de juego que puede orbitar, ampliar y descargar — sin modelado manual, desenvolvimiento UV ni pintado de texturas.
 
-**El resultado final, primero:** un personaje generado por ArtSmoker, exportado como FBX listo para motores y abierto en un Blender estándar — la cadena de LOD (LOD0–LOD3) intacta en el Outliner, texturas vinculadas, sin re-rigging ni arreglos manuales. Todo lo que sigue muestra cómo llegar hasta aquí desde un prompt de texto.
+**El resultado final, primero:** un personaje generado por ArtSmoker, exportado como FBX adaptado al motor y abierto en un Blender estándar — la cadena de LOD (LOD0–LOD3) intacta en el Outliner, texturas vinculadas, sin re-rigging ni arreglos manuales. Todo lo que sigue muestra cómo llegar hasta aquí desde un prompt de texto.
 
 ![FBX de ArtSmoker abierto en Blender — jerarquía del grupo LOD intacta con texturas vinculadas](docs/images/fbx-in-blender.png)
 
@@ -325,7 +325,9 @@ Una sola imagen 2D de personaje (a la izquierda, en la pestaña PNG) se conviert
 | Pipeline | Cómo funciona | Licencia | Uso comercial | Ideal para |
 |----------|--------------|---------|----------------|------------|
 | **TripoSG + backend de texturizado** | TripoSG construye la malla; un backend de texturizado elegido (TRELLIS.2 / Hunyuan3D-Paint) la pinta | según el backend (abajo) | según el backend | Combinar geometría + un texturizador específico |
-| **TRELLIS.2 (Full)** | Un solo modelo genera **tanto** la geometría como la textura PBR (SLAT) | MIT | ✅ Sí — atribución "Built with DINOv3" | Producción, recursos comerciales, el camino más simple |
+| **TRELLIS.2 (Full)** | Un solo modelo genera **tanto** la geometría como la textura PBR (SLAT) | modelo + pesos MIT | ⚠️ **Horneado no comercial** — la exportación de la malla importa de forma rígida `nvdiffrast` (NVIDIA 1-Way Commercial); revise antes de un uso comercial | El camino más simple; prototipos y trabajo no comercial |
+
+> **Uso comercial:** la ruta **TripoSG + backend de texturizado** es la vía segura para uso comercial — su horneado usa **Kaolin (Apache-2.0)**. El pipeline **completo de TRELLIS.2** es MIT en cuanto al modelo en sí, pero su horneado de malla `o_voxel` importa de forma rígida `nvdiffrast` (NVIDIA Source Code License, no comercial para usuarios generales) y no puede sustituirse sin parchear el upstream — así que trate la salida del pipeline completo como no comercial a menos que haya resuelto esa dependencia. La licencia + cada dependencia se muestran en el diálogo de despliegue y de nuevo en el momento de generar.
 
 **Variantes 3D** — Conserva varios resultados 3D por versión de imagen (aquí TripoSG frente al pipeline completo TRELLIS.2), cambia entre ellos o fija el predeterminado en cualquier momento; cada variante registra los modelos y herramientas exactos que la produjeron.
 
@@ -363,7 +365,7 @@ La eliminación de fondo (el paso de recorte) usa **BiRefNet (MIT)** de forma pr
 
 ### 📝 1.9.1 Exportaciones listas para el motor (GLB · FBX · USD)
 
-![Visor 3D con herramientas por variante y opciones de exportación FBX/USD listas para motores](docs/images/3d-model-viewer-export.png)
+![Visor 3D con herramientas por variante y opciones de exportación FBX/USD adaptadas al motor](docs/images/3d-model-viewer-export.png)
 
 Todo modelo 3D generado puede exportarse **preparado para su motor de juego**, directamente desde la pestaña 3D del Asset Viewer:
 

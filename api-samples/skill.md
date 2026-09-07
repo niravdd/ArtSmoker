@@ -207,24 +207,30 @@ To generate with specific models:
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `prompt` | string | required | User's image description |
-| `image_model` | string | required* | Model key from /api/admin/models/image-options |
-| `asset_type` | string | "photorealistic" | photorealistic, character, environment, game_asset, marketing_banner, icon |
+| `image_model` | string | `"sd35_large"` | Model key from /api/admin/models/image-options |
+| `asset_type` | string | `"photorealistic"` | photorealistic, character, environment, game_asset, marketing_banner, icon |
 | `style_id` | string | null | Style profile ID (from /api/styles/) |
+| `region` | string | null | Override the model's AWS region (null = model default) |
 | `width` | int | 1024 | Image width in pixels |
 | `height` | int | 1024 | Image height in pixels |
-| `num_options` | int | 2 | Number of different creative concepts (1-5) |
-| `num_variations` | int | 2 | Seed variations per concept (1-5) |
-| `quality` | string | "" | Model-specific quality tier |
-| `seed` | int | null | Random seed (null = random) |
-| `remove_background` | bool | false | Remove background post-processing |
-| `generate_svg` | bool | false | Convert to SVG post-processing |
-| `upscale` | bool | false | Creative upscale post-processing |
+| `num_options` | int | **5** | Number of different creative concepts (1–5) |
+| `num_variations` | int | **5** | Seed variations per concept (1–5) |
+| `quality` | string | null | Model-specific quality tier (e.g. "standard", "premium") |
+| `seed` | int | null | Base seed 0…2³¹−1 (null = random). Per-slot seed = `base + option·num_variations + variation` |
+| `remove_background` | bool | **true** | Background-removal post-processing — **on by default**; set `false` to keep the background |
+| `generate_svg` | bool | **true** | SVG vectorization post-processing — **on by default**; set `false` to skip |
+| `upscale` | bool | false | Creative upscale post-processing (extra cost) |
 | `all_models` | bool | false | Generate with all enabled models |
 | `selected_models` | list | null | Specific model keys for multi-model |
-| `decomposed_data` | dict | null | Pre-decomposed prompt data |
+| `model_optimized_prompts` | bool | false | Tailor the enhanced prompt per model (only meaningful when `all_models`/`selected_models`) |
+| `decomposed_data` | dict | null | Pre-decomposed prompt data (from `/decompose`) |
 | `vary_fields` | dict | null | Lock/vary overrides per field |
+| `reference_images` | list | null | Base64 PNG reference(s) for reference-guided generation |
+| `reference_mode` | string | `"inspired"` | `"match"` (keep the subject, change the rest) or `"inspired"` (Remix — composition-guided img2img) |
+| `ip_owned` / `ip_licensed` | bool | false | IP declaration flags stored in metadata |
 
-*`image_model` is required unless `all_models=true` or `selected_models` is set.
+*`image_model` is used unless `all_models=true` or `selected_models` is set.
+> **Heads-up on defaults:** `remove_background` and `generate_svg` default to **`true`** server-side — if you want the raw generated image only, send them as `false` (the sample programs do). `num_options`×`num_variations` default to 5×5 = **25 images**; the examples use 2×2 for a quick, cheap test.
 
 ## Error Handling
 

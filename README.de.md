@@ -10,7 +10,7 @@
 
 ## 📌 0. Überblick
 
-**ArtSmoker verwandelt eine Idee in spielengine-fertige Grafik — in Minuten, ohne dass Sie eine Pipeline verwalten müssen.** Beschreiben Sie einen Charakter, ein Requisit, eine Umgebung oder ein Stück Key Art in einfacher Sprache und erhalten Sie produktionsreife 2D-Grafik, vollständig texturierte 3D-Modelle und Video — alles an die visuelle Identität Ihres Projekts angepasst, alles innerhalb Ihrer eigenen Umgebung gehalten. Die neuesten KI-Modelle für Bild, Bearbeitung, 3D und Video stehen hinter einer einzigen klaren, künstlerorientierten Oberfläche mit echten kreativen Steuerelementen: ArtSmoker betreibt die gesamte Produktions-Pipeline für Sie, sodass Ihr Team den Look bestimmt, statt sich mit der Technik herumzuschlagen.
+**ArtSmoker verwandelt eine Idee in Grafik, die auf Ihre Ziel-Engine zugeschnitten ist — in Minuten, ohne dass Sie eine Pipeline verwalten müssen.** Beschreiben Sie einen Charakter, ein Requisit, eine Umgebung oder ein Stück Key Art in einfacher Sprache und erhalten Sie produktionsreife 2D-Grafik, vollständig texturierte 3D-Modelle und Video — alles an die visuelle Identität Ihres Projekts angepasst, alles innerhalb Ihrer eigenen Umgebung gehalten. Die neuesten KI-Modelle für Bild, Bearbeitung, 3D und Video stehen hinter einer einzigen klaren, künstlerorientierten Oberfläche mit echten kreativen Steuerelementen: ArtSmoker betreibt die gesamte Produktions-Pipeline für Sie, sodass Ihr Team den Look bestimmt, statt sich mit der Technik herumzuschlagen.
 
 ### 📝 Das Problem
 
@@ -28,7 +28,7 @@ ArtSmoker ist ein selbst gehostetes Kreativstudio, das die besten generativen Mo
 
 - **Beschreiben Sie es in einfacher Sprache** — ArtSmoker übernimmt im Hintergrund die Prompt-Dekomposition, die Verbesserung und die modellspezifische Optimierung. Ein geführter **Prompt Designer** lässt Sie jedes visuelle Element — Motiv, Szene, Beleuchtung, Farbe — mit Sperren/Variieren-Steuerelementen gestalten, um wirklich unterschiedliche Richtungen zu erkunden, ohne das zu verlieren, was bereits funktioniert.
 - **Markenkonform von Haus aus** — geben Sie ArtSmoker Ihre vorhandene Grafik, und seine Vision-Modelle erlernen Ihre visuelle Identität, sodass jedes Asset zum Look and Feel Ihres Projekts passt.
-- **2D, bearbeitet und in 3D — durchgängig** — generieren Sie, verfeinern Sie dann direkt mit Inpainting, Outpainting, Umfärben, Suchen-und-Ersetzen und referenzgeführten Bearbeitungen; verwandeln Sie jedes 2D-Asset in ein **vollständig texturiertes, spielengine-fertiges 3D-Modell**, das sich direkt in Unity, Unreal oder Blender einfügt — ohne manuelle Modellierung, UV-Unwrapping oder Texture-Painting. Dazu filmische Videos und ein Multi-Modell-Chat-Studio für die Ideenfindung.
+- **2D, bearbeitet und in 3D — durchgängig** — generieren Sie, verfeinern Sie dann direkt mit Inpainting, Outpainting, Umfärben, Suchen-und-Ersetzen und referenzgeführten Bearbeitungen; verwandeln Sie jedes 2D-Asset in ein **vollständig texturiertes, auf Ihre Ziel-Engine zugeschnittenes 3D-Modell**, das sich direkt in Unity, Unreal oder Blender einfügt — ohne manuelle Modellierung, UV-Unwrapping oder Texture-Painting. Dazu filmische Videos und ein Multi-Modell-Chat-Studio für die Ideenfindung.
 - **Jedes Modell, ein Klick** — nutzen Sie die neuesten gehosteten Modelle über alle Regionen hinweg oder deployen Sie kuratierte Open-Source-Modelle (Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2 und mehr) mit einem einzigen Klick auf Ihre eigenen GPUs — Packaging, Quantisierung, Auto-Scaling und Job-Tracking werden allesamt übernommen, jedes Modell durchgängig validiert, bevor es ausgeliefert wird.
 - **Läuft, wo Sie wollen — und Ihr geistiges Eigentum bleibt Ihres** — installieren Sie es auf dem Desktop eines einzelnen Künstlers oder auf einer gemeinsamen Instanz für das ganze Team; **keine eigene GPU erforderlich** (die schwere Rechenlast läuft auf verwalteten AWS-Diensten oder auf automatisch skalierenden Endpoints, die ArtSmoker für Sie hochfährt und wieder auf null herunterskaliert). Es verbindet sich nur mit Ihrem eigenen AWS-Konto — Kunstwerke, Prompts, Stile und generierte Assets bleiben in Ihrer Umgebung, nichts gelangt zu Drittanbieterdiensten, und Sie behalten das volle Eigentum an Ihrem kreativen geistigen Eigentum.
 
@@ -107,7 +107,7 @@ Für Teams, die möchten, dass jedes generierte Asset zu einem vorhandenen Kunst
 - 🌐 **i18n in 9 Sprachen** — Vollständige UI-Übersetzung (EN, JA, ZH, KO, HI, RU, FR, ES, DE), automatische Erkennung nicht-englischer Prompts, zweisprachige Vorschau
 - 🔍 **Unterstützung benutzerdefinierter Modelle** — Automatische Erkennung von fein abgestimmten, importierten und deployten benutzerdefinierten Bedrock-Modellen
 - 🔧 **Selbst gehostete Modelle — 1-Klick-Deployment** — Durchstöbern Sie einen kuratierten Katalog vorab getesteter Open-Source-Modelle (HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG und mehr), wählen Sie eine GPU-Instanz und klicken Sie auf Deploy. ArtSmoker übernimmt alles: Packaging des Inferenz-Handlers, Konfiguration der Quantisierung, Auswahl des richtigen CUDA-Toolkits, Einrichtung des Auto-Scalings, Registrierung von CloudWatch-Alarmen und Verdrahtung des asynchronen Job-Trackings. Jedes Modell im Katalog wurde durchgängig validiert — vom Kaltstart über die Generierung bis zur Auslieferung in die Galerie — sodass Sie keine GPU-Treiber, Speicherüberläufe oder Container-Kompatibilität debuggen müssen. Unterstützt BF16 + FlashInfer für beste Qualität, NF4 für Kosteneffizienz, automatische Multi-GPU-Erkennung, skaliert automatisch auf null ($0 im Leerlauf), und dasselbe Modell läuft ohne Neukonfiguration auf verschiedenen Instanztypen
-- 🧊 **Image-to-3D-Generierung** — Wandeln Sie jedes Game-Asset- oder Character-Bild mit einem Klick in ein texturiertes 3D-Mesh (GLB) um. Multi-View-Synthese + Texture-Baking erzeugen spielengine-fertige Assets. Interaktiver 3D-Viewer mit Orbit/Zoom/Schwenk
+- 🧊 **Image-to-3D-Generierung** — Wandeln Sie jedes Game-Asset- oder Character-Bild mit einem Klick in ein texturiertes 3D-Mesh (GLB) um. Multi-View-Synthese + Texture-Baking erzeugen vollständig texturierte, auf die Ziel-Engine zugeschnittene Assets. Interaktiver 3D-Viewer mit Orbit/Zoom/Schwenk
 - 🩹 **Intelligente Quellen-Vervollständigung für 3D** — Image-to-3D kann nur das aufbauen, was sichtbar ist, sodass ein zugeschnittener Charakter (abgeschnittene Beine) zu einem beinlosen Mesh wird. Vor der Generierung prüft ArtSmoker die Quelle per Vision und **bietet** an, sie bei Zuschnitt per Outpainting zu vervollständigen (ein KI-vorgeschlagener, vollständig bearbeitbarer Prompt) — zeigt eine Vorher/Nachher-Vorschau, prüft das Ergebnis erneut, lässt Sie erneut erweitern oder verwerfen und speichert es als neue Bildversion. Opt-in und nicht blockierend; gut gerahmte Bilder werden direkt generiert
 - 🔄 **Auto-Update** — Versionsgesteuert beim Start + eine 24-Stunden-Periodenprüfung; aktualisiert per `git` (Checkout) oder per **Tarball-Download-und-Ersetzen** für Installationen ohne git, startet sich dann direkt an Ort und Stelle neu (überwachter Respawn / gunicorn-Reload) oder bietet einen Ein-Klick-**Neustart** an — überschreibt niemals Ihr `data/` oder Ihre `.env` (`ARTSMOKER_AUTO_UPDATE=false` zum Deaktivieren)
 
@@ -171,7 +171,7 @@ Nach einer Outpainting-Runde (v3 unten) erzeugt dieselbe Registerkarte alle drei
 
 ![Asset Viewer — Metadaten mit vollständiger Prompt-Herkunft und Versionsverlauf](docs/images/asset-viewer-metadata.png)
 
-*Die Screenshots der 3D-Pipeline — Generierung, Quellprüfung, Engine-fertiger Export und Varianten — sind weiter unten in Abschnitt 1.9 (3D-Modell-Generierung) zu sehen, direkt bei den Funktionen, die sie illustrieren.*
+*Die Screenshots der 3D-Pipeline — Generierung, Quellprüfung, auf die Engine zugeschnittener Export und Varianten — sind weiter unten in Abschnitt 1.9 (3D-Modell-Generierung) zu sehen, direkt bei den Funktionen, die sie illustrieren.*
 
 **Video Studio** — Einstellungen links (Modell, Generierungsmodus, Dauer, Region, Kostenschätzung), Prompt rechts. Unterstützt Nova Reel (Einzelaufnahme, Multi-Shot auto/manuell bis zu 2 Minuten) und Luma AI Ray (Seitenverhältnisse, Loop).
 
@@ -299,9 +299,9 @@ Das ist in jeder Phase von Bedeutung:
 
 ### 📝 1.9 3D-Modell-Generierung (Image-to-3D)
 
-Generieren Sie vollständig texturierte 3D-Meshes aus jedem 2D-Bild — direkt im Asset Viewer. Wählen Sie ein **Game Asset**- oder **Character**-Bild, öffnen Sie die Registerkarte **3D Model** und klicken Sie auf Generate. Das Ergebnis ist eine spielengine-fertige GLB, die Sie umkreisen, zoomen und herunterladen können — ohne manuelle Modellierung, UV-Unwrapping oder Texture-Painting.
+Generieren Sie vollständig texturierte 3D-Meshes aus jedem 2D-Bild — direkt im Asset Viewer. Wählen Sie ein **Game Asset**- oder **Character**-Bild, öffnen Sie die Registerkarte **3D Model** und klicken Sie auf Generate. Das Ergebnis ist eine auf Ihre Ziel-Engine zugeschnittene GLB, die Sie umkreisen, zoomen und herunterladen können — ohne manuelle Modellierung, UV-Unwrapping oder Texture-Painting.
 
-**Zuerst das Endergebnis:** eine mit ArtSmoker generierte Figur, als engine-fertiges FBX exportiert und in einem unveränderten Blender geöffnet — die LOD-Kette (LOD0–LOD3) intakt im Outliner, Texturen gebunden, nichts neu geriggt oder von Hand repariert. Alles Weitere zeigt, wie Sie von einem Text-Prompt hierher gelangen.
+**Zuerst das Endergebnis:** eine mit ArtSmoker generierte Figur, als auf die Engine zugeschnittenes FBX exportiert und in einem unveränderten Blender geöffnet — die LOD-Kette (LOD0–LOD3) intakt im Outliner, Texturen gebunden, nichts neu geriggt oder von Hand repariert. Alles Weitere zeigt, wie Sie von einem Text-Prompt hierher gelangen.
 
 ![ArtSmoker-FBX in Blender geöffnet — LOD-Gruppenhierarchie intakt mit gebundenen Texturen](docs/images/fbx-in-blender.png)
 
@@ -324,7 +324,9 @@ Ein einzelnes 2D-Charakterbild (links, in der Registerkarte PNG) wird zu einem v
 | Pipeline | Funktionsweise | Lizenz | Kommerzielle Nutzung | Ideal für |
 |----------|----------------|--------|----------------------|-----------|
 | **TripoSG + Texturierungs-Backend** | TripoSG baut das Mesh; ein gewähltes Texturierungs-Backend (TRELLIS.2 / Hunyuan3D-Paint) bemalt es | je Backend (unten) | je Backend | Kombination von Geometrie + einem bestimmten Texturierer |
-| **TRELLIS.2 (Full)** | Ein einziges Modell generiert **sowohl** Geometrie als auch PBR-Textur (SLAT) | MIT | ✅ Ja — Attribution „Built with DINOv3" | Produktion, kommerzielle Assets, einfachster Weg |
+| **TRELLIS.2 (Full)** | Ein einziges Modell generiert **sowohl** Geometrie als auch PBR-Textur (SLAT) | MIT-Modell + Weights | ⚠️ **Nicht-kommerzielles Baking** — der Mesh-Export importiert zwingend `nvdiffrast` (NVIDIA 1-Way Commercial); vor kommerzieller Nutzung prüfen | Einfachster Weg; Prototypen & nicht-kommerzielle Arbeit |
+
+> **Kommerzielle Nutzung:** Der Weg über das **TripoSG + Texturierungs-Backend** ist die kommerziell unbedenkliche Route — sein Baking verwendet **Kaolin (Apache-2.0)**. Die **vollständige TRELLIS.2**-Pipeline ist MIT für das Modell selbst, aber ihr `o_voxel`-Mesh-Baking importiert zwingend `nvdiffrast` (NVIDIA Source Code License, für allgemeine Nutzer nicht-kommerziell) und lässt sich ohne Patchen des Upstreams nicht austauschen — behandeln Sie die Ausgabe der vollständigen Pipeline daher als nicht-kommerziell, sofern Sie diese Abhängigkeit nicht geklärt haben. Die Lizenz + jede Abhängigkeit wird im Deploy-Dialog und erneut zum Zeitpunkt der Generierung angezeigt.
 
 **3D-Varianten** — Behalten Sie mehrere 3D-Ergebnisse je Bildversion (hier TripoSG gegenüber der vollständigen TRELLIS.2-Pipeline), wechseln Sie jederzeit oder setzen Sie den Standard; jede Variante hält die exakten Modelle & Werkzeuge fest, mit denen sie erstellt wurde.
 
@@ -362,7 +364,7 @@ Die Hintergrundentfernung (der Freistell-Schritt) verwendet standardmäßig **Bi
 
 ### 📝 1.9.1 Engine-fertige Exporte (GLB · FBX · USD)
 
-![3D-Viewer mit Werkzeugen je Variante und Engine-fertigen FBX/USD-Exportoptionen](docs/images/3d-model-viewer-export.png)
+![3D-Viewer mit Werkzeugen je Variante und auf die Engine zugeschnittenen FBX/USD-Exportoptionen](docs/images/3d-model-viewer-export.png)
 
 Jedes generierte 3D-Modell kann **vorbereitet für Ihre Game-Engine** exportiert werden — direkt aus der 3D-Registerkarte des Asset Viewers:
 

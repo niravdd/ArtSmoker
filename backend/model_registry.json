@@ -10441,7 +10441,7 @@
       },
       "trellis2_image_to_3d": {
         "label": "TRELLIS.2 (Full Image-to-3D)",
-        "description": "Microsoft TRELLIS.2 full pipeline \u2014 generates BOTH geometry and PBR texture from a single image in one model. MIT-licensed, commercially-clean. Alternative to the TripoSG + texture-backend pipeline.",
+        "description": "Microsoft TRELLIS.2 full pipeline \u2014 generates BOTH geometry and PBR texture from a single image in one model. MIT model + weights, but the mesh bake hard-imports nvdiffrast (NVIDIA 1-Way Commercial \u2014 non-commercial for general users), so the full pipeline is NOT commercial-clean; use the TripoSG + Kaolin path for commercial work. Review the license before commercial use.",
         "category": "3d_generation",
         "studio": "image",
         "provider": "Microsoft Research",
@@ -10450,6 +10450,7 @@
         "hf_license_url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
         "license_agreement": {
           "required": true,
+          "commercial": false,
           "license_name": "MIT (TRELLIS.2) + DINOv3 attribution + nvdiffrast (non-commercial bake)",
           "license_url": "https://github.com/microsoft/TRELLIS.2/blob/main/LICENSE",
           "key_terms": [

@@ -116,6 +116,8 @@ Browser (Vanilla JS + Tailwind CSS)
     +-- Video Studio: text-to-video generation (async, S3-backed)
     +-- Chat Studio: multi-model LLM chat with streaming, sessions, vision
     +-- Type Studio: text overlay system (on-image + standalone)
+    +-- Image-to-3D: Asset Viewer 3D tab — image → textured GLB, engine-tailored export (FBX/USDZ), interactive 3D viewer
+    +-- Custom Models: 1-click deploy/teardown of self-hosted models with licence gating
     +-- i18n: 9 languages (EN, JA, ZH, KO, FR, ES, HI, RU, DE) with language switcher
     +-- Unified gallery: images + videos with filtering and export
     |
@@ -129,6 +131,9 @@ FastAPI Backend (Python)
     +-- /api/refine-prompt  — LLM prompt improvement (preview)
     +-- /api/gallery        — Generated asset browsing + file serving + bulk delete + image import
     +-- /api/video          — Video generation (async), job polling, MP4/thumbnail serving
+    +-- /api/generate/3d    — Image-to-3D generation (async, SageMaker) + engine export (headless Blender)
+    +-- /api/chat           — Multi-model LLM chat (streaming, sessions, vision)
+    +-- /api/custom-models  — 1-click self-hosted model deploy / teardown / status
     +-- /api/browse         — Server-side file browser (local + S3) + bucket creation
     +-- /api/admin          — Model registry management + Bedrock discovery + video settings
     +-- /api/log            — Client-side error logging
@@ -153,11 +158,15 @@ Self-Hosted (Amazon SageMaker)
     +-- HunyuanImage 3.0 (BF16) — 80B MoE text-to-image (g7e.12xlarge, FlashInfer)
     +-- HunyuanImage 3.0 (NF4)  — Quantized variant (g7e.2xlarge)
     +-- FLUX.2 dev (NF4)        — Image generation (g6e.4xlarge)
+    +-- Qwen-Image / Qwen-Image-Edit — text-to-image + reference/instruction editing (Apache-2.0)
+    +-- TripoSG                 — Image-to-3D geometry (MIT); paired with a texture backend
+    +-- TRELLIS.2               — Image-to-3D (geometry + PBR), or a texture backend for TripoSG (MIT)
+    +-- Headless Blender        — GLB → FBX/USDZ engine export (server-provisioned, on demand)
     |
     v
 Storage (Local filesystem + S3)
     +-- /data/styles/       — Style profiles + reference images
-    +-- /data/generated/    — Output image assets (PNG + SVG) + metadata + versions
+    +-- /data/generated/    — Image assets (PNG/SVG) + 3D models (GLB) + engine exports + metadata + versions
     +-- /data/video/        — Video assets (MP4 + thumbnails + job metadata)
     +-- /data/chat/         — Chat sessions (JSON per session)
     +-- S3 bucket           — Video generation output (required for async Bedrock invoke)
@@ -1551,7 +1560,7 @@ The whole pre-check is skipped on retry and is purely a pre-submit gate — the 
 
 **3D input = the version CUTOUT (never a persistent `__source`).** Both `generate_3d` and the form's "SOURCE FOR 3D" preview (`GET /source-preview/{id}/{v}`, default `prepared=false`) use `_ensure_cutout` — the SAME artefact the Export tab shows — so the preview, the actual 3D input, and the Export cutout always match. The `__source` sidecar is transient, scoped to an *open* improve dialog: only `source-preview?prepared=true` (the dialog's live view) prefers it, and opening the review dialog first issues `op:reset` to drop any stale/uncommitted `__source` (and clears legacy pre-versioning sidecars), so a session always starts from the clean cutout. Committed improvements reach 3D via their new version's cutout, not `__source`.
 
-### 5.10.3 Engine-Ready 3D Exports (GLB · FBX · USD)
+### 5.10.3 Engine-Tailored 3D Exports (GLB · FBX · USD)
 
 Every 3D variant can be exported prepared for a target engine, converted **server-side via a managed headless Blender subprocess** (`backend/services/mesh_export.py` + `backend/services/blender/convert.py` — never `import bpy`; subprocess = GPL "mere aggregation").
 
@@ -2183,6 +2192,8 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
    - Click a variation — verify the main preview updates and the download bar shows the smart filename.
 6. **Test post-processing**: After generation, verify the label switches to "Post-Processing". Toggle a processing option and click "Apply to Current Results" — verify assets are updated without re-generating.
 7. **Download files**: Click PNG/SVG download buttons — verify the file is named with the prompt slug (e.g. `hospital-building_opt2_var1.png`).
+8. **Image-to-3D (if a TripoSG or TRELLIS.2 endpoint is deployed)**: Open a **Character** or **Game Asset** image in the Asset Viewer → **3D Model** tab → Generate. Verify the async job appears in Pending Jobs, completes, and the **textured GLB** loads in the interactive viewer. Confirm the licence panel shows the deployed pipeline's terms (and, for the full TRELLIS.2 pipeline, the nvdiffrast non-commercial caveat).
+9. **Engine export**: From the 3D tab, pick a target engine and **Export** — confirm the **FBX/USDZ** downloads with the selected LODs/collision, and that the original GLB is untouched (Y-up preserved).
 8. **Test voice input**: Record audio — verify transcription appears in the prompt editor.
 9. **Test two-area prompt editor**: Type a prompt, click "Preview Enhanced Prompt" — verify the composed prompt appears in the green-tinted area below. Verify the note under the button reflects whether a style is selected. Edit the original prompt — verify the composed area clears. Click Generate without composing — verify the backend auto-refines and populates the composed area via SSE.
 10. **Test prompt enhancement**: Type a brief prompt, click "Preview Enhanced Prompt" — verify the enhanced prompt respects user intent over style defaults.
