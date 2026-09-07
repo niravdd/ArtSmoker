@@ -607,10 +607,39 @@ async def update_video_settings_endpoint(body: VideoSettingsUpdate):
 import re as _re
 
 
+# Amazon Bedrock cross-region inference-profile geo prefixes. A profile id is
+# geo-scoped: ``us.`` routes only within US Regions, ``eu.``/``apac.``/``in.``
+# within those geographies, and ``global.`` from ANY commercial Region where the
+# model is offered. Stripping the prefix yields the bare model id for
+# cross-endpoint/family matching; picking the RIGHT prefix (per invoke Region) is
+# what keeps an inference-profile model actually invocable.
+_GEO_PREFIXES = ("global.", "us.", "eu.", "apac.", "in.")
+
+
+def _strip_geo_prefix(mid: str) -> str:
+    """Return the bare model id with any cross-region geo prefix removed."""
+    mid = mid or ""
+    for pre in _GEO_PREFIXES:
+        if mid.startswith(pre):
+            return mid[len(pre):]
+    return mid
+
+
+def _profile_prefix_for_region(region: str) -> str:
+    """The inference-profile geo prefix to use when invoking from ``region``.
+
+    ``us.`` in US Regions (what Claude et al. already rely on); the region-agnostic
+    ``global.`` everywhere else — a ``us.*`` id paired with a non-US Region fails
+    with "invalid model identifier" (this is what pinned the OpenAI gpt-5.x entries
+    discovered in APAC). ``global.`` routes from any commercial Region.
+    """
+    return "us." if (region or "").startswith("us-") else "global."
+
+
 def _normalize_model_id(model_id: str) -> str:
     """Bare, comparable form of a model id for cross-endpoint matching.
 
-    Strips the ``us.`` inference-profile prefix and any trailing throughput /
+    Strips the cross-region inference-profile prefix and any trailing throughput /
     context / version qualifiers (``:0``, ``:200k``, ``-v1:0``) so the SAME
     model discovered via different endpoints/listings collapses to one identity.
     Examples:
@@ -618,9 +647,7 @@ def _normalize_model_id(model_id: str) -> str:
       ``openai.gpt-oss-120b-1:0``                   -> ``openai.gpt-oss-120b``
       ``anthropic.claude-3-sonnet-20240229-v1:0:200k`` -> ``anthropic.claude-3-sonnet-20240229``
     """
-    mid = (model_id or "")
-    if mid.startswith("us."):
-        mid = mid[3:]
+    mid = _strip_geo_prefix(model_id)
     mid = mid.split(":")[0]                       # drop :throughput / :context
     mid = _re.sub(r"-v\d+$", "", mid)             # drop trailing -vN
     # Drop a trailing throughput-variant "-N" ONLY when it directly follows a
@@ -640,10 +667,7 @@ def _chat_model_key(model_id: str) -> str:
     qualifier, then sanitizes to ``[a-z0-9_]``. ``zai.glm-4.7`` -> ``glm_4_7``;
     ``us.anthropic.claude-opus-4-8`` -> ``claude_opus_4_8``.
     """
-    mid = (model_id or "")
-    if mid.startswith("us."):
-        mid = mid[3:]
-    body = mid.split(":")[0]
+    body = _strip_geo_prefix(model_id).split(":")[0]
     if "." in body:
         body = body.split(".", 1)[1]              # strip provider prefix only
     return body.replace(".", "_").replace("-", "_").replace("/", "_")
@@ -750,14 +774,16 @@ async def auto_register_image_models(region: str):
     for key, cfg in registry.get("image_models", {}).items():
         stored_id = cfg.get("model_id", "")
         existing_by_model_id.setdefault(stored_id, []).append(key)
-        if stored_id.startswith("us."):
-            existing_by_model_id.setdefault(stored_id[3:], []).append(key)
+        bare = _strip_geo_prefix(stored_id)
+        if bare != stored_id:
+            existing_by_model_id.setdefault(bare, []).append(key)
     existing_video_by_model_id: dict[str, list[str]] = {}
     for key, cfg in registry.get("video_models", {}).items():
         stored_id = cfg.get("model_id", "")
         existing_video_by_model_id.setdefault(stored_id, []).append(key)
-        if stored_id.startswith("us."):
-            existing_video_by_model_id.setdefault(stored_id[3:], []).append(key)
+        bare = _strip_geo_prefix(stored_id)
+        if bare != stored_id:
+            existing_video_by_model_id.setdefault(bare, []).append(key)
 
     # Classify image models by purpose and format family based on model_id keywords.
     # Per-model prompt guidance = MODEL-SPECIFIC steering ("how to prompt THIS
@@ -857,8 +883,8 @@ async def auto_register_image_models(region: str):
         inference_types = m.get("inferenceTypesSupported", [])
 
         effective_id = model_id
-        if "INFERENCE_PROFILE" in inference_types and not model_id.startswith("us."):
-            effective_id = f"us.{model_id}"
+        if "INFERENCE_PROFILE" in inference_types and not model_id.startswith(_GEO_PREFIXES):
+            effective_id = _profile_prefix_for_region(region) + model_id
 
         chat_models = registry.setdefault("chat_models", {})
 
@@ -870,7 +896,7 @@ async def auto_register_image_models(region: str):
         # Check if a model from this family is already registered
         existing_key = None
         for k, cfg in chat_models.items():
-            if _model_family_key(cfg.get("model_id", "").replace("us.", "")) == family_key:
+            if _model_family_key(_strip_geo_prefix(cfg.get("model_id", ""))) == family_key:
                 existing_key = k
                 break
 
@@ -1146,8 +1172,8 @@ async def auto_register_image_models(region: str):
         # This is determined by the inferenceTypesSupported field from Bedrock discovery
         inference_types = m.get("inferenceTypesSupported", [])
         effective_model_id = model_id
-        if "INFERENCE_PROFILE" in inference_types and not model_id.startswith("us."):
-            effective_model_id = f"us.{model_id}"
+        if "INFERENCE_PROFILE" in inference_types and not model_id.startswith(_GEO_PREFIXES):
+            effective_model_id = _profile_prefix_for_region(region) + model_id
 
         config = {
             "label": m.get("modelName", model_id),
@@ -1926,10 +1952,7 @@ def _backfill_chat_lifecycle(registry: dict) -> int:
     lc_map = {m.get("modelId", ""): _lifecycle_fields(m) for m in summaries if m.get("modelId")}
 
     def _canonical(mid: str) -> str:
-        for pre in ("us.", "eu.", "apac.", "global."):
-            if mid.startswith(pre):
-                return mid[len(pre):]
-        return mid
+        return _strip_geo_prefix(mid)
 
     updated = 0
     for cfg in cm.values():

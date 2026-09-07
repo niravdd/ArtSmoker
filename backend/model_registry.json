@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-09-07T00:56:53.170477+00:00",
+  "last_updated": "2026-09-07T02:45:09.761151+00:00",
   "api_compatibility": {
     "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'.",
     "api_priority": [
@@ -39,14 +39,20 @@
         ]
       },
       {
-        "_family": "OpenAI GPT-5.x (frontier) \u2014 served via the OpenAI-compatible Responses API on the Mantle endpoint. NOT invocable via Bedrock Converse: live-verified 2026-09-07 that Converse returns ValidationException for every gpt-5.6 id/region, while gpt-oss IS Converse-able. They are runtime-LISTED foundation models but Responses-only for invocation, so 'always: responses' \u2192 bedrock-mantle. (If AWS later enables Converse for GPT-5.x, add 'converse' here and re-Sync.)",
+        "_family": "OpenAI GPT-5.x (frontier) \u2014 Converse-able via a cross-region inference profile (live-verified 2026-09-07: 'global.openai.gpt-5.6-*' Converse works in us-west-2 AND ap-northeast-1). Runtime-listed \u2192 Converse; Responses on Mantle for mantle-only variants.",
         "match": {
           "id_substr": [
             "gpt-5",
             "gpt5"
           ]
         },
-        "always": [
+        "runtime": [
+          "converse",
+          "invoke",
+          "chat_completions",
+          "responses"
+        ],
+        "mantle": [
           "responses"
         ]
       },
@@ -7544,25 +7550,11 @@
     },
     "gpt_5_6_terra": {
       "label": "GPT-5.6 Terra",
-      "model_id": "us.openai.gpt-5.6-terra",
-      "region": "ap-northeast-1",
+      "model_id": "global.openai.gpt-5.6-terra",
+      "region": "us-east-1",
       "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
         "us-east-1",
         "us-east-2",
-        "us-west-1",
         "us-west-2"
       ],
       "provider": "OpenAI",
@@ -7581,10 +7573,13 @@
         "bedrock-runtime"
       ],
       "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
         "responses"
       ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "responses",
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
       "input_price_per_1k": 0.00132,
       "output_price_per_1k": 0.00792,
       "lifecycle_status": "ACTIVE",
@@ -7593,25 +7588,11 @@
     },
     "gpt_5_6_luna": {
       "label": "GPT-5.6 Luna",
-      "model_id": "us.openai.gpt-5.6-luna",
-      "region": "ap-northeast-1",
+      "model_id": "global.openai.gpt-5.6-luna",
+      "region": "us-east-1",
       "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
         "us-east-1",
         "us-east-2",
-        "us-west-1",
         "us-west-2"
       ],
       "provider": "OpenAI",
@@ -7630,10 +7611,13 @@
         "bedrock-runtime"
       ],
       "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
         "responses"
       ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "responses",
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
       "input_price_per_1k": 0.000132,
       "output_price_per_1k": 0.000792,
       "lifecycle_status": "ACTIVE",
@@ -7642,26 +7626,11 @@
     },
     "gpt_5_6_sol": {
       "label": "GPT-5.6 Sol",
-      "model_id": "us.openai.gpt-5.6-sol",
-      "region": "ap-northeast-1",
+      "model_id": "global.openai.gpt-5.6-sol",
+      "region": "us-east-1",
       "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
         "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
+        "us-east-2"
       ],
       "provider": "OpenAI",
       "model_source": "foundation",
@@ -7678,10 +7647,13 @@
         "bedrock-runtime"
       ],
       "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
         "responses"
       ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "responses",
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": ""
