@@ -90,10 +90,14 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
         try:
             from backend.services import mantle_client as mc
             client = mc._get_openai_client(region)
+            # Mantle uses BARE model ids (no us./eu./… geo prefix); the registry may
+            # store a geo-pinned id. Strip it for the API call; keep model_id (with
+            # prefix) for cost/registry lookup + display.
+            api_model = mc._bare_mantle_id(model_id)
             if invoke_api == "responses":
                 # include_usage → the terminal event carries token counts.
                 stream = client.responses.create(
-                    model=model_id, input=msgs,
+                    model=api_model, input=msgs,
                     max_output_tokens=req.max_tokens, store=False, stream=True)
                 for event in stream:
                     delta = getattr(event, "delta", None)
@@ -119,7 +123,7 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
                 if text:
                     yield sse({"type": "delta", "text": text})
             else:  # chat_completions
-                kwargs = {"model": model_id, "messages": msgs,
+                kwargs = {"model": api_model, "messages": msgs,
                           "max_completion_tokens": req.max_tokens, "stream": True,
                           "stream_options": {"include_usage": True}}
                 if req.temperature is not None:
@@ -202,13 +206,17 @@ async def chat_stream(req: ChatMessageRequest):
             # Already structured (e.g., with images)
             converse_messages.append({"role": role, "content": content})
 
+    # Registry-driven param gate: omit `temperature` for models that reject it
+    # (newer Claude/GPT tiers deprecate it). Same gate the generation path uses;
+    # self-healed below if a model rejects it for the first time.
+    from backend.services.bedrock_client import (
+        _build_inference_config, is_temperature_error, record_temperature_unsupported,
+        is_model_eol_error, record_model_eol,
+    )
     converse_kwargs = {
         "modelId": model_id,
         "messages": converse_messages,
-        "inferenceConfig": {
-            "maxTokens": req.max_tokens,
-            "temperature": req.temperature,
-        },
+        "inferenceConfig": _build_inference_config(model_id, req.max_tokens, req.temperature),
     }
     if req.top_p is not None:
         converse_kwargs["inferenceConfig"]["topP"] = req.top_p
@@ -232,7 +240,18 @@ async def chat_stream(req: ChatMessageRequest):
         full_text = ""
 
         try:
-            response = client.converse_stream(**converse_kwargs)
+            try:
+                response = client.converse_stream(**converse_kwargs)
+            except client.exceptions.ValidationException as exc:
+                # Self-heal: if the model rejects `temperature`, drop it, record the
+                # capability (so future calls skip it), and retry once.
+                if (is_temperature_error(str(exc))
+                        and converse_kwargs["inferenceConfig"].pop("temperature", None) is not None):
+                    record_temperature_unsupported(model_id)
+                    logger.info("Chat: %s rejects temperature — retried without it", model_id)
+                    response = client.converse_stream(**converse_kwargs)
+                else:
+                    raise
             stream = response.get("stream", [])
 
             for event in stream:
@@ -344,8 +363,17 @@ async def chat_stream(req: ChatMessageRequest):
         except client.exceptions.AccessDeniedException as exc:
             yield sse({"type": "error", "detail": f"Access denied for model {model_id}. Check IAM permissions or model access."})
         except Exception as exc:
-            logger.error("Chat stream error: %s", exc)
             err_msg = str(exc)
+            if is_model_eol_error(exc):
+                # Self-heal: AWS retired this model. Mark it EOL + disabled so it
+                # drops off the list, and tell the user plainly.
+                record_model_eol(model_id)
+                logger.info("Chat: %s is EOL at AWS — marked EOL + disabled", model_id)
+                yield sse({"type": "error", "detail":
+                           f"{model_id} has reached end-of-life at AWS and is no longer "
+                           "available. It's been removed — pick another model."})
+                return
+            logger.error("Chat stream error: %s", exc)
             if "content" in err_msg.lower() or "safety" in err_msg.lower() or "blocked" in err_msg.lower():
                 yield sse({
                     "type": "content_blocked",
@@ -366,6 +394,28 @@ async def chat_stream(req: ChatMessageRequest):
 
 
 # ── Chat models ───────────────────────────────────────────────────────────
+
+def _usable_regions(model_id: str, available: list, profile_map: dict) -> list:
+    """Regions a model can ACTUALLY be invoked from — for the Chat Studio region
+    picker, so it never offers a region the model's id can't route from (a
+    geo-pinned id like `us.<x>` only routes from its own geo; offering EU/APAC
+    there just hangs). Geo-prefixed ids → the regions that geo profile covers
+    (from the discovered inference_profiles map); `global.`/bare ids → all
+    discovered regions."""
+    avail = available or ([] )
+    prefix = model_id.split(".", 1)[0] if "." in model_id else ""
+    if prefix in ("us", "eu", "apac", "in"):
+        try:
+            from backend.routers.admin import _normalize_model_id, _strip_geo_prefix
+            base = _normalize_model_id(_strip_geo_prefix(model_id))
+            covered = (profile_map.get(base) or {}).get(prefix) or []
+            inter = sorted(set(covered) & set(avail))
+            if inter:
+                return inter
+        except Exception as exc:
+            logger.debug("usable_regions fallback for %s: %s", model_id, exc)
+    return avail
+
 
 @router.get("/models")
 async def list_chat_models():
@@ -428,6 +478,8 @@ async def list_chat_models():
             "provider": cfg.get("provider", ""),
             "region": cfg.get("region", ""),
             "available_regions": cfg.get("available_regions", []),
+            "usable_regions": _usable_regions(effective_id, cfg.get("available_regions", []),
+                                              registry.get("inference_profiles", {})),
             "has_vision": cfg.get("has_vision", False),
             "streaming_supported": cfg.get("streaming_supported", True),
             "max_context_tokens": cfg.get("max_context_tokens", 128000),

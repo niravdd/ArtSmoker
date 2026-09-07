@@ -246,7 +246,23 @@ def _build_client(region: str, token: str | None = None):
             "AWS_BEARER_TOKEN_BEDROCK is set. Claude models via the Converse "
             "endpoint are unaffected."
         )
-    return OpenAI(api_key=tok, base_url=_base_url(region))
+    # Bounded timeout so an unresponsive route can't hang a request forever
+    # (some models accept a request on the wrong route and never respond).
+    return OpenAI(api_key=tok, base_url=_base_url(region), timeout=90.0, max_retries=0)
+
+
+# Mantle uses BARE model ids — it doesn't understand Bedrock geo/inference-profile
+# prefixes (us./eu./apac./in./global.). A stray prefix (e.g. a residency-pinned
+# `us.xai.grok-4.6`) yields a 404 "model does not exist" on Mantle.
+_MANTLE_GEO_PREFIXES = ("us.", "eu.", "apac.", "in.", "global.")
+
+
+def _bare_mantle_id(model_id: str) -> str:
+    mid = model_id or ""
+    for p in _MANTLE_GEO_PREFIXES:
+        if mid.startswith(p):
+            return mid[len(p):]
+    return mid
 
 
 def _get_openai_client(region: str):
@@ -284,7 +300,7 @@ def invoke_chat_completions(
     """OpenAI Chat Completions on Mantle. ``messages`` are OpenAI-format
     ({role, content}). Returns the assistant text. If ``usage_out`` is provided,
     it's populated with input_tokens/output_tokens for cost tracking."""
-    kwargs: dict = {"model": model_id, "messages": messages, "max_completion_tokens": max_tokens}
+    kwargs: dict = {"model": _bare_mantle_id(model_id), "messages": messages, "max_completion_tokens": max_tokens}
     if temperature is not None:
         kwargs["temperature"] = temperature
     if extra:
@@ -316,7 +332,7 @@ def invoke_responses(
     populated with input_tokens/output_tokens for cost tracking.
     """
     kwargs: dict = {
-        "model": model_id,
+        "model": _bare_mantle_id(model_id),
         "input": input_messages,
         "max_output_tokens": max_output_tokens,
         "store": store,
@@ -355,7 +371,7 @@ def invoke_messages(
     import requests
 
     url = f"https://bedrock-mantle.{m_region}.api.aws/anthropic/v1/messages"
-    body: dict = {"model": model_id, "messages": messages, "max_tokens": max_tokens}
+    body: dict = {"model": _bare_mantle_id(model_id), "messages": messages, "max_tokens": max_tokens}
     if system:
         body["system"] = system
     if temperature is not None:

@@ -355,7 +355,7 @@
                 const ctx = m.max_context_tokens >= 1000000 ? `${Math.round(m.max_context_tokens / 1000000)}M` : `${Math.round(m.max_context_tokens / 1000)}K`;
                 const vision = m.has_vision ? ' [vision]' : '';
                 const source = m.model_source !== 'foundation' ? ` (${m.model_source})` : '';
-                const regions = (m.available_regions || []).length;
+                const regions = (m.usable_regions || m.available_regions || []).length;
                 const regionHint = regions > 1 ? ` [${regions} regions]` : '';
                 const price = m.pricing?.input_per_1k ? ` · $${m.pricing.input_per_1k}/1K in` : '';
                 const label = `${m.label} — ${ctx}${price}${vision}${source}${regionHint}`;
@@ -398,7 +398,9 @@
         const sel = _container.querySelector('#cs-region-picker');
         if (!sel) return;
 
-        const regions = model.available_regions || [model.region].filter(Boolean);
+        // usable_regions = regions the model's id can actually route from (a
+        // geo-pinned us.* id only works in US regions); fall back to the full list.
+        const regions = model.usable_regions || model.available_regions || [model.region].filter(Boolean);
         if (regions.length <= 1) {
             // nosemgrep
             sel.innerHTML = html`<option value="${regions[0] || ''}">${regions[0] || t('artsmoker.ui.common.default')}</option>`;

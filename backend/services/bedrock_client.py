@@ -460,6 +460,60 @@ def _build_inference_config(model_id: str, max_tokens: int, temperature: float) 
     return cfg
 
 
+def is_temperature_error(msg: str) -> bool:
+    """True if a Converse/Mantle error says the model rejects `temperature` (newer
+    models deprecate it). Lets callers self-heal: retry without it + record the fact."""
+    m = (msg or "").lower()
+    return "temperature" in m and any(t in m for t in (
+        "deprecat", "not support", "isn't support", "does not support",
+        "remove temperature", "unsupported"))
+
+
+def record_temperature_unsupported(model_id: str) -> None:
+    """Persist supports_temperature=false for a model (thread/process-safe), so the
+    param gate learns it and never re-sends temperature. Registry-driven, no
+    hardcoded model list — the capability is discovered the first time a model
+    rejects the param."""
+    try:
+        from backend.services.model_registry import registry_transaction
+        with registry_transaction() as reg:
+            for cfg in (reg.get("chat_models") or {}).values():
+                if cfg.get("model_id") == model_id or cfg.get("model_arn", "").endswith(model_id):
+                    if cfg.get("supports_temperature") is not False:
+                        cfg["supports_temperature"] = False
+                    break
+        logger.info("Param gate: recorded supports_temperature=false for %s (self-learned)", model_id)
+    except Exception:
+        logger.debug("Could not record temperature-unsupported for %s", model_id, exc_info=True)
+
+
+def is_model_eol_error(exc) -> bool:
+    """True if an invocation error says the model has reached end-of-life / been
+    retired (AWS: ResourceNotFoundException "This model version has reached the end
+    of its life"). Distinct from a transient not-found."""
+    low = str(exc).lower()
+    return ("end of its life" in low or "end-of-life" in low or "reached the end" in low
+            or "no longer available" in low or "has been retired" in low)
+
+
+def record_model_eol(model_id: str) -> None:
+    """Mark a model EOL in the registry (lifecycle_status=EOL + enabled=false),
+    thread/process-safe, so it's excluded going forward. Self-learned when AWS
+    reports the model retired at invoke time (the listing can lag)."""
+    try:
+        from backend.services.model_registry import registry_transaction
+        with registry_transaction() as reg:
+            for section in ("chat_models", "image_models", "video_models"):
+                for cfg in (reg.get(section) or {}).values():
+                    if cfg.get("model_id") == model_id or cfg.get("model_arn", "").endswith(model_id):
+                        cfg["lifecycle_status"] = "EOL"
+                        cfg["enabled"] = False
+                        logger.info("Lifecycle: recorded EOL + disabled %s (self-learned)", model_id)
+                        return
+    except Exception:
+        logger.debug("Could not record EOL for %s", model_id, exc_info=True)
+
+
 def _img_mime(img_bytes: bytes) -> str:
     """Sniff an image's MIME type from its magic bytes (for Mantle payloads)."""
     if img_bytes[:3] == b"\xff\xd8\xff":
