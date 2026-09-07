@@ -172,7 +172,7 @@ Tras una ronda de outpainting (v3 abajo), la misma pestaña regenera los tres ar
 
 ![Asset Viewer — Metadata con linaje completo del prompt e historial de versiones](docs/images/asset-viewer-metadata.png)
 
-*Las capturas del pipeline 3D — generación, revisión de la fuente, exportación adaptada al motor y variantes — se muestran más abajo, en la sección 1.9 (Generación de modelo 3D), junto a las funciones que ilustran.*
+*Las capturas del pipeline 3D — generación, revisión de la fuente, exportación adaptada al motor de juego y variantes — se muestran más abajo, en la sección 1.9 (Generación de modelo 3D), junto a las funciones que ilustran.*
 
 **Video Studio** — Configuración a la izquierda (modelo, modo de generación, duración, región, estimación de costos), prompt a la derecha. Compatible con Nova Reel (toma única, multi-toma automática/manual hasta 2 minutos) y Luma AI Ray (relaciones de aspecto, bucle).
 
@@ -302,7 +302,7 @@ Esto importa en cada etapa:
 
 Genere mallas 3D completamente texturizadas a partir de cualquier imagen 2D — directamente en el Asset Viewer. Seleccione una imagen de **Game Asset** o **Character**, abra la pestaña **3D Model** y haga clic en Generate. El resultado es un GLB adaptado al motor de juego que puede orbitar, ampliar y descargar — sin modelado manual, desenvolvimiento UV ni pintado de texturas.
 
-**El resultado final, primero:** un personaje generado por ArtSmoker, exportado como FBX adaptado al motor y abierto en un Blender estándar — la cadena de LOD (LOD0–LOD3) intacta en el Outliner, texturas vinculadas, sin re-rigging ni arreglos manuales. Todo lo que sigue muestra cómo llegar hasta aquí desde un prompt de texto.
+**El resultado final, primero:** un personaje generado por ArtSmoker, exportado como FBX adaptado al motor de juego y abierto en un Blender estándar — la cadena de LOD (LOD0–LOD3) intacta en el Outliner, texturas vinculadas, sin re-rigging ni arreglos manuales. Todo lo que sigue muestra cómo llegar hasta aquí desde un prompt de texto.
 
 ![FBX de ArtSmoker abierto en Blender — jerarquía del grupo LOD intacta con texturas vinculadas](docs/images/fbx-in-blender.png)
 
@@ -352,7 +352,7 @@ La eliminación de fondo (el paso de recorte) usa **BiRefNet (MIT)** de forma pr
 
 **Salida:** GLB estándar con texturas PBR integradas — se importa directamente en Unity, Unreal Engine, Blender y otros motores de juego. El visor 3D interactivo admite órbita, zoom y panorámica para una inspección inmediata, y la pestaña **3D Model** lista los modelos y herramientas exactos usados (modelo de geometría, backend de texturizado, dependencias, instancia, parámetros) para una trazabilidad completa.
 
-**Infraestructura:** ambos pipelines se despliegan mediante el mismo flujo de Custom Models en 1 clic, con el selector en tiempo de despliegue mostrando la licencia, la tabla de dependencias, la instancia base y el costo/tiempo est. de cada opción. La instancia base correctamente dimensionada del pipeline completo de TRELLIS.2 es **`ml.g6e.xlarge`** (~$2.61/h; pico medido de ~6.5 GB de VRAM + ~22 GB de RAM del host — la RAM del host es la restricción limitante, no la GPU). Los tamaños `g6e` mayores se ofrecen como mejoras opcionales para mayor margen de RAM. Los endpoints escalan a cero en reposo — $0 de costo entre trabajos. El primer arranque en frío compila las extensiones de CUDA una vez (luego se almacenan en caché en S3 para reinicios rápidos). Antes de desplegar un modelo restringido, el diálogo **verifica previamente el acceso a HuggingFace para cada repositorio que descarga** y muestra un ✓/✗ por repositorio con el siguiente paso exacto — así nunca descubre una aceptación de licencia faltante minutos después de un arranque en frío.
+**Infraestructura:** ambos pipelines se despliegan mediante el mismo flujo de Custom Models en 1 clic, con el selector en tiempo de despliegue mostrando la licencia, la tabla de dependencias, la instancia base y el costo/tiempo est. de cada opción. La instancia base correctamente dimensionada del pipeline completo de TRELLIS.2 es **`ml.g5.2xlarge`** (~$1.52/h; una ejecución en vivo midió un pico de ~4.78 GB de VRAM en los 24 GB de la A10G y se completó sin problemas — elegida frente a la `g6e.xlarge` con L40S, enormemente sobredimensionada para esta carga de trabajo y a un costo mayor). Los tamaños `g6e` mayores siguen disponibles como mejoras opcionales para mayor margen. Los endpoints escalan a cero en reposo — $0 de costo entre trabajos. El primer arranque en frío compila las extensiones de CUDA una vez (luego se almacenan en caché en S3 para reinicios rápidos). Antes de desplegar un modelo restringido, el diálogo **verifica previamente el acceso a HuggingFace para cada repositorio que descarga** y muestra un ✓/✗ por repositorio con el siguiente paso exacto — así nunca descubre una aceptación de licencia faltante minutos después de un arranque en frío.
 
 > **Visualización del GLB:** las texturas se codifican como WebP (`EXT_texture_webp`) para mantener los archivos compactos — se renderiza perfectamente en el visor integrado, Blender 4.x, three.js y los importadores modernos de Unity/Unreal. macOS Preview/QuickLook no admite WebP-en-glTF y mostrará el modelo en negro; use el visor integrado o cualquier herramienta glTF moderna.
 
@@ -365,7 +365,7 @@ La eliminación de fondo (el paso de recorte) usa **BiRefNet (MIT)** de forma pr
 
 ### 📝 1.9.1 Exportaciones listas para el motor (GLB · FBX · USD)
 
-![Visor 3D con herramientas por variante y opciones de exportación FBX/USD adaptadas al motor](docs/images/3d-model-viewer-export.png)
+![Visor 3D con herramientas por variante y opciones de exportación FBX/USD adaptadas al motor de juego](docs/images/3d-model-viewer-export.png)
 
 Todo modelo 3D generado puede exportarse **preparado para su motor de juego**, directamente desde la pestaña 3D del Asset Viewer:
 
