@@ -2417,6 +2417,40 @@ def _probe_and_record_temperature(model_id: str, region: str, registry: dict):
         logger.debug("Temperature probe skipped for %s: %s", model_id, exc)
 
 
+def _backfill_temperature_support(registry: dict, progress=None) -> int:
+    """Populate `supports_temperature` on EVERY enabled, Converse-reachable chat
+    model that doesn't have it yet — so the param gate is controlled by the REGISTRY
+    (recorded on Sync), not a code heuristic that drifts as models update or new
+    ones ship. Incremental: skips entries already recorded, so it's a one-time cost
+    per model (≈0 on steady-state syncs). Mantle-routed models can't be Converse-
+    probed and are skipped; the runtime self-heal (record_temperature_unsupported)
+    still covers anything new between syncs. The value promotes to the git-tracked
+    base registry (a model-intrinsic capability, identical for every account)."""
+    probed = 0
+    for cfg in registry.get("chat_models", {}).values():
+        if cfg.get("enabled") is False:
+            continue
+        if cfg.get("supports_temperature") is not None:
+            continue  # already known — don't re-probe
+        if (cfg.get("lifecycle_status") or "ACTIVE").upper() == "EOL":
+            continue
+        # Only the bedrock-runtime Converse path can be probed this way.
+        if (cfg.get("invoke_endpoint") or "bedrock-runtime") != "bedrock-runtime":
+            continue
+        mid, region = cfg.get("model_id"), cfg.get("region")
+        if not mid or not region:
+            continue
+        _probe_and_record_temperature(mid, region, registry)
+        if cfg.get("supports_temperature") is not None:
+            probed += 1
+    if probed:
+        msg = f"Param gate: recorded temperature-support for {probed} chat model(s)"
+        logger.info(msg)
+        if progress:
+            progress(msg)
+    return probed
+
+
 @router.get("/3d/export-targets")
 async def export_targets():
     """Engine targets + per-engine prep-op option lists for the 3D export
@@ -2665,6 +2699,15 @@ def _run_refresh_all_regions():
             _backfill_chat_lifecycle(registry)
         except Exception as exc:
             logger.warning("Chat lifecycle backfill skipped: %s", exc)
+
+        # Step 4c-ter: Record temperature-support on every enabled Converse chat
+        # model (registry-controlled param gate — no code heuristic to drift as
+        # models update/ship). Incremental: only probes entries not already known.
+        _progress("Recording model parameter support (temperature)...")
+        try:
+            _backfill_temperature_support(registry, _progress)
+        except Exception as exc:
+            logger.warning("Temperature-support backfill skipped: %s", exc)
 
         # Step 4d: Prune — disable models not found in any region this scan.
         disabled = []

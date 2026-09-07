@@ -128,6 +128,10 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
                           "stream_options": {"include_usage": True}}
                 if req.temperature is not None:
                     kwargs["temperature"] = req.temperature
+                # Same registry-driven temperature gate as the Converse path.
+                from backend.services.bedrock_client import _model_supports_temperature
+                if req.temperature is not None and not _model_supports_temperature(model_id):
+                    kwargs.pop("temperature", None)
                 stream = client.chat.completions.create(**kwargs)
                 for chunk in stream:
                     if chunk.choices and chunk.choices[0].delta.content:

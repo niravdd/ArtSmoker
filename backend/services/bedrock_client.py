@@ -424,13 +424,16 @@ def _get_fallback_llm() -> tuple[str, str]:
 def _model_supports_temperature(model_id: str) -> bool:
     """Whether a model accepts the Converse `temperature` inferenceConfig param.
 
-    REGISTRY-DRIVEN (not a hardcoded model list): looks the model up in
-    chat_models by model_id/model_arn and reads its declared capability —
-    `supports_temperature: false` or `temperature` in `deprecated_params[]` →
-    omit it. The AWS sync captures these per-model so new models that deprecate
-    params work with NO code change. Only when the registry is silent do we fall
-    back to a minimal built-in heuristic (newer Claude tiers deprecate it), so the
-    behaviour is safe today and self-correcting once sync populates the field.
+    REGISTRY-DRIVEN (no hardcoded model list): looks the model up in chat_models by
+    model_id/model_arn and reads its declared capability — `supports_temperature:
+    false` or `temperature` in `deprecated_params[]` → omit it. AWS Sync probes +
+    records this per-model (_backfill_temperature_support), so the registry is the
+    control surface and new/updated models are handled with NO code change.
+
+    When the registry is silent (a brand-new model not yet synced), we DEFAULT to
+    sending temperature; if the model rejects it, the caller self-heals — records
+    `supports_temperature: false` and retries — so at most one request is affected
+    and the fact is persisted. No code heuristic to drift over time.
     """
     try:
         from backend.services.model_registry import get_registry
@@ -443,12 +446,12 @@ def _model_supports_temperature(model_id: str) -> bool:
                     return False
                 if cfg.get("supports_temperature") is True:
                     return True
-                break  # found the model but it declares nothing → use heuristic
+                break  # entry exists but hasn't been probed yet → default below
     except Exception:
         pass
-    # Heuristic fallback (registry silent): Claude Opus 4.8+ deprecate temperature.
-    _no_temperature = ("claude-opus-4-8",)
-    return not any(tok in (model_id or "") for tok in _no_temperature)
+    # Registry silent → assume supported; the self-heal path corrects + records
+    # a rejection on first use (one request), so there's no hardcoded list to rot.
+    return True
 
 
 def _build_inference_config(model_id: str, max_tokens: int, temperature: float) -> dict:
