@@ -739,14 +739,22 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
     untouched, keeping blast radius contained.
     """
     from backend.services.mantle_client import derive_model_apis, resolve_invoke_path
+    from backend.config import settings
     pmap = registry.get("inference_profiles", {}) or {}
     if not pmap:
         return 0  # nothing discovered → keep existing pins (safe no-op)
     pref = _preferred_residency_geo()
     healed = 0
 
-    def _best_pin(base: str, avail: list[str]):
-        """(region, prefix) with the best residency for `pref` among `avail`."""
+    def _best_pin(base: str, avail: list[str], home: str):
+        """(region, prefix) with the best residency for `pref` among `avail`.
+
+        Tie-break order: residency rank → Region in the preferred geo → the
+        configured home Region (config.py) → name order. So among equally-good US
+        Regions we land on the deployment's home (e.g. us-west-2), consistent with
+        the LLM categories and where the app actually operates — not an alphabetical
+        accident.
+        """
         best = None  # (sort_key, region, prefix)
         for r in avail:
             sel = _select_profile_prefix(base, r, pmap)  # None | '' | 'us.' | geo | 'global.'
@@ -757,13 +765,12 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
                 rank, prefix = 3, "global."
             else:
                 rank, prefix = (0 if sel.rstrip(".") == pref else 1), sel
-            # Tie-break: prefer a Region in the preferred geo, then name order.
-            key = (rank, 0 if _region_geo(r) == pref else 1, r)
+            key = (rank, 0 if _region_geo(r) == pref else 1, 0 if r == home else 1, r)
             if best is None or key < best[0]:
                 best = (key, r, prefix)
         return (best[1], best[2]) if best else (None, "")
 
-    def _heal(section: str, profile_only: bool):
+    def _heal(section: str, profile_only: bool, home: str):
         nonlocal healed
         for key, cfg in (registry.get(section, {}) or {}).items():
             # Mantle-ONLY models carry no runtime Region, so the region scan leaves
@@ -781,7 +788,7 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
             # aggressively-normalized form used ONLY to index the profile map.
             id_base = _strip_geo_prefix(cur_id)
             lookup_key = _normalize_model_id(id_base)
-            region, prefix = _best_pin(id_base, avail)
+            region, prefix = _best_pin(id_base, avail, home)
             if not region:
                 continue
             new_id = prefix + id_base
@@ -806,8 +813,10 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
                 cfg["invoke_endpoint"], cfg["invoke_api"] = resolve_invoke_path(apis)
             healed += 1
 
-    _heal("chat_models", profile_only=False)
-    _heal("image_models", profile_only=True)
+    # Home Region from config.py, per section (LLMs vs images). Used only as a
+    # within-geo tie-break — the residency rank + preferred geo always dominate.
+    _heal("chat_models", profile_only=False, home=settings.aws_region_models)
+    _heal("image_models", profile_only=True, home=settings.aws_region_images)
     if healed and progress:
         progress(f"Residency: realigned {healed} model pin(s) to '{pref}' preference")
     return healed
