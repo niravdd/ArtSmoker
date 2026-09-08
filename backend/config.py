@@ -3,7 +3,7 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-APP_VERSION = "1.9-20260907_05"
+APP_VERSION = "1.9-20260908_01"
 
 class Settings(BaseSettings):
     # ── AWS ───────────────────────────────────────────────────────────────
@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     styles_dir: Path = data_dir / "styles"
     generated_dir: Path = data_dir / "generated"
     video_dir: Path = data_dir / "video"
+    collections_dir: Path = data_dir / "collections"  # Collections feature (SPEC §18)
 
     # ── Telemetry ──────────────────────────────────────────────────────────
     telemetry_enabled: bool = True

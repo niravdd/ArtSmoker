@@ -2826,31 +2826,47 @@ The **model-agnostic per-item prompt is the canonical creative artifact** — au
 
 ### 18.6 Terminology & IDs (extends the locked Batch/Job model)
 
-A new tier slots above Job:
+A new tier slots above Batch:
 
 ```
-Collection  →  Item (roster entry)  →  Option × Variation × Model  (= today's Jobs)
+Collection  →  Item (= one Batch)  →  Option × Variation × Model  (= today's Jobs)
 ```
 
-- **Collection** = one Generate press with the toggle on (`collection_id`).
-- **Item** = one roster entry — deliberately generic (character, card, prop, environment, map, …); each Item groups its Jobs.
-- Job asset id extends to **`{collection_id}_i{k}_o{n}_v{m}`** — the `_i{k}` item index is the only addition; single-asset ids are unchanged.
-- This **adds a tier to the otherwise-frozen Batch/Job vocabulary** — when Collections ship, the terminology table in `CLAUDE.md` gains the Collection/Item tier (Collection = a batch of Items; Item groups its Jobs). Until then this section is the forward design of record.
+- **Collection** = one Generate press with the toggle on (`collection_id`); the Collection record groups the Item Batches.
+- **Item** = one roster entry — deliberately generic (character, card, prop, environment, map, …) — that generates **exactly one Batch** (its Option × Variation × Model Jobs).
+- **ID strategy (decided 2026-09-08 by full producer/parser audit): each Item is its own ordinary `batch_id`; the Collection groups N item `batch_id`s. No id-format change — single-asset AND collection asset ids are the unchanged `{batch_id}_o{n}_v{m}`.** The audit confirmed the asset id is *never positionally parsed* anywhere (every consumer reads `batch_id`/`option_index`/`variant_index` from stored metadata, and the only id-string uses are construction + `startswith(batch_id + "_")` prefix filters backed by an authoritative `meta["batch_id"]` check). The rejected alternative — a `{collection_id}_i{k}_o{n}_v{m}` item-axis id — was cosmetically cleaner but would have made an entire collection one giant Batch, turning per-item regeneration into partial-batch regen that no endpoint supports; Item ≡ Batch instead lets per-item regeneration, seed-family, `get_batch` reconstruction, and the AssetViewer drill-down all reuse the existing whole-Batch machinery untouched. Collection membership lives in **metadata fields** on each asset (`collection_id`, `item_slot`, `item_name`, `model_agnostic_prompt`) — added exactly as `batch_id` already is — so the Gallery can collapse a collection into one card and the viewer can reconstruct the board.
+- This **adds a tier to the otherwise-frozen Batch/Job vocabulary** — when Collections ship, the terminology table in `CLAUDE.md` gains the Collection/Item tier (**Collection = a group of Batches; each Item = one Batch; a Batch is a collection of Jobs**). Until then this section is the forward design of record.
 
 ### 18.7 Data model & metadata
 
-The Collection is stored **separately** from single-asset jobs, at `data/collections/{collection_id}/metadata.json` (the master record), with full, reproducible provenance at three levels:
+The Collection is stored **separately** from single-asset jobs, in its own top-level `data/collections/{collection_id}/` directory (no images live here — a Job's pixels stay in its existing `data/generated/{batch_id}_o{n}_v{m}/` folder). Provenance is reproducible at every tier of the Collection → Batch → Job hierarchy, and the data is split into a **source-of-truth master record** and a **derived Gallery index** so the Gallery never has to parse every Job to draw a card.
 
-- **Collection record** (`data/collections/{collection_id}/metadata.json`): `collection_id, name, raw_ask, created/updated, overarching_art_direction (current + edit trail), roster: [ {item_slot, item_name, concept, model_agnostic_prompt, locked?, per_model_prompts{}} ], knobs {N,O,V,models,cohesion_mode,hero_item?}, llm_cost_ledger (§18.9), cost_estimate/actual, status`.
-- **Per-image metadata** (each generated asset's `metadata.json`, extended with the full lineage): `collection_id, item_slot, item_name, model_agnostic_prompt, enhanced_prompt (per-model), option, variation, seed, model, cost` — so **any single image can reconstruct its entire chain**: Collection → art-direction → Item → model-agnostic prompt → per-model prompt → option/variation/seed.
-- All writes use the atomic-write + lock discipline of §17 (the collection record via its own `asset_write_lock`-style guard).
+**(a) Collection master record — `data/collections/{collection_id}/metadata.json` (SOURCE OF TRUTH for authored design + user choices):**
+- `collection_id, name, raw_ask, created_at, updated_at, status`
+- `overarching_art_direction` (current + append-only edit trail)
+- `roster: [ { batch_id, name, slug, concept, model_agnostic_prompt, locked?, per_model_prompts{}, selected_version } ]` — one entry **per Batch** (one roster subject; e.g. "White King"). `batch_id` is the ordinary batch id minted when that subject generates; `selected_version` is the user's chosen version for the set (default = latest / `current_version`).
+- `knobs {N,O,V,models,cohesion_mode,hero_item?}`, `llm_cost_ledger` (§18.9), `cost_estimate/actual`
+- Because each roster entry is a normal Batch, membership is the list of `batch_id`s — no id-format change (§18.6).
 
-Collection **versioning** (iterating the whole set over time) is deferred and designed separately.
+**(b) Collection index — `data/collections/{collection_id}/summary.json` (DERIVED, rebuildable, for GALLERY SPEED):**
+A small, denormalized projection the Gallery lists cheaply **without opening any Job or the heavy master record**: `collection_id, name, status, updated_at, piece_count, models, cost_estimate/actual, cover {asset_id, version, thumb_path}, pieces: [ { batch_id, name, slug, selected_version, thumb_asset_id, thumb_path, status, job_count, has_3d } ]`. This file holds **only derived runtime state** (thumbs, per-Batch status, has-3D, job counts, cover) — never authored design data (that's in the master record).
+
+**(c) Per-Job metadata — each generated asset's `metadata.json`, extended with the full lineage:** `collection_id, batch_id, batch_name, batch_slug, model_agnostic_prompt, enhanced_prompt (per-model), option_index, variation_index, seed, model, cost` — added exactly as `batch_id` already is, so **any single image can reconstruct its entire chain** (Collection → art-direction → Batch/subject → model-agnostic prompt → per-model prompt → option/variation/seed) AND the whole index (b) is rebuildable by scanning member Job metas even if `summary.json` is lost.
+
+**Consistency — eager live-update (same model as per-asset metadata):**
+The `summary.json` index is a **cache**; the Job `metadata.json` files + the master record's authored fields remain authoritative. It is kept fresh by **eager live-update** — the same discipline the existing per-asset `metadata.json` already uses (RMW under its lock on every change; no rev/dirty machinery). This is efficient because member-Job changes are **serial and user-paced** (selecting a version, generating a 3D model, editing/deleting a piece) — not bursty:
+- Any time a member Job changes in a way the index reflects — a **new version created**, the **selected version changed**, a **3D model produced** (`has_3d`), a Job **completing/failing** (status), or a **delete** — the mutation site calls `refresh_collection_summary(collection_id, changed_batch_id?)`, which re-projects the affected Batch's fields + the cover (targeted patch, not a full rescan), bumps `updated_at`, and atomic-writes the index immediately. The Gallery then just reads the current file.
+- **Initial generation is the one concurrent burst**, and it is handled without per-Job churn: refresh **once per Batch (piece) completion** as each finishes, plus **one full `rebuild_collection_summary`** at whole-collection completion.
+- **Self-healing:** `rebuild_collection_summary(collection_id)` reprojects the index wholesale from the master record + all member Job metas; the Gallery falls back to it only when `summary.json` is **missing or unparseable** on read.
+- **§17 locking + write ordering:** every collection-file write is `atomic_write_text` under `collection_write_lock(collection_id)` (§17). Ordering rule to avoid deadlock/lost-update: the Job's own metadata write commits FIRST under its `asset_write_lock(asset_id)`, that lock is RELEASED, and only THEN does `refresh_collection_summary` take `collection_write_lock` and read the already-committed Job meta — the two locks are never nested. Concurrent member-Job changes serialize on the reentrant cross-process `collection_write_lock`, so no refresh loses an update.
+- **Scale note:** this stays within the JSON-file + §17 model (no new dependency). A SQLite/global index is only warranted at *thousands* of collections (indexed queries, cheap partial updates) — deliberately deferred to avoid mixing a second consistency model now.
+
+Collection **versioning** is per-Batch (reuses the existing per-asset versioning; the set tracks each Batch's `selected_version` pointer) — see §18.7(a) `selected_version` and the tasks doc Phase M. A monolithic whole-set snapshot/restore is explicitly NOT built (the set is always reconstructable = each Batch's selected version + the master record).
 
 ### 18.8 Gallery & Collection Asset Viewer
 
-- The Gallery is **collection-aware**: a Collection appears as **a single card** (a set thumbnail / contact-sheet preview), not N loose batches. Clicking it opens the **Collection Asset Viewer**.
-- The **Collection Asset Viewer** is the collection-level counterpart to the batch view + AssetViewer: a board of the Items (each showing its selected image + option thumbnails + status), drill-down into an item's options/variations/versions (the existing AssetViewer), and collection-level actions — edit art-direction (→ recompose), regenerate/add/swap an item, export the set, and (fast-follow) "3D the whole set".
+- The Gallery is **collection-aware**: a Collection appears as **a single card** (a set thumbnail / contact-sheet preview), not N loose Batches — the card is drawn from the lean `summary.json` index (§18.7(b)), so listing collections never parses their Jobs. Clicking it opens the **Collection Asset Viewer**.
+- The **Collection Asset Viewer** is the collection-level counterpart to the batch view + AssetViewer: a board of the collection's **Batches** (one per roster subject — the "pieces"; each showing its selected image + option thumbnails + status), drill-down into a Batch's options/variations/versions (the existing AssetViewer), and collection-level actions — edit art-direction (→ recompose), regenerate/add/swap a Batch, export the set, and (fast-follow) "3D the whole set".
 
 ### 18.9 LLM cost accounting (running design-cost ledger)
 
@@ -2866,7 +2882,7 @@ Every valuable step emits a PulseBoard `track_event` (see the `pulseboard-teleme
 
 ### 18.11 Reuse map
 
-- **New:** the Collection toggle, the Collection Designer, the roster fan-out + per-item model-agnostic prompt templates (`prompt_templates.json`), the `data/collections/**` store + Collection record, the Collection Asset Viewer, the `_i{k}` id tier, and the LLM cost ledger.
+- **New:** the Collection toggle, the Collection Designer, the roster fan-out + per-item model-agnostic prompt templates (`prompt_templates.json`), the `data/collections/**` store + Collection record, the Collection Asset Viewer, the collection-membership metadata fields (`collection_id`/`item_slot`/`item_name`/`model_agnostic_prompt`), and the LLM cost ledger.
 - **Reused:** Style Library (theme source), a "faithful" per-model enhancement, Batch/Job generation + seed-family + retry, reference-guided "inspired" (hero-anchor), Gallery grouping, atomic-write/locks (§17), `cost_tracker`, and the image-to-3D pipeline downstream (fast-follow set handoff).
 
 ## 19. Disclaimer
