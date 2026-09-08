@@ -22,6 +22,7 @@ gpu_optimiser.md
 data/generated/
 data/chat/
 data/video/
+data/collections/
 
 # Cross-process write-lock files (runtime only)
 data/.locks/
