@@ -394,6 +394,93 @@ Return a JSON array of {num_options} strings. Each string is a complete image ca
 NEGATIVE guidance: ALWAYS include the universal quality terms (apply to every subject — they fight render defects, not content): low quality, low resolution, blurry, jpeg artifacts, compression artifacts, color banding, noise, grainy, oversmoothed, plastic, waxy, oversaturated, washed out, AI-look, deep fried, watermark, signature, text. ATTRIBUTE-LOCK: for each defining attribute the user EXPLICITLY stated (gender, age, species, color, count, material, …), add its CONTRADICTING values so no option drifts to the common default — e.g. stated female → "man, male, masculine features, beard"; stated child → "adult"; stated red → competing colors. Add opposites ONLY for attributes actually stated; never invent one. When the ASSET TYPE wants ONE complete subject in a single view (character, game asset), ALSO add single-subject/framing terms — multiple views, turnaround, reference sheet, duplicate, cloned subject, repeated figure, collage, grid, floating disconnected objects, cropped, out of frame — BUT use judgement: skip any that contradict the brief (keep "floating" out for a hovering subject; skip duplication terms for a group/swarm). Add anatomy negatives (bad anatomy, deformed, malformed) ONLY for realistic standard-bodied living subjects (real human/animal) the user did not deliberately stylize — NEVER for creatures, robots, mechs, vehicles, crystals, sci-fi/abstract, or intentionally non-standard bodies.""",
     },
 
+    "collection_art_direction": {
+        "label": "Collection — Shared Art Direction",
+        "description": "Distills a set brief into ONE shared art direction every piece in the collection follows.",
+        "used_by": "Collections — decompose (SPEC §18.4)",
+        "variables": ["{ask}", "{style_section}"],
+        "model": "fast LLM",
+        "system_prompt": "You are a senior art director. You return STRICT JSON only — a single object, no prose, no markdown.",
+        "text": """You are the art director for a COHESIVE SET of assets generated from one brief. Define the SHARED art direction every piece in the set will follow.
+
+=== THE BRIEF ===
+"{ask}"
+
+=== STYLE REFERENCE (if provided, ground the art direction in it) ===
+{style_section}
+
+Produce ONE shared art direction as a JSON object with these string fields:
+- "world": the setting / universe / genre
+- "era": time period or technological level
+- "medium": rendering medium (e.g. hand-painted, stylized 3D render, pixel art, watercolor)
+- "palette": the color palette (named colors + mood)
+- "mood": emotional tone
+- "materials": recurring materials / textures shared across the set
+- "render": rendering directives (lighting, detail level, finish)
+- "negative": things to avoid across the whole set
+
+Keep every field vivid but concise. The art direction must be broad enough to cover a whole set of DISTINCT subjects, yet specific enough that all pieces clearly belong together.
+
+Return ONLY the JSON object.""",
+    },
+
+    "collection_roster": {
+        "label": "Collection — Roster Fan-out",
+        "description": "Invents the roster of distinct, in-theme pieces for a collection (recognizes canonical structures or invents).",
+        "used_by": "Collections — decompose / regenerate roster (SPEC §18.4)",
+        "variables": ["{ask}", "{art_direction}", "{count_directive}", "{count_rule}"],
+        "model": "complex LLM (Opus)",
+        "system_prompt": "You are a world-class creative director assembling a themed set. You return STRICT JSON only — an array of piece objects, no prose, no markdown. Be imaginative, never mechanical.",
+        "text": """You are curating a COHESIVE SET of {count_directive} for one brief, all sharing a single art direction. Invent the ROSTER — the list of distinct pieces in the set.
+
+=== THE BRIEF ===
+"{ask}"
+
+=== SHARED ART DIRECTION (every piece follows this) ===
+{art_direction}
+
+RULES:
+1. If the brief implies a CANONICAL structure (a chess set, a deck of cards, a tarot deck, a zodiac, a squad), reproduce that structure faithfully — the right pieces, the right count — but REIMAGINE each piece creatively within the art direction (a Viking chess king = a jarl; a "Death" tarot = themed to this world). Never mechanize or literalize; keep it imaginative.
+2. Otherwise, INVENT a set of genuinely DISTINCT, non-repeating pieces that fit the brief and art direction.
+3. Every piece must be UNIQUE — different subject, silhouette, role. No near-duplicates.
+4. {count_rule}
+
+Return a JSON array where each element is an object with:
+- "name": a short human title for the piece (e.g. "White King", "The Navigator")
+- "slug": a lowercase export-safe identifier, words joined by underscores (e.g. "white_king")
+- "concept": one vivid sentence describing THIS specific piece within the shared art direction
+
+Return ONLY the JSON array.""",
+    },
+
+    "collection_item_prompt": {
+        "label": "Collection — Per-Piece Prompt",
+        "description": "Writes ONE model-agnostic image prompt for a single piece, obeying the shared art direction.",
+        "used_by": "Collections — per-piece prompt (SPEC §18.4)",
+        "variables": ["{art_direction}", "{item_name}", "{item_concept}", "{asset_context}", "{optimal_length}", "{max_chars}"],
+        "model": "fast LLM",
+        "system_prompt": "You write vivid, self-contained, model-agnostic image prompts for one piece of a cohesive set. Output ONLY the prompt text. No markdown, no preamble, no quotes.",
+        "text": """You are writing ONE image-generation prompt for a single piece in a cohesive set. The piece MUST clearly belong to the shared set while being its own distinct subject.
+
+=== SHARED ART DIRECTION (obey it precisely) ===
+{art_direction}
+
+=== THIS PIECE ===
+Name: {item_name}
+Concept: {item_concept}
+
+=== ASSET TYPE ===
+{asset_context}
+
+Write a SINGLE, self-contained, model-agnostic image prompt (approximately {optimal_length}, maximum {max_chars} characters) that:
+- Renders THIS piece specifically (its subject, role, silhouette).
+- Applies the shared art direction (medium, palette, materials, render, mood) so it visibly matches the rest of the set.
+- Is a vivid descriptive caption, not a command. Every word describes something visible.
+- Shows ONE complete subject in frame when the asset type calls for it (full subject, uncropped, clear margin on all sides).
+
+Output ONLY the prompt text (optionally a final line prefixed "NEGATIVE:" for exclusions). No preamble, no quotes, no explanation.""",
+    },
+
     "image_refine_marketing": {
         "label": "Marketing Banner Refinement",
         "description": "Refines prompts specifically for marketing banners with text-safe zones.",

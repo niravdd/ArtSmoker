@@ -8,7 +8,7 @@ import logging
 from backend.models.generation_request import AssetType, ImageModel
 from backend.models.style_profile import StyleProfile
 from backend.services.bedrock_client import invoke_llm
-from backend.services.prompt_templates import get_template
+from backend.services.prompt_templates import get_template, get_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -875,3 +875,191 @@ def generate_concept_prompts(
 
     logger.info("Generated %d concept prompts (lengths: %s)", len(result), [len(p) for p in result])
     return result
+
+
+# ── Collections (Set Generation) — SPEC §18.4 ────────────────────────────────
+
+def _extract_json_object(raw: str) -> dict | None:
+    """Robustly extract a single JSON object from an LLM response (object twin of
+    _extract_json_array: strips code fences, finds first {...} balanced block)."""
+    text = raw.strip()
+    if "```" in text:
+        for part in text.split("```")[1::2]:
+            inner = part.strip()
+            if inner.lower().startswith("json"):
+                inner = inner[4:].strip()
+            if inner.startswith("{"):
+                try:
+                    return json.loads(inner)
+                except json.JSONDecodeError:
+                    pass
+    first = text.find("{")
+    if first >= 0:
+        depth = 0
+        for i in range(first, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        obj = json.loads(text[first:i + 1])
+                        if isinstance(obj, dict):
+                            return obj
+                    except json.JSONDecodeError:
+                        break
+    try:
+        obj = json.loads(text)
+        return obj if isinstance(obj, dict) else None
+    except json.JSONDecodeError:
+        return None
+
+
+def slugify(name: str) -> str:
+    """Lowercase, export-safe slug: alphanumerics + underscores only."""
+    s = _re.sub(r"[^a-z0-9]+", "_", (name or "").lower()).strip("_")
+    return s or "piece"
+
+
+def _resolve_slug_collisions(entries: list[dict]) -> None:
+    """Ensure every roster entry's slug is unique (in place): king / king_2 / …"""
+    seen: dict[str, int] = {}
+    for e in entries:
+        base = slugify(e.get("slug") or e.get("name") or "piece")
+        n = seen.get(base, 0) + 1
+        seen[base] = n
+        e["slug"] = base if n == 1 else f"{base}_{n}"
+
+
+ART_DIRECTION_FIELDS = ("world", "era", "medium", "palette", "mood", "materials", "render", "negative")
+
+
+def art_direction_to_text(ad: dict) -> str:
+    """Flatten the structured art-direction dict into the text the roster and
+    per-piece templates consume (and the Designer shows/edits)."""
+    if not ad:
+        return ""
+    lines = []
+    for f in ART_DIRECTION_FIELDS:
+        v = str(ad.get(f, "")).strip()
+        if v:
+            lines.append(f"{f.capitalize()}: {v}")
+    return "\n".join(lines)
+
+
+def generate_art_direction(ask: str, style_profile: StyleProfile | None = None) -> dict:
+    """Distill a set brief into ONE shared art direction (SPEC §18.4).
+
+    Returns the structured dict (ART_DIRECTION_FIELDS) plus a flat "text" key.
+    """
+    style_section = _build_style_section(style_profile)
+    prompt = get_template('collection_art_direction').format(ask=ask, style_section=style_section)
+    raw = invoke_llm(
+        prompt,
+        system=get_system_prompt('collection_art_direction'),
+        complexity="fast",
+        max_tokens=1500,
+        temperature=0.7,
+    )
+    ad = _extract_json_object(raw) or {}
+    # Keep only known fields (defensive against extra keys), then add flat text.
+    ad = {f: str(ad.get(f, "")).strip() for f in ART_DIRECTION_FIELDS}
+    ad["text"] = art_direction_to_text(ad)
+    logger.info("Collection art direction: world=%r medium=%r", ad.get("world"), ad.get("medium"))
+    return ad
+
+
+def generate_roster(
+    ask: str,
+    art_direction_text: str,
+    count: int | None = None,
+    style_profile: StyleProfile | None = None,
+) -> list[dict]:
+    """Fan one set brief into a roster of DISTINCT, in-theme pieces (SPEC §18.4).
+
+    `count=None` lets the model infer the natural count (chess=numbered pieces,
+    tarot=structured); a given count is enforced (trim overflow). Each entry is
+    {name, slug, concept}; slugs are collision-resolved to stay export-safe.
+    """
+    if count and count > 0:
+        count_directive = f"exactly {count} pieces"
+        count_rule = f"Produce EXACTLY {count} pieces — no more, no fewer."
+    else:
+        count_directive = "the pieces that belong in this set"
+        count_rule = "Choose the NATURAL count for this kind of set (infer it from the brief) and list every piece once."
+
+    prompt = get_template('collection_roster').format(
+        ask=ask,
+        art_direction=art_direction_text,
+        count_directive=count_directive,
+        count_rule=count_rule,
+    )
+    raw = invoke_llm(
+        prompt,
+        system=get_system_prompt('collection_roster'),
+        complexity="complex",
+        max_tokens=8192,
+        temperature=0.85,
+    )
+    items = _extract_json_array(raw) or []
+
+    # Normalize into {name, slug, concept}; drop malformed/blank entries.
+    roster: list[dict] = []
+    seen_names: set[str] = set()
+    for it in items:
+        if isinstance(it, str):
+            name, concept, slug = it.strip(), "", ""
+        elif isinstance(it, dict):
+            name = str(it.get("name", "")).strip()
+            concept = str(it.get("concept", "")).strip()
+            slug = str(it.get("slug", "")).strip()
+        else:
+            continue
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen_names:      # de-dup near-identical names
+            continue
+        seen_names.add(key)
+        roster.append({"name": name, "slug": slug, "concept": concept})
+
+    if count and count > 0 and len(roster) > count:
+        roster = roster[:count]          # trim overflow to the requested count
+    _resolve_slug_collisions(roster)
+    logger.info("Collection roster: %d pieces (requested=%s): %s",
+                len(roster), count, [e["slug"] for e in roster][:12])
+    return roster
+
+
+def generate_item_prompt(
+    art_direction_text: str,
+    item_name: str,
+    item_concept: str,
+    asset_type: AssetType,
+    image_model: str | None = None,
+) -> str:
+    """Write ONE model-agnostic image prompt for a single piece (SPEC §18.4)."""
+    max_chars = get_prompt_limit(image_model)
+    optimal_length = get_optimal_length(image_model)
+    asset_context = _asset_type_context(asset_type)
+    prompt = get_template('collection_item_prompt').format(
+        art_direction=art_direction_text,
+        item_name=item_name,
+        item_concept=item_concept,
+        asset_context=asset_context,
+        optimal_length=f"{optimal_length} words",
+        max_chars=max_chars,
+    )
+    text = invoke_llm(
+        prompt,
+        system=get_system_prompt('collection_item_prompt'),
+        complexity="fast",
+        max_tokens=2048,
+        temperature=0.8,
+    ).strip()
+    # Strip accidental wrapping quotes / code fences.
+    text = _re.sub(r"^```[a-zA-Z]*\n?", "", text)
+    text = _re.sub(r"\n?```$", "", text).strip()
+    if len(text) > max_chars:
+        text = text[:max_chars - 4].rsplit(" ", 1)[0]
+    return _cap_prompt_words(text, optimal_length, image_model)
