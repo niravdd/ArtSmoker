@@ -11,16 +11,22 @@ Every design LLM round-trip is costed: reset_costs() at entry, a per-step ledger
 built from get_total_cost() deltas, and track_aux_llm_cost() in finally (§18.9).
 """
 
+import json
 import logging
+import queue
+import random
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from backend.models.generation_request import AssetType
+from backend.models.generation_request import AssetType, GenerationRequest
 from backend.storage.local_store import store
 
 logger = logging.getLogger(__name__)
+
+_SEED_MAX = 2 ** 31 - 1
 
 router = APIRouter(prefix="/api/collections", tags=["collections"])
 
@@ -238,6 +244,169 @@ async def recompose_all(body: RecomposeAllRequest):
         raise HTTPException(502, detail=f"Recompose failed: {exc}")
     finally:
         track_aux_llm_cost("collection_recompose_all", get_total_cost())
+
+
+# ── Generation (SPEC §18.4/§18.7 — orchestrate per-Batch, reuse generate.py) ──
+
+class GenerateCollectionRequest(BaseModel):
+    collection_id: str                  # minted at decompose; the client holds it
+    name: str
+    raw_ask: str = ""
+    art_direction: dict = {}            # structured + flat "text"
+    roster: list[dict]                 # [{name, slug, concept, model_agnostic_prompt}]
+    image_model: str = "sd35_large"
+    asset_type: str = "game_asset"
+    style_id: str | None = None
+    num_options: int = 3
+    num_variations: int = 2
+    seed: int | None = None            # collection base seed (None → random per Batch)
+    cohesion_mode: str = "prompt"
+
+
+def _stamp_collection_lineage(batch_id: str, collection_id: str, entry: dict) -> None:
+    """After a Batch generates, stamp collection lineage onto each of its Jobs'
+    metadata (SPEC §18.7(c)). Post-hoc so the single-asset generation path stays
+    byte-identical. RMW under asset_write_lock (its own metadata write already
+    committed + released by _run_generation, so no nested collection lock)."""
+    from backend.services.asset_locks import asset_write_lock
+    for aid in store.list_generated_ids():
+        if not aid.startswith(batch_id + "_"):
+            continue
+        with asset_write_lock(aid):
+            meta = store.load_generation_metadata(aid)
+            if not meta or meta.get("batch_id") != batch_id:
+                continue
+            meta["collection_id"] = collection_id
+            meta["batch_name"] = entry.get("name", "")
+            meta["batch_slug"] = entry.get("slug", "")
+            meta["model_agnostic_prompt"] = entry.get("model_agnostic_prompt", "")
+            store.save_generation_metadata(aid, meta)
+
+
+@router.post("/generate")
+async def generate_collection(body: GenerateCollectionRequest):
+    """Generate a whole Collection: one Batch per roster subject (each reusing the
+    existing generation pipeline verbatim from its model-agnostic prompt), writing
+    the master record at start and refreshing the Gallery index as each finishes.
+
+    Streams SSE: collection_started, batch_started, (per-Batch progress relabeled),
+    batch_complete, batch_error, collection_complete.
+    """
+    from backend.routers.generate import _run_generation
+    from backend.services.cost_tracker import get_total_cost
+    from backend.services import collection_store as cstore
+    from backend.services.telemetry import track_aux_llm_cost
+
+    roster = [e for e in body.roster if e.get("model_agnostic_prompt")]
+    if not roster:
+        raise HTTPException(400, detail="Collection has no Batches with prompts to generate.")
+
+    cid = body.collection_id
+    asset_type = _asset_enum(body.asset_type)
+    n_opts = max(1, min(5, body.num_options))
+    n_vars = max(1, min(5, body.num_variations))
+    base_seed = body.seed if body.seed is not None else random.randint(0, _SEED_MAX - len(roster) * n_opts * n_vars)
+
+    # Write the master record at generation start (SPEC §18.2 — no pre-gen persistence).
+    record = cstore.new_collection_record(
+        collection_id=cid, name=body.name, raw_ask=body.raw_ask,
+        overarching_art_direction=(body.art_direction or {}).get("text", ""),
+        roster=[cstore.new_roster_entry(
+            name=e.get("name", ""), slug=e.get("slug", ""), concept=e.get("concept", ""),
+            model_agnostic_prompt=e.get("model_agnostic_prompt", ""),
+        ) for e in roster],
+        knobs={"N": len(roster), "O": n_opts, "V": n_vars, "models": [body.image_model],
+               "cohesion_mode": body.cohesion_mode, "seed": base_seed},
+        status="generating",
+    )
+    record["art_direction_structured"] = body.art_direction or {}
+    cstore.save_collection(cid, record)
+
+    event_queue: queue.Queue = queue.Queue()
+
+    def sse(data: dict) -> str:
+        return f"data: {json.dumps(data, default=str)}\n\n"
+
+    def run_all():
+        total_batches = len(roster)
+        gen_cost = 0.0
+        completed_batches = 0
+        for idx, entry in enumerate(roster):
+            name = entry.get("name", f"Batch {idx + 1}")
+            event_queue.put({"type": "batch_started", "batch_index": idx,
+                             "batch_name": name, "total_batches": total_batches})
+
+            def cb(ev, _idx=idx, _name=name):
+                ev["collection_batch_index"] = _idx
+                ev["collection_batch_name"] = _name
+                if ev.get("type") == "complete":
+                    ev["type"] = "batch_complete"
+                event_queue.put(ev)
+
+            prompt = entry["model_agnostic_prompt"]
+            sub = GenerationRequest(
+                prompt=prompt,
+                asset_type=asset_type,
+                image_model=body.image_model,
+                style_id=body.style_id,
+                num_options=n_opts,
+                num_variations=n_vars,
+                seed=base_seed + idx * n_opts * n_vars,
+                # Reuse the verbatim "saved concepts" path — the model-agnostic
+                # prompt IS every option's concept (no re-fan; §18.4 faithful reuse).
+                saved_concept_prompts={body.image_model: [prompt] * n_opts},
+            )
+            try:
+                result = _run_generation(sub, cb)
+                bid = result.id
+                entry["batch_id"] = bid
+                gen_cost += get_total_cost()          # _run_generation reset+tracked this Batch
+                _stamp_collection_lineage(bid, cid, entry)
+                # Record the Batch id on the master record + refresh the index.
+                def _set_bid(rec, _i=idx, _b=bid):
+                    if _i < len(rec.get("roster", [])):
+                        rec["roster"][_i]["batch_id"] = _b
+                cstore.update_collection(cid, _set_bid)
+                cstore.refresh_collection_summary(cid, bid)
+                completed_batches += 1
+            except Exception as exc:
+                logger.exception("Collection %s batch %d (%s) failed", cid, idx, name)
+                event_queue.put({"type": "batch_error", "batch_index": idx,
+                                 "batch_name": name, "error": str(exc)})
+
+        # Finalize the master record + index.
+        def _finalize(rec):
+            rec["status"] = "complete" if completed_batches == total_batches else "partial"
+            rec["cost_actual"] = round(gen_cost, 6)
+        cstore.update_collection(cid, _finalize)
+        cstore.rebuild_collection_summary(cid)
+        try:
+            track_aux_llm_cost("collection_generation", round(gen_cost, 6))
+        except Exception:
+            pass
+        event_queue.put({"type": "collection_complete", "collection_id": cid,
+                         "completed_batches": completed_batches, "total_batches": total_batches,
+                         "cost_actual": round(gen_cost, 6)})
+
+    def stream():
+        event_queue.put({"type": "collection_started", "collection_id": cid,
+                         "name": body.name, "total_batches": len(roster),
+                         "num_options": n_opts, "num_variations": n_vars})
+        with ThreadPoolExecutor(max_workers=1) as ex:
+            future = ex.submit(run_all)
+            while not future.done():
+                try:
+                    yield sse(event_queue.get(timeout=0.5))
+                except queue.Empty:
+                    yield ": keepalive\n\n"
+            while not event_queue.empty():
+                yield sse(event_queue.get_nowait())
+            exc = future.exception()
+            if exc:
+                yield sse({"type": "error", "detail": str(exc)})
+
+    return StreamingResponse(stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 # ── Read / delete endpoints (Gallery + Collection Asset Viewer) ──────────────
