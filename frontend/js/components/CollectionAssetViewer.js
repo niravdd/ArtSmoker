@@ -36,7 +36,7 @@
                     <div class="flex items-center justify-between p-4 border-b border-brand-border">
                         <h2 id="cv-title" class="text-lg font-semibold truncate">${title}</h2>
                         <div class="flex items-center gap-2">
-                            <button id="cv-3d" class="btn btn-xs bg-brand-bg border border-brand-border opacity-50 cursor-not-allowed" disabled title="Fast-follow">${t('collection.viewer_3d_set')}</button>
+                            <button id="cv-3d" class="btn btn-xs bg-violet-700/70 hover:bg-violet-600 text-white">${t('collection.viewer_3d_set')}</button>
                             <button id="cv-export" class="btn btn-xs bg-brand-bg border border-brand-border opacity-50 cursor-not-allowed" disabled title="Fast-follow">${t('collection.viewer_export_set')}</button>
                             <button id="cv-delete" class="btn btn-xs bg-red-700/70 hover:bg-red-600 text-white">${t('collection.delete')}</button>
                             <button id="cv-close" class="text-brand-text-muted hover:text-brand-text text-2xl leading-none ml-2">&times;</button>
@@ -96,6 +96,23 @@
                 card.addEventListener('click', () => this._openBatch(card.dataset.batch));
             });
             document.getElementById('cv-delete').addEventListener('click', () => this._delete(rec.collection_id));
+            document.getElementById('cv-3d').addEventListener('click', () => this._generate3d(rec.collection_id));
+        },
+
+        async _generate3d(collectionId) {
+            const btn = document.getElementById('cv-3d');
+            if (!collectionId || !btn) return;
+            btn.disabled = true; const orig = btn.textContent; btn.textContent = '…';
+            try {
+                const r = await API.collections.generate3d(collectionId);
+                const n = (r.submitted || []).length;
+                window.showToast?.(`${n} 3D ${n === 1 ? 'model' : 'models'} submitted`, 'success');
+                if ((r.failures || []).length) window.showToast?.(r.failures[0].error, 'warning');
+                setTimeout(() => this.open(collectionId), 800);   // reopen to reflect status
+            } catch (e) {
+                window.showToast?.(e.message || t('collection.error'), 'error');
+                btn.disabled = false; btn.textContent = orig;
+            }
         },
 
         _openBatch(batchId) {

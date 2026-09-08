@@ -409,6 +409,70 @@ async def generate_collection(body: GenerateCollectionRequest):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+# ── 3D set handoff (SPEC §18, Phase N — reuse the existing image-to-3D path) ──
+
+def _resolve_batch_source(collection_id: str, batch_id: str):
+    """Resolve a Batch to its representative Job + selected/latest version for 3D
+    (SPEC §18 Phase N). Returns (asset_id, version) or (None, None). The Phase-M
+    `selected_version` pointer wins; else the Job's current_version — so a 3D run
+    always picks up the newest chosen image, never a stale v1."""
+    from backend.services import collection_store as cstore
+    rec = cstore.load_collection(collection_id) or {}
+    entry = next((e for e in rec.get("roster", []) if e.get("batch_id") == batch_id), None)
+    jobs = cstore._member_jobs(batch_id)
+    if not jobs:
+        return None, None
+    rep = jobs[0]  # o0_v0 — the Batch's representative image
+    version = (entry or {}).get("selected_version") or rep.get("current_version", 1)
+    return rep["id"], version
+
+
+@router.post("/{collection_id}/generate-3d")
+async def generate_collection_3d(collection_id: str, model_key: str | None = None):
+    """3D the whole set: submit an image-to-3D job for each Batch's selected image,
+    reusing the existing /api/generate/3d pipeline. Best-effort per Batch."""
+    from backend.services import collection_store as cstore
+    from backend.routers.generate_3d import generate_3d, ThreeDGenerateRequest
+
+    rec = cstore.load_collection(collection_id)
+    if rec is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+
+    submitted, failures = [], []
+    for entry in rec.get("roster", []):
+        bid = entry.get("batch_id")
+        if not bid:
+            continue
+        asset_id, version = _resolve_batch_source(collection_id, bid)
+        if not asset_id:
+            failures.append({"batch": entry.get("name"), "error": "no image"})
+            continue
+        try:
+            res = await generate_3d(ThreeDGenerateRequest(asset_id=asset_id, version=version, model_key=model_key))
+            job_id = res.get("job_id") if isinstance(res, dict) else None
+            def _set(rc, _b=bid, _a=asset_id, _v=version, _j=job_id):
+                e = next((x for x in rc.get("roster", []) if x.get("batch_id") == _b), None)
+                if e is not None:
+                    e["three_d"] = {"source_version": _v, "source_asset_id": _a, "job_id": _j, "status": "submitted"}
+            cstore.update_collection(collection_id, _set)
+            submitted.append({"batch": entry.get("name"), "asset_id": asset_id, "version": version, "job_id": job_id})
+        except HTTPException as he:
+            failures.append({"batch": entry.get("name"), "error": he.detail})
+        except Exception as exc:
+            logger.exception("Collection 3D submit failed for batch %s", bid)
+            failures.append({"batch": entry.get("name"), "error": str(exc)})
+
+    cstore.refresh_collection_summary(collection_id)
+    try:
+        from backend.services.telemetry import _track
+        _track("collection_3d_handoff", batches=len(submitted))
+    except Exception:
+        pass
+    if not submitted and failures:
+        raise HTTPException(400, detail=failures[0].get("error", "3D submission failed."))
+    return {"submitted": submitted, "failures": failures}
+
+
 # ── Read / delete endpoints (Gallery + Collection Asset Viewer) ──────────────
 
 @router.get("")

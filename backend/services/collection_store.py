@@ -257,8 +257,15 @@ def _project_batch(entry: dict) -> dict:
         selected_version = jobs[0].get("current_version", 1)
     thumb_path = f"/api/gallery/{thumb_asset_id}/png" if thumb_asset_id else None
 
+    # has-3D: reflects reality — a .glb present in the representative Job's dir
+    # (the existing 3D pipeline writes it there), OR a recorded roster three_d.
     three_d = entry.get("three_d") or {}
     has_3d = bool(three_d.get("status") == "complete")
+    if not has_3d and thumb_asset_id:
+        try:
+            has_3d = any(store.generated_asset_dir(thumb_asset_id).glob("*.glb"))
+        except Exception:
+            has_3d = False
 
     return {
         "batch_id": batch_id,
