@@ -165,6 +165,10 @@ def _list_gallery_impl(style_id, asset_type, limit, offset):
                 continue
             if asset_type and meta.get("asset_type") != asset_type:
                 continue
+            # Collection member Jobs are surfaced as ONE collection card (SPEC §18.8),
+            # not as loose assets — hide them from the flat gallery grid.
+            if meta.get("collection_id"):
+                continue
 
             svg_url: str | None = None
             svg_file = store.get_generated_file_path(aid, "asset.svg")

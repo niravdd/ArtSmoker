@@ -288,6 +288,13 @@
                                 <div id="reference-studio-container" class="hidden"></div>
                             </div>
 
+                            <!-- Collection (Set Generation) toggle -->
+                            <label class="flex items-center gap-2 mt-2 p-2 rounded-lg bg-brand-bg/50 border border-brand-border cursor-pointer select-none" title="${t('artsmoker.ui.collection.toggle_hint')}">
+                                <input type="checkbox" id="btn-collection-toggle" class="rounded border-brand-border" />
+                                <span class="text-sm font-medium">${t('artsmoker.ui.collection.toggle')}</span>
+                                <span class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.collection.toggle_hint')}</span>
+                            </label>
+
                             <!-- Generate / Reset -->
                             <div class="grid grid-cols-2 gap-3 mt-2">
                                 <button id="btn-generate" class="btn btn-primary btn-lg text-base">
@@ -716,6 +723,12 @@
             });
             document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
+            // Collection (Set Generation) toggle — opens the self-contained
+            // CollectionDesigner (SPEC §18); it owns decompose→design→generate.
+            document.getElementById('btn-collection-toggle')?.addEventListener('change', (ev) => {
+                if (ev.target.checked) this._openCollectionDesigner();
+                else window.CollectionDesigner?.close?.();
+            });
             // Prompt ⇄ Reference-guided tab switching (ImageStudio binds via
             // document.getElementById — it's a singleton, not a scoped component).
             document.querySelectorAll('#tab-prompt, #tab-reference').forEach(btn => {
@@ -3084,6 +3097,30 @@
             const label = t(`artsmoker.ui.image_studio.${this._loadedBatch ? 'regenerate' : 'generate'}`);
             // nosemgrep -- html`` escapes the interpolation; the svg is static trusted markup
             btn.innerHTML = html`<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${label}`;
+        },
+
+        /** Collection mode (SPEC §18): open the self-contained designer, seeded
+         *  with the current prompt + model/asset/style context. */
+        _openCollectionDesigner() {
+            const prompt = this._promptEditor ? this._promptEditor.getUserText().trim() : '';
+            if (!prompt) {
+                window.showToast?.(t('artsmoker.ui.image_studio.enter_prompt'), 'warning');
+                const cb = document.getElementById('btn-collection-toggle');
+                if (cb) cb.checked = false;
+                return;
+            }
+            window.Telemetry?.track?.('collection_mode_enabled', {});
+            window.CollectionDesigner?.open(prompt, {
+                image_model: (this._selectedModels && this._selectedModels[0]) || 'sd35_large',
+                asset_type: this._getAssetType(),
+                style_id: this._getStyleId() || null,
+            });
+        },
+
+        /** Called by CollectionDesigner when it closes — clear the toggle. */
+        _onCollectionDesignerClosed() {
+            const cb = document.getElementById('btn-collection-toggle');
+            if (cb) cb.checked = false;
         },
 
         /** Seed helpers. The base seed is user-visible (next to Options ×

@@ -397,6 +397,22 @@
                     this._hasMore = rawLen === PAGE_SIZE;
                 }
 
+                // Load Collections (SPEC §18.8) as ONE card each — only on the
+                // first page and the all-media/image filters. Fast-path list read
+                // (summary index, no Job parsing).
+                if (offset === 0 && mediaFilter !== 'video') {
+                    try {
+                        const cdata = await API.collections.list();
+                        (cdata.collections || []).forEach(c => {
+                            c._media = 'collection';
+                            c._collection = true;
+                            c.id = 'col:' + c.collection_id;
+                            c.created_at = c.updated_at;
+                        });
+                        this._items.push(...(cdata.collections || []));
+                    } catch (_) { /* collections endpoint optional */ }
+                }
+
                 // Load video assets (only for the all-media or video-only filters)
                 if (mediaFilter === '' || mediaFilter === 'video') {
                     try {
@@ -587,7 +603,9 @@
                     const media = card.dataset.media;
                     const idx = displayItems.findIndex((i) => String(i.id) === String(id));
                     if (idx < 0) return;
-                    if (media === 'video' && window.VideoStudio?._openVideoPlayer) {
+                    if (media === 'collection' && window.CollectionAssetViewer) {
+                        window.CollectionAssetViewer.open(displayItems[idx].collection_id);
+                    } else if (media === 'video' && window.VideoStudio?._openVideoPlayer) {
                         window.VideoStudio._openVideoPlayer(id);
                     } else {
                         AssetViewer.open(displayItems[idx], displayItems, idx);
@@ -617,6 +635,25 @@
         },
 
         _cardHTML(item) {
+            // Collection card (SPEC §18.8) — one card for the whole set.
+            if (item._collection) {
+                const cover = item.cover && item.cover.thumb_path
+                    ? item.cover.thumb_path + `?t=${item.updated_at || ''}` : null;
+                const count = item.batch_count || (item.batches ? item.batches.length : 0);
+                return html`
+                    <div class="gallery-card card cursor-pointer overflow-hidden group" data-id="${item.id}" data-media="collection">
+                        <div class="img-hover-zoom aspect-[4/3] bg-brand-bg flex items-center justify-center overflow-hidden relative">
+                            ${cover
+                                ? html`<img src="${cover}" class="w-full h-full object-cover" alt="${item.name}" />`
+                                : html`<svg class="w-10 h-10 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg>`}
+                            <span class="absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-600/80 text-white font-semibold">${t('artsmoker.ui.collection.card_badge')}</span>
+                        </div>
+                        <div class="p-2">
+                            <p class="text-xs font-medium truncate">${item.name || 'Collection'}</p>
+                            <p class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.collection.card_count', { count })}</p>
+                        </div>
+                    </div>`;
+            }
             const isVideo = item._media === 'video';
             const thumbUrl = isVideo
                 ? API.video.thumbnailUrl(item.id) + `?t=${this._cacheKey || '0'}`
