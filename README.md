@@ -1012,7 +1012,7 @@ Templates load from `backend/prompt_templates.json` — the runtime source of tr
 ┌──────────────────────┐
 │  Local Storage        │
 │  data/styles/         │
-│  data/generated/      │
+│  data/images/      │
 │  data/video/          │
 │  data/chat/           │
 └──────────────────────┘
@@ -1116,7 +1116,7 @@ User prompt: "hospital building"
                          ▼
 ┌────────────────────────────────────────────────────────┐
 │ 5. Storage                                             │
-│    data/generated/{asset_id}/                          │
+│    data/images/{asset_id}/                          │
 │    ├── asset.png (transparent background)              │
 │    ├── asset.svg (optional)                            │
 │    └── metadata.json (full prompt lineage)             │

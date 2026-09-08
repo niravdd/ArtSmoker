@@ -287,7 +287,7 @@ def _persist_gallery_metadata(job: dict):
     from backend.config import settings
 
     asset_id = job["asset_id"]
-    variant_dir = settings.generated_dir / f"{asset_id}_o{job['option_index']}_v{job['variation_index']}"
+    variant_dir = settings.images_dir / f"{asset_id}_o{job['option_index']}_v{job['variation_index']}"
     variant_dir.mkdir(parents=True, exist_ok=True)
 
     meta = {
@@ -550,7 +550,7 @@ def _update_gallery_on_failure(job: dict):
     from backend.services.image_generator import is_moderation_error
 
     asset_id = job["asset_id"]
-    variant_dir = settings.generated_dir / f"{asset_id}_o{job['option_index']}_v{job['variation_index']}"
+    variant_dir = settings.images_dir / f"{asset_id}_o{job['option_index']}_v{job['variation_index']}"
     meta_path = variant_dir / "metadata.json"
     if meta_path.exists():
         try:

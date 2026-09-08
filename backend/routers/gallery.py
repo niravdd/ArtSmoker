@@ -42,7 +42,7 @@ async def import_image(
     """Import an existing image into the gallery as a first-class asset.
 
     Produces exactly the same on-disk structure as a generated asset (a
-    data/generated/{id}/ dir with asset.png + metadata.json), so ALL downstream
+    data/images/{id}/ dir with asset.png + metadata.json), so ALL downstream
     features — edit, versioning, 3D generation, source review — work unchanged.
     The image is normalized to PNG (the app's single image format) regardless of
     the uploaded format, EXIF is dropped, and the asset is flagged `imported` so
@@ -125,6 +125,22 @@ async def import_image(
         created_at=datetime.fromisoformat(now),
         async_status=None,
     )
+
+
+@router.get("/storage-migration-status")
+def storage_migration_status():
+    """Report whether a legacy `data/generated` dir still holds assets alongside
+    the current `data/images` — drives the Gallery safety prompt. The clean case
+    (only the old dir) is auto-migrated at startup; this catches the BOTH-exist
+    case that needs user-consented merge."""
+    return store.legacy_migration_status()
+
+
+@router.post("/migrate-storage")
+def migrate_storage():
+    """Merge a legacy `data/generated` into `data/images` (user-consented). Moves
+    each asset dir, skips ids already present (never overwrites)."""
+    return store.merge_legacy_generated_dir()
 
 
 @router.get("/")

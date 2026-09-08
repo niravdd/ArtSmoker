@@ -266,7 +266,7 @@ async def lifespan(app: FastAPI):
     # Startup: ensure data directories exist
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.styles_dir.mkdir(parents=True, exist_ok=True)
-    settings.generated_dir.mkdir(parents=True, exist_ok=True)
+    settings.images_dir.mkdir(parents=True, exist_ok=True)
     (settings.data_dir / "chat").mkdir(parents=True, exist_ok=True)
     logger.info("Data directories ensured: %s", settings.data_dir)
 

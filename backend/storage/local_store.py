@@ -1,11 +1,14 @@
 """Local filesystem storage with an S3-compatible interface for future migration."""
 
 import json
+import logging
 import shutil
 from pathlib import Path
 
 from backend.config import settings
 from backend.services.safe_write import atomic_write_text
+
+logger = logging.getLogger(__name__)
 
 
 class LocalStore:
@@ -17,11 +20,84 @@ class LocalStore:
 
     def __init__(self) -> None:
         self.styles_dir = settings.styles_dir
-        self.generated_dir = settings.generated_dir
+        # `images_dir` is the current location (data/images). A legacy
+        # `data/generated` from before the rename is migrated on startup.
+        self.images_dir = settings.images_dir
+        self.legacy_generated_dir = settings.legacy_generated_dir
         self.video_dir = settings.video_dir
         self.styles_dir.mkdir(parents=True, exist_ok=True)
-        self.generated_dir.mkdir(parents=True, exist_ok=True)
+        self._migrate_legacy_generated_dir()
+        self.images_dir.mkdir(parents=True, exist_ok=True)
         self.video_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── Legacy storage migration (data/generated → data/images) ───────────
+    def _migrate_legacy_generated_dir(self) -> None:
+        """One-time, transparent startup migration of the old asset directory.
+
+        Clean case — legacy `data/generated` exists and `data/images` does NOT:
+        rename it (atomic, no copy, no data loss). If BOTH exist we do NOT touch
+        anything here (that would need a MERGE and risks collisions) — the Gallery
+        surfaces a prompt and calls ``merge_legacy_generated_dir`` on user consent.
+        """
+        legacy, current = self.legacy_generated_dir, self.images_dir
+        try:
+            if legacy.exists() and legacy.is_dir() and not current.exists():
+                legacy.rename(current)
+                logger.info("Migrated legacy asset dir: %s → %s", legacy, current)
+        except Exception as exc:
+            # Never block startup on migration — fall back to using data/images
+            # (the Gallery safety prompt will still offer to migrate later).
+            logger.warning("Legacy asset-dir migration skipped (%s → %s): %r", legacy, current, exc)
+
+    def legacy_migration_status(self) -> dict:
+        """Report whether a legacy `data/generated` still holds assets alongside
+        the new `data/images` — drives the Gallery safety prompt."""
+        legacy = self.legacy_generated_dir
+        legacy_count = 0
+        if legacy.exists() and legacy.is_dir():
+            try:
+                legacy_count = sum(
+                    1 for d in legacy.iterdir()
+                    if d.is_dir() and (d / "metadata.json").exists()
+                )
+            except OSError:
+                legacy_count = 0
+        return {
+            "legacy_present": legacy.exists() and legacy_count > 0,
+            "legacy_count": legacy_count,
+            "legacy_path": str(legacy),
+            "current_path": str(self.images_dir),
+        }
+
+    def merge_legacy_generated_dir(self) -> dict:
+        """Move each legacy asset dir from `data/generated` into `data/images`
+        (user-consented via the Gallery). Skips ids that already exist in the new
+        location (never overwrites), then removes the emptied legacy dir."""
+        legacy = self.legacy_generated_dir
+        moved, skipped = 0, 0
+        if not (legacy.exists() and legacy.is_dir()):
+            return {"moved": 0, "skipped": 0, "legacy_present": False}
+        for d in list(legacy.iterdir()):
+            if not d.is_dir():
+                continue
+            dest = self.images_dir / d.name
+            if dest.exists():
+                skipped += 1
+                continue
+            try:
+                shutil.move(str(d), str(dest))
+                moved += 1
+            except Exception as exc:
+                logger.warning("Could not migrate asset %s: %r", d.name, exc)
+                skipped += 1
+        # Remove the legacy dir only if it's now empty.
+        try:
+            if not any(legacy.iterdir()):
+                legacy.rmdir()
+        except OSError:
+            pass
+        logger.info("Legacy asset merge: moved=%d skipped=%d", moved, skipped)
+        return {"moved": moved, "skipped": skipped, "legacy_present": legacy.exists()}
 
     # ── Style profiles ────────────────────────────────────────────────────
 
@@ -85,7 +161,7 @@ class LocalStore:
     # ── Generated assets ──────────────────────────────────────────────────
 
     def generated_asset_dir(self, asset_id: str) -> Path:
-        d = self.generated_dir / asset_id
+        d = self.images_dir / asset_id
         d.mkdir(parents=True, exist_ok=True)
         return d
 
@@ -112,7 +188,7 @@ class LocalStore:
 
     def list_generated_ids(self) -> list[str]:
         return sorted(
-            d.name for d in self.generated_dir.iterdir()
+            d.name for d in self.images_dir.iterdir()
             if d.is_dir() and (d / "metadata.json").exists()
         )
 
@@ -121,7 +197,7 @@ class LocalStore:
         return path if path.exists() else None
 
     def delete_generated_asset(self, asset_id: str) -> bool:
-        d = self.generated_dir / asset_id
+        d = self.images_dir / asset_id
         if d.exists() and d.is_dir():
             shutil.rmtree(d)
             return True

@@ -175,6 +175,26 @@
 
             // Load items
             await this._loadItems(true);
+
+            // Safety net: a legacy data/generated dir lingering alongside the new
+            // data/images (the BOTH-exist case the startup rename won't auto-merge).
+            this._checkLegacyStorage();
+        },
+
+        /** If a legacy data/generated still holds assets, prompt the user to merge
+         *  it into data/images (the startup migration only auto-renames when the
+         *  new dir is absent — a lingering legacy dir needs consented merge). */
+        async _checkLegacyStorage() {
+            try {
+                const st = await API.gallery.storageMigrationStatus();
+                if (!st || !st.legacy_present) return;
+                const msg = `Found ${st.legacy_count} asset(s) in the old storage location `
+                    + `(${st.legacy_path}). Move them into the new location (${st.current_path})?`;
+                if (!confirm(msg)) return;
+                const r = await API.gallery.migrateStorage();
+                window.showToast?.(`Migrated ${r.moved} asset(s)` + (r.skipped ? `, ${r.skipped} skipped (already present)` : ''), 'success');
+                this.refresh();
+            } catch (_) { /* non-critical safety check */ }
         },
 
         /** Import-image modal: upload a file + set its asset type, then it becomes a

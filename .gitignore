@@ -18,7 +18,10 @@ CLAUDE.md
 # Internal design docs (merge into SPEC.md after proven)
 gpu_optimiser.md
 
-# Generated assets (user data, not tracked)
+# Generated image assets (user data, not tracked). data/images is the current
+# location; data/generated is the legacy pre-rename dir (migrated on startup —
+# still ignored so a lingering copy is never committed).
+data/images/
 data/generated/
 data/chat/
 data/video/
