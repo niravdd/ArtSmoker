@@ -2778,7 +2778,7 @@ The active log path is echoed in the startup messages. No external launcher is n
 
 ## 18. Collections (Set Generation)
 
-A **Collection** turns one prompt into a **coherent set of distinct assets** — "20 Japanese RPG warriors", "a Viking-styled chess set", "a Victorian 52-card deck" — instead of N interpretations of a single concept. The theme is a **creative lens applied to the whole set *and* every item in it**; there is no "mechanical" path (even a chess set or a card deck is an act of imagination — a Viking king is a jarl, a Viking rook a longship). Collections are built as a **distinct, isolated subsystem** (its own Designer, store, Gallery treatment, and Asset Viewer) so the single-asset path is never complicated.
+A **Collection** turns one prompt into a **coherent set of distinct assets** — "20 Japanese RPG warriors", "a Viking-styled chess set", "a Victorian 52-card deck" — instead of N interpretations of a single concept. The theme is a **creative lens applied to the whole set *and* every Batch in it**; there is no "mechanical" path (even a chess set or a card deck is an act of imagination — a Viking king is a jarl, a Viking rook a longship). Collections are built as a **distinct, isolated subsystem** (its own Designer, store, Gallery treatment, and Asset Viewer) so the single-asset path is never complicated.
 
 ### 18.1 Design principles
 
@@ -2788,54 +2788,54 @@ A **Collection** turns one prompt into a **coherent set of distinct assets** —
 
 ### 18.2 Entry, toggle, and lock-in
 
-- **Image Studio → type the ask → flip the "Collection" toggle.** Toggling on **immediately opens the Collection Designer**, seeds it with the user's original prompt, and **auto-decomposes** it into the overarching art-direction + the roster (per-item model-agnostic prompts). Any edit to the art-direction retunes everything downstream.
+- **Image Studio → type the ask → flip the "Collection" toggle.** Toggling on **immediately opens the Collection Designer**, seeds it with the user's original prompt, and **auto-decomposes** it into the overarching art-direction + the roster (per-Batch model-agnostic prompts). Any edit to the art-direction retunes everything downstream.
 - **Lock at the *toggle*, not at commit.** Because the toggle immediately runs real (billable, ledgered — §18.9) LLM design work, the job is committed to the collection path the moment it's flipped on. There is **no cheap "un-toggle back to single mode"** — that would either throw away the design work or force a full re-run on re-toggle. The **only** way out is **Reset**, which clears the ask, art-direction, roster, and the toggle (full clean slate). An accidental toggle is exactly what Reset is for; the wasted cost is at most one decompose, and it's shown in the ledger.
-- **Generate is disabled** while the toggle is on until a *valid* design exists (≥1 item, art-direction set, every item has a prompt) — the Collection Designer is mandatory (unlike the optional Prompt Designer), so a collection is never generated blind. Generate shows a tooltip ("Design the collection first") until valid.
-- Within the Designer, edits (regenerate roster, edit art-direction/items, lock rows) are unrestricted; the "lock" is only that the **mode** is now Collection. Downstream state (Gallery, Asset Viewer, metadata) follows the collection path from the toggle onward.
+- **Generate is disabled** while the toggle is on until a *valid* design exists (≥1 Batch, art-direction set, every Batch has a prompt) — the Collection Designer is mandatory (unlike the optional Prompt Designer), so a collection is never generated blind. Generate shows a tooltip ("Design the collection first") until valid.
+- Within the Designer, edits (regenerate roster, edit art-direction/Batches, lock rows) are unrestricted; the "lock" is only that the **mode** is now Collection. Downstream state (Gallery, Asset Viewer, metadata) follows the collection path from the toggle onward.
 
 ### 18.3 The Collection Designer
 
 A component parallel to the Prompt Designer with **two independently editable layers**:
 
-- **Overarching art-direction** (top): the shared creative DNA — world, era, medium, palette, mood, materials, render style, shared negative prompt. **Editing it immediately recomposes every item** in the roster (this is the cohesion control surface).
-- **Roster** (below): a board of **Items**, each with `name · concept · model-agnostic prompt (editable) · lock · regenerate · delete`, plus *add item* and *regenerate all unlocked* (re-fans while preserving locked rows).
-- **Knobs (per Collection, with a live cost estimate):** item count N (AI-inferred / canonical / explicit), options O, variations V, model(s), and cohesion tier (§18.5).
+- **Overarching art-direction** (top): the shared creative DNA — world, era, medium, palette, mood, materials, render style, shared negative prompt. **Editing it immediately recomposes every Batch** in the roster (this is the cohesion control surface).
+- **Roster** (below): a board of **Batches**, each with `name · concept · model-agnostic prompt (editable) · lock · regenerate · delete`, plus *add Batch* and *regenerate all unlocked* (re-fans while preserving locked rows).
+- **Knobs (per Collection, with a live cost estimate):** Batch count N (AI-inferred / canonical / explicit), options O, variations V, model(s), and cohesion tier (§18.5).
 
 ### 18.4 Prompt pipeline (Collection mode)
 
 ```
 Ask ("Viking-styled chess set")
   → Collection Designer:
-       • Overarching art-direction  (shared creative DNA — editable → cascades to all items)
-       • Roster: N Items, each with a MODEL-AGNOSTIC creative prompt
-              (= art-direction DNA + that item's unique in-theme design), editable per item
-  → [review gate: edit art-direction (recomposes all) / edit any item / lock / regen ; cost re-checked]
+       • Overarching art-direction  (shared creative DNA — editable → cascades to all Batches)
+       • Roster: N Batches, each with a MODEL-AGNOSTIC creative prompt
+              (= art-direction DNA + that Batch's unique in-theme design), editable per Batch
+  → [review gate: edit art-direction (recomposes all) / edit any Batch / lock / regen ; cost re-checked]
   → Light per-model adaptation: reuse the model-agnostic prompt AS CLOSE TO THE ORIGINAL AS POSSIBLE,
        adding only positive/negative prompts + model-specific bits where necessary (a "faithful"
        enhancement mode — not a heavy rewrite)
-  → Generate: Items × Models × Options × Variations
+  → Generate: Batches × Models × Options × Variations
 ```
 
-The **model-agnostic per-item prompt is the canonical creative artifact** — authored by the Collection Designer, shown for editing *before* any spend, preserved through generation with only a light per-model touch. It is the Collection-level analog of `saved_concept_prompts`: it makes the set reproducible (same collection + seed-family + roster ⇒ same set; edit one item ⇒ re-run only that item).
+The **model-agnostic per-Batch prompt is the canonical creative artifact** — authored by the Collection Designer, shown for editing *before* any spend, preserved through generation with only a light per-model touch. It is the Collection-level analog of `saved_concept_prompts`: it makes the set reproducible (same collection + seed-family + roster ⇒ same set; edit one Batch ⇒ re-run only that Batch).
 
 ### 18.5 Cohesion (tiered)
 
-- **Default (prompt cohesion):** the overarching art-direction is composed into every item's model-agnostic prompt, plus a shared negative and a collection seed-family. Editing the art-direction re-composes all items.
-- **Hero-anchor (opt-in):** generate one representative item, the user picks its image, and the rest run through the existing **reference-guided "inspired"** path using it as a style reference — tighter visual unity, one extra pass.
+- **Default (prompt cohesion):** the overarching art-direction is composed into every Batch's model-agnostic prompt, plus a shared negative and a collection seed-family. Editing the art-direction re-composes all Batches.
+- **Hero-anchor (opt-in):** generate one representative Batch, the user picks its image, and the rest run through the existing **reference-guided "inspired"** path using it as a style reference — tighter visual unity, one extra pass.
 - Honest ceiling (surfaced in-UI): this yields a *cohesive set*, **not** a same-character turnaround (a separate, harder problem).
 
 ### 18.6 Terminology & IDs (extends the locked Batch/Job model)
 
-A new tier slots above Batch:
+Collections add ONE tier **above** the existing Batch — no new middle tier, no renamed tier. The vocabulary stays **Collection → Batch → Job**:
 
 ```
-Collection  →  Item (= one Batch)  →  Option × Variation × Model  (= today's Jobs)
+Collection  →  Batch (one roster subject)  →  Option × Variation × Model  (= today's Jobs)
 ```
 
-- **Collection** = one Generate press with the toggle on (`collection_id`); the Collection record groups the Item Batches.
-- **Item** = one roster entry — deliberately generic (character, card, prop, environment, map, …) — that generates **exactly one Batch** (its Option × Variation × Model Jobs).
-- **ID strategy (decided 2026-09-08 by full producer/parser audit): each Item is its own ordinary `batch_id`; the Collection groups N item `batch_id`s. No id-format change — single-asset AND collection asset ids are the unchanged `{batch_id}_o{n}_v{m}`.** The audit confirmed the asset id is *never positionally parsed* anywhere (every consumer reads `batch_id`/`option_index`/`variant_index` from stored metadata, and the only id-string uses are construction + `startswith(batch_id + "_")` prefix filters backed by an authoritative `meta["batch_id"]` check). The rejected alternative — a `{collection_id}_i{k}_o{n}_v{m}` item-axis id — was cosmetically cleaner but would have made an entire collection one giant Batch, turning per-item regeneration into partial-batch regen that no endpoint supports; Item ≡ Batch instead lets per-item regeneration, seed-family, `get_batch` reconstruction, and the AssetViewer drill-down all reuse the existing whole-Batch machinery untouched. Collection membership lives in **metadata fields** on each asset (`collection_id`, `item_slot`, `item_name`, `model_agnostic_prompt`) — added exactly as `batch_id` already is — so the Gallery can collapse a collection into one card and the viewer can reconstruct the board.
-- This **adds a tier to the otherwise-frozen Batch/Job vocabulary** — when Collections ship, the terminology table in `CLAUDE.md` gains the Collection/Item tier (**Collection = a group of Batches; each Item = one Batch; a Batch is a collection of Jobs**). Until then this section is the forward design of record.
+- **Collection** = one Generate press with the toggle on (`collection_id`); the Collection record groups its member Batches.
+- **Batch** *(unchanged term)* = one roster subject (e.g. "the White King") — it generates exactly one ordinary Batch of `Option × Variation × Model` Jobs, exactly as a single-asset Generate does today. A Collection is simply a **group of Batches**. (There is deliberately NO "Item"/"Cluster"/"piece" tier word — a roster subject *is* a Batch; "piece" appears only as the domain noun in examples like a chess piece.)
+- **ID strategy (decided 2026-09-08 by full producer/parser audit): each Batch keeps its own ordinary `batch_id`; the Collection groups N `batch_id`s. No id-format change — single-asset AND collection asset ids are the unchanged `{batch_id}_o{n}_v{m}`.** The audit confirmed the asset id is *never positionally parsed* anywhere (every consumer reads `batch_id`/`option_index`/`variant_index` from stored metadata, and the only id-string uses are construction + `startswith(batch_id + "_")` prefix filters backed by an authoritative `meta["batch_id"]` check). The rejected alternative — a `{collection_id}_i{k}_…` item-axis id — was cosmetically cleaner but would have made an entire collection one giant Batch, turning per-Batch regeneration into partial-batch regen that no endpoint supports; keeping one `batch_id` per roster subject lets per-Batch regeneration, seed-family, `get_batch` reconstruction, and the AssetViewer drill-down all reuse the existing whole-Batch machinery untouched. Collection membership lives in **metadata fields** on each Job (`collection_id`, `batch_name`, `batch_slug`, `model_agnostic_prompt`) — added exactly as `batch_id` already is — so the Gallery can collapse a collection into one card and the viewer can reconstruct the board.
+- This **adds a tier to the otherwise-frozen Batch/Job vocabulary** — when Collections ship, the terminology table in `CLAUDE.md` gains the Collection tier (**Collection = a group of Batches; each roster subject = one Batch; a Batch is a collection of Jobs**). Until then this section is the forward design of record.
 
 ### 18.7 Data model & metadata
 
@@ -2845,11 +2845,11 @@ The Collection is stored **separately** from single-asset jobs, in its own top-l
 - `collection_id, name, raw_ask, created_at, updated_at, status`
 - `overarching_art_direction` (current + append-only edit trail)
 - `roster: [ { batch_id, name, slug, concept, model_agnostic_prompt, locked?, per_model_prompts{}, selected_version } ]` — one entry **per Batch** (one roster subject; e.g. "White King"). `batch_id` is the ordinary batch id minted when that subject generates; `selected_version` is the user's chosen version for the set (default = latest / `current_version`).
-- `knobs {N,O,V,models,cohesion_mode,hero_item?}`, `llm_cost_ledger` (§18.9), `cost_estimate/actual`
+- `knobs {N,O,V,models,cohesion_mode,hero_batch?}`, `llm_cost_ledger` (§18.9), `cost_estimate/actual`
 - Because each roster entry is a normal Batch, membership is the list of `batch_id`s — no id-format change (§18.6).
 
 **(b) Collection index — `data/collections/{collection_id}/summary.json` (DERIVED, rebuildable, for GALLERY SPEED):**
-A small, denormalized projection the Gallery lists cheaply **without opening any Job or the heavy master record**: `collection_id, name, status, updated_at, piece_count, models, cost_estimate/actual, cover {asset_id, version, thumb_path}, pieces: [ { batch_id, name, slug, selected_version, thumb_asset_id, thumb_path, status, job_count, has_3d } ]`. This file holds **only derived runtime state** (thumbs, per-Batch status, has-3D, job counts, cover) — never authored design data (that's in the master record).
+A small, denormalized projection the Gallery lists cheaply **without opening any Job or the heavy master record**: `collection_id, name, status, updated_at, batch_count, models, cost_estimate/actual, cover {asset_id, version, thumb_path}, batches: [ { batch_id, name, slug, selected_version, thumb_asset_id, thumb_path, status, job_count, has_3d } ]`. This file holds **only derived runtime state** (thumbs, per-Batch status, has-3D, job counts, cover) — never authored design data (that's in the master record).
 
 **(c) Per-Job metadata — each generated asset's `metadata.json`, extended with the full lineage:** `collection_id, batch_id, batch_name, batch_slug, model_agnostic_prompt, enhanced_prompt (per-model), option_index, variation_index, seed, model, cost` — added exactly as `batch_id` already is, so **any single image can reconstruct its entire chain** (Collection → art-direction → Batch/subject → model-agnostic prompt → per-model prompt → option/variation/seed) AND the whole index (b) is rebuildable by scanning member Job metas even if `summary.json` is lost.
 
@@ -2872,17 +2872,17 @@ Collection **versioning** is per-Batch (reuses the existing per-asset versioning
 
 Every LLM round-trip in the design flow has a real cost that must be **tracked cumulatively and shown live** — applies to **both** the Prompt Designer (single-asset) and the Collection Designer:
 
-- Each LLM call (decompose, recompose, enhance, roster fan-out, per-item enhancement, any regeneration) computes its cost from **actual token usage × the registry's per-1K input/output price** (§14.2) and **accrues to the job's `llm_cost_ledger`**.
-- The UI always shows the **running total estimate = accrued LLM design cost + projected generation cost** (Items × O × V × per-image model price). It updates as the user acts: e.g. decompose = `$x`; a recompose = `+$y`; regenerate-the-roster = `+$z`; → cumulative. Collections make this material (a fan-out + N per-item enhancements + regenerations are many calls).
+- Each LLM call (decompose, recompose, enhance, roster fan-out, per-Batch enhancement, any regeneration) computes its cost from **actual token usage × the registry's per-1K input/output price** (§14.2) and **accrues to the job's `llm_cost_ledger`**.
+- The UI always shows the **running total estimate = accrued LLM design cost + projected generation cost** (Batches × O × V × per-image model price). It updates as the user acts: e.g. decompose = `$x`; a recompose = `+$y`; regenerate-the-roster = `+$z`; → cumulative. Collections make this material (a fan-out + N per-Batch enhancements + regenerations are many calls).
 - The ledger is persisted in the metadata (`llm_cost_ledger`: per-step entries + total) alongside the generation cost, so a job's *full* cost (design + generation) is auditable after the fact. Reuses `cost_tracker` + `compute_llm_cost`; no hardcoded prices.
 
 ### 18.10 Telemetry
 
-Every valuable step emits a PulseBoard `track_event` (see the `pulseboard-telemetry` skill): `collection_mode_enabled`, `collection_designed` (item_count, model(s)), `collection_roster_regenerated`, `collection_art_direction_edited`, `collection_item_edited` / `_regenerated`, `collection_generation_started` (items×O×V×models), `collection_generation_complete` (success/partial counts), `collection_hero_anchor_used`, `collection_viewed`, `collection_reset`, and cost events `collection_llm_cost` / `collection_gen_cost`. (Fast-follow: `collection_3d_handoff`.) Telemetry is product-internal only — never referenced in social/launch copy.
+Every valuable step emits a PulseBoard `track_event` (see the `pulseboard-telemetry` skill): `collection_mode_enabled`, `collection_designed` (batch_count, model(s)), `collection_roster_regenerated`, `collection_art_direction_edited`, `collection_batch_edited` / `_regenerated`, `collection_generation_started` (batches×O×V×models), `collection_generation_complete` (success/partial counts), `collection_hero_anchor_used`, `collection_viewed`, `collection_reset`, and cost events `collection_llm_cost` / `collection_gen_cost`. (Fast-follow: `collection_3d_handoff`.) Telemetry is product-internal only — never referenced in social/launch copy.
 
 ### 18.11 Reuse map
 
-- **New:** the Collection toggle, the Collection Designer, the roster fan-out + per-item model-agnostic prompt templates (`prompt_templates.json`), the `data/collections/**` store + Collection record, the Collection Asset Viewer, the collection-membership metadata fields (`collection_id`/`item_slot`/`item_name`/`model_agnostic_prompt`), and the LLM cost ledger.
+- **New:** the Collection toggle, the Collection Designer, the roster fan-out + per-Batch model-agnostic prompt templates (`prompt_templates.json`), the `data/collections/**` store + Collection record, the Collection Asset Viewer, the collection-membership metadata fields (`collection_id`/`batch_name`/`batch_slug`/`model_agnostic_prompt`), and the LLM cost ledger.
 - **Reused:** Style Library (theme source), a "faithful" per-model enhancement, Batch/Job generation + seed-family + retry, reference-guided "inspired" (hero-anchor), Gallery grouping, atomic-write/locks (§17), `cost_tracker`, and the image-to-3D pipeline downstream (fast-follow set handoff).
 
 ## 19. Disclaimer

@@ -1031,28 +1031,28 @@ def generate_roster(
     return roster
 
 
-def generate_item_prompt(
+def generate_batch_prompt(
     art_direction_text: str,
-    item_name: str,
-    item_concept: str,
+    batch_name: str,
+    batch_concept: str,
     asset_type: AssetType,
     image_model: str | None = None,
 ) -> str:
-    """Write ONE model-agnostic image prompt for a single piece (SPEC §18.4)."""
+    """Write ONE model-agnostic image prompt for a single Batch (SPEC §18.4)."""
     max_chars = get_prompt_limit(image_model)
     optimal_length = get_optimal_length(image_model)
     asset_context = _asset_type_context(asset_type)
-    prompt = get_template('collection_item_prompt').format(
+    prompt = get_template('collection_batch_prompt').format(
         art_direction=art_direction_text,
-        item_name=item_name,
-        item_concept=item_concept,
+        batch_name=batch_name,
+        batch_concept=batch_concept,
         asset_context=asset_context,
         optimal_length=f"{optimal_length} words",
         max_chars=max_chars,
     )
     text = invoke_llm(
         prompt,
-        system=get_system_prompt('collection_item_prompt'),
+        system=get_system_prompt('collection_batch_prompt'),
         complexity="fast",
         max_tokens=2048,
         temperature=0.8,

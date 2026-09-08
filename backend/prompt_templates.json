@@ -348,5 +348,63 @@
     "model": "fast LLM (Sonnet)",
     "text": "This prompt template is missing required variables that must be present for the system to work.\n\nMissing variables: {missing_variables}\n\nEach variable uses {{curly_brace}} syntax and gets replaced at runtime with actual values.\nFor example, {{user_prompt}} gets replaced with the user's actual text input.\n\nInsert the missing variables in the most logical positions within this template.\nDo NOT remove any existing content — only ADD the missing variables where they make sense.\n\nTemplate:\n---\n{template_text}\n---\n\nOutput ONLY the fixed template text with all variables inserted. No explanations.",
     "system_prompt": "You fix prompt templates by inserting missing variables. Output only the fixed template. Never remove existing content."
+  },
+  "collection_art_direction": {
+    "label": "Collection — Shared Art Direction",
+    "description": "Distills a set brief into ONE shared art direction every piece in the collection follows.",
+    "used_by": "Collections — decompose (SPEC §18.4)",
+    "variables": [
+      "{ask}",
+      "{style_section}"
+    ],
+    "model": "fast LLM",
+    "text": "You are the art director for a COHESIVE SET of assets generated from one brief. Define the SHARED art direction every piece in the set will follow.\n\n=== THE BRIEF ===\n\"{ask}\"\n\n=== STYLE REFERENCE (if provided, ground the art direction in it) ===\n{style_section}\n\nProduce ONE shared art direction as a JSON object with these string fields:\n- \"world\": the setting / universe / genre\n- \"era\": time period or technological level\n- \"medium\": rendering medium (e.g. hand-painted, stylized 3D render, pixel art, watercolor)\n- \"palette\": the color palette (named colors + mood)\n- \"mood\": emotional tone\n- \"materials\": recurring materials / textures shared across the set\n- \"render\": rendering directives (lighting, detail level, finish)\n- \"negative\": things to avoid across the whole set\n\nKeep every field vivid but concise. The art direction must be broad enough to cover a whole set of DISTINCT subjects, yet specific enough that all pieces clearly belong together.\n\nReturn ONLY the JSON object.",
+    "system_prompt": "You are a senior art director. You return STRICT JSON only — a single object, no prose, no markdown."
+  },
+  "collection_roster": {
+    "label": "Collection — Roster Fan-out",
+    "description": "Invents the roster of distinct, in-theme pieces for a collection (recognizes canonical structures or invents).",
+    "used_by": "Collections — decompose / regenerate roster (SPEC §18.4)",
+    "variables": [
+      "{ask}",
+      "{art_direction}",
+      "{count_directive}",
+      "{count_rule}"
+    ],
+    "model": "complex LLM (Opus)",
+    "text": "You are curating a COHESIVE SET of {count_directive} for one brief, all sharing a single art direction. Invent the ROSTER — the list of distinct pieces in the set.\n\n=== THE BRIEF ===\n\"{ask}\"\n\n=== SHARED ART DIRECTION (every piece follows this) ===\n{art_direction}\n\nRULES:\n1. If the brief implies a CANONICAL structure (a chess set, a deck of cards, a tarot deck, a zodiac, a squad), reproduce that structure faithfully — the right pieces, the right count — but REIMAGINE each piece creatively within the art direction (a Viking chess king = a jarl; a \"Death\" tarot = themed to this world). Never mechanize or literalize; keep it imaginative.\n2. Otherwise, INVENT a set of genuinely DISTINCT, non-repeating pieces that fit the brief and art direction.\n3. Every piece must be UNIQUE — different subject, silhouette, role. No near-duplicates.\n4. {count_rule}\n\nReturn a JSON array where each element is an object with:\n- \"name\": a short human title for the piece (e.g. \"White King\", \"The Navigator\")\n- \"slug\": a lowercase export-safe identifier, words joined by underscores (e.g. \"white_king\")\n- \"concept\": one vivid sentence describing THIS specific piece within the shared art direction\n\nReturn ONLY the JSON array.",
+    "system_prompt": "You are a world-class creative director assembling a themed set. You return STRICT JSON only — an array of piece objects, no prose, no markdown. Be imaginative, never mechanical."
+  },
+  "collection_item_prompt": {
+    "label": "Collection — Per-Piece Prompt",
+    "description": "Writes ONE model-agnostic image prompt for a single piece, obeying the shared art direction.",
+    "used_by": "Collections — per-piece prompt (SPEC §18.4)",
+    "variables": [
+      "{art_direction}",
+      "{item_name}",
+      "{item_concept}",
+      "{asset_context}",
+      "{optimal_length}",
+      "{max_chars}"
+    ],
+    "model": "fast LLM",
+    "text": "You are writing ONE image-generation prompt for a single piece in a cohesive set. The piece MUST clearly belong to the shared set while being its own distinct subject.\n\n=== SHARED ART DIRECTION (obey it precisely) ===\n{art_direction}\n\n=== THIS PIECE ===\nName: {item_name}\nConcept: {item_concept}\n\n=== ASSET TYPE ===\n{asset_context}\n\nWrite a SINGLE, self-contained, model-agnostic image prompt (approximately {optimal_length}, maximum {max_chars} characters) that:\n- Renders THIS piece specifically (its subject, role, silhouette).\n- Applies the shared art direction (medium, palette, materials, render, mood) so it visibly matches the rest of the set.\n- Is a vivid descriptive caption, not a command. Every word describes something visible.\n- Shows ONE complete subject in frame when the asset type calls for it (full subject, uncropped, clear margin on all sides).\n\nOutput ONLY the prompt text (optionally a final line prefixed \"NEGATIVE:\" for exclusions). No preamble, no quotes, no explanation.",
+    "system_prompt": "You write vivid, self-contained, model-agnostic image prompts for one piece of a cohesive set. Output ONLY the prompt text. No markdown, no preamble, no quotes."
+  },
+  "collection_batch_prompt": {
+    "label": "Collection — Per-Batch Prompt",
+    "description": "Writes ONE model-agnostic image prompt for a single Batch (one piece of the set), obeying the shared art direction.",
+    "used_by": "Collections — per-Batch prompt (SPEC §18.4)",
+    "variables": [
+      "{art_direction}",
+      "{batch_name}",
+      "{batch_concept}",
+      "{asset_context}",
+      "{optimal_length}",
+      "{max_chars}"
+    ],
+    "model": "fast LLM",
+    "text": "You are writing ONE image-generation prompt for a single piece in a cohesive set. The piece MUST clearly belong to the shared set while being its own distinct subject.\n\n=== SHARED ART DIRECTION (obey it precisely) ===\n{art_direction}\n\n=== THIS PIECE ===\nName: {batch_name}\nConcept: {batch_concept}\n\n=== ASSET TYPE ===\n{asset_context}\n\nWrite a SINGLE, self-contained, model-agnostic image prompt (approximately {optimal_length}, maximum {max_chars} characters) that:\n- Renders THIS piece specifically (its subject, role, silhouette).\n- Applies the shared art direction (medium, palette, materials, render, mood) so it visibly matches the rest of the set.\n- Is a vivid descriptive caption, not a command. Every word describes something visible.\n- Shows ONE complete subject in frame when the asset type calls for it (full subject, uncropped, clear margin on all sides).\n\nOutput ONLY the prompt text (optionally a final line prefixed \"NEGATIVE:\" for exclusions). No preamble, no quotes, no explanation.",
+    "system_prompt": "You write vivid, self-contained, model-agnostic image prompts for one piece of a cohesive set. Output ONLY the prompt text. No markdown, no preamble, no quotes."
   }
 }

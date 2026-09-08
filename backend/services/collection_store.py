@@ -3,7 +3,7 @@
 See SPEC §18. A Collection is the umbrella tier above the existing Batch/Job
 model:
 
-    Collection  →  Batch (one roster subject / "piece")  →  Job (one image)
+    Collection  →  Batch (one roster subject)  →  Job (one image)
 
 ID strategy (SPEC §18.6, decided by audit): each roster subject generates its own
 ordinary ``batch_id`` and the Collection simply GROUPS N of them. There is NO
@@ -26,7 +26,7 @@ pixels stay in ``data/generated/{asset_id}/``):
 Consistency is EAGER live-update (SPEC §18.7): the same discipline the per-asset
 ``metadata.json`` already uses — RMW under a lock on every change, no
 rev/dirty machinery. Member-Job changes (select a version, produce a 3D model,
-edit/delete a piece) are serial and user-paced, so
+edit/delete a Batch) are serial and user-paced, so
 ``refresh_collection_summary`` patches the affected Batch immediately. The one
 concurrent burst — initial generation — is handled by refreshing once per Batch
 completion plus one wholesale ``rebuild_collection_summary`` at the end.
@@ -97,10 +97,10 @@ def new_collection_record(
 ) -> dict:
     """Build a fresh master-record dict (SPEC §18.7(a)).
 
-    A roster entry = one Batch (piece):
+    A roster entry = one Batch:
       {batch_id, name, slug, concept, model_agnostic_prompt,
        locked, per_model_prompts{}, selected_version, three_d?}
-    ``batch_id`` is empty until that piece generates.
+    ``batch_id`` is empty until that Batch generates.
     """
     now = _utcnow()
     return {
@@ -129,9 +129,9 @@ def new_roster_entry(
     model_agnostic_prompt: str = "",
     locked: bool = False,
 ) -> dict:
-    """Build a fresh roster entry (one Batch / piece) for the master record."""
+    """Build a fresh roster entry (one Batch) for the master record."""
     return {
-        "batch_id": "",                  # assigned when this piece generates
+        "batch_id": "",                  # assigned when this Batch generates
         "name": name,
         "slug": slug,
         "concept": concept,
@@ -232,7 +232,7 @@ def _member_jobs(batch_id: str) -> list[dict]:
     return jobs
 
 
-def _project_piece(entry: dict) -> dict:
+def _project_batch(entry: dict) -> dict:
     """Project one roster Batch into its lean summary form (derived state only)."""
     batch_id = entry.get("batch_id", "")
     jobs = _member_jobs(batch_id)
@@ -249,7 +249,7 @@ def _project_piece(entry: dict) -> dict:
     else:
         status = "complete"
 
-    # Thumb: the first Job (lowest option/variation) — the piece's representative
+    # Thumb: the first Job (lowest option/variation) — the Batch's representative
     # image. selected_version is authored on the entry (None → the Job's current).
     thumb_asset_id = jobs[0]["id"] if jobs else None
     selected_version = entry.get("selected_version")
@@ -275,10 +275,10 @@ def _project_piece(entry: dict) -> dict:
 
 def _project_summary(record: dict) -> dict:
     """Full projection of the master record → the lean Gallery index."""
-    pieces = [_project_piece(e) for e in record.get("roster", [])]
-    # Cover: first piece that has a thumb.
+    batches = [_project_batch(e) for e in record.get("roster", [])]
+    # Cover: first Batch that has a thumb.
     cover = None
-    for p in pieces:
+    for p in batches:
         if p.get("thumb_asset_id"):
             cover = {
                 "asset_id": p["thumb_asset_id"],
@@ -292,12 +292,12 @@ def _project_summary(record: dict) -> dict:
         "name": record.get("name", ""),
         "status": record.get("status", ""),
         "updated_at": record.get("updated_at"),
-        "piece_count": len(pieces),
+        "batch_count": len(batches),
         "models": knobs.get("models", []),
         "cost_estimate": record.get("cost_estimate"),
         "cost_actual": record.get("cost_actual"),
         "cover": cover,
-        "pieces": pieces,
+        "batches": batches,
     }
 
 
@@ -332,7 +332,7 @@ def refresh_collection_summary(collection_id: str, changed_batch_id: str | None 
             return summary
 
         # Targeted patch: load the existing index (rebuild if absent), then
-        # replace only the changed Batch's piece + recompute the cover.
+        # replace only the changed Batch + recompute the cover.
         path = _summary_path(collection_id)
         summary: dict | None = None
         if path.exists():
@@ -346,28 +346,28 @@ def refresh_collection_summary(collection_id: str, changed_batch_id: str | None 
             return summary
 
         entry = next((e for e in record.get("roster", []) if e.get("batch_id") == changed_batch_id), None)
-        pieces = summary.get("pieces", [])
+        batches = summary.get("batches", [])
         if entry is not None:
-            projected = _project_piece(entry)
-            for i, p in enumerate(pieces):
+            projected = _project_batch(entry)
+            for i, p in enumerate(batches):
                 if p.get("batch_id") == changed_batch_id:
-                    pieces[i] = projected
+                    batches[i] = projected
                     break
             else:
-                pieces.append(projected)
+                batches.append(projected)
         else:
             # Batch no longer in the roster (deleted/emptied) — drop it.
-            pieces = [p for p in pieces if p.get("batch_id") != changed_batch_id]
+            batches = [p for p in batches if p.get("batch_id") != changed_batch_id]
 
-        summary["pieces"] = pieces
-        summary["piece_count"] = len(pieces)
+        summary["batches"] = batches
+        summary["batch_count"] = len(batches)
         summary["status"] = record.get("status", summary.get("status", ""))
         summary["updated_at"] = record.get("updated_at")
         summary["cost_actual"] = record.get("cost_actual")
         summary["cover"] = next(
             ({"asset_id": p["thumb_asset_id"], "version": p.get("selected_version"),
               "thumb_path": p["thumb_path"]}
-             for p in pieces if p.get("thumb_asset_id")),
+             for p in batches if p.get("thumb_asset_id")),
             None,
         )
         atomic_write_text(path, json.dumps(summary, indent=2, default=str))

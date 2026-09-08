@@ -1,7 +1,7 @@
 """Collections (Set Generation) API — SPEC §18.
 
 Design-time endpoints (decompose / recompose / regenerate) turn ONE brief into a
-shared art direction + a roster of distinct, in-theme pieces, each with its own
+shared art direction + a roster of distinct, in-theme Batches, each with its own
 model-agnostic prompt. The design is held IN-MEMORY by the client (like the
 single-asset Prompt Designer) — no pre-generation persistence; the Collection
 record is written at generation start (see routers/generate.py). Read endpoints
@@ -24,9 +24,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/collections", tags=["collections"])
 
-# Bounded fan-out for per-piece prompt generation — parallel for speed, capped to
+# Bounded fan-out for per-Batch prompt generation — parallel for speed, capped to
 # respect Bedrock/Mantle throttle (the sanity-harness lesson).
-_ITEM_PROMPT_WORKERS = 4
+_BATCH_PROMPT_WORKERS = 4
 
 
 def _asset_enum(value: str | None) -> AssetType:
@@ -66,7 +66,7 @@ class DecomposeCollectionRequest(BaseModel):
     count: int | None = None            # None → infer natural count
 
 
-class RecomposeItemRequest(BaseModel):
+class RecomposeBatchRequest(BaseModel):
     art_direction: str                  # flat art-direction text
     name: str
     concept: str = ""
@@ -93,25 +93,25 @@ class RecomposeAllRequest(BaseModel):
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
-def _gen_item_prompts(roster: list[dict], art_direction_text: str, asset_type: AssetType,
+def _gen_batch_prompts(roster: list[dict], art_direction_text: str, asset_type: AssetType,
                       image_model: str | None) -> None:
     """Fill each roster entry's `model_agnostic_prompt` in place, in parallel,
     sharing the request's cost accumulator with the worker threads."""
-    from backend.services.prompt_engineer import generate_item_prompt
+    from backend.services.prompt_engineer import generate_batch_prompt
     from backend.services.cost_tracker import share_accumulator_with_thread, install_shared_accumulator
 
     acc = share_accumulator_with_thread()
 
     def _one(entry: dict):
         install_shared_accumulator(acc)  # accrue this thread's LLM cost to the request
-        entry["model_agnostic_prompt"] = generate_item_prompt(
+        entry["model_agnostic_prompt"] = generate_batch_prompt(
             art_direction_text, entry.get("name", ""), entry.get("concept", ""),
             asset_type, image_model,
         )
 
     if not roster:
         return
-    with ThreadPoolExecutor(max_workers=min(_ITEM_PROMPT_WORKERS, len(roster))) as ex:
+    with ThreadPoolExecutor(max_workers=min(_BATCH_PROMPT_WORKERS, len(roster))) as ex:
         list(ex.map(_one, roster))
 
 
@@ -119,7 +119,7 @@ def _gen_item_prompts(roster: list[dict], art_direction_text: str, asset_type: A
 
 @router.post("/decompose")
 async def decompose_collection(body: DecomposeCollectionRequest):
-    """Toggle → one brief becomes {art direction, roster of pieces, per-piece
+    """Toggle → one brief becomes {art direction, roster of Batches, per-Batch
     model-agnostic prompts} + a running LLM cost ledger (SPEC §18.4/§18.9)."""
     from backend.services.prompt_engineer import generate_art_direction, generate_roster
     from backend.services.cost_tracker import reset_costs, get_total_cost
@@ -142,9 +142,9 @@ async def decompose_collection(body: DecomposeCollectionRequest):
         c2 = get_total_cost()
         ledger.append({"step": "roster", "cost": round(c2 - c1, 6)})
 
-        _gen_item_prompts(roster, art.get("text", ""), asset_type, body.image_model)
+        _gen_batch_prompts(roster, art.get("text", ""), asset_type, body.image_model)
         c3 = get_total_cost()
-        ledger.append({"step": "item_prompts", "cost": round(c3 - c2, 6)})
+        ledger.append({"step": "batch_prompts", "cost": round(c3 - c2, 6)})
 
         collection_id = cstore.new_collection_id()
         return {
@@ -164,30 +164,30 @@ async def decompose_collection(body: DecomposeCollectionRequest):
         track_aux_llm_cost("collection_decompose", get_total_cost())
 
 
-@router.post("/recompose-item")
-async def recompose_item(body: RecomposeItemRequest):
-    """Regenerate ONE piece's model-agnostic prompt (keep the rest)."""
-    from backend.services.prompt_engineer import generate_item_prompt
+@router.post("/recompose-batch")
+async def recompose_batch(body: RecomposeBatchRequest):
+    """Regenerate ONE Batch's model-agnostic prompt (keep the rest)."""
+    from backend.services.prompt_engineer import generate_batch_prompt
     from backend.services.cost_tracker import reset_costs, get_total_cost
     from backend.services.telemetry import track_aux_llm_cost
 
     reset_costs()
     try:
-        text = generate_item_prompt(
+        text = generate_batch_prompt(
             body.art_direction, body.name, body.concept,
             _asset_enum(body.asset_type), body.image_model,
         )
         return {"model_agnostic_prompt": text, "cost": round(get_total_cost(), 6)}
     except Exception as exc:
-        logger.exception("Collection recompose-item failed")
-        raise HTTPException(502, detail=f"Item prompt failed: {exc}")
+        logger.exception("Collection recompose-batch failed")
+        raise HTTPException(502, detail=f"Batch prompt failed: {exc}")
     finally:
-        track_aux_llm_cost("collection_recompose_item", get_total_cost())
+        track_aux_llm_cost("collection_recompose_batch", get_total_cost())
 
 
 @router.post("/regenerate-roster")
 async def regenerate_roster(body: RegenerateRosterRequest):
-    """Re-fan the roster, PRESERVING locked entries; fill new pieces' prompts."""
+    """Re-fan the roster, PRESERVING locked entries; fill new Batches' prompts."""
     from backend.services.prompt_engineer import generate_roster, _resolve_slug_collisions
     from backend.services.cost_tracker import reset_costs, get_total_cost
     from backend.services.telemetry import track_aux_llm_cost
@@ -199,20 +199,20 @@ async def regenerate_roster(body: RegenerateRosterRequest):
         locked = [dict(e) for e in body.locked]
         locked_names = {str(e.get("name", "")).lower() for e in locked}
 
-        # How many NEW pieces to fan (keep the target count stable if given).
+        # How many NEW Batches to fan (keep the target count stable if given).
         want = (body.count - len(locked)) if body.count else None
         fresh = generate_roster(body.prompt, body.art_direction, want, style_profile)
         fresh = [e for e in fresh if str(e.get("name", "")).lower() not in locked_names]
 
         c1 = get_total_cost()
-        _gen_item_prompts(fresh, body.art_direction, asset_type, body.image_model)
+        _gen_batch_prompts(fresh, body.art_direction, asset_type, body.image_model)
 
         roster = locked + fresh
         _resolve_slug_collisions(roster)
         return {"roster": roster, "cost": round(get_total_cost(), 6),
                 "llm_cost_ledger": [
                     {"step": "roster", "cost": round(c1, 6)},
-                    {"step": "item_prompts", "cost": round(get_total_cost() - c1, 6)},
+                    {"step": "batch_prompts", "cost": round(get_total_cost() - c1, 6)},
                 ]}
     except Exception as exc:
         logger.exception("Collection regenerate-roster failed")
@@ -223,7 +223,7 @@ async def regenerate_roster(body: RegenerateRosterRequest):
 
 @router.post("/recompose-all")
 async def recompose_all(body: RecomposeAllRequest):
-    """Art direction edited → recompose EVERY piece's model-agnostic prompt so the
+    """Art direction edited → recompose EVERY Batch's model-agnostic prompt so the
     whole set re-aligns to the new direction (SPEC §18.3)."""
     from backend.services.cost_tracker import reset_costs, get_total_cost
     from backend.services.telemetry import track_aux_llm_cost
@@ -231,7 +231,7 @@ async def recompose_all(body: RecomposeAllRequest):
     reset_costs()
     try:
         roster = [dict(e) for e in body.roster]
-        _gen_item_prompts(roster, body.art_direction, _asset_enum(body.asset_type), body.image_model)
+        _gen_batch_prompts(roster, body.art_direction, _asset_enum(body.asset_type), body.image_model)
         return {"roster": roster, "cost": round(get_total_cost(), 6)}
     except Exception as exc:
         logger.exception("Collection recompose-all failed")

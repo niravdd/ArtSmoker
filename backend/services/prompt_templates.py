@@ -453,11 +453,11 @@ Return a JSON array where each element is an object with:
 Return ONLY the JSON array.""",
     },
 
-    "collection_item_prompt": {
-        "label": "Collection — Per-Piece Prompt",
-        "description": "Writes ONE model-agnostic image prompt for a single piece, obeying the shared art direction.",
-        "used_by": "Collections — per-piece prompt (SPEC §18.4)",
-        "variables": ["{art_direction}", "{item_name}", "{item_concept}", "{asset_context}", "{optimal_length}", "{max_chars}"],
+    "collection_batch_prompt": {
+        "label": "Collection — Per-Batch Prompt",
+        "description": "Writes ONE model-agnostic image prompt for a single Batch (one piece of the set), obeying the shared art direction.",
+        "used_by": "Collections — per-Batch prompt (SPEC §18.4)",
+        "variables": ["{art_direction}", "{batch_name}", "{batch_concept}", "{asset_context}", "{optimal_length}", "{max_chars}"],
         "model": "fast LLM",
         "system_prompt": "You write vivid, self-contained, model-agnostic image prompts for one piece of a cohesive set. Output ONLY the prompt text. No markdown, no preamble, no quotes.",
         "text": """You are writing ONE image-generation prompt for a single piece in a cohesive set. The piece MUST clearly belong to the shared set while being its own distinct subject.
@@ -466,8 +466,8 @@ Return ONLY the JSON array.""",
 {art_direction}
 
 === THIS PIECE ===
-Name: {item_name}
-Concept: {item_concept}
+Name: {batch_name}
+Concept: {batch_concept}
 
 === ASSET TYPE ===
 {asset_context}
