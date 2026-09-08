@@ -47,6 +47,10 @@ data/trellis2_full_verify/
 /tools/*
 !/tools/sanity_test.py
 
+# Temporary build-tracking checklist for the Collections feature — local only,
+# deleted once the feature ships (remove this line then too).
+/docs/COLLECTIONS_TASKS.md
+
 # Local Blender working files (e.g. FBX/USD import test scenes) — never repo content
 *.blend
 *.blend1
