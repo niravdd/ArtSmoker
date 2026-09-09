@@ -378,55 +378,144 @@ def run_image(base, model, region):
     return False, f"no image ({len(events)} events)", None
 
 
+def _delete_json(base, path, timeout=60):
+    """Execute a DELETE and return the parsed JSON (the older code built a Request
+    but never opened it — so cleanup silently no-op'd). Always urlopen."""
+    with urllib.request.urlopen(_req(base + path, method="DELETE", timeout=timeout), timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+
 def run_collection(base, model, region):
-    """Collections (SPEC §18) end-to-end smoke: decompose → generate (2 Batches ×
-    1×1) → assert per-Job lineage + cost ledger + ONE Gallery collection card →
-    clean up. Real HTTP, registry-driven (runs on the given image model)."""
+    """Collections (SPEC §18) FULL end-to-end regression on the given image model:
+    decompose → estimate → recompose-batch → recompose-all → regenerate-roster
+    (locked-preserve) → generate (2 Batches × 1×1) → gallery card/index →
+    get/reconstruct → select-version (+ design_history) → export graceful-400 →
+    delete cleanup. Real HTTP, registry-driven. Live 3D SUBMIT is intentionally NOT
+    fired (SageMaker cost + async side-effects); export's no-3D path exercises the
+    export wiring instead."""
+    import urllib.error
     mk = model["key"]
-    # 1) Decompose a tiny 2-Batch set.
-    dec = post_json(base, "/api/collections/decompose",
-                    {"prompt": "a tiny set of two fantasy gemstones", "asset_type": "game_asset",
-                     "image_model": mk, "count": 2}, timeout=180)
-    roster = dec.get("roster") or []
-    cid = dec.get("collection_id")
-    if len(roster) != 2 or not all(r.get("model_agnostic_prompt") for r in roster):
-        return False, f"decompose bad roster ({len(roster)} batches)", None
-    if not dec.get("art_direction", {}).get("text") or not (dec.get("cost", 0) > 0):
-        return False, "decompose missing art-direction/cost", None
-
-    # 2) Generate (1×1 per Batch).
-    payload = {"collection_id": cid, "name": dec.get("name", "Sanity Set"),
-               "raw_ask": "a tiny set of two fantasy gemstones", "art_direction": dec["art_direction"],
-               "roster": roster, "image_model": mk, "region": region, "asset_type": "game_asset",
-               "num_options": 1, "num_variations": 1,
-               "llm_cost_ledger": dec.get("llm_cost_ledger", []), "design_cost": dec.get("cost", 0)}
-    events = post_sse(base, "/api/collections/generate", payload, timeout=300)
-    comp = next((e for e in events if e.get("type") == "collection_complete"), None)
-    if next((e for e in events if e.get("type") == "error"), None) or comp is None:
-        return False, f"generate failed ({len(events)} events)", cid
-    if comp.get("completed_batches") != 2:
-        return False, f"only {comp.get('completed_batches')}/2 batches completed", cid
-    if not any(e.get("type") == "cost_update" for e in events):
-        return False, "no cost_update event", cid
-
-    # 3) Gallery fast-path: exactly one collection card, with a cover.
-    lst = get_json(base, "/api/collections", timeout=30).get("collections", [])
-    card = next((c for c in lst if c.get("collection_id") == cid), None)
-    if not card or card.get("batch_count") != 2 or not card.get("cover"):
-        return False, "collection card missing/incomplete in gallery list", cid
-
-    # 4) Per-Job lineage carries collection_id.
-    full = get_json(base, f"/api/collections/{cid}", timeout=30)
-    ok_lineage = full.get("record", {}).get("status") in ("complete", "partial")
-
-    # 5) Clean up (delete record + index + member Jobs).
+    ask = "a tiny set of two fantasy gemstones"
+    steps, cid = [], None
     try:
-        _req(f"{base}/api/collections/{cid}?delete_assets=true", method="DELETE", timeout=60)
-    except Exception:
-        pass
-    if not ok_lineage:
-        return False, "record not finalized", cid
-    return True, f"2 batches, card+cover ok, ledger persisted, cleaned up", cid
+        # 1) decompose (art-direction + roster + per-Batch prompts + cost ledger)
+        dec = post_json(base, "/api/collections/decompose",
+                        {"prompt": ask, "asset_type": "game_asset", "image_model": mk, "count": 2}, timeout=180)
+        roster, cid = dec.get("roster") or [], dec.get("collection_id")
+        if len(roster) != 2 or not all(r.get("model_agnostic_prompt") for r in roster):
+            return False, f"decompose bad roster ({len(roster)})", cid
+        if not dec.get("art_direction", {}).get("text") or not (dec.get("cost", 0) > 0):
+            return False, "decompose missing art-direction/cost", cid
+        ad = dec["art_direction"]["text"]; steps.append("decompose")
+
+        # 2) estimate — projected-cost math (batches × O × V × price)
+        est = post_json(base, "/api/collections/estimate",
+                        {"image_model": mk, "batches": 2, "options": 3, "variations": 2,
+                         "design_cost": dec["cost"]}, timeout=30)
+        if est.get("images") != 12:
+            return False, f"estimate images={est.get('images')} (want 12)", cid
+        if est.get("price_available") and abs((est.get("projected_generation_cost") or 0)
+                                              - round(est["price_per_image"] * 12, 4)) > 1e-4:
+            return False, "estimate projected-cost math wrong", cid
+        steps.append("estimate")
+
+        # 3) recompose ONE Batch prompt
+        rb = post_json(base, "/api/collections/recompose-batch",
+                       {"art_direction": ad, "name": roster[0]["name"], "concept": roster[0].get("concept", ""),
+                        "image_model": mk, "asset_type": "game_asset"}, timeout=90)
+        if not rb.get("model_agnostic_prompt"):
+            return False, "recompose-batch empty", cid
+        steps.append("recompose-batch")
+
+        # 4) recompose ALL prompts (art-direction cascade)
+        ra = post_json(base, "/api/collections/recompose-all",
+                       {"art_direction": ad, "image_model": mk, "asset_type": "game_asset",
+                        "roster": [{"name": r["name"], "slug": r["slug"], "concept": r.get("concept", "")} for r in roster]},
+                       timeout=120)
+        if len(ra.get("roster", [])) != 2 or not all(x.get("model_agnostic_prompt") for x in ra["roster"]):
+            return False, "recompose-all incomplete", cid
+        steps.append("recompose-all")
+
+        # 5) regenerate roster PRESERVING a locked entry
+        rr = post_json(base, "/api/collections/regenerate-roster",
+                       {"prompt": ask, "art_direction": ad, "count": 2, "image_model": mk, "asset_type": "game_asset",
+                        "locked": [{"name": roster[0]["name"], "slug": roster[0]["slug"],
+                                    "concept": roster[0].get("concept", ""),
+                                    "model_agnostic_prompt": roster[0]["model_agnostic_prompt"]}]}, timeout=120)
+        if roster[0]["slug"] not in [x["slug"] for x in rr.get("roster", [])]:
+            return False, "regenerate-roster dropped the locked entry", cid
+        steps.append("regenerate-roster(lock)")
+
+        # 6) generate 2 Batches × 1×1 (SSE) — assert complete + cost_update
+        events = post_sse(base, "/api/collections/generate",
+                          {"collection_id": cid, "name": dec.get("name", "Sanity Set"), "raw_ask": ask,
+                           "art_direction": dec["art_direction"], "roster": roster, "image_model": mk,
+                           "region": region, "asset_type": "game_asset", "num_options": 1, "num_variations": 1,
+                           "llm_cost_ledger": dec.get("llm_cost_ledger", []), "design_cost": dec.get("cost", 0)},
+                          timeout=300)
+        comp = next((e for e in events if e.get("type") == "collection_complete"), None)
+        if next((e for e in events if e.get("type") == "error"), None) or comp is None:
+            return False, f"generate failed ({len(events)} events)", cid
+        if comp.get("completed_batches") != 2:
+            return False, f"only {comp.get('completed_batches')}/2 batches completed", cid
+        if not any(e.get("type") == "cost_update" for e in events):
+            return False, "no cost_update event", cid
+        steps.append("generate2×1×1")
+
+        # 7) Gallery fast-path: one card w/ cover, batch_count, per-Batch versions field
+        card = next((c for c in get_json(base, "/api/collections", timeout=30).get("collections", [])
+                     if c.get("collection_id") == cid), None)
+        if not card or card.get("batch_count") != 2 or not card.get("cover"):
+            return False, "gallery card missing/incomplete", cid
+        if not card.get("batches") or "versions" not in card["batches"][0]:
+            return False, "summary missing per-Batch versions field", cid
+        steps.append("gallery-card")
+
+        # 8) Full view: record finalized + Batches reconstructed with batch_ids
+        full = get_json(base, f"/api/collections/{cid}", timeout=30)
+        rec = full.get("record", {})
+        if rec.get("status") not in ("complete", "partial"):
+            return False, "record not finalized", cid
+        b0 = (rec.get("roster") or [{}])[0].get("batch_id")
+        if not b0 or not full.get("batches"):
+            return False, "reconstruction missing batch_id/batches", cid
+        steps.append("get/reconstruct")
+
+        # 9) select-version pointer + design_history provenance
+        sv = post_json(base, f"/api/collections/{cid}/select-version",
+                       {"batch_id": b0, "version": 1}, timeout=30)
+        if not sv.get("ok"):
+            return False, "select-version failed", cid
+        if not get_json(base, f"/api/collections/{cid}", timeout=30).get("record", {}).get("design_history"):
+            return False, "design_history not appended", cid
+        steps.append("select-version+history")
+
+        # 10) export with no 3D yet → graceful 400 (exercises export wiring)
+        try:
+            urllib.request.urlopen(_req(f"{base}/api/collections/{cid}/export?fmt=fbx", timeout=60), timeout=60)
+            return False, "export should 400 (no 3D) but returned 200", cid
+        except urllib.error.HTTPError as e:
+            if e.code != 400:
+                return False, f"export unexpected status {e.code}", cid
+        steps.append("export-graceful400")
+
+        # 11) delete cleanup (ACTUALLY executed) + verify gone
+        _delete_json(base, f"/api/collections/{cid}?delete_assets=true")
+        if any(c.get("collection_id") == cid for c in get_json(base, "/api/collections", timeout=30).get("collections", [])):
+            return False, "collection not deleted", cid
+        cid = None
+        steps.append("delete-cleanup")
+
+        return True, " → ".join(steps), None
+    except urllib.error.HTTPError as e:
+        return False, f"HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:140]}", cid
+    finally:
+        # If we bailed mid-flow, best-effort clean up the collection we created.
+        if cid:
+            try:
+                _delete_json(base, f"/api/collections/{cid}?delete_assets=true")
+            except Exception:
+                pass
 
 
 def run_video(base, model, region, timeout):
