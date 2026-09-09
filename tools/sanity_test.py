@@ -378,6 +378,57 @@ def run_image(base, model, region):
     return False, f"no image ({len(events)} events)", None
 
 
+def run_collection(base, model, region):
+    """Collections (SPEC §18) end-to-end smoke: decompose → generate (2 Batches ×
+    1×1) → assert per-Job lineage + cost ledger + ONE Gallery collection card →
+    clean up. Real HTTP, registry-driven (runs on the given image model)."""
+    mk = model["key"]
+    # 1) Decompose a tiny 2-Batch set.
+    dec = post_json(base, "/api/collections/decompose",
+                    {"prompt": "a tiny set of two fantasy gemstones", "asset_type": "game_asset",
+                     "image_model": mk, "count": 2}, timeout=180)
+    roster = dec.get("roster") or []
+    cid = dec.get("collection_id")
+    if len(roster) != 2 or not all(r.get("model_agnostic_prompt") for r in roster):
+        return False, f"decompose bad roster ({len(roster)} batches)", None
+    if not dec.get("art_direction", {}).get("text") or not (dec.get("cost", 0) > 0):
+        return False, "decompose missing art-direction/cost", None
+
+    # 2) Generate (1×1 per Batch).
+    payload = {"collection_id": cid, "name": dec.get("name", "Sanity Set"),
+               "raw_ask": "a tiny set of two fantasy gemstones", "art_direction": dec["art_direction"],
+               "roster": roster, "image_model": mk, "region": region, "asset_type": "game_asset",
+               "num_options": 1, "num_variations": 1,
+               "llm_cost_ledger": dec.get("llm_cost_ledger", []), "design_cost": dec.get("cost", 0)}
+    events = post_sse(base, "/api/collections/generate", payload, timeout=300)
+    comp = next((e for e in events if e.get("type") == "collection_complete"), None)
+    if next((e for e in events if e.get("type") == "error"), None) or comp is None:
+        return False, f"generate failed ({len(events)} events)", cid
+    if comp.get("completed_batches") != 2:
+        return False, f"only {comp.get('completed_batches')}/2 batches completed", cid
+    if not any(e.get("type") == "cost_update" for e in events):
+        return False, "no cost_update event", cid
+
+    # 3) Gallery fast-path: exactly one collection card, with a cover.
+    lst = get_json(base, "/api/collections", timeout=30).get("collections", [])
+    card = next((c for c in lst if c.get("collection_id") == cid), None)
+    if not card or card.get("batch_count") != 2 or not card.get("cover"):
+        return False, "collection card missing/incomplete in gallery list", cid
+
+    # 4) Per-Job lineage carries collection_id.
+    full = get_json(base, f"/api/collections/{cid}", timeout=30)
+    ok_lineage = full.get("record", {}).get("status") in ("complete", "partial")
+
+    # 5) Clean up (delete record + index + member Jobs).
+    try:
+        _req(f"{base}/api/collections/{cid}?delete_assets=true", method="DELETE", timeout=60)
+    except Exception:
+        pass
+    if not ok_lineage:
+        return False, "record not finalized", cid
+    return True, f"2 batches, card+cover ok, ledger persisted, cleaned up", cid
+
+
 def run_video(base, model, region, timeout):
     payload = {
         "model_key": model["key"], "prompt": VIDEO_PROMPT,
@@ -412,7 +463,7 @@ def main():
     ap = argparse.ArgumentParser(description="ArtSmoker end-to-end sanity harness")
     ap.add_argument("--base-url", default="http://127.0.0.1:8000")
     ap.add_argument("--stages", default="chat,image,video",
-                    help="comma list of: chat,image,video")
+                    help="comma list of: chat,image,video,collections")
     ap.add_argument("--region-scope", choices=("all", "pinned"), default="all")
     ap.add_argument("--concurrency", type=int, default=10,
                     help="parallel in-flight requests per stage (hides cross-geo hangs)")
@@ -538,6 +589,11 @@ def main():
     if "video" in stages:
         run_stage("video", select_video_models(reg, args.include_custom),
                   lambda m, r: run_video(base, m, r, args.video_timeout))
+    if "collections" in stages:
+        # One image model is enough to smoke the whole Collections flow (SPEC §18);
+        # capped to the first enabled image model to bound cost.
+        run_stage("collections", select_image_models(reg, args.include_custom)[:1],
+                  lambda m, r: run_collection(base, m, r))
 
     results["finished"] = datetime.now(timezone.utc).isoformat()
     Path(args.report).write_text(json.dumps(results, indent=2))
