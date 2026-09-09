@@ -37,7 +37,7 @@
                         <h2 id="cv-title" class="text-lg font-semibold truncate">${title}</h2>
                         <div class="flex items-center gap-2">
                             <button id="cv-3d" class="btn btn-xs bg-violet-700/70 hover:bg-violet-600 text-white">${t('collection.viewer_3d_set')}</button>
-                            <button id="cv-export" class="btn btn-xs bg-brand-bg border border-brand-border opacity-50 cursor-not-allowed" disabled title="Fast-follow">${t('collection.viewer_export_set')}</button>
+                            <button id="cv-export" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.viewer_export_set')}</button>
                             <button id="cv-delete" class="btn btn-xs bg-red-700/70 hover:bg-red-600 text-white">${t('collection.delete')}</button>
                             <button id="cv-close" class="text-brand-text-muted hover:text-brand-text text-2xl leading-none ml-2">&times;</button>
                         </div>
@@ -88,6 +88,10 @@
                                     ${b.has_3d ? html`<span class="text-[10px] px-1.5 py-0.5 rounded bg-violet-600/70 text-white">3D</span>` : ''}
                                     <span class="text-[10px] text-brand-text-muted ml-auto">${b.job_count} img</span>
                                 </div>
+                                ${(b.versions && b.versions.length > 1) ? html`
+                                    <select class="cv-version input text-[10px] mt-1 py-0.5" data-batch="${b.batch_id}" title="${t('collection.version_label')}">
+                                        ${b.versions.map((v) => html`<option value="${v}" ${v === b.selected_version ? 'selected' : ''}>${t('collection.version_label')} ${v}</option>`)}
+                                    </select>` : ''}
                             </div>
                         </div>`)}
                 </div>`;
@@ -95,8 +99,30 @@
             body.querySelectorAll('.cv-batch').forEach((card) => {
                 card.addEventListener('click', () => this._openBatch(card.dataset.batch));
             });
+            // Per-Batch version picker (Phase M) — pins which version represents the
+            // Batch in the set. Stop propagation so it doesn't open the drill-down.
+            body.querySelectorAll('.cv-version').forEach((sel) => {
+                sel.addEventListener('click', (e) => e.stopPropagation());
+                sel.addEventListener('change', async (e) => {
+                    e.stopPropagation();
+                    try {
+                        await API.collections.selectVersion(rec.collection_id,
+                            { batch_id: sel.dataset.batch, version: parseInt(sel.value, 10) });
+                        this.open(rec.collection_id);   // reflect the new cover
+                    } catch (err) { window.showToast?.(err.message || t('collection.error'), 'error'); }
+                });
+            });
             document.getElementById('cv-delete').addEventListener('click', () => this._delete(rec.collection_id));
             document.getElementById('cv-3d').addEventListener('click', () => this._generate3d(rec.collection_id));
+            document.getElementById('cv-export').addEventListener('click', () => this._export(rec.collection_id));
+        },
+
+        _export(collectionId) {
+            // Simple engine/format prompt → stream the bundle via a hidden download.
+            const fmt = (window.prompt(t('collection.export_prompt'), 'fbx') || '').trim().toLowerCase();
+            if (!fmt) return;
+            if (!['fbx', 'usd', 'glb'].includes(fmt)) { window.showToast?.('fmt must be fbx, usd, or glb', 'warning'); return; }
+            window.location.href = API.collections.exportUrl(collectionId, 'generic', fmt);
         },
 
         async _generate3d(collectionId) {

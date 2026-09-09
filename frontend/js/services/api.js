@@ -260,7 +260,10 @@
             recomposeAll(data) { return request('/api/collections/recompose-all', { method: 'POST', body: data }); },
             list() { return request('/api/collections', { method: 'GET' }); },
             get(id) { return request(`/api/collections/${id}`, { method: 'GET' }); },
+            estimate(data) { return request('/api/collections/estimate', { method: 'POST', body: data }); },
             generate3d(id) { return request(`/api/collections/${id}/generate-3d`, { method: 'POST' }); },
+            selectVersion(id, data) { return request(`/api/collections/${id}/select-version`, { method: 'POST', body: data }); },
+            exportUrl(id, target, fmt) { return `/api/collections/${id}/export?target=${encodeURIComponent(target)}&fmt=${encodeURIComponent(fmt)}`; },
             del(id) { return request(`/api/collections/${id}?delete_assets=true`, { method: 'DELETE' }); },
             /** Stream a whole-collection generation (SSE). onEvent(evt) per event. */
             generateStream(data, onEvent) {

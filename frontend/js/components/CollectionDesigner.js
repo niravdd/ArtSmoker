@@ -29,7 +29,7 @@
             };
             this._state = {
                 collectionId: null, name: '', prompt: (prompt || '').trim(),
-                artDirection: {}, roster: [], designCost: 0,
+                artDirection: {}, roster: [], designCost: 0, ledger: [], projected: null,
                 knobs: { count: null, options: 3, variations: 2, cohesion: 'prompt' },
             };
             this._mount();
@@ -61,7 +61,7 @@
                 this._state.artDirection = r.art_direction || {};
                 this._state.roster = (r.roster || []).map(e => ({ ...e, locked: false }));
                 this._state.designCost += (r.cost || 0);
-                window.Telemetry?.track?.('collection_designed', { batch_count: this._state.roster.length });
+                (r.llm_cost_ledger || []).forEach(x => this._state.ledger.push(x));
                 this._render();
             } catch (e) {
                 this._renderError(e.message || t('collection.error'));
@@ -140,8 +140,18 @@
                     style_id: this._ctx.style_id,
                     num_options: s.knobs.options, num_variations: s.knobs.variations,
                     cohesion_mode: s.knobs.cohesion,
+                    // Persist the design cost ledger (§18.9) with the record.
+                    llm_cost_ledger: s.ledger || [],
+                    design_cost: s.designCost || 0,
                 }, (evt) => {
                     if (evt.type === 'batch_complete') { doneBatches++; }
+                    if (evt.type === 'cost_update') {
+                        const costEl = document.getElementById('cd-cost');
+                        if (costEl && evt.total != null) {
+                            costEl.textContent = `${t('collection.cost_total')}: $${Number(evt.total).toFixed(3)} `
+                                + `(${t('collection.cost_design')} $${Number(evt.design_cost || 0).toFixed(3)} + gen $${Number(evt.generation_cost || 0).toFixed(3)})`;
+                        }
+                    }
                     if (bar) {
                         const label = evt.collection_batch_name || evt.batch_name || '';
                         bar.textContent = `${doneBatches}/${total} — ${label}`;
@@ -233,9 +243,26 @@
         _updateCost() {
             const el = document.getElementById('cd-cost');
             if (!el || !this._state) return;
+            const s = this._state;
+            const imgs = this._projectedImages();
+            // Base line: design cost + image count (always available, no call).
             el.textContent =
-                `${t('collection.cost_design')}: $${this._state.designCost.toFixed(3)} · ` +
-                `${this._projectedImages()} images (${this._state.roster.length}×${this._state.knobs.options}×${this._state.knobs.variations})`;
+                `${t('collection.cost_design')}: $${s.designCost.toFixed(3)} · ` +
+                `${imgs} images (${s.roster.length}×${s.knobs.options}×${s.knobs.variations})`;
+            // Enrich with the projected $ total from the registry price (async, best-effort).
+            API.collections.estimate({
+                image_model: this._ctx.image_model, batches: s.roster.length,
+                options: s.knobs.options, variations: s.knobs.variations, design_cost: s.designCost,
+            }).then((r) => {
+                const cur = document.getElementById('cd-cost');
+                if (!cur || !r) return;
+                if (r.total != null) {
+                    cur.textContent =
+                        `${t('collection.cost_total')}: $${Number(r.total).toFixed(3)} · ` +
+                        `${t('collection.cost_design')} $${s.designCost.toFixed(3)} + ${t('collection.cost_projected')} $${Number(r.projected_generation_cost).toFixed(3)} · ` +
+                        `${imgs} images`;
+                }
+            }).catch(() => {});
         },
 
         _render() {
@@ -250,13 +277,18 @@
                     <p class="text-[10px] text-brand-text-muted mt-1">${t('collection.art_direction_hint')}</p>
                     <button id="cd-recompose-all" class="btn btn-xs mt-1 bg-brand-bg border border-brand-border">${t('collection.recomposing').replace('…','')} ↻</button>
                 </div>
-                <div class="grid grid-cols-4 gap-2 items-end">
+                <div class="grid grid-cols-5 gap-2 items-end">
                     <div><label class="block text-[11px] mb-1">${t('collection.count_label')}</label>
                         <input id="cd-count" type="number" min="1" max="60" placeholder="${t('collection.count_auto')}" value="${s.knobs.count ?? ''}" class="input text-sm" /></div>
                     <div><label class="block text-[11px] mb-1">${t('collection.options_label')}</label>
                         <select id="cd-options" class="input text-sm">${[1,2,3,4,5].map(n => html`<option value="${n}" ${n===s.knobs.options?'selected':''}>${n}</option>`)}</select></div>
                     <div><label class="block text-[11px] mb-1">${t('collection.variations_label')}</label>
                         <select id="cd-variations" class="input text-sm">${[1,2,3,4,5].map(n => html`<option value="${n}" ${n===s.knobs.variations?'selected':''}>${n}</option>`)}</select></div>
+                    <div><label class="block text-[11px] mb-1">${t('collection.cohesion_label')}</label>
+                        <select id="cd-cohesion" class="input text-sm">
+                            <option value="prompt" ${s.knobs.cohesion==='prompt'?'selected':''}>${t('collection.cohesion_prompt')}</option>
+                            <option value="hero" ${s.knobs.cohesion==='hero'?'selected':''}>${t('collection.cohesion_hero')}</option>
+                        </select></div>
                     <div><label class="block text-[11px] mb-1">${t('collection.model_label')}</label>
                         <input class="input text-sm" value="${this._ctx.image_model}" disabled /></div>
                 </div>
@@ -279,6 +311,7 @@
                 const v = parseInt(ev.target.value, 10); s.knobs.count = (v > 0 ? v : null); });
             document.getElementById('cd-options').addEventListener('change', (ev) => { s.knobs.options = +ev.target.value; this._updateCost(); this._setBusy(false); });
             document.getElementById('cd-variations').addEventListener('change', (ev) => { s.knobs.variations = +ev.target.value; this._updateCost(); this._setBusy(false); });
+            document.getElementById('cd-cohesion').addEventListener('change', (ev) => { s.knobs.cohesion = ev.target.value; });
             s.roster.forEach((e, i) => {
                 document.getElementById(`cd-lock-${i}`)?.addEventListener('click', () => { e.locked = !e.locked; this._render(); });
                 document.getElementById(`cd-regen-${i}`)?.addEventListener('click', () => this._regenerateBatch(i));

@@ -1607,6 +1607,8 @@
     "viewer_status_complete": "完了",
     "viewer_status_partial": "一部完了",
     "viewer_status_generating": "生成中",
-    "delete_confirm": "このコレクションとそのすべての画像を削除しますか？"
+    "delete_confirm": "このコレクションとそのすべての画像を削除しますか？",
+    "version_label": "バージョン",
+    "export_prompt": "エクスポート形式は？ (fbx / usd / glb)"
   }
 }

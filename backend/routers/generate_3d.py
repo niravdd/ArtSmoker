@@ -2139,6 +2139,15 @@ def _finalize_3d_job(job: dict, s3) -> dict:
             meta["has_3d"] = True
             store.save_generation_metadata(asset_id, meta)
 
+        # If this asset belongs to a Collection, flip has_3d in its Gallery index
+        # now that the .glb is on disk + the asset lock is released. Guarded NO-OP
+        # for single-asset jobs (SPEC §18.7 — locks never nested).
+        try:
+            from backend.services import collection_store as _cstore
+            _cstore.refresh_if_member(asset_id)
+        except Exception:
+            pass
+
         # Update job status
         job["status"] = "complete"
         job["completed_at"] = datetime.now(timezone.utc).isoformat()

@@ -1607,6 +1607,8 @@
     "viewer_status_complete": "完成",
     "viewer_status_partial": "部分完成",
     "viewer_status_generating": "生成中",
-    "delete_confirm": "删除此合集及其所有图像？"
+    "delete_confirm": "删除此合集及其所有图像？",
+    "version_label": "版本",
+    "export_prompt": "导出格式？(fbx、usd 或 glb)"
   }
 }

@@ -2298,6 +2298,15 @@ async def edit_image(body: ImageEditRequest):
     finally:
         _asset_lock.release()
 
+    # If this asset belongs to a Collection, refresh its Gallery index (cover /
+    # selected version) now that the lock is released. Guarded NO-OP for
+    # single-asset jobs (SPEC §18.7 — never nests the two locks).
+    try:
+        from backend.services import collection_store as _cstore
+        _cstore.refresh_if_member(asset_id)
+    except Exception:
+        pass
+
     svg_url = new_meta.get("svg_path")
     png_filename = new_meta.get("png_filename", f"{asset_id}.png")
 

@@ -413,7 +413,16 @@ def _update_gallery_on_edit_complete(job: dict, image_bytes: bytes):
     """
     from backend.services.asset_locks import asset_write_lock
     with asset_write_lock(job["edit_asset_id"]):
-        return _update_gallery_on_edit_complete_locked(job, image_bytes)
+        result = _update_gallery_on_edit_complete_locked(job, image_bytes)
+    # If this asset belongs to a Collection, refresh its Gallery index (cover /
+    # selected version). Guarded NO-OP for single-asset jobs; runs AFTER the lock
+    # releases (never nested with collection_write_lock — SPEC §18.7 ordering).
+    try:
+        from backend.services import collection_store as cstore
+        cstore.refresh_if_member(job["edit_asset_id"])
+    except Exception:
+        pass
+    return result
 
 
 def _update_gallery_on_edit_complete_locked(job: dict, image_bytes: bytes):

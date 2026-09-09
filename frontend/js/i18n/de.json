@@ -1607,6 +1607,8 @@
     "viewer_status_complete": "Fertig",
     "viewer_status_partial": "Teilweise",
     "viewer_status_generating": "Wird generiert",
-    "delete_confirm": "Diese Kollektion und alle ihre Bilder löschen?"
+    "delete_confirm": "Diese Kollektion und alle ihre Bilder löschen?",
+    "version_label": "Version",
+    "export_prompt": "Exportformat? (fbx, usd oder glb)"
   }
 }

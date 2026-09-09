@@ -191,6 +191,58 @@ def update_collection(collection_id: str, mutator: Callable[[dict], None]) -> di
         return record
 
 
+def append_design_history(collection_id: str, change_summary: str, llm_cost: float = 0.0) -> None:
+    """Append a provenance entry to the master record's design edit-trail (SPEC
+    §18 Phase M) — NOT a restorable snapshot. Under the collection lock."""
+    def _mut(rec):
+        rec.setdefault("design_history", []).append(
+            {"ts": _utcnow(), "change_summary": change_summary, "llm_cost": round(llm_cost, 6)})
+    update_collection(collection_id, _mut)
+
+
+def set_selected_version(collection_id: str, batch_id: str, version: int) -> dict | None:
+    """Pin which per-Job version represents a Batch in the set (SPEC §18 Phase M).
+    Updates the master record + logs it to design_history; the caller refreshes
+    the summary index."""
+    def _mut(rec):
+        for e in rec.get("roster", []):
+            if e.get("batch_id") == batch_id:
+                e["selected_version"] = version
+                break
+        rec.setdefault("design_history", []).append(
+            {"ts": _utcnow(), "change_summary": f"selected v{version} for batch {batch_id}", "llm_cost": 0.0})
+    return update_collection(collection_id, _mut)
+
+
+def refresh_if_member(asset_id: str) -> None:
+    """Shared, GUARDED hook for existing version/3D code: if `asset_id` belongs to
+    a collection (its metadata carries `collection_id`), refresh that collection's
+    Gallery index so a new version / 3D model / cover shows immediately. A NO-OP
+    (one dict-get) for every single-asset job — zero impact on the non-collection
+    path. Best-effort: never raises into the caller. Call AFTER the asset's own
+    metadata write has committed + released `asset_write_lock` (never nested)."""
+    try:
+        meta = store.load_generation_metadata(asset_id)
+        cid = meta.get("collection_id") if meta else None
+        if not cid:
+            return
+        refresh_collection_summary(cid, meta.get("batch_id"))
+    except Exception as exc:
+        logger.debug("refresh_if_member skipped for %s: %r", asset_id, exc)
+
+
+def collection_id_for_batch(batch_id: str) -> str | None:
+    """Reverse-lookup: which Collection (if any) owns this batch_id — lets shared
+    version/3D code refresh the right collection index without parsing Jobs."""
+    if not batch_id:
+        return None
+    for cid in list_collection_ids():
+        rec = load_collection(cid)
+        if rec and any(e.get("batch_id") == batch_id for e in rec.get("roster", [])):
+            return cid
+    return None
+
+
 def list_collection_ids() -> list[str]:
     """All collection ids that have a master record."""
     base = settings.collections_dir
@@ -257,6 +309,13 @@ def _project_batch(entry: dict) -> dict:
         selected_version = jobs[0].get("current_version", 1)
     thumb_path = f"/api/gallery/{thumb_asset_id}/png" if thumb_asset_id else None
 
+    # Available version numbers of the representative Job (excluding tombstones) —
+    # drives the viewer's per-Batch "selected version" picker (Phase M).
+    versions = []
+    if jobs:
+        versions = sorted(v.get("version") for v in (jobs[0].get("versions") or [])
+                          if v.get("version") and v.get("type") != "deleted")
+
     # has-3D: reflects reality — a .glb present in the representative Job's dir
     # (the existing 3D pipeline writes it there), OR a recorded roster three_d.
     three_d = entry.get("three_d") or {}
@@ -276,6 +335,7 @@ def _project_batch(entry: dict) -> dict:
         "thumb_path": thumb_path,
         "status": status,
         "job_count": len(jobs),
+        "versions": versions,
         "has_3d": has_3d,
     }
 

@@ -1607,6 +1607,8 @@
     "viewer_status_complete": "Готово",
     "viewer_status_partial": "Частично",
     "viewer_status_generating": "Генерация",
-    "delete_confirm": "Удалить эту коллекцию и все её изображения?"
+    "delete_confirm": "Удалить эту коллекцию и все её изображения?",
+    "version_label": "Версия",
+    "export_prompt": "Формат экспорта? (fbx, usd или glb)"
   }
 }

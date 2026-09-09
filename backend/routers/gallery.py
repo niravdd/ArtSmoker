@@ -423,12 +423,16 @@ async def delete_assets(body: DeleteRequest):
 
     # Group deletions by batch_id so we can update siblings efficiently
     batch_deletions: dict[str, list[str]] = {}
+    # Collections owning any deleted Job → refresh their Gallery index afterward.
+    affected_collections: set[str] = set()
 
     for asset_id in body.ids:
         meta = _get_meta(asset_id)
         if meta and meta.get("batch_id"):
             bid = meta["batch_id"]
             batch_deletions.setdefault(bid, []).append(asset_id)
+        if meta and meta.get("collection_id"):
+            affected_collections.add(meta["collection_id"])
 
         if store.delete_generated_asset(asset_id):
             _meta_cache.pop(asset_id, None)
@@ -458,6 +462,16 @@ async def delete_assets(body: DeleteRequest):
                 sibling_meta["original_num_variations"] = orig_variations
                 store.save_generation_metadata(aid, sibling_meta)
                 _meta_cache.pop(aid, None)  # Invalidate cache
+
+    # Refresh the Gallery index of any Collection that lost a Job (guarded — this
+    # loop only runs when a deleted asset carried a collection_id).
+    if affected_collections:
+        try:
+            from backend.services import collection_store as cstore
+            for _cid in affected_collections:
+                cstore.refresh_collection_summary(_cid)
+        except Exception:
+            pass
 
     return {"deleted": deleted, "not_found": not_found}
 
