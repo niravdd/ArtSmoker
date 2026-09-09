@@ -393,7 +393,8 @@ def refresh_collection_summary(collection_id: str, changed_batch_id: str | None 
         if record is None:
             return None
 
-        if changed_batch_id is None:
+        if not changed_batch_id:   # None OR "" → full reprojection (a falsy batch id
+                                   # must never take the targeted-patch branch below)
             summary = _project_summary(record)
             atomic_write_text(_summary_path(collection_id), json.dumps(summary, indent=2, default=str))
             return summary

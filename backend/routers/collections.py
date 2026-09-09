@@ -447,25 +447,34 @@ async def generate_collection(body: GenerateCollectionRequest):
                 sub.reference_mode = "inspired"
             else:
                 sub.saved_concept_prompts = {body.image_model: [prompt] * n_opts}
+            # Split GENERATION (the expensive, failable part) from post-generation
+            # BOOKKEEPING. Once images exist the Batch counts as complete and its
+            # batch_id is recorded even if a transient lock/disk hiccup trips the
+            # record/index write — otherwise real images could project as "pending".
             try:
                 result = _run_generation(sub, cb)
                 bid = result.id
-                entry["batch_id"] = bid
                 gen_cost += get_total_cost()          # _run_generation reset+tracked this Batch
-                _stamp_collection_lineage(bid, cid, entry)
-                if hero_mode and idx == 0 and hero_ref is None:
-                    hero_ref = _hero_reference_b64(bid)   # capture hero image for the rest
-                # Record the Batch id on the master record + refresh the index.
-                def _set_bid(rec, _i=idx, _b=bid):
-                    if _i < len(rec.get("roster", [])):
-                        rec["roster"][_i]["batch_id"] = _b
-                cstore.update_collection(cid, _set_bid)
-                cstore.refresh_collection_summary(cid, bid)
-                completed_batches += 1
             except Exception as exc:
                 logger.exception("Collection %s batch %d (%s) failed", cid, idx, name)
                 event_queue.put({"type": "batch_error", "batch_index": idx,
                                  "batch_name": name, "error": str(exc)})
+            else:
+                entry["batch_id"] = bid
+                completed_batches += 1                # images are on disk — count it
+                if hero_mode and idx == 0 and hero_ref is None:
+                    hero_ref = _hero_reference_b64(bid)   # capture hero image for the rest
+                # Best-effort: stamp lineage + record the batch_id + refresh the index.
+                # A failure here must NOT drop the Batch (images already exist).
+                try:
+                    _stamp_collection_lineage(bid, cid, entry)
+                    def _set_bid(rec, _i=idx, _b=bid):
+                        if _i < len(rec.get("roster", [])):
+                            rec["roster"][_i]["batch_id"] = _b
+                    cstore.update_collection(cid, _set_bid)
+                    cstore.refresh_collection_summary(cid, bid)
+                except Exception:
+                    logger.exception("Collection %s batch %d bookkeeping failed (images OK)", cid, idx)
 
             # Running cost surface (SPEC §18.9): design + generation-so-far + total.
             running_total = round(design_cost + gen_cost, 4)
@@ -476,13 +485,17 @@ async def generate_collection(body: GenerateCollectionRequest):
                              "completed_batches": completed_batches,
                              "total_batches": total_batches})
 
-        # Finalize the master record + index.
+        # Finalize the master record + index. Guarded so a write hiccup here can
+        # never strand the record in "generating" nor suppress collection_complete.
         def _finalize(rec):
             rec["status"] = "complete" if completed_batches == total_batches else "partial"
             rec["cost_actual"] = {"design_cost": design_cost, "generation_cost": round(gen_cost, 6),
                                   "total": round(design_cost + gen_cost, 4)}
-        cstore.update_collection(cid, _finalize)
-        cstore.rebuild_collection_summary(cid)
+        try:
+            cstore.update_collection(cid, _finalize)
+            cstore.rebuild_collection_summary(cid)
+        except Exception:
+            logger.exception("Collection %s finalize/rebuild failed", cid)
         track_collection_generation_complete(success=completed_batches,
                                              partial=total_batches - completed_batches,
                                              cost_usd=round(gen_cost, 6))

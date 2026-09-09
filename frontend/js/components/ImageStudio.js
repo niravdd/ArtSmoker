@@ -726,8 +726,16 @@
             // Collection (Set Generation) toggle — opens the self-contained
             // CollectionDesigner (SPEC §18); it owns decompose→design→generate.
             document.getElementById('btn-collection-toggle')?.addEventListener('change', (ev) => {
-                if (ev.target.checked) this._openCollectionDesigner();
-                else window.CollectionDesigner?.close?.();
+                if (ev.target.checked) { this._openCollectionDesigner(); return; }
+                // Un-toggle = discard the collection design. If a COSTED design exists,
+                // confirm first (same guard as the modal ✕/backdrop); revert the toggle
+                // if the user cancels so the active design isn't dropped silently.
+                const cd = window.CollectionDesigner;
+                if (cd && cd._state && cd._state.designCost > 0) {
+                    const msg = t('artsmoker.ui.collection.reset_confirm', { cost: '$' + cd._state.designCost.toFixed(3) });
+                    if (!confirm(msg)) { ev.target.checked = true; return; }
+                }
+                cd?.close?.();
             });
             // Prompt ⇄ Reference-guided tab switching (ImageStudio binds via
             // document.getElementById — it's a singleton, not a scoped component).

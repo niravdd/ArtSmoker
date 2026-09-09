@@ -400,7 +400,7 @@
                 // Load Collections (SPEC §18.8) as ONE card each — only on the
                 // first page and the all-media/image filters. Fast-path list read
                 // (summary index, no Job parsing).
-                if (offset === 0 && mediaFilter !== 'video') {
+                if (offset === 0 && (mediaFilter === '' || mediaFilter === 'image')) {
                     try {
                         const cdata = await API.collections.list();
                         (cdata.collections || []).forEach(c => {
@@ -521,6 +521,7 @@
                     const text = [
                         item.prompt || '',
                         item.original_prompt || '',
+                        item.name || '',            // collection cards carry `name`, not `prompt`
                         item.style_id || '',
                         item.asset_type || '',
                         item.model_label || '',
