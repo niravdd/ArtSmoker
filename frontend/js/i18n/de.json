@@ -1610,6 +1610,13 @@
     "delete_confirm": "Diese Kollektion und alle ihre Bilder löschen?",
     "version_label": "Version",
     "export_prompt": "Exportformat? (fbx, usd oder glb)",
-    "accept": "Übernehmen & schließen"
+    "accept": "Übernehmen & schließen",
+    "examples_label": "Versuche:",
+    "example1": "20 Fantasy-RPG-Helden, jeder ein Krieger mit Tierkopf (Bär, Rabe, Wolf…), malerisch",
+    "example2": "Ein Schachspiel im Wikinger-Stil — jede Figur eine nordische Legende (Jarl, Schildmaid, Langschiff)",
+    "example3": "Ein 78-karten Tarot-Deck, neu interpretiert als Neon-Cyberpunk-Stadt",
+    "example4": "8 handgemalte Zaubertrank-Flaschen-Icons für ein Spiel-Inventar",
+    "images_count": "{{count}} Bilder",
+    "threed_submitted": "{{count}} 3D-Modell(e) übermittelt"
   }
 }

@@ -177,6 +177,17 @@
                         <span class="text-sm font-medium">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.toggle') : 'Collection'}</span>
                         <span class="text-[10px] text-brand-text-muted">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.toggle_hint') : 'Design a whole set from one prompt'}</span>
                     </label>
+                    <!-- Example prompts (tap to fill Step 1) — teach the "one prompt → a coherent
+                         set of DISTINCT pieces sharing one art direction" pattern. -->
+                    <div class="collection-examples mt-1 flex flex-wrap items-center gap-1">
+                        <span class="text-[10px] text-brand-text-muted/60 mr-0.5">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.examples_label') : 'Try:'}</span>
+                        ${[1, 2, 3, 4].map((n) => {
+                            const ex = typeof t !== 'undefined' ? t('artsmoker.ui.collection.example' + n) : '';
+                            // Hide a chip if its i18n key is missing (t() returns the raw key).
+                            if (!ex || ex.indexOf('collection.example') !== -1) return '';
+                            return html`<button type="button" class="collection-example text-[10px] px-2 py-0.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-300/90 hover:bg-fuchsia-500/20 hover:border-fuchsia-500/40 transition-all" data-example="${ex}" title="${ex}">${ex}</button>`;
+                        })}
+                    </div>
 
                     <!-- Step 2 (single-asset): Prompt Designer (optional) -->
                     <div class="step2-single">
@@ -421,6 +432,20 @@
                 if (ev.target.checked) this._enterCollectionMode();
                 else ev.target.checked = true;  // cannot un-check; only Reset/refresh exits
             });
+            // Example chips → fill Step 1 (teach good collection prompts). Disabled
+            // once the mode is locked (checkbox checked) so an accepted design's ask
+            // can't be silently swapped.
+            this.container.querySelectorAll('.collection-example').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    if (this._collectionMode) return;   // locked — Reset to change the ask
+                    const ex = btn.dataset.example || btn.textContent.trim();
+                    this._textareaEl.value = ex;
+                    this._updateCharCount();
+                    this._clearComposed();
+                    if (this._changeCb) this._changeCb(ex);
+                    this._textareaEl.focus();
+                });
+            });
             // Step 3 button opens the (design-only) Collection Designer.
             this._btnCollectionDesigner?.addEventListener('click', () => this._openCollectionDesigner());
             // Editing the Art Direction invalidates the accepted design (must re-run the Designer).
@@ -529,10 +554,13 @@
             this._collectionLedger = design.ledger || this._collectionLedger;
             // Keep Step-2 art-direction in sync with any edit made inside the Designer.
             if (design.artDirectionText && this._artDirectionEl) this._artDirectionEl.value = design.artDirectionText;
-            // Show the decided summary in Step 3.
+            // Show the decided summary in Step 3 (fully localized).
             const n = (design.roster || []).length;
             const k = design.knobs || {};
-            const summary = `${n} ${n === 1 ? 'batch' : 'batches'} · ${k.options || 3}×${k.variations || 2} · ${(this._collectionContext().image_model)} · ${k.cohesion || 'prompt'} cohesion`;
+            const T = (key, p) => (typeof t !== 'undefined' ? t('artsmoker.ui.collection.' + key, p) : key);
+            const cohesionLabel = (k.cohesion === 'hero') ? T('cohesion_hero') : T('cohesion_prompt');
+            const summary = `${T('card_count', { count: n })} · ${k.options || 3}×${k.variations || 2} · `
+                + `${this._collectionContext().image_model} · ${T('cohesion_label')}: ${cohesionLabel}`;
             if (this._collectionSummaryEl) {
                 this._collectionSummaryEl.textContent = summary;
                 this._collectionSummaryEl.classList.remove('hidden');

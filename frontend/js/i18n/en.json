@@ -1610,6 +1610,13 @@
     "delete_confirm": "Delete this collection and all its images?",
     "version_label": "Version",
     "export_prompt": "Export format? (fbx, usd, or glb)",
-    "accept": "Accept & close"
+    "accept": "Accept & close",
+    "examples_label": "Try:",
+    "example1": "20 fantasy RPG heroes, each an animal-headed warrior (bear, raven, wolf…), painterly",
+    "example2": "A Viking chess set — every piece a Norse legend (jarl, shieldmaiden, longship)",
+    "example3": "A 78-card tarot deck reimagined for a neon cyberpunk city",
+    "example4": "8 hand-painted potion-bottle icons for a game inventory",
+    "images_count": "{{count}} images",
+    "threed_submitted": "{{count}} 3D model(s) submitted"
   }
 }

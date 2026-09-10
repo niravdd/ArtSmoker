@@ -1610,6 +1610,13 @@
     "delete_confirm": "Supprimer cette collection et toutes ses images ?",
     "version_label": "Version",
     "export_prompt": "Format d'export ? (fbx, usd ou glb)",
-    "accept": "Accepter et fermer"
+    "accept": "Accepter et fermer",
+    "examples_label": "Essayez :",
+    "example1": "20 héros de RPG fantastique, chacun un guerrier à tête d'animal (ours, corbeau, loup…), style peint",
+    "example2": "Un jeu d'échecs viking — chaque pièce une légende nordique (jarl, guerrière au bouclier, drakkar)",
+    "example3": "Un jeu de tarot de 78 cartes réimaginé en cité cyberpunk néon",
+    "example4": "8 icônes de fioles de potion peintes à la main pour un inventaire de jeu",
+    "images_count": "{{count}} images",
+    "threed_submitted": "{{count}} modèle(s) 3D soumis"
   }
 }

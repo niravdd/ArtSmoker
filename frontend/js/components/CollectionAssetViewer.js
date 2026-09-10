@@ -86,7 +86,7 @@
                                 <div class="flex items-center gap-1 mt-1">
                                     ${this._statusBadge(b.status)}
                                     ${b.has_3d ? html`<span class="text-[10px] px-1.5 py-0.5 rounded bg-violet-600/70 text-white">3D</span>` : ''}
-                                    <span class="text-[10px] text-brand-text-muted ml-auto">${b.job_count} img</span>
+                                    <span class="text-[10px] text-brand-text-muted ml-auto">${t('collection.images_count', { count: b.job_count })}</span>
                                 </div>
                                 ${(b.versions && b.versions.length > 1) ? html`
                                     <select class="cv-version input text-[10px] mt-1 py-0.5" data-batch="${b.batch_id}" title="${t('collection.version_label')}">
@@ -132,7 +132,7 @@
             try {
                 const r = await API.collections.generate3d(collectionId);
                 const n = (r.submitted || []).length;
-                window.showToast?.(`${n} 3D ${n === 1 ? 'model' : 'models'} submitted`, 'success');
+                window.showToast?.(t('collection.threed_submitted', { count: n }), 'success');
                 if ((r.failures || []).length) window.showToast?.(r.failures[0].error, 'warning');
                 setTimeout(() => this.open(collectionId), 800);   // reopen to reflect status
             } catch (e) {

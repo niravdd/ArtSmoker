@@ -232,7 +232,7 @@
             // Base line: design cost + image count (always available, no call).
             el.textContent =
                 `${t('collection.cost_design')}: $${s.designCost.toFixed(3)} · ` +
-                `${imgs} images (${s.roster.length}×${s.knobs.options}×${s.knobs.variations})`;
+                `${t('collection.images_count', { count: imgs })} (${s.roster.length}×${s.knobs.options}×${s.knobs.variations})`;
             // Enrich with the projected $ total from the registry price (async, best-effort).
             API.collections.estimate({
                 image_model: this._ctx.image_model, batches: s.roster.length,
@@ -244,7 +244,7 @@
                     cur.textContent =
                         `${t('collection.cost_total')}: $${Number(r.total).toFixed(3)} · ` +
                         `${t('collection.cost_design')} $${s.designCost.toFixed(3)} + ${t('collection.cost_projected')} $${Number(r.projected_generation_cost).toFixed(3)} · ` +
-                        `${imgs} images`;
+                        `${t('collection.images_count', { count: imgs })}`;
                 }
             }).catch(() => {});
         },

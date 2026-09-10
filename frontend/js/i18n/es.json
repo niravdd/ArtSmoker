@@ -1610,6 +1610,13 @@
     "delete_confirm": "¿Eliminar esta colección y todas sus imágenes?",
     "version_label": "Versión",
     "export_prompt": "¿Formato de exportación? (fbx, usd o glb)",
-    "accept": "Aceptar y cerrar"
+    "accept": "Aceptar y cerrar",
+    "examples_label": "Prueba:",
+    "example1": "20 héroes de RPG de fantasía, cada uno un guerrero con cabeza de animal (oso, cuervo, lobo…), estilo pictórico",
+    "example2": "Un ajedrez de estilo vikingo: cada pieza una leyenda nórdica (jarl, doncella escudera, drakkar)",
+    "example3": "Una baraja de tarot de 78 cartas reimaginada como ciudad cyberpunk de neón",
+    "example4": "8 iconos de frascos de poción pintados a mano para un inventario de juego",
+    "images_count": "{{count}} imágenes",
+    "threed_submitted": "{{count}} modelo(s) 3D enviado(s)"
   }
 }

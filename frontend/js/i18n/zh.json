@@ -1610,6 +1610,13 @@
     "delete_confirm": "删除此合集及其所有图像？",
     "version_label": "版本",
     "export_prompt": "导出格式？(fbx、usd 或 glb)",
-    "accept": "确认并关闭"
+    "accept": "确认并关闭",
+    "examples_label": "试试：",
+    "example1": "20个奇幻RPG英雄，每个都是兽首战士（熊、渡鸦、狼…），绘画风格",
+    "example2": "维京风格国际象棋套装——每颗棋子都是北欧传奇（首领、盾女、长船）",
+    "example3": "重新演绎为霓虹赛博朋克都市的78张塔罗牌",
+    "example4": "8个手绘游戏物品栏药水瓶图标",
+    "images_count": "{{count}} 张图片",
+    "threed_submitted": "已提交 {{count}} 个3D模型"
   }
 }
