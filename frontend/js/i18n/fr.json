@@ -1609,6 +1609,7 @@
     "viewer_status_generating": "Génération",
     "delete_confirm": "Supprimer cette collection et toutes ses images ?",
     "version_label": "Version",
-    "export_prompt": "Format d'export ? (fbx, usd ou glb)"
+    "export_prompt": "Format d'export ? (fbx, usd ou glb)",
+    "accept": "Accepter et fermer"
   }
 }

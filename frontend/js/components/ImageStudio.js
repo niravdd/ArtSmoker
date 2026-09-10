@@ -288,12 +288,7 @@
                                 <div id="reference-studio-container" class="hidden"></div>
                             </div>
 
-                            <!-- Collection (Set Generation) toggle -->
-                            <label class="flex items-center gap-2 mt-2 p-2 rounded-lg bg-brand-bg/50 border border-brand-border cursor-pointer select-none" title="${t('artsmoker.ui.collection.toggle_hint')}">
-                                <input type="checkbox" id="btn-collection-toggle" class="rounded border-brand-border" />
-                                <span class="text-sm font-medium">${t('artsmoker.ui.collection.toggle')}</span>
-                                <span class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.collection.toggle_hint')}</span>
-                            </label>
+                            <!-- Collection toggle now lives UNDER STEP 1 inside PromptEditor (SPEC §18.2). -->
 
                             <!-- Generate / Reset -->
                             <div class="grid grid-cols-2 gap-3 mt-2">
@@ -467,6 +462,15 @@
                                 sel.dispatchEvent(new Event('change'));
                             }
                         },
+                        // Collection mode (SPEC §18.2): live model/asset/style context
+                        // for the Art-Direction + Collection Designer steps, and a
+                        // callback to re-gate the main Generate button.
+                        getCollectionContext: () => ({
+                            image_model: (this._selectedModels?.[0] || 'sd35_large'),
+                            asset_type: this._getAssetType(),
+                            style_id: this._getStyleId() || null,
+                        }),
+                        onCollectionStateChange: (st) => this._onCollectionStateChange(st),
                     });
                 } catch (err) {
                     console.error('Failed to create PromptEditor:', err);
@@ -723,20 +727,9 @@
             });
             document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
-            // Collection (Set Generation) toggle — opens the self-contained
-            // CollectionDesigner (SPEC §18); it owns decompose→design→generate.
-            document.getElementById('btn-collection-toggle')?.addEventListener('change', (ev) => {
-                if (ev.target.checked) { this._openCollectionDesigner(); return; }
-                // Un-toggle = discard the collection design. If a COSTED design exists,
-                // confirm first (same guard as the modal ✕/backdrop); revert the toggle
-                // if the user cancels so the active design isn't dropped silently.
-                const cd = window.CollectionDesigner;
-                if (cd && cd._state && cd._state.designCost > 0) {
-                    const msg = t('artsmoker.ui.collection.reset_confirm', { cost: '$' + cd._state.designCost.toFixed(3) });
-                    if (!confirm(msg)) { ev.target.checked = true; return; }
-                }
-                cd?.close?.();
-            });
+            // Collection mode (SPEC §18.2) is driven by the checkbox UNDER STEP 1 in
+            // PromptEditor; ImageStudio only re-gates Generate + runs the collection
+            // generation from _handleGenerate. (No toggle wiring needed here.)
             // Prompt ⇄ Reference-guided tab switching (ImageStudio binds via
             // document.getElementById — it's a singleton, not a scoped component).
             document.querySelectorAll('#tab-prompt, #tab-reference').forEach(btn => {
@@ -818,6 +811,10 @@
                 this._loadedConcepts = null;
                 this._loadedBatch = false;  // caption back to "Generate" (view rebuilds with the default)
                 this._promptEditor = null;
+                // Clear collection-mode gate flags — the rebuilt PromptEditor starts in
+                // single-asset mode, so Generate must be re-enabled (SPEC §18.2 Reset).
+                this._collectionActive = false;
+                this._collectionReady = false;
                 this._stopAsyncPolling();
                 this._notifiedJobIds = new Set();
                 window.PromptDesigner?.reset();
@@ -1131,6 +1128,12 @@
 
         async _handleGenerate() {
             if (this._generating) return;
+
+            // Collection mode (SPEC §18.4): if a collection design has been accepted
+            // in the Designer, Generate runs the WHOLE collection, not a single asset.
+            if (this._promptEditor?.collectionReadyToGenerate?.()) {
+                return this._generateCollection();
+            }
 
             // Reference-guided tab has its own prompt + validation + payload patch.
             const isReference = this._activeTab === 'reference' && this._referenceStudio;
@@ -3107,28 +3110,58 @@
             btn.innerHTML = html`<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${label}`;
         },
 
-        /** Collection mode (SPEC §18): open the self-contained designer, seeded
-         *  with the current prompt + model/asset/style context. */
-        _openCollectionDesigner() {
-            const prompt = this._promptEditor ? this._promptEditor.getUserText().trim() : '';
-            if (!prompt) {
-                window.showToast?.(t('artsmoker.ui.image_studio.enter_prompt'), 'warning');
-                const cb = document.getElementById('btn-collection-toggle');
-                if (cb) cb.checked = false;
-                return;
+        /** Collection mode (SPEC §18.2): PromptEditor calls this whenever collection
+         *  state changes. Gate the main Generate button — disabled while a collection
+         *  is being designed (no accepted design yet), enabled once accepted. */
+        _onCollectionStateChange(st) {
+            this._collectionActive = !!(st && st.active);
+            this._collectionReady = !!(st && st.ready);
+            const btn = document.getElementById('btn-generate');
+            if (btn) {
+                btn.disabled = this._collectionActive && !this._collectionReady;
+                btn.title = btn.disabled ? t('artsmoker.ui.collection.generate_disabled_hint') : '';
             }
-            window.Telemetry?.track?.('collection_mode_enabled', {});
-            window.CollectionDesigner?.open(prompt, {
-                image_model: (this._selectedModels && this._selectedModels[0]) || 'sd35_large',
-                asset_type: this._getAssetType(),
-                style_id: this._getStyleId() || null,
-            });
         },
 
-        /** Called by CollectionDesigner when it closes — clear the toggle. */
-        _onCollectionDesignerClosed() {
-            const cb = document.getElementById('btn-collection-toggle');
-            if (cb) cb.checked = false;
+        /** Run the whole-collection generation from the accepted design (SPEC §18.4).
+         *  Called by _handleGenerate when a collection design is ready. */
+        async _generateCollection() {
+            const editor = this._promptEditor;
+            const design = editor?.getCollectionDesign();
+            if (!design) { window.showToast?.(t('artsmoker.ui.collection.generate_disabled_hint'), 'warning'); return; }
+            const btn = document.getElementById('btn-generate');
+            const ctx = { image_model: (this._selectedModels?.[0] || 'sd35_large'),
+                          asset_type: this._getAssetType(), style_id: this._getStyleId() || null };
+            const knobs = design.knobs || {};
+            if (btn) btn.disabled = true;
+            this._generating = true;
+            try {
+                window.Telemetry?.track?.('collection_generation_started', { batches: (design.roster || []).length });
+                await API.collections.generateStream({
+                    collection_id: design.collectionId, name: design.name || 'Collection',
+                    raw_ask: editor.getUserText().trim(),
+                    art_direction: { text: editor.getArtDirectionText() },
+                    roster: design.roster,
+                    image_model: ctx.image_model, asset_type: ctx.asset_type, style_id: ctx.style_id,
+                    num_options: knobs.options || 3, num_variations: knobs.variations || 2,
+                    cohesion_mode: knobs.cohesion || 'prompt',
+                    llm_cost_ledger: design.ledger || [], design_cost: design.designCost || 0,
+                }, (evt) => {
+                    if (evt.type === 'batch_started' || evt.type === 'cost_update' || evt.type === 'collection_complete') {
+                        const done = evt.completed_batches ?? 0, tot = evt.total_batches ?? (design.roster || []).length;
+                        window.showToast && evt.type === 'batch_started' &&
+                            window.showToast(`${t('artsmoker.ui.collection.generating')} ${done}/${tot}`, 'info');
+                    }
+                });
+                window.showToast?.(t('artsmoker.ui.collection.generating').replace('…', '') + ' ✓', 'success');
+                if (location.hash !== '#gallery') location.hash = '#gallery';
+                setTimeout(() => window.Gallery?.refresh?.(), 200);
+            } catch (e) {
+                window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
+            } finally {
+                this._generating = false;
+                if (btn) btn.disabled = false;
+            }
         },
 
         /** Seed helpers. The base seed is user-visible (next to Options ×

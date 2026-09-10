@@ -2787,37 +2787,41 @@ A **Collection** turns one prompt into a **coherent set of distinct assets** —
 - **Kept separate, smartly.** A fresh **Collection Designer** (not a mutation of the Prompt Designer), a dedicated `data/collections/**` store, collection-aware Gallery, and a **Collection Asset Viewer** — the single-asset flow is untouched.
 - **Nothing generated blind.** In Collection mode the Generate button is **disabled** until a valid collection has been *designed* (a collection is complex and costly; unlike the optional Prompt Designer, the Collection Designer is mandatory).
 
-### 18.2 Entry, toggle, and lock-in
+### 18.2 Entry, toggle, and lock-in (threaded through Step 1 → 2 → 3 → Generate)
 
-- **Image Studio → type the ask → flip the "Collection" toggle.** Toggling on **immediately opens the Collection Designer**, seeds it with the user's original prompt, and **auto-decomposes** it into the overarching art-direction + the roster (per-Batch model-agnostic prompts). Any edit to the art-direction retunes everything downstream.
-- **Lock at the *toggle*, not at commit.** Because the toggle immediately runs real (billable, ledgered — §18.9) LLM design work, the job is committed to the collection path the moment it's flipped on. There is **no cheap "un-toggle back to single mode"** — that would either throw away the design work or force a full re-run on re-toggle. The **only** way out is **Reset**, which clears the ask, art-direction, roster, and the toggle (full clean slate). An accidental toggle is exactly what Reset is for; the wasted cost is at most one decompose, and it's shown in the ledger.
-- **Generate is disabled** while the toggle is on until a *valid* design exists (≥1 Batch, art-direction set, every Batch has a prompt) — the Collection Designer is mandatory (unlike the optional Prompt Designer), so a collection is never generated blind. Generate shows a tooltip ("Design the collection first") until valid.
-- Within the Designer, edits (regenerate roster, edit art-direction/Batches, lock rows) are unrestricted; the "lock" is only that the **mode** is now Collection. Downstream state (Gallery, Asset Viewer, metadata) follows the collection path from the toggle onward.
+Collections reuse the **same three-step prompt spine** as the single-asset flow — the two middle steps just switch meaning while the toggle is on. The toggle lives **directly under Step 1** (the ask).
 
-### 18.3 The Collection Designer
+- **Step 1 → check "Collection" → LOCK IN.** Checking it (a) **disables the checkbox** (it can no longer be unchecked), (b) **disables Generate**, and (c) immediately runs a billable, ledgered (§18.9) LLM pass that produces the overarching **Art Direction** from the Step-1 ask. Because real design work has started, the mode is committed: the **only** exits are **Reset** (clears ask, art-direction, design, and the checkbox — full clean slate) or a browser refresh. There is no cheap "un-check back to single mode."
+- **Step 2 becomes "Art Direction".** The generated art-direction fills an **editable** Step-2 field — the shared creative DNA (world/era/medium/palette/mood/materials/render/negative), i.e. the collection-level analog of the single-asset Step-3 Enhanced Prompt: the ONE top-level guidance, derived from the ask, that shapes the whole set. The user reviews/edits it here.
+- **Step 3 becomes "Collection Designer".** A button opens the Designer (§18.3), which builds the **roster from the edited Step-2 art-direction**. The user must go through it and **Accept** it to close; on Accept, Step 3 shows a **read-only summary of what was decided** (e.g. "12 Batches · 3×2 · SD3.5 · prompt cohesion · est. $X").
+- **Generate re-enables only after the Designer is accepted** (a valid design = ≥1 Batch, art-direction set, every Batch has a prompt). The **main Generate button** then runs the collection — a collection is never generated blind.
+- While the toggle is on, the single-asset Step-2 (Prompt Designer) and Step-3 (Enhanced Prompt) surfaces are hidden; downstream state (Gallery, Asset Viewer, metadata) follows the collection path.
 
-A component parallel to the Prompt Designer with **two independently editable layers**:
+### 18.3 The Collection Designer (a design-only dialog)
 
-- **Overarching art-direction** (top): the shared creative DNA — world, era, medium, palette, mood, materials, render style, shared negative prompt. **Editing it immediately recomposes every Batch** in the roster (this is the cohesion control surface).
-- **Roster** (below): a board of **Batches**, each with `name · concept · model-agnostic prompt (editable) · lock · regenerate · delete`, plus *add Batch* and *regenerate all unlocked* (re-fans while preserving locked rows).
-- **Knobs (per Collection, with a live cost estimate):** Batch count N (AI-inferred / canonical / explicit), options O, variations V, model(s), and cohesion tier (§18.5).
+Opened from Step 3, parallel to the Prompt Designer but **design-only — it does NOT generate** (generation is the main Generate button, §18.2). Layers:
+
+- **Overarching art-direction** — owned by Step 2 and passed in; shown here (editable, kept in sync with Step 2). **Editing it recomposes every Batch** (the cohesion control surface).
+- **Roster** — built from the art-direction: a board of **Batches**, each `name · concept · model-agnostic prompt (editable) · lock · regenerate · delete`, plus *add Batch* and *regenerate all unlocked* (preserves locked rows).
+- **Knobs (with a live cost estimate):** Batch count N (AI-inferred / canonical / explicit), options O, variations V, model(s), cohesion tier (§18.5).
+- **Accept** closes the dialog and returns the accepted design (art-direction + roster + knobs) to the Step-3 summary; **Cancel/close without Accept** leaves Generate disabled.
 
 ### 18.4 Prompt pipeline (Collection mode)
 
 ```
-Ask ("Viking-styled chess set")
-  → Collection Designer:
-       • Overarching art-direction  (shared creative DNA — editable → cascades to all Batches)
-       • Roster: N Batches, each with a MODEL-AGNOSTIC creative prompt
-              (= art-direction DNA + that Batch's unique in-theme design), editable per Batch
-  → [review gate: edit art-direction (recomposes all) / edit any Batch / lock / regen ; cost re-checked]
-  → Light per-model adaptation: reuse the model-agnostic prompt AS CLOSE TO THE ORIGINAL AS POSSIBLE,
-       adding only positive/negative prompts + model-specific bits where necessary (a "faithful"
-       enhancement mode — not a heavy rewrite)
-  → Generate: Batches × Models × Options × Variations
+Step 1: Ask ("Viking-styled chess set")
+  → check "Collection"  (locks the checkbox; Generate disabled)
+  → Step 2: overarching ART DIRECTION  (auto-generated from the ask; editable — the ONE
+       top-level guidance for the whole set; analog of the single-asset Step-3 Enhanced Prompt)
+  → Step 3: COLLECTION DESIGNER (dialog)
+       • builds the roster FROM the edited Art Direction: N Batches, each a MODEL-AGNOSTIC
+            creative prompt (= art-direction DNA + that Batch's unique in-theme design), editable
+       • edit / lock / regenerate / knobs  →  ACCEPT (closes; Step 3 shows a summary)
+  → Generate (re-enabled): light per-model touch (reuse each model-agnostic prompt AS CLOSE TO
+       THE ORIGINAL AS POSSIBLE — faithful, not a rewrite) → Batches × Models × Options × Variations
 ```
 
-The **model-agnostic per-Batch prompt is the canonical creative artifact** — authored by the Collection Designer, shown for editing *before* any spend, preserved through generation with only a light per-model touch. It is the Collection-level analog of `saved_concept_prompts`: it makes the set reproducible (same collection + seed-family + roster ⇒ same set; edit one Batch ⇒ re-run only that Batch).
+The **Art Direction is the collection-level top-level guidance** (derived from the ask, editable at Step 2); the **model-agnostic per-Batch prompt is the canonical creative artifact** (= art-direction + that Batch's design), authored in the Designer and shown for editing before any spend. Together they make the set reproducible (same collection + seed-family + roster ⇒ same set; edit one Batch ⇒ re-run only that Batch) — the Collection-level analog of `saved_concept_prompts`.
 
 ### 18.5 Cohesion (tiered)
 

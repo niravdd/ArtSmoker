@@ -87,6 +87,13 @@ def _projected_generation_cost(image_model: str, batches: int, options: int,
 
 # ── Request models ───────────────────────────────────────────────────────────
 
+class ArtDirectionRequest(BaseModel):
+    prompt: str
+    image_model: str | None = None
+    asset_type: str = "game_asset"
+    style_id: str | None = None
+
+
 class DecomposeCollectionRequest(BaseModel):
     prompt: str
     image_model: str | None = None
@@ -145,6 +152,35 @@ def _gen_batch_prompts(roster: list[dict], art_direction_text: str, asset_type: 
 
 
 # ── Design endpoints ─────────────────────────────────────────────────────────
+
+@router.post("/art-direction")
+async def collection_art_direction(body: ArtDirectionRequest):
+    """Step 2 of the collection flow (SPEC §18.2): from the Step-1 ask, generate
+    ONLY the overarching Art Direction (the top-level guidance) + mint the
+    collection_id. The roster is built later, in the Collection Designer, from the
+    (possibly edited) art-direction."""
+    from backend.services.prompt_engineer import generate_art_direction
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_collection_art_direction_edited
+    from backend.services import collection_store as cstore
+
+    reset_costs()
+    try:
+        art = generate_art_direction(body.prompt, _load_style_profile(body.style_id))
+        cost = round(get_total_cost(), 6)
+        return {
+            "collection_id": cstore.new_collection_id(),
+            "name": _derive_name(body.prompt, art),
+            "art_direction": art,           # structured dict + flat "text"
+            "cost": cost,
+            "llm_cost_ledger": [{"step": "art_direction", "cost": cost}],
+        }
+    except Exception as exc:
+        logger.exception("Collection art-direction failed")
+        raise HTTPException(502, detail=f"Art direction failed: {exc}")
+    finally:
+        track_collection_art_direction_edited(cost_usd=get_total_cost())
+
 
 @router.post("/decompose")
 async def decompose_collection(body: DecomposeCollectionRequest):

@@ -1609,6 +1609,7 @@
     "viewer_status_generating": "बनाया जा रहा है",
     "delete_confirm": "इस संग्रह और इसकी सभी छवियों को हटाएँ?",
     "version_label": "संस्करण",
-    "export_prompt": "एक्सपोर्ट फ़ॉर्मैट? (fbx, usd, या glb)"
+    "export_prompt": "एक्सपोर्ट फ़ॉर्मैट? (fbx, usd, या glb)",
+    "accept": "स्वीकार करें और बंद करें"
   }
 }

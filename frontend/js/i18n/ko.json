@@ -1609,6 +1609,7 @@
     "viewer_status_generating": "생성 중",
     "delete_confirm": "이 컬렉션과 모든 이미지를 삭제할까요?",
     "version_label": "버전",
-    "export_prompt": "내보내기 형식? (fbx, usd 또는 glb)"
+    "export_prompt": "내보내기 형식? (fbx, usd 또는 glb)",
+    "accept": "수락 후 닫기"
   }
 }

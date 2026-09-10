@@ -20,45 +20,53 @@
         _ctx: null,     // { image_model, asset_type, style_id }
         _busy: false,
 
-        /** Open the designer for a prompt. ctx = {image_model, asset_type, style_id}. */
-        async open(prompt, ctx = {}) {
+        /** Open the DESIGN-ONLY dialog (SPEC §18.3). opts = {collectionId, name,
+         *  prompt, artDirectionText, priorDesignCost, priorLedger, image_model,
+         *  asset_type, style_id, onAccept}. The overarching art-direction is
+         *  authored in Step 2 and passed in here; the roster is built from it.
+         *  Accept returns the design to Step 3 — generation is the MAIN Generate. */
+        async open(opts = {}) {
             this._ctx = {
-                image_model: ctx.image_model || 'sd35_large',
-                asset_type: ctx.asset_type || 'game_asset',
-                style_id: ctx.style_id || null,
+                image_model: opts.image_model || 'sd35_large',
+                asset_type: opts.asset_type || 'game_asset',
+                style_id: opts.style_id || null,
             };
+            this._onAccept = opts.onAccept || null;
             this._state = {
-                collectionId: null, name: '', prompt: (prompt || '').trim(),
-                artDirection: {}, roster: [], designCost: 0, ledger: [], projected: null,
+                collectionId: opts.collectionId || null,
+                name: opts.name || 'Collection',
+                prompt: (opts.prompt || '').trim(),
+                artDirection: { text: (opts.artDirectionText || '').trim() },
+                roster: [], designCost: opts.priorDesignCost || 0,
+                ledger: (opts.priorLedger || []).slice(), projected: null,
                 knobs: { count: null, options: 3, variations: 2, cohesion: 'prompt' },
             };
             this._mount();
-            if (!this._state.prompt) { this._renderError(t('collection.error')); return; }
-            await this._decompose();
+            if (!this._state.artDirection.text) { this._renderError(t('collection.error')); return; }
+            await this._buildRoster();
         },
 
         close() {
             document.getElementById('collection-designer-overlay')?.remove();
             this._state = null;
-            // Let Image Studio clear its collection-mode toggle.
-            window.ImageStudio?._onCollectionDesignerClosed?.();
         },
 
         // ── Backend calls ────────────────────────────────────────────────
 
-        async _decompose() {
+        /** Build the roster FROM the (edited) art-direction — reuses
+         *  /regenerate-roster with no locked rows. */
+        async _buildRoster() {
             this._setBusy(true, t('collection.decomposing'));
             try {
-                const r = await API.collections.decompose({
+                const r = await API.collections.regenerateRoster({
                     prompt: this._state.prompt,
+                    art_direction: this._adText(),
+                    count: this._state.knobs.count,
+                    locked: [],
                     image_model: this._ctx.image_model,
                     asset_type: this._ctx.asset_type,
                     style_id: this._ctx.style_id,
-                    count: this._state.knobs.count,
                 });
-                this._state.collectionId = r.collection_id;
-                this._state.name = r.name || 'Collection';
-                this._state.artDirection = r.art_direction || {};
                 this._state.roster = (r.roster || []).map(e => ({ ...e, locked: false }));
                 this._state.designCost += (r.cost || 0);
                 (r.llm_cost_ledger || []).forEach(x => this._state.ledger.push(x));
@@ -123,49 +131,25 @@
             } catch (e) { this._toast(e.message); } finally { this._setBusy(false); }
         },
 
-        async _generate() {
-            if (!this._valid()) return;
+        /** Accept the design (SPEC §18.3): sync the edited art-direction, hand the
+         *  design back to Step 3, and close. Generation is the MAIN Generate button
+         *  — this dialog does NOT generate. */
+        _accept() {
+            if (!this._valid()) { this._toast(t('collection.generate_disabled_hint')); return; }
             const s = this._state;
-            this._setBusy(true, t('collection.generating'));
-            const bar = document.getElementById('cd-progress');
-            let doneBatches = 0;
-            const total = s.roster.length;
-            try {
-                window.Telemetry?.track?.('collection_generation_started',
-                    { batches: total, options: s.knobs.options, variations: s.knobs.variations });
-                await API.collections.generateStream({
-                    collection_id: s.collectionId, name: s.name, raw_ask: s.prompt,
-                    art_direction: s.artDirection, roster: s.roster,
-                    image_model: this._ctx.image_model, asset_type: this._ctx.asset_type,
-                    style_id: this._ctx.style_id,
-                    num_options: s.knobs.options, num_variations: s.knobs.variations,
-                    cohesion_mode: s.knobs.cohesion,
-                    // Persist the design cost ledger (§18.9) with the record.
-                    llm_cost_ledger: s.ledger || [],
-                    design_cost: s.designCost || 0,
-                }, (evt) => {
-                    if (evt.type === 'batch_complete') { doneBatches++; }
-                    if (evt.type === 'cost_update') {
-                        const costEl = document.getElementById('cd-cost');
-                        if (costEl && evt.total != null) {
-                            costEl.textContent = `${t('collection.cost_total')}: $${Number(evt.total).toFixed(3)} `
-                                + `(${t('collection.cost_design')} $${Number(evt.design_cost || 0).toFixed(3)} + gen $${Number(evt.generation_cost || 0).toFixed(3)})`;
-                        }
-                    }
-                    if (bar) {
-                        const label = evt.collection_batch_name || evt.batch_name || '';
-                        bar.textContent = `${doneBatches}/${total} — ${label}`;
-                    }
-                });
-                window.Telemetry?.track?.('collection_generation_complete', { batches: total });
-                this.close();
-                // Jump to the Gallery + refresh so the new collection card appears.
-                if (location.hash !== '#gallery') location.hash = '#gallery';
-                setTimeout(() => window.Gallery?.refresh?.(), 150);
-            } catch (e) {
-                this._toast(e.message || t('collection.error'));
-                this._setBusy(false);
-            }
+            s.artDirection.text = this._adText();     // capture any edit made here
+            const design = {
+                collectionId: s.collectionId,
+                name: s.name,
+                artDirectionText: s.artDirection.text,
+                roster: s.roster.map(e => ({ name: e.name, slug: e.slug, concept: e.concept,
+                                             model_agnostic_prompt: e.model_agnostic_prompt })),
+                knobs: { ...s.knobs },
+                designCost: s.designCost,
+                ledger: s.ledger,
+            };
+            if (this._onAccept) this._onAccept(design);
+            this.close();
         },
 
         // ── Helpers ──────────────────────────────────────────────────────
@@ -204,14 +188,14 @@
                         <div id="cd-cost" class="text-xs text-brand-text-muted"></div>
                         <div class="flex items-center gap-2">
                             <span id="cd-progress" class="text-xs text-cyan-300"></span>
-                            <button id="cd-generate" class="btn btn-primary btn-sm">${t('collection.generate')}</button>
+                            <button id="cd-accept" class="btn btn-primary btn-sm">${t('collection.accept')}</button>
                         </div>
                     </div>
                 </div>`;
             document.body.appendChild(overlay);
             document.getElementById('cd-close').addEventListener('click', () => this._confirmClose());
             overlay.addEventListener('click', (e) => { if (e.target === overlay) this._confirmClose(); });
-            document.getElementById('cd-generate').addEventListener('click', () => this._generate());
+            document.getElementById('cd-accept').addEventListener('click', () => this._accept());
         },
 
         _confirmClose() {
@@ -228,7 +212,7 @@
 
         _setBusy(on, msg) {
             this._busy = on;
-            const gen = document.getElementById('cd-generate');
+            const gen = document.getElementById('cd-accept');
             const prog = document.getElementById('cd-progress');
             if (gen) gen.disabled = on || !this._valid();
             if (prog && msg) prog.textContent = msg;
