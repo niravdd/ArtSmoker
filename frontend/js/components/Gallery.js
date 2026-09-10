@@ -418,9 +418,9 @@
                 }
 
                 // Load Collections (SPEC §18.8) as ONE card each — only on the
-                // first page and the all-media/image filters. Fast-path list read
-                // (summary index, no Job parsing).
-                if (offset === 0 && (mediaFilter === '' || mediaFilter === 'image')) {
+                // FIRST page (reset load, not load-more) and the all-media/image
+                // filters. Fast-path list read (summary index, no Job parsing).
+                if (reset && (mediaFilter === '' || mediaFilter === 'image')) {
                     try {
                         const cdata = await API.collections.list();
                         (cdata.collections || []).forEach(c => {
