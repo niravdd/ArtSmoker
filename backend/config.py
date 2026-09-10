@@ -37,7 +37,12 @@ class Settings(BaseSettings):
     # ── Paths ─────────────────────────────────────────────────────────────
     data_dir: Path = Path(__file__).resolve().parent.parent / "data"
     styles_dir: Path = data_dir / "styles"
-    generated_dir: Path = data_dir / "generated"
+    # Generated image assets. Named `images_dir` (dir: data/images) to align with
+    # the other data dirs. A one-time startup migration renames a legacy
+    # `data/generated` → `data/images` (LocalStore.__init__); the Gallery also
+    # surfaces a safety prompt if a legacy dir reappears alongside the new one.
+    images_dir: Path = data_dir / "images"
+    legacy_generated_dir: Path = data_dir / "generated"   # pre-rename location
     video_dir: Path = data_dir / "video"
     collections_dir: Path = data_dir / "collections"  # Collections feature (SPEC §18)
 

@@ -345,6 +345,10 @@
                 return request(`/api/gallery/${encodeURIComponent(id)}`);
             },
 
+            /** Legacy storage (data/generated → data/images) migration safety net */
+            storageMigrationStatus() { return request('/api/gallery/storage-migration-status'); },
+            migrateStorage() { return request('/api/gallery/migrate-storage', { method: 'POST' }); },
+
             /** Import an existing image file into the gallery as a first-class asset.
              *  Multipart upload (mirrors styles.uploadReferences). Returns a GalleryItem. */
             import(file, { assetType, title = '', ipOwned = false, ipLicensed = false } = {}) {

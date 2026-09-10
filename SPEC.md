@@ -166,7 +166,7 @@ Self-Hosted (Amazon SageMaker)
     v
 Storage (Local filesystem + S3)
     +-- /data/styles/       — Style profiles + reference images
-    +-- /data/generated/    — Image assets (PNG/SVG) + 3D models (GLB) + engine exports + metadata + versions
+    +-- /data/images/    — Image assets (PNG/SVG) + 3D models (GLB) + engine exports + metadata + versions
     +-- /data/video/        — Video assets (MP4 + thumbnails + job metadata)
     +-- /data/chat/         — Chat sessions (JSON per session)
     +-- S3 bucket           — Video generation output (required for async Bedrock invoke)
@@ -571,7 +571,7 @@ GenerationResult
 └── created_at: datetime
 ```
 
-Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant stores: `original_prompt`, `moderation_original` (pre-rewrite prompt when applicable), `negative_prompt` (extracted exclusion terms), `num_options` and `num_variations` (generation-time batch dimensions — used for partial batch tracking after deletions), IP declaration fields (`ip_owned`, `ip_licensed`), and all other generation parameters. Full prompt lineage is: `original_prompt` (user's raw input) → `decomposed_data` (structured JSON from Prompt Designer) → `recomposed_prompt` (flat text from components) → `enhanced_prompt` (model-specific AI-enhanced prompt) → `moderation_original` (if rewritten to pass moderation) → `prompt` (final prompt sent to the image model) + `negative_prompt` (exclusion terms sent separately).
+Each variant is stored in its own directory under `data/images/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant stores: `original_prompt`, `moderation_original` (pre-rewrite prompt when applicable), `negative_prompt` (extracted exclusion terms), `num_options` and `num_variations` (generation-time batch dimensions — used for partial batch tracking after deletions), IP declaration fields (`ip_owned`, `ip_licensed`), and all other generation parameters. Full prompt lineage is: `original_prompt` (user's raw input) → `decomposed_data` (structured JSON from Prompt Designer) → `recomposed_prompt` (flat text from components) → `enhanced_prompt` (model-specific AI-enhanced prompt) → `moderation_original` (if rewritten to pass moderation) → `prompt` (final prompt sent to the image model) + `negative_prompt` (exclusion terms sent separately).
 
 **Style snapshot in metadata**: Each generated asset (from 2D Image Studio, Video Studio, and Type Studio) stores a `style_snapshot` object capturing the style's state at generation time:
 ```json
@@ -713,7 +713,7 @@ If there is only one option, the options row is hidden. If there is only one var
 **Gallery** (`#gallery`) — Unified **masonry** layout (CSS multi-column, variable height) of all generated images and videos sorted newest-first, with each asset shown at its true aspect ratio. Features a **Media filter** (All / 2D Artwork / 3D Models / Video — "3D Models" lists assets that have a generated 3D model), style filter, asset type filter, and search. Assets that have a generated 3D model show a **"3D" badge**. Images load immediately; videos display thumbnails with play overlay, VIDEO badge, and duration indicator. Click a video to open the player modal. Backend always reads metadata fresh from disk. Supports pagination via `limit` and `offset` query parameters. Auto-refreshes via `onShow()` when navigating back, and after image edits or video generation completes.
 - **Search bar**: Instant filtering across prompts, style names, and asset types as the user types.
 - **Multi-select**: Checkboxes on each asset card for bulk selection. A **"Delete Selected"** button triggers `DELETE /api/gallery/` with `{ids: [...]}` for bulk deletion.
-- **Import Image**: An **"Import Image"** button (Gallery header) opens a modal (drag-drop or click-to-browse) that uploads an existing image via `POST /api/gallery/import` (multipart). The user must pick an **asset type** (required — no default; Character/Game Asset enable image-to-3D). Optional title and IP-declaration checkboxes. The backend normalizes the upload to PNG (via Pillow, any input format; EXIF stripped; alpha preserved), then writes the SAME on-disk structure as a generated asset (`data/generated/import_{uuid}/` with `asset.png` + `metadata.json`) so all downstream features (edit, versioning, image-to-3D, source review) work identically. The metadata carries `imported: true`, `image_model: "imported"`, `model_label: "Imported image"`, an empty `prompt` (the optional title doubles as the display prompt), captured `width`/`height`, and no `async_status` (treated as a complete/sync asset). No AI is invoked. Imported assets show an emerald **"Imported"** badge on the gallery card and in the AssetViewer info bar. The gallery refreshes and opens the new asset on success.
+- **Import Image**: An **"Import Image"** button (Gallery header) opens a modal (drag-drop or click-to-browse) that uploads an existing image via `POST /api/gallery/import` (multipart). The user must pick an **asset type** (required — no default; Character/Game Asset enable image-to-3D). Optional title and IP-declaration checkboxes. The backend normalizes the upload to PNG (via Pillow, any input format; EXIF stripped; alpha preserved), then writes the SAME on-disk structure as a generated asset (`data/images/import_{uuid}/` with `asset.png` + `metadata.json`) so all downstream features (edit, versioning, image-to-3D, source review) work identically. The metadata carries `imported: true`, `image_model: "imported"`, `model_label: "Imported image"`, an empty `prompt` (the optional title doubles as the display prompt), captured `width`/`height`, and no `async_status` (treated as a complete/sync asset). No AI is invoked. Imported assets show an emerald **"Imported"** badge on the gallery card and in the AssetViewer info bar. The gallery refreshes and opens the new asset on success.
 - Click any asset to open the AssetViewer.
 
 **AssetViewer** — Full-size preview with zoom/pan and image editing. Fetches full metadata from `GET /api/gallery/{id}` on open. Four tabs:
@@ -838,7 +838,7 @@ Each step is independently fault-tolerant — failures are logged but do not abo
 **Key methods**:
 - `link_reference_image(style_id, filename, source_path)` — creates a **relative symlink** (via `os.path.relpath()`) in the style's references folder pointing to the source file. Used by the local directory import path. Relative symlinks survive directory moves and work across machines (unlike absolute symlinks). S3 and browser uploads still copy files.
 
-**Generated asset storage** (`data/generated/{asset_id}/`):
+**Generated asset storage** (`data/images/{asset_id}/`):
 - `asset.png` — final processed PNG.
 - `asset.svg` — optional SVG conversion.
 - `metadata.json` — full generation metadata (prompt, enhanced_prompt, recomposed_prompt, decomposed_data, style_id, asset_type, seed, filenames, etc.).
@@ -2003,7 +2003,8 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 
 1. **FastAPI app** with `title="ArtSmoker"`, `description="AI-Powered Game Asset Generation"`, and a `lifespan` handler.
 2. **Lifespan handler** (async context manager):
-   - On startup: create data directories (`data/`, `data/styles/`, `data/generated/`, `data/video/`, `data/chat/`) via `mkdir(parents=True, exist_ok=True)`.
+   - On startup: create data directories (`data/`, `data/styles/`, `data/images/`, `data/video/`, `data/chat/`) via `mkdir(parents=True, exist_ok=True)`.
+   - **Generated image assets live in `data/images/`** — each asset in its own `data/images/{asset_id}/` directory (`asset.png` + optional `asset.svg` + `metadata.json` + version files). Asset ids and the `{batch_id}_o{n}_v{m}` folder scheme are unchanged.
    - On startup: call `validate_aws_credentials()` from `bedrock_client.py` — stores result in a module-level `_aws_status` dict.
    - Log a prominent error box if credentials are missing, a warning if some Bedrock checks fail, or an info message if all checks pass.
 3. **Logging (console + optional file)** — custom `_ColorFormatter` (ANSI 256-color) on a `StreamHandler`: distinct colour per level, timestamps, applied to the root logger AND uvicorn's loggers (`uvicorn`, `uvicorn.error`, `uvicorn.access` — which have `propagate=False`) for consistent output. **File logging is ON by default** (`settings.log_to_file`; disable with `ARTSMOKER_LOG_TO_FILE=false`): `_setup_file_logging()` attaches an **append-only** `FileHandler` (plain, non-ANSI `_PlainFormatter`) to the root + uvicorn loggers, writing to `settings.log_file` (default `logs/artsmoker.log`; override `ARTSMOKER_LOG_FILE`). Every process appends to the same file (O_APPEND ⇒ line-safe across workers); each run is framed by a **SESSION START** banner (launched, version, pid, host, python, cwd, logfile) and a **SESSION SHUTDOWN** banner (stop time, duration) written from the FastAPI lifespan shutdown (reliable under uvicorn's signal handling; `atexit` fallback, idempotent). The active log path is echoed in the startup messages. See §17.
@@ -2481,7 +2482,7 @@ Lambda _could_ work for lightweight endpoints (styles CRUD, gallery listing, hea
 ```
 Developer machine
 ├── uvicorn (FastAPI)
-├── Local filesystem (data/styles/, data/generated/)
+├── Local filesystem (data/styles/, data/images/)
 └── Direct Bedrock API calls
 ```
 
