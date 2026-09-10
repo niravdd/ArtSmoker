@@ -1617,6 +1617,7 @@
     "example3": "네온 사이버펑크 도시로 재해석한 78장 타로 덱",
     "example4": "게임 인벤토리용 손으로 그린 물약 병 아이콘 8개",
     "images_count": "이미지 {{count}}장",
-    "threed_submitted": "3D 모델 {{count}}개 제출됨"
+    "threed_submitted": "3D 모델 {{count}}개 제출됨",
+    "asset_type_note": "컬렉션은 캐릭터 또는 게임 에셋만 생성합니다."
   }
 }

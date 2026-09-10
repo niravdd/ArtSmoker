@@ -37,10 +37,13 @@ _BATCH_PROMPT_WORKERS = 4
 
 
 def _asset_enum(value: str | None) -> AssetType:
-    try:
-        return AssetType(value)
-    except (ValueError, TypeError):
-        return AssetType.GAME_ASSET
+    """A Collection is a SET of distinct SUBJECTS, so only Character or Game Asset
+    apply — they enforce single-complete-subject framing (uncropped, in-frame) and
+    are 3D-ready, whereas photorealistic/icon/etc. don't. Everything except an
+    explicit 'character' coerces to Game Asset (SPEC §18). Authoritative — this
+    guarantees a collection never generates as photorealistic regardless of the
+    Image Studio asset-type selector."""
+    return AssetType.CHARACTER if (value or "").lower() == "character" else AssetType.GAME_ASSET
 
 
 def _load_style_profile(style_id: str | None):

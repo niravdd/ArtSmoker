@@ -1617,6 +1617,7 @@
     "example3": "A 78-card tarot deck reimagined for a neon cyberpunk city",
     "example4": "8 hand-painted potion-bottle icons for a game inventory",
     "images_count": "{{count}} images",
-    "threed_submitted": "{{count}} 3D model(s) submitted"
+    "threed_submitted": "{{count}} 3D model(s) submitted",
+    "asset_type_note": "Collections generate Character or Game Asset only."
   }
 }

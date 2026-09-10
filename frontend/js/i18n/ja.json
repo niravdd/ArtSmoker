@@ -1617,6 +1617,7 @@
     "example3": "ネオン輝くサイバーパンク都市に再構築した78枚のタロットデッキ",
     "example4": "ゲームインベントリ用の手描きポーションボトルアイコン8個",
     "images_count": "{{count}}枚の画像",
-    "threed_submitted": "{{count}}件の3Dモデルを送信しました"
+    "threed_submitted": "{{count}}件の3Dモデルを送信しました",
+    "asset_type_note": "コレクションはキャラクターまたはゲームアセットのみ生成します。"
   }
 }

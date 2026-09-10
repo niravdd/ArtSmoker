@@ -1617,6 +1617,7 @@
     "example3": "Una baraja de tarot de 78 cartas reimaginada como ciudad cyberpunk de neón",
     "example4": "8 iconos de frascos de poción pintados a mano para un inventario de juego",
     "images_count": "{{count}} imágenes",
-    "threed_submitted": "{{count}} modelo(s) 3D enviado(s)"
+    "threed_submitted": "{{count}} modelo(s) 3D enviado(s)",
+    "asset_type_note": "Las colecciones solo generan Personaje o Recurso de juego."
   }
 }

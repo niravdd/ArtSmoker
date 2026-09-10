@@ -86,6 +86,7 @@
             this._updateCharCount();
             // Clear composed prompt when user text changes externally
             this._clearComposed();
+            this._updateCollectionCheckboxState?.();  // keep the Collection gate in sync
             if (this._changeCb) this._changeCb(text);
         }
 
@@ -188,6 +189,7 @@
                             return html`<button type="button" class="collection-example text-[10px] px-2 py-0.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-300/90 hover:bg-fuchsia-500/20 hover:border-fuchsia-500/40 transition-all" data-example="${ex}" title="${ex}">${ex}</button>`;
                         })}
                     </div>
+                    <p class="collection-asset-note text-[10px] text-brand-text-muted/50 mt-0.5">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.asset_type_note') : 'Collections generate Character or Game Asset only.'}</p>
 
                     <!-- Step 2 (single-asset): Prompt Designer (optional) -->
                     <div class="step2-single">
@@ -314,6 +316,7 @@
                 if (this._composedText || this._recomposedPrompt || this._decomposedData) this._clearComposed();
                 this._assetTypeConfirmed = false;  // New text = re-check asset type
                 this._galleryReload = false;       // User is writing fresh — not a reload
+                this._updateCollectionCheckboxState();  // enable Collection once a prompt exists
                 if (this._changeCb) this._changeCb(this._textareaEl.value);
                 // Debounced translation preview (500ms after user stops typing)
                 clearTimeout(this._translationTimer);
@@ -442,6 +445,7 @@
                     this._textareaEl.value = ex;
                     this._updateCharCount();
                     this._clearComposed();
+                    this._updateCollectionCheckboxState();  // programmatic set won't fire 'input'
                     if (this._changeCb) this._changeCb(ex);
                     this._textareaEl.focus();
                 });
@@ -457,6 +461,8 @@
                     this._notifyCollectionState();
                 }
             });
+            // Initial state: an empty Step-1 prompt keeps the Collection checkbox disabled.
+            this._updateCollectionCheckboxState();
         }
 
         // ── Collection mode (SPEC §18.2) ──────────────────────────────────
@@ -465,6 +471,24 @@
         getArtDirectionText() { return this._artDirectionEl ? this._artDirectionEl.value : ''; }
         /** Generate is allowed only once a design is accepted (§18.2). */
         collectionReadyToGenerate() { return !!(this._collectionMode && this._collectionDesign); }
+
+        /** Guard the Collection checkbox: disabled until Step 1 has a prompt (so the
+         *  user can't lock the mode with an empty ask), and disabled once locked. */
+        _updateCollectionCheckboxState() {
+            if (!this._collectionCheckbox) return;
+            const empty = !this.getUserText().trim();
+            this._collectionCheckbox.disabled = this._collectionMode || empty;
+            const row = this._collectionCheckbox.closest('.collection-toggle-row');
+            if (row) {
+                row.classList.toggle('opacity-50', empty && !this._collectionMode);
+                row.classList.toggle('cursor-not-allowed', empty && !this._collectionMode);
+                if (!this._collectionMode) {
+                    row.title = empty
+                        ? (typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.enter_prompt') : 'Type a prompt first')
+                        : (typeof t !== 'undefined' ? t('artsmoker.ui.collection.toggle_hint') : 'Design a whole set from one prompt');
+                }
+            }
+        }
 
         _notifyCollectionState() {
             // Let Image Studio re-evaluate the Generate gate.

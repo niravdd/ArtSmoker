@@ -1617,6 +1617,7 @@
     "example3": "Un jeu de tarot de 78 cartes réimaginé en cité cyberpunk néon",
     "example4": "8 icônes de fioles de potion peintes à la main pour un inventaire de jeu",
     "images_count": "{{count}} images",
-    "threed_submitted": "{{count}} modèle(s) 3D soumis"
+    "threed_submitted": "{{count}} modèle(s) 3D soumis",
+    "asset_type_note": "Les collections ne génèrent que des personnages ou des assets de jeu."
   }
 }

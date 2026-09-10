@@ -1617,6 +1617,7 @@
     "example3": "重新演绎为霓虹赛博朋克都市的78张塔罗牌",
     "example4": "8个手绘游戏物品栏药水瓶图标",
     "images_count": "{{count}} 张图片",
-    "threed_submitted": "已提交 {{count}} 个3D模型"
+    "threed_submitted": "已提交 {{count}} 个3D模型",
+    "asset_type_note": "合集仅生成角色或游戏素材。"
   }
 }

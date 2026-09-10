@@ -467,7 +467,10 @@
                         // callback to re-gate the main Generate button.
                         getCollectionContext: () => ({
                             image_model: (this._selectedModels?.[0] || 'sd35_large'),
-                            asset_type: this._getAssetType(),
+                            // Collections are Character or Game Asset only (SPEC §18) —
+                            // coerce anything else (photorealistic/icon/…) to game_asset
+                            // so the UI matches the backend's authoritative constraint.
+                            asset_type: (this._getAssetType() === 'character' ? 'character' : 'game_asset'),
                             style_id: this._getStyleId() || null,
                         }),
                         onCollectionStateChange: (st) => this._onCollectionStateChange(st),
