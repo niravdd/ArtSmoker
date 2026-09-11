@@ -1618,6 +1618,11 @@
     "example4": "8 iconos de frascos de poción pintados a mano para un inventario de juego",
     "images_count": "{{count}} imágenes",
     "threed_submitted": "{{count}} modelo(s) 3D enviado(s)",
-    "asset_type_note": "Las colecciones solo generan Personaje o Recurso de juego."
+    "asset_type_note": "Las colecciones solo generan Personaje o Recurso de juego.",
+    "status_failed": "Falló",
+    "status_blocked": "Filtrado",
+    "retry": "Reintentar",
+    "retry_edit": "El filtro de contenido bloqueó el prompt de esta pieza. Edítalo y reinténtalo:",
+    "retrying": "Reintentando…"
   }
 }

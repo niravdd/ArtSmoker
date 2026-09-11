@@ -59,6 +59,8 @@
                 complete: ['viewer_status_complete', 'bg-emerald-600/70'],
                 partial: ['viewer_status_partial', 'bg-amber-600/70'],
                 generating: ['viewer_status_generating', 'bg-cyan-600/70'],
+                failed: ['status_failed', 'bg-red-600/70'],
+                blocked: ['status_blocked', 'bg-amber-600/80'],
             };
             const [key, cls] = map[status] || ['viewer_status_generating', 'bg-slate-600/70'];
             return html`<span class="text-[10px] px-1.5 py-0.5 rounded ${cls} text-white">${t('collection.' + key)}</span>`;
@@ -74,8 +76,10 @@
             // nosemgrep
             body.innerHTML = html`
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    ${batches.map((b) => html`
-                        <div class="cv-batch card cursor-pointer overflow-hidden group" data-batch="${b.batch_id}">
+                    ${batches.map((b) => {
+                        const failed = (b.status === 'failed' || b.status === 'blocked');
+                        return html`
+                        <div class="cv-batch card ${failed ? '' : 'cursor-pointer'} overflow-hidden group" data-batch="${b.batch_id}" data-slug="${b.slug}" data-status="${b.status}">
                             <div class="aspect-square bg-brand-bg flex items-center justify-center overflow-hidden">
                                 ${b.thumb_path
                                     ? html`<img src="${b.thumb_path}?t=${summary.updated_at || ''}" class="w-full h-full object-cover" alt="${b.name}" />`
@@ -86,14 +90,17 @@
                                 <div class="flex items-center gap-1 mt-1">
                                     ${this._statusBadge(b.status)}
                                     ${b.has_3d ? html`<span class="text-[10px] px-1.5 py-0.5 rounded bg-violet-600/70 text-white">3D</span>` : ''}
-                                    <span class="text-[10px] text-brand-text-muted ml-auto">${t('collection.images_count', { count: b.job_count })}</span>
+                                    ${failed
+                                        ? html`<button class="cv-retry text-[10px] px-1.5 py-0.5 rounded bg-cyan-600/70 hover:bg-cyan-500 text-white ml-auto" data-slug="${b.slug}" data-blocked="${b.status === 'blocked' ? '1' : ''}" title="${b.error || ''}">${t('collection.retry')}</button>`
+                                        : html`<span class="text-[10px] text-brand-text-muted ml-auto">${t('collection.images_count', { count: b.job_count })}</span>`}
                                 </div>
                                 ${(b.versions && b.versions.length > 1) ? html`
                                     <select class="cv-version input text-[10px] mt-1 py-0.5" data-batch="${b.batch_id}" title="${t('collection.version_label')}">
                                         ${b.versions.map((v) => html`<option value="${v}" ${v === b.selected_version ? 'selected' : ''}>${t('collection.version_label')} ${v}</option>`)}
                                     </select>` : ''}
                             </div>
-                        </div>`)}
+                        </div>`;
+                    })}
                 </div>`;
             // Batch card → drill into the existing AssetViewer for that Batch.
             body.querySelectorAll('.cv-batch').forEach((card) => {
@@ -110,6 +117,13 @@
                             { batch_id: sel.dataset.batch, version: parseInt(sel.value, 10) });
                         this.open(rec.collection_id);   // reflect the new cover
                     } catch (err) { window.showToast?.(err.message || t('collection.error'), 'error'); }
+                });
+            });
+            // Per-Batch retry (failed/blocked). stopPropagation so it doesn't drill down.
+            body.querySelectorAll('.cv-retry').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this._retryBatch(rec.collection_id, btn.dataset.slug, btn.dataset.blocked === '1', btn);
                 });
             });
             document.getElementById('cv-delete').addEventListener('click', () => this._delete(rec.collection_id));
@@ -139,6 +153,24 @@
                 window.showToast?.(e.message || t('collection.error'), 'error');
                 btn.disabled = false; btn.textContent = orig;
             }
+        },
+
+        /** Retry a Failed/Blocked Batch. For a content-filter block, prompt the user
+         *  to edit the piece's prompt first (same-prompt retry would fail again). */
+        async _retryBatch(collectionId, slug, blocked, btn) {
+            let editedPrompt;
+            if (blocked) {
+                const entry = ((this._data && this._data.record && this._data.record.roster) || []).find(e => e.slug === slug);
+                editedPrompt = window.prompt(t('collection.retry_edit'), (entry && entry.model_agnostic_prompt) || '');
+                if (editedPrompt === null) return;   // cancelled
+            }
+            if (btn) { btn.disabled = true; btn.textContent = t('collection.retrying'); }
+            try {
+                await API.collections.generateBatch(collectionId, { slug, prompt: editedPrompt || undefined });
+            } catch (e) {
+                window.showToast?.(e.message || t('collection.error'), 'error');
+            }
+            this.open(collectionId);   // reload the board either way (reflect new status)
         },
 
         _openBatch(batchId) {

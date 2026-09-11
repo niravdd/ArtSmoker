@@ -407,7 +407,8 @@ async def generate_collection(body: GenerateCollectionRequest):
             model_agnostic_prompt=e.get("model_agnostic_prompt", ""),
         ) for e in roster],
         knobs={"N": len(roster), "O": n_opts, "V": n_vars, "models": [body.image_model],
-               "cohesion_mode": body.cohesion_mode, "seed": base_seed},
+               "cohesion_mode": body.cohesion_mode, "seed": base_seed,
+               "asset_type": asset_type.value},   # persisted so a per-Batch retry knows it
         status="generating",
     )
     record["art_direction_structured"] = body.art_direction or {}
@@ -490,30 +491,55 @@ async def generate_collection(body: GenerateCollectionRequest):
             # BOOKKEEPING. Once images exist the Batch counts as complete and its
             # batch_id is recorded even if a transient lock/disk hiccup trips the
             # record/index write — otherwise real images could project as "pending".
+            def _record_batch_failure(_idx, _emsg, _blocked):
+                """Mark a Batch Failed/Blocked on the record (not a phantom
+                'Generating') so it's clearly surfaced + retryable."""
+                def _mut(rec):
+                    if _idx < len(rec.get("roster", [])):
+                        rec["roster"][_idx]["gen_status"] = "blocked" if _blocked else "failed"
+                        rec["roster"][_idx]["gen_error"] = _emsg[:200]
+                try:
+                    cstore.update_collection(cid, _mut)
+                    cstore.refresh_collection_summary(cid)
+                except Exception:
+                    logger.exception("Collection %s: could not record batch %d failure", cid, idx)
+                event_queue.put({"type": "batch_error", "batch_index": _idx,
+                                 "batch_name": name, "error": _emsg[:200], "blocked": _blocked})
+
             try:
                 result = _run_generation(sub, cb)
                 bid = result.id
                 gen_cost += get_total_cost()          # _run_generation reset+tracked this Batch
+                # Moderation on a raw prompt CLEANS UP + RETURNS an empty result (it does
+                # NOT raise), so a Batch can "succeed" with zero images. Treat no-images
+                # as blocked, not complete.
+                jobs_landed = len(cstore._member_jobs(bid)) > 0
             except Exception as exc:
                 logger.exception("Collection %s batch %d (%s) failed", cid, idx, name)
-                event_queue.put({"type": "batch_error", "batch_index": idx,
-                                 "batch_name": name, "error": str(exc)})
+                emsg = str(exc)
+                blocked = any(s in emsg.lower() for s in ("moderation", "filter", "blocked", "content"))
+                _record_batch_failure(idx, emsg, blocked)
             else:
-                entry["batch_id"] = bid
-                completed_batches += 1                # images are on disk — count it
-                if hero_mode and idx == 0 and hero_ref is None:
-                    hero_ref = _hero_reference_b64(bid)   # capture hero image for the rest
-                # Best-effort: stamp lineage + record the batch_id + refresh the index.
-                # A failure here must NOT drop the Batch (images already exist).
-                try:
-                    _stamp_collection_lineage(bid, cid, entry)
-                    def _set_bid(rec, _i=idx, _b=bid):
-                        if _i < len(rec.get("roster", [])):
-                            rec["roster"][_i]["batch_id"] = _b
-                    cstore.update_collection(cid, _set_bid)
-                    cstore.refresh_collection_summary(cid, bid)
-                except Exception:
-                    logger.exception("Collection %s batch %d bookkeeping failed (images OK)", cid, idx)
+                if not jobs_landed:
+                    _record_batch_failure(idx, "Content filter blocked the prompt", True)
+                else:
+                    entry["batch_id"] = bid
+                    completed_batches += 1                # images are on disk — count it
+                    if hero_mode and idx == 0 and hero_ref is None:
+                        hero_ref = _hero_reference_b64(bid)   # capture hero image for the rest
+                    # Best-effort: stamp lineage + record the batch_id + refresh the index.
+                    # A failure here must NOT drop the Batch (images already exist).
+                    try:
+                        _stamp_collection_lineage(bid, cid, entry)
+                        def _set_bid(rec, _i=idx, _b=bid):
+                            if _i < len(rec.get("roster", [])):
+                                rec["roster"][_i]["batch_id"] = _b
+                                rec["roster"][_i].pop("gen_status", None)   # clear any prior failure
+                                rec["roster"][_i].pop("gen_error", None)
+                        cstore.update_collection(cid, _set_bid)
+                        cstore.refresh_collection_summary(cid, bid)
+                    except Exception:
+                        logger.exception("Collection %s batch %d bookkeeping failed (images OK)", cid, idx)
 
             # Running cost surface (SPEC §18.9): design + generation-so-far + total.
             running_total = round(design_cost + gen_cost, 4)
@@ -562,6 +588,83 @@ async def generate_collection(body: GenerateCollectionRequest):
 
     return StreamingResponse(stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+class RetryBatchRequest(BaseModel):
+    slug: str
+    prompt: str | None = None   # optional EDITED model-agnostic prompt (e.g. to clear a filter)
+
+
+@router.post("/{collection_id}/generate-batch")
+async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
+    """Regenerate ONE Batch's images — retry a Failed/Blocked Batch, optionally with an
+    edited prompt (to get past a content filter). Reuses the single-Batch generation
+    path, updates the master record + index. Synchronous (one Batch)."""
+    from backend.routers.generate import _run_generation
+    from backend.services import collection_store as cstore
+
+    rec = cstore.load_collection(collection_id)
+    if rec is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+    roster = rec.get("roster", [])
+    idx = next((i for i, e in enumerate(roster) if e.get("slug") == body.slug), -1)
+    if idx < 0:
+        raise HTTPException(404, detail=f"Batch '{body.slug}' not found in this collection.")
+    entry = roster[idx]
+    knobs = rec.get("knobs", {})
+    n_opts = max(1, min(5, int(knobs.get("O", 3))))
+    n_vars = max(1, min(5, int(knobs.get("V", 2))))
+    image_model = (knobs.get("models") or ["sd35_large"])[0]
+    base_seed = knobs.get("seed") if knobs.get("seed") is not None else random.randint(0, _SEED_MAX - 10_000)
+    prompt = (body.prompt or entry.get("model_agnostic_prompt") or "").strip()
+    if not prompt:
+        raise HTTPException(400, detail="This batch has no prompt to generate.")
+
+    # Persist an edited prompt so future reads + reproducibility use it.
+    if body.prompt and body.prompt.strip() != (entry.get("model_agnostic_prompt") or ""):
+        cstore.update_collection(collection_id, lambda r: r["roster"][idx].__setitem__("model_agnostic_prompt", body.prompt.strip())
+                                 if idx < len(r.get("roster", [])) else None)
+
+    sub = GenerationRequest(
+        prompt=prompt, asset_type=_asset_enum(knobs.get("asset_type")),
+        image_model=image_model, num_options=n_opts, num_variations=n_vars,
+        seed=base_seed + idx * n_opts * n_vars,
+        saved_concept_prompts={image_model: [prompt] * n_opts},
+    )
+
+    def _mark_failed(emsg, blocked):
+        def _mut(r):
+            if idx < len(r.get("roster", [])):
+                r["roster"][idx]["gen_status"] = "blocked" if blocked else "failed"
+                r["roster"][idx]["gen_error"] = emsg[:200]
+        cstore.update_collection(collection_id, _mut)
+        cstore.refresh_collection_summary(collection_id)
+
+    try:
+        result = _run_generation(sub)
+        bid = result.id
+    except HTTPException as he:
+        _mark_failed(str(he.detail), "moderation" in str(he.detail).lower() or "filter" in str(he.detail).lower())
+        raise HTTPException(502, detail=f"Retry failed: {str(he.detail)[:160]}")
+    except Exception as exc:
+        blocked = any(s in str(exc).lower() for s in ("moderation", "filter", "blocked", "content"))
+        _mark_failed(str(exc), blocked)
+        raise HTTPException(502, detail=f"Retry failed: {str(exc)[:160]}")
+
+    # Moderation returns an empty result (no raise) — treat no-images as blocked.
+    if not cstore._member_jobs(bid):
+        _mark_failed("Content filter blocked the prompt", True)
+        raise HTTPException(400, detail="The content filter blocked this prompt. Edit it and retry.")
+
+    _stamp_collection_lineage(bid, collection_id, entry)
+    def _ok(r):
+        if idx < len(r.get("roster", [])):
+            r["roster"][idx]["batch_id"] = bid
+            r["roster"][idx].pop("gen_status", None)
+            r["roster"][idx].pop("gen_error", None)
+    cstore.update_collection(collection_id, _ok)
+    cstore.refresh_collection_summary(collection_id, bid)
+    return {"ok": True, "batch_id": bid, "slug": body.slug}
 
 
 # ── 3D set handoff (SPEC §18, Phase N — reuse the existing image-to-3D path) ──

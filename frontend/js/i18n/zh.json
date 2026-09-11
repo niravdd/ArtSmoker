@@ -1618,6 +1618,11 @@
     "example4": "8个手绘游戏物品栏药水瓶图标",
     "images_count": "{{count}} 张图片",
     "threed_submitted": "已提交 {{count}} 个3D模型",
-    "asset_type_note": "合集仅生成角色或游戏素材。"
+    "asset_type_note": "合集仅生成角色或游戏素材。",
+    "status_failed": "失败",
+    "status_blocked": "已过滤",
+    "retry": "重试",
+    "retry_edit": "内容过滤器拦截了该角色的提示词。请编辑后重试：",
+    "retrying": "重试中…"
   }
 }

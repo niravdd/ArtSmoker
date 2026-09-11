@@ -263,6 +263,7 @@
             get(id) { return request(`/api/collections/${id}`, { method: 'GET' }); },
             estimate(data) { return request('/api/collections/estimate', { method: 'POST', body: data }); },
             generate3d(id) { return request(`/api/collections/${id}/generate-3d`, { method: 'POST' }); },
+            generateBatch(id, data) { return request(`/api/collections/${id}/generate-batch`, { method: 'POST', body: data }); },
             selectVersion(id, data) { return request(`/api/collections/${id}/select-version`, { method: 'POST', body: data }); },
             exportUrl(id, target, fmt) { return `/api/collections/${id}/export?target=${encodeURIComponent(target)}&fmt=${encodeURIComponent(fmt)}`; },
             del(id) { return request(`/api/collections/${id}?delete_assets=true`, { method: 'DELETE' }); },

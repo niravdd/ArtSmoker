@@ -290,10 +290,12 @@ def _project_batch(entry: dict) -> dict:
     jobs = _member_jobs(batch_id)
 
     # Status: any pending → generating; any complete → complete/partial; else the
-    # authored status. Derived purely from the Jobs' async_status.
+    # authored status. Derived purely from the Jobs' async_status. When a Batch
+    # produced NO jobs, a recorded gen_status ("failed"/"blocked" — e.g. moderation)
+    # takes precedence over "pending" so the UI never shows a phantom "Generating".
     statuses = [j.get("async_status") for j in jobs]
     if not jobs:
-        status = "pending"
+        status = entry.get("gen_status") or "pending"
     elif any(s == "pending" for s in statuses):
         status = "generating"
     elif any(s == "failed" for s in statuses):
@@ -334,6 +336,7 @@ def _project_batch(entry: dict) -> dict:
         "thumb_asset_id": thumb_asset_id,
         "thumb_path": thumb_path,
         "status": status,
+        "error": entry.get("gen_error") if status in ("failed", "blocked") else None,
         "job_count": len(jobs),
         "versions": versions,
         "has_3d": has_3d,

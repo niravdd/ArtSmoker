@@ -1618,6 +1618,11 @@
     "example4": "8 handgemalte Zaubertrank-Flaschen-Icons für ein Spiel-Inventar",
     "images_count": "{{count}} Bilder",
     "threed_submitted": "{{count}} 3D-Modell(e) übermittelt",
-    "asset_type_note": "Kollektionen erzeugen nur Charakter oder Game-Asset."
+    "asset_type_note": "Kollektionen erzeugen nur Charakter oder Game-Asset.",
+    "status_failed": "Fehlgeschlagen",
+    "status_blocked": "Gefiltert",
+    "retry": "Erneut versuchen",
+    "retry_edit": "Der Inhaltsfilter hat den Prompt dieses Teils blockiert. Bearbeite ihn und versuche es erneut:",
+    "retrying": "Erneuter Versuch…"
   }
 }

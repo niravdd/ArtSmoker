@@ -1618,6 +1618,11 @@
     "example4": "8 icônes de fioles de potion peintes à la main pour un inventaire de jeu",
     "images_count": "{{count}} images",
     "threed_submitted": "{{count}} modèle(s) 3D soumis",
-    "asset_type_note": "Les collections ne génèrent que des personnages ou des assets de jeu."
+    "asset_type_note": "Les collections ne génèrent que des personnages ou des assets de jeu.",
+    "status_failed": "Échec",
+    "status_blocked": "Filtré",
+    "retry": "Réessayer",
+    "retry_edit": "Le filtre de contenu a bloqué le prompt de cette pièce. Modifiez-le et réessayez :",
+    "retrying": "Nouvel essai…"
   }
 }

@@ -1618,6 +1618,11 @@
     "example4": "8 hand-painted potion-bottle icons for a game inventory",
     "images_count": "{{count}} images",
     "threed_submitted": "{{count}} 3D model(s) submitted",
-    "asset_type_note": "Collections generate Character or Game Asset only."
+    "asset_type_note": "Collections generate Character or Game Asset only.",
+    "status_failed": "Failed",
+    "status_blocked": "Filtered",
+    "retry": "Retry",
+    "retry_edit": "The content filter blocked this piece's prompt. Edit it and retry:",
+    "retrying": "Retrying…"
   }
 }
