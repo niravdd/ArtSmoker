@@ -46,6 +46,21 @@ def _asset_enum(value: str | None) -> AssetType:
     return AssetType.CHARACTER if (value or "").lower() == "character" else AssetType.GAME_ASSET
 
 
+# Single source of truth for "was this generation failure a content-moderation
+# block?" — used to pick the Batch badge (blocked/amber vs failed/red) and whether
+# retry prompts the user to edit the prompt first. Phrase-based (not bare
+# "content"/"filter"/"blocked", which matched unrelated errors like
+# "content-length"): covers Bedrock SD3.5's "Filter reason: prompt" and Bedrock
+# content-moderation ("blocked by content filtering policy", "content policy").
+_MODERATION_SIGNALS = ("moderation", "content filter", "content policy",
+                       "filter reason", "safety filter", "blocked by")
+
+
+def _is_moderation_error(text: str | None) -> bool:
+    t = (text or "").lower()
+    return any(s in t for s in _MODERATION_SIGNALS)
+
+
 def _load_style_profile(style_id: str | None):
     if not style_id:
         return None
@@ -512,13 +527,15 @@ async def generate_collection(body: GenerateCollectionRequest):
                 gen_cost += get_total_cost()          # _run_generation reset+tracked this Batch
                 # Moderation on a raw prompt CLEANS UP + RETURNS an empty result (it does
                 # NOT raise), so a Batch can "succeed" with zero images. Treat no-images
-                # as blocked, not complete.
+                # as blocked, not complete. (Assumes the Batch's Jobs are on disk by the
+                # time _run_generation returns — true for the sync Bedrock SD models
+                # collections use today; an async self-hosted model would need a
+                # completion wait here rather than an immediate member scan.)
                 jobs_landed = len(cstore._member_jobs(bid)) > 0
             except Exception as exc:
                 logger.exception("Collection %s batch %d (%s) failed", cid, idx, name)
                 emsg = str(exc)
-                blocked = any(s in emsg.lower() for s in ("moderation", "filter", "blocked", "content"))
-                _record_batch_failure(idx, emsg, blocked)
+                _record_batch_failure(idx, emsg, _is_moderation_error(emsg))
             else:
                 if not jobs_landed:
                     _record_batch_failure(idx, "Content filter blocked the prompt", True)
@@ -644,11 +661,10 @@ async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
         result = _run_generation(sub)
         bid = result.id
     except HTTPException as he:
-        _mark_failed(str(he.detail), "moderation" in str(he.detail).lower() or "filter" in str(he.detail).lower())
+        _mark_failed(str(he.detail), _is_moderation_error(str(he.detail)))
         raise HTTPException(502, detail=f"Retry failed: {str(he.detail)[:160]}")
     except Exception as exc:
-        blocked = any(s in str(exc).lower() for s in ("moderation", "filter", "blocked", "content"))
-        _mark_failed(str(exc), blocked)
+        _mark_failed(str(exc), _is_moderation_error(str(exc)))
         raise HTTPException(502, detail=f"Retry failed: {str(exc)[:160]}")
 
     # Moderation returns an empty result (no raise) — treat no-images as blocked.

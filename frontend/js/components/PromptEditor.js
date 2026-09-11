@@ -593,7 +593,9 @@
             this._notifyCollectionState();   // enables Generate
         }
 
-        /** Full clean slate for collection mode (called by Image Studio Reset). */
+        /** Full clean slate for collection mode. Public API for an in-place exit;
+         *  note Image Studio's Reset instead rebuilds the whole PromptEditor
+         *  (fresh single-asset mode), so it doesn't need to call this. */
         exitCollectionMode() {
             this._collectionMode = false;
             this._collectionDesign = null;
