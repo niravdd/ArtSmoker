@@ -58,3 +58,6 @@ data/trellis2_full_verify/
 # Local Blender working files (e.g. FBX/USD import test scenes) — never repo content
 *.blend
 *.blend1
+
+# Video captures / walkthroughs — large binaries, not repo content (host elsewhere)
+*.mp4
