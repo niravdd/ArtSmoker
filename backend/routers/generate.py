@@ -497,6 +497,20 @@ def _prepare_reference_generation(body: GenerationRequest, progress_cb=None) -> 
     )
 
 
+def _discard_partial_asset(asset_id: str) -> None:
+    """Remove a half-written job dir — image (+ SVG) saved but metadata.json not
+    yet committed — so it can never orphan. An asset dir without metadata.json is
+    invisible to the Gallery (``list_generated_ids`` requires it), to a
+    Collection's membership scan (``_member_jobs``), AND to a batch's own
+    moderation-cleanup (which only revisits variants that returned a
+    VariantResult) — so a partial dir left behind lingers forever. Best-effort:
+    never raises into the caller."""
+    try:
+        store.delete_generated_asset(asset_id)
+    except Exception:
+        logger.debug("Cleanup of partial asset %s failed", asset_id, exc_info=True)
+
+
 def _build_variant(
     *,
     batch_id: str,
@@ -619,8 +633,12 @@ def _build_variant(
 
     final_bytes = gen_result
 
-    # Check after generation but before saving (another task may have triggered cancel)
+    # A sibling variant's raw-prompt moderation block cancels the batch. The
+    # image was ALREADY generated + saved to disk inside _generate_single_image,
+    # so discard that partial asset before bailing — otherwise it orphans (png/
+    # svg with no metadata.json, invisible to the Gallery AND to batch cleanup).
     if cancel_event and cancel_event.is_set():
+        _discard_partial_asset(asset_id)
         raise RuntimeError("Batch cancelled due to content moderation block")
 
     png_filename = f"{prompt_slug}_opt{option_index + 1}_var{variant_index + 1}.png"
@@ -628,7 +646,7 @@ def _build_variant(
 
     effective_model = model_override or body.image_model
     _ref_meta = _persist_reference_inputs(asset_id, body, option_index)
-    store.save_generation_metadata(asset_id, {
+    _metadata = {
         "id": asset_id,
         "batch_id": batch_id,
         "option_index": option_index,
@@ -680,7 +698,16 @@ def _build_variant(
         "estimated_image_cost_usd": _get_model_price(effective_model),
         "cost_history": [{"action": "generate", "model": effective_model.value if hasattr(effective_model, 'value') else str(effective_model), "cost_usd": _get_model_price(effective_model)}],
         **_ref_meta,
-    })
+    }
+
+    # The image (+ optional SVG) is already on disk (saved inside
+    # _generate_single_image); writing metadata.json is what COMMITS the job.
+    # If the write fails, remove the partial asset dir so it can't orphan.
+    try:
+        store.save_generation_metadata(asset_id, _metadata)
+    except Exception:
+        _discard_partial_asset(asset_id)
+        raise
 
     result = VariantResult(
         id=asset_id,
