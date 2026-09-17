@@ -385,16 +385,17 @@ def _delete_json(base, path, timeout=60):
         return json.loads(r.read().decode())
 
 
-def run_collection(base, model, region):
+def run_collection(base, model, region, extra_models=None):
     """Collections (SPEC §18) FULL end-to-end regression on the given image model:
     decompose → estimate → recompose-batch → recompose-all → regenerate-roster
-    (locked-preserve) → generate (2 Batches × 1×1) → gallery card/index →
-    get/reconstruct → select-version (+ design_history) → export graceful-400 →
-    delete cleanup. Real HTTP, registry-driven. Live 3D SUBMIT is intentionally NOT
-    fired (SageMaker cost + async side-effects); export's no-3D path exercises the
-    export wiring instead."""
+    (locked-preserve) → generate (2 Batches × 1×1) → multi-model set (when a 2nd
+    model is enabled) → gallery card/index → get/reconstruct → select-version
+    (+ design_history) → export graceful-400 → delete cleanup. Real HTTP,
+    registry-driven. Live 3D SUBMIT is intentionally NOT fired (SageMaker cost +
+    async side-effects); export's no-3D path exercises the export wiring instead."""
     import urllib.error
     mk = model["key"]
+    mk2 = (extra_models or [{}])[0].get("key") if extra_models else None   # a 2nd enabled model → multi-model set
     ask = "a tiny set of two fantasy gemstones"
     steps, cid = [], None
     try:
@@ -461,6 +462,48 @@ def run_collection(base, model, region):
         if not any(e.get("type") == "cost_update" for e in events):
             return False, "no cost_update event", cid
         steps.append("generate2×1×1")
+
+        # 6b) MULTI-MODEL set (SPEC §18.4): a multi-model selection must render EVERY
+        # chosen model (the exact gap behind "where are the other models' outputs?").
+        # Only when a 2nd model is enabled: a fresh 1-Batch collection, 2 models × 1×1,
+        # then assert the reconstructed Batch's Jobs carry BOTH model keys. Own cid +
+        # own cleanup so the primary flow (steps 7-11) stays on the single-model cid.
+        if mk2:
+            cid2 = None
+            try:
+                d2 = post_json(base, "/api/collections/decompose",
+                               {"prompt": ask, "asset_type": "game_asset", "image_model": mk, "count": 1}, timeout=180)
+                r2, cid2 = (d2.get("roster") or [])[:1], d2.get("collection_id")
+                if not r2 or not cid2:
+                    return False, "multi-model decompose returned no roster/cid", cid
+                ev2 = post_sse(base, "/api/collections/generate",
+                               {"collection_id": cid2, "name": d2.get("name", "MM Set"), "raw_ask": ask,
+                                "art_direction": d2["art_direction"], "roster": r2,
+                                "image_model": mk, "selected_models": [mk, mk2],
+                                "region": region, "asset_type": "game_asset",
+                                "num_options": 1, "num_variations": 1,
+                                "llm_cost_ledger": d2.get("llm_cost_ledger", []), "design_cost": d2.get("cost", 0)},
+                               timeout=300)
+                c2 = next((e for e in ev2 if e.get("type") == "collection_complete"), None)
+                if c2 is None or c2.get("completed_batches") != 1:
+                    return False, f"multi-model generate did not complete 1 batch: {c2}", cid
+                mm = get_json(base, f"/api/collections/{cid2}", timeout=30)
+                mods = {v.get("model_used")
+                        for b in mm.get("batches", [])
+                        for o in ((b.get("batch") or {}).get("options") or [])
+                        for v in o.get("variants", [])}
+                missing = {mk, mk2} - mods
+                if missing:
+                    return False, f"multi-model set missing model(s) {sorted(missing)} (got {sorted(m for m in mods if m)})", cid
+                steps.append("multi-model×2")
+            finally:
+                if cid2:
+                    try:
+                        _delete_json(base, f"/api/collections/{cid2}?delete_assets=true")
+                    except Exception:
+                        pass
+        else:
+            steps.append("multi-model(n/a:1 enabled model)")
 
         # 7) Gallery fast-path: one card w/ cover, batch_count, per-Batch versions field
         card = next((c for c in get_json(base, "/api/collections", timeout=30).get("collections", [])
@@ -680,9 +723,12 @@ def main():
                   lambda m, r: run_video(base, m, r, args.video_timeout))
     if "collections" in stages:
         # One image model is enough to smoke the whole Collections flow (SPEC §18);
-        # capped to the first enabled image model to bound cost.
-        run_stage("collections", select_image_models(reg, args.include_custom)[:1],
-                  lambda m, r: run_collection(base, m, r))
+        # capped to the first enabled image model to bound cost. A 2nd enabled model
+        # (when present) is passed through so run_collection can also verify the
+        # multi-model set path (every selected model must render) — SPEC §18.4.
+        _coll_models = select_image_models(reg, args.include_custom)
+        run_stage("collections", _coll_models[:1],
+                  lambda m, r: run_collection(base, m, r, extra_models=_coll_models[1:2]))
 
     results["finished"] = datetime.now(timezone.utc).isoformat()
     Path(args.report).write_text(json.dumps(results, indent=2))
