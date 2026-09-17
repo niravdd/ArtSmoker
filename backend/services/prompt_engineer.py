@@ -987,6 +987,32 @@ def generate_art_direction(ask: str, style_profile: StyleProfile | None = None) 
     return ad
 
 
+def merge_art_direction_with_batch(art_direction_text: str, batch_direction: str) -> dict:
+    """Lift a creative direction the user refined on ONE Batch UP into the SHARED
+    art direction (SPEC §18 — the Art Direction Controller's opt-in 'apply to the
+    whole set'). Blends the batch's set-wide-relevant intent into the existing
+    direction WITHOUT narrowing it to that one subject, keeping the same dynamic
+    dimensions + a 'negative'. Returns the merged structured dict + flat 'text'."""
+    prompt = get_template('collection_merge_art_direction').format(
+        art_direction=art_direction_text or "", batch_direction=batch_direction or "")
+    raw = invoke_llm(
+        prompt,
+        system=get_system_prompt('collection_merge_art_direction'),
+        complexity="fast", max_tokens=1500, temperature=0.6,
+    )
+    obj = _extract_json_object(raw) or {}
+    ad: dict = {}
+    for k, v in obj.items():
+        if isinstance(v, str) and v.strip():
+            ad[str(k).strip()] = v.strip()
+    if not ad:                       # LLM returned nothing usable → keep the original
+        return {"text": art_direction_text or ""}
+    if not any(k.lower() == "negative" for k in ad):
+        ad["Negative"] = ""
+    ad["text"] = art_direction_to_text(ad)
+    return ad
+
+
 def generate_roster(
     ask: str,
     art_direction_text: str,

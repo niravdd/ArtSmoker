@@ -361,6 +361,18 @@
     "text": "You are the art director for a COHESIVE SET of assets generated from one brief. Define the SHARED art direction every piece in the set will follow.\n\n=== THE BRIEF ===\n\"{ask}\"\n\n=== STYLE REFERENCE (if provided, ground the art direction in it) ===\n{style_section}\n\nReturn ONE shared art direction as a JSON object. CHOOSE the dimensions that best fit THIS kind of set — a fantasy character roster, a chess set, a tarot deck, an icon pack, an environment/tileset, a logo suite… each needs DIFFERENT dimensions. Do not force irrelevant ones.\n\nALWAYS include these core dimensions (for cross-set consistency):\n- \"Medium\": rendering medium (e.g. hand-painted, stylized 3D, pixel art, watercolor, flat vector)\n- \"Palette\": color palette (named colors + feel)\n- \"Mood\": emotional tone\n- \"Negative\": things to AVOID across the whole set — be specific and HONOR THE BRIEF (e.g. if it asks for a stylized/illustrated look, put \"photorealistic, photograph, 3D render\" here)\n\nThen ADD 2–5 MORE dimensions this particular set needs — pick the most relevant, for example:\n- a themed world/roster → \"World\", \"Era\"\n- physical objects/pieces (chess, figurines) → \"Materials\", \"Silhouette\", \"Base\"\n- a card deck → \"Symbolism\", \"Border\"\n- icons / UI / stickers → \"Line & shape\", \"Background\", \"Grid & sizing\"\n- environments / tilesets → \"Lighting\", \"Composition\"\n\nRules: keys are short Title-Case labels; values are vivid but concise strings. The direction must cover a whole set of DISTINCT subjects, yet be specific enough that all pieces clearly belong together.\n\nReturn ONLY the JSON object.",
     "system_prompt": "You are a senior art director. You return STRICT JSON only — a single object, no prose, no markdown."
   },
+  "collection_merge_art_direction": {
+    "label": "Collection — Lift Batch Direction into Shared Art Direction",
+    "description": "Blends a per-batch creative refinement UP into the shared art direction (Art Direction Controller — 'apply to the whole set').",
+    "used_by": "Collections — Art Direction Controller (SPEC §18)",
+    "variables": [
+      "{art_direction}",
+      "{batch_direction}"
+    ],
+    "model": "fast LLM",
+    "text": "You maintain the SHARED art direction for a cohesive set of assets. The creative user refined the direction on ONE piece; lift the SET-WIDE-relevant parts of that refinement into the shared direction, WITHOUT narrowing the whole set to that single subject.\n\n=== CURRENT SHARED ART DIRECTION ===\n{art_direction}\n\n=== THE USER'S REFINED DIRECTION (from one piece) ===\n{batch_direction}\n\nReturn the UPDATED shared art direction as a JSON object. Keep the same kind of dynamic dimensions (short Title-Case keys), ALWAYS including \"Medium\", \"Palette\", \"Mood\", and \"Negative\". Blend in the refinement's style / medium / palette / mood / negative intent (the set-wide aspects) — do NOT copy subject-specific details that only apply to that one piece. Keep it broad enough to cover the whole set.\n\nReturn ONLY the JSON object.",
+    "system_prompt": "You are a senior art director. You return STRICT JSON only — a single object, no prose, no markdown."
+  },
   "collection_roster": {
     "label": "Collection — Roster Fan-out",
     "description": "Invents the roster of distinct, in-theme pieces for a collection (recognizes canonical structures or invents).",

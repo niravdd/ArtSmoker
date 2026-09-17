@@ -429,6 +429,26 @@ Rules: keys are short Title-Case labels; values are vivid but concise strings. T
 Return ONLY the JSON object.""",
     },
 
+    "collection_merge_art_direction": {
+        "label": "Collection — Lift Batch Direction into Shared Art Direction",
+        "description": "Blends a per-batch creative refinement UP into the shared art direction (Art Direction Controller — 'apply to the whole set').",
+        "used_by": "Collections — Art Direction Controller (SPEC §18)",
+        "variables": ["{art_direction}", "{batch_direction}"],
+        "model": "fast LLM",
+        "system_prompt": "You are a senior art director. You return STRICT JSON only — a single object, no prose, no markdown.",
+        "text": """You maintain the SHARED art direction for a cohesive set of assets. The creative user refined the direction on ONE piece; lift the SET-WIDE-relevant parts of that refinement into the shared direction, WITHOUT narrowing the whole set to that single subject.
+
+=== CURRENT SHARED ART DIRECTION ===
+{art_direction}
+
+=== THE USER'S REFINED DIRECTION (from one piece) ===
+{batch_direction}
+
+Return the UPDATED shared art direction as a JSON object. Keep the same kind of dynamic dimensions (short Title-Case keys), ALWAYS including "Medium", "Palette", "Mood", and "Negative". Blend in the refinement's style / medium / palette / mood / negative intent (the set-wide aspects) — do NOT copy subject-specific details that only apply to that one piece. Keep it broad enough to cover the whole set.
+
+Return ONLY the JSON object.""",
+    },
+
     "collection_roster": {
         "label": "Collection — Roster Fan-out",
         "description": "Invents the roster of distinct, in-theme pieces for a collection (recognizes canonical structures or invents).",

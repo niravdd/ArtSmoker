@@ -360,6 +360,32 @@ async def recompose_all(body: RecomposeAllRequest):
         track_collection_art_direction_edited(cost_usd=get_total_cost())
 
 
+class LiftArtDirectionRequest(BaseModel):
+    art_direction: str                  # current shared art-direction text
+    batch_direction: str                # the batch's refined prompt/direction to lift
+
+
+@router.post("/lift-art-direction")
+async def lift_art_direction(body: LiftArtDirectionRequest):
+    """Art Direction Controller (SPEC §18): lift a per-Batch creative refinement UP
+    into the SHARED art direction (opt-in 'apply to the whole set'). Returns the
+    merged art direction; the client then re-aligns UNLOCKED batches via
+    /recompose-all. Locked batches are preserved by the client."""
+    from backend.services.prompt_engineer import merge_art_direction_with_batch
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_collection_art_direction_edited
+
+    reset_costs()
+    try:
+        ad = merge_art_direction_with_batch(body.art_direction, body.batch_direction)
+        return {"art_direction": ad, "cost": round(get_total_cost(), 6)}
+    except Exception as exc:
+        logger.exception("Collection lift-art-direction failed")
+        raise HTTPException(502, detail=f"Lift failed: {exc}")
+    finally:
+        track_collection_art_direction_edited(cost_usd=get_total_cost())
+
+
 class EstimateCollectionRequest(BaseModel):
     image_model: str = "sd35_large"
     batches: int = 0

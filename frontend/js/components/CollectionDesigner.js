@@ -132,6 +132,95 @@
             } catch (e) { this._toast(e.message); } finally { this._setBusy(false); }
         },
 
+        // ── Art Direction Controller (per-batch, SPEC §18) ─────────────────
+        /** Open the Art Direction Controller for ONE batch: reuse the decomposition
+         *  designer (retitled) seeded from the batch's current prompt. On apply we
+         *  recompose that batch's prompt (art-direction-aware), then offer to LIFT
+         *  the direction into the shared art direction (opt-in). */
+        _openArtDirectionController(idx) {
+            const e = this._state.roster[idx];
+            if (!e || !window.PromptDesigner) { this._toast(t('collection.error')); return; }
+            const seed = (e.model_agnostic_prompt || e.concept || e.name || '').trim();
+            window.PromptDesigner.open(seed, {
+                title: t('collection.ad_controller_title', { name: e.name || ('#' + (idx + 1)) }),
+                applyLabel: t('collection.ad_recompose_batch'),
+                styleId: this._ctx.style_id,
+                assetType: this._ctx.asset_type,
+                imageModel: this._ctx.image_model,
+                onApply: (data) => this._onBatchDirectionApplied(idx, data),
+            });
+        },
+
+        /** Flatten the designer's decomposed fields into a concept string. */
+        _consolidateFields(data) {
+            if (!data || typeof data !== 'object') return '';
+            const parts = [];
+            for (const section of Object.values(data)) {
+                if (!section || typeof section !== 'object' || Array.isArray(section)) continue;
+                for (let v of Object.values(section)) {
+                    if (v && typeof v === 'object' && !Array.isArray(v)) v = v.value ?? '';
+                    if (Array.isArray(v)) v = v.map(x => (x && x.value) || x).filter(Boolean).join(', ');
+                    if (typeof v === 'string' && v.trim()) parts.push(v.trim());
+                }
+            }
+            return parts.join('. ');
+        },
+
+        async _onBatchDirectionApplied(idx, data) {
+            const e = this._state.roster[idx];
+            if (!e) return;
+            const concept = this._consolidateFields(data) || e.concept;
+            this._setBusy(true, t('collection.recomposing'));
+            try {
+                const r = await API.collections.recomposeBatch({
+                    art_direction: this._adText(), name: e.name, concept,
+                    image_model: this._ctx.image_model, asset_type: this._ctx.asset_type,
+                });
+                e.model_agnostic_prompt = r.model_agnostic_prompt || e.model_agnostic_prompt;
+                e.concept = concept;
+                this._state.designCost += (r.cost || 0);
+                window.Telemetry?.track?.('collection_batch_regenerated', { via: 'ad_controller' });
+                this._render();
+                // Opt-in: lift this refined direction into the SHARED art direction.
+                if (window.confirm(t('collection.ad_lift_confirm'))) {
+                    await this._liftToArtDirection(e.model_agnostic_prompt);
+                }
+            } catch (err) { this._toast(err.message); } finally { this._setBusy(false); }
+        },
+
+        /** Lift a batch's refined direction into the shared art direction, then
+         *  re-align UNLOCKED batches to it (locked ones are preserved). */
+        async _liftToArtDirection(batchDirection) {
+            this._setBusy(true, t('collection.recomposing'));
+            try {
+                const r = await API.collections.liftArtDirection({
+                    art_direction: this._adText(), batch_direction: batchDirection,
+                });
+                const newText = (r.art_direction && r.art_direction.text) || '';
+                if (!newText) return;
+                const el = document.getElementById('cd-art-direction');
+                if (el) el.value = newText;
+                this._state.artDirection.text = newText;
+                this._state.designCost += (r.cost || 0);
+                // Re-align UNLOCKED batches (keep names/slugs/concepts; recompose prompts).
+                const unlocked = this._state.roster.filter(x => !x.locked)
+                    .map(x => ({ name: x.name, slug: x.slug, concept: x.concept }));
+                if (unlocked.length) {
+                    const rr = await API.collections.recomposeAll({
+                        art_direction: newText, roster: unlocked,
+                        image_model: this._ctx.image_model, asset_type: this._ctx.asset_type,
+                    });
+                    const bySlug = Object.fromEntries((rr.roster || []).map(x => [x.slug, x.model_agnostic_prompt]));
+                    this._state.roster.forEach(x => {
+                        if (!x.locked && bySlug[x.slug] != null) x.model_agnostic_prompt = bySlug[x.slug];
+                    });
+                    this._state.designCost += (rr.cost || 0);
+                }
+                window.Telemetry?.track?.('collection_art_direction_lifted', {});
+                this._render();
+            } catch (err) { this._toast(err.message); } finally { this._setBusy(false); }
+        },
+
         /** Accept the design (SPEC §18.3): sync the edited art-direction, hand the
          *  design back to Step 3, and close. Generation is the MAIN Generate button
          *  — this dialog does NOT generate. */
@@ -317,6 +406,7 @@
             document.getElementById('cd-variations').addEventListener('change', (ev) => { s.knobs.variations = +ev.target.value; this._updateCost(); this._setBusy(false); });
             document.getElementById('cd-cohesion').addEventListener('change', (ev) => { s.knobs.cohesion = ev.target.value; });
             s.roster.forEach((e, i) => {
+                document.getElementById(`cd-ad-${i}`)?.addEventListener('click', () => this._openArtDirectionController(i));
                 document.getElementById(`cd-lock-${i}`)?.addEventListener('click', () => { e.locked = !e.locked; this._render(); });
                 document.getElementById(`cd-regen-${i}`)?.addEventListener('click', () => this._regenerateBatch(i));
                 document.getElementById(`cd-del-${i}`)?.addEventListener('click', () => { s.roster.splice(i, 1); this._render(); });
@@ -337,6 +427,7 @@
                             <label class="block text-[10px] font-semibold text-brand-text-muted mb-0.5">${t('collection.batch_name')}</label>
                             <input id="cd-name-${i}" value="${e.name || ''}" placeholder="${t('collection.batch_name')}" class="input text-sm font-medium w-full" />
                         </div>
+                        <button id="cd-ad-${i}" class="btn btn-xs bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 hover:bg-fuchsia-500/25" title="${t('collection.ad_button_title')}">🎨</button>
                         <button id="cd-lock-${i}" class="btn btn-xs ${e.locked ? 'bg-cyan-600 text-white' : 'bg-brand-bg border border-brand-border'}" title="${e.locked ? t('collection.unlock') : t('collection.lock')}">${e.locked ? '🔒' : '🔓'}</button>
                         <button id="cd-regen-${i}" class="btn btn-xs bg-brand-bg border border-brand-border" title="${t('collection.regenerate')}">↻</button>
                         <button id="cd-del-${i}" class="btn btn-xs bg-brand-bg border border-brand-border" title="${t('collection.delete')}">🗑</button>

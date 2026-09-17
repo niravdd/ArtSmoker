@@ -259,6 +259,7 @@
             recomposeBatch(data) { return request('/api/collections/recompose-batch', { method: 'POST', body: data }); },
             regenerateRoster(data) { return request('/api/collections/regenerate-roster', { method: 'POST', body: data }); },
             recomposeAll(data) { return request('/api/collections/recompose-all', { method: 'POST', body: data }); },
+            liftArtDirection(data) { return request('/api/collections/lift-art-direction', { method: 'POST', body: data }); },
             list() { return request('/api/collections', { method: 'GET' }); },
             get(id) { return request(`/api/collections/${id}`, { method: 'GET' }); },
             estimate(data) { return request('/api/collections/estimate', { method: 'POST', body: data }); },
