@@ -30,6 +30,7 @@
                 image_model: opts.image_model || 'sd35_large',
                 asset_type: opts.asset_type || 'game_asset',
                 style_id: opts.style_id || null,
+                style_name: opts.style_name || null,
             };
             this._onAccept = opts.onAccept || null;
             this._state = {
@@ -178,7 +179,7 @@
             overlay.className = 'fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4';
             // nosemgrep
             overlay.innerHTML = html`
-                <div class="card w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                <div class="card w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
                     <div class="flex items-center justify-between p-4 border-b border-brand-border">
                         <h2 class="text-lg font-semibold">${t('collection.designer_title')}</h2>
                         <button id="cd-close" class="text-brand-text-muted hover:text-brand-text text-2xl leading-none">&times;</button>
@@ -255,6 +256,17 @@
             const s = this._state;
             // nosemgrep
             body.innerHTML = html`
+                <div class="rounded-lg bg-brand-bg/40 border border-brand-border p-3 space-y-2">
+                    <div>
+                        <div class="text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted mb-0.5">${t('collection.user_prompt_label')}</div>
+                        <p class="text-sm text-brand-text/90 whitespace-pre-wrap">${s.prompt || '—'}</p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap text-[11px] text-brand-text-muted">
+                        <span class="font-semibold uppercase tracking-wide">${t('collection.style_label')}:</span>
+                        <span class="px-1.5 py-0.5 rounded bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-300/90">${this._ctx.style_name || t('collection.style_none')}</span>
+                        <span class="text-brand-text-muted/60">${t('collection.style_hint')}</span>
+                    </div>
+                </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">${t('collection.art_direction_label')}</label>
                     <textarea id="cd-art-direction" rows="5" class="input w-full text-sm font-mono">${s.artDirection.text || ''}</textarea>
@@ -262,8 +274,9 @@
                     <button id="cd-recompose-all" class="btn btn-xs mt-1 bg-brand-bg border border-brand-border">${t('collection.recomposing').replace('…','')} ↻</button>
                 </div>
                 <div class="grid grid-cols-5 gap-2 items-end">
-                    <div><label class="block text-[11px] mb-1">${t('collection.count_label')}</label>
-                        <input id="cd-count" type="number" min="1" max="60" placeholder="${t('collection.count_auto')}" value="${s.knobs.count ?? ''}" class="input text-sm" /></div>
+                    <div><label class="block text-[11px] mb-1">${t('collection.count_label')}
+                        <span class="text-brand-text-muted/60 normal-case">· ${s.knobs.count == null ? t('collection.count_auto_defined') : t('collection.count_user_defined')}</span></label>
+                        <input id="cd-count" type="number" min="1" max="60" value="${s.roster.length || ''}" title="${t('collection.count_change_hint')}" class="input text-sm" /></div>
                     <div><label class="block text-[11px] mb-1">${t('collection.options_label')}</label>
                         <select id="cd-options" class="input text-sm">${[1,2,3,4,5].map(n => html`<option value="${n}" ${n===s.knobs.options?'selected':''}>${n}</option>`)}</select></div>
                     <div><label class="block text-[11px] mb-1">${t('collection.variations_label')}</label>
@@ -292,7 +305,14 @@
             document.getElementById('cd-regen-all').addEventListener('click', () => this._regenerateAllUnlocked());
             document.getElementById('cd-add').addEventListener('click', () => this._addBatch());
             document.getElementById('cd-count').addEventListener('change', (ev) => {
-                const v = parseInt(ev.target.value, 10); s.knobs.count = (v > 0 ? v : null); });
+                // The field shows the ACTUAL roster count. Changing it to a new N
+                // re-fans the roster to exactly N (locked rows preserved) so the
+                // count and the roster stay in sync. No-op / invalid → revert display.
+                const v = parseInt(ev.target.value, 10);
+                if (!(v > 0) || v === s.roster.length) { ev.target.value = s.roster.length || ''; return; }
+                s.knobs.count = v;                 // now user-defined
+                this._regenerateAllUnlocked();     // re-fan to the new count
+            });
             document.getElementById('cd-options').addEventListener('change', (ev) => { s.knobs.options = +ev.target.value; this._updateCost(); this._setBusy(false); });
             document.getElementById('cd-variations').addEventListener('change', (ev) => { s.knobs.variations = +ev.target.value; this._updateCost(); this._setBusy(false); });
             document.getElementById('cd-cohesion').addEventListener('change', (ev) => { s.knobs.cohesion = ev.target.value; });
@@ -310,15 +330,25 @@
 
         _batchRow(e, i) {
             return html`
-                <div class="card-static p-2 space-y-1 ${e.locked ? 'ring-1 ring-cyan-500/40' : ''}">
-                    <div class="flex items-center gap-2">
-                        <input id="cd-name-${i}" value="${e.name || ''}" placeholder="${t('collection.batch_name')}" class="input text-sm font-medium flex-1" />
+                <div class="card-static p-2.5 space-y-1.5 ${e.locked ? 'ring-1 ring-cyan-500/40' : ''}">
+                    <div class="flex items-end gap-2">
+                        <span class="text-[11px] font-mono text-brand-text-muted/70 shrink-0 pb-1.5">#${i + 1}</span>
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-semibold text-brand-text-muted mb-0.5">${t('collection.batch_name')}</label>
+                            <input id="cd-name-${i}" value="${e.name || ''}" placeholder="${t('collection.batch_name')}" class="input text-sm font-medium w-full" />
+                        </div>
                         <button id="cd-lock-${i}" class="btn btn-xs ${e.locked ? 'bg-cyan-600 text-white' : 'bg-brand-bg border border-brand-border'}" title="${e.locked ? t('collection.unlock') : t('collection.lock')}">${e.locked ? '🔒' : '🔓'}</button>
                         <button id="cd-regen-${i}" class="btn btn-xs bg-brand-bg border border-brand-border" title="${t('collection.regenerate')}">↻</button>
                         <button id="cd-del-${i}" class="btn btn-xs bg-brand-bg border border-brand-border" title="${t('collection.delete')}">🗑</button>
                     </div>
-                    <input id="cd-concept-${i}" value="${e.concept || ''}" placeholder="${t('collection.batch_concept')}" class="input text-xs w-full" />
-                    <textarea id="cd-prompt-${i}" rows="2" placeholder="${t('collection.batch_prompt')}" class="input text-xs w-full">${e.model_agnostic_prompt || ''}</textarea>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-brand-text-muted mb-0.5">${t('collection.batch_concept')} <span class="font-normal text-brand-text-muted/50">— ${t('collection.batch_concept_hint')}</span></label>
+                        <input id="cd-concept-${i}" value="${e.concept || ''}" placeholder="${t('collection.batch_concept')}" class="input text-xs w-full" />
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-brand-text-muted mb-0.5">${t('collection.batch_prompt')} <span class="font-normal text-brand-text-muted/50">— ${t('collection.batch_prompt_hint')}</span></label>
+                        <textarea id="cd-prompt-${i}" rows="2" placeholder="${t('collection.batch_prompt')}" class="input text-xs w-full">${e.model_agnostic_prompt || ''}</textarea>
+                    </div>
                 </div>`;
         },
 

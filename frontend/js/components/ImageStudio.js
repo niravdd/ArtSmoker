@@ -466,14 +466,20 @@
                         // Collection mode (SPEC §18.2): live model/asset/style context
                         // for the Art-Direction + Collection Designer steps, and a
                         // callback to re-gate the main Generate button.
-                        getCollectionContext: () => ({
-                            image_model: (this._selectedModels?.[0] || 'sd35_large'),
-                            // Collections are Character or Game Asset only (SPEC §18) —
-                            // coerce anything else (photorealistic/icon/…) to game_asset
-                            // so the UI matches the backend's authoritative constraint.
-                            asset_type: (this._getAssetType() === 'character' ? 'character' : 'game_asset'),
-                            style_id: this._getStyleId() || null,
-                        }),
+                        getCollectionContext: () => {
+                            const sid = this._getStyleId() || null;
+                            return {
+                                image_model: (this._selectedModels?.[0] || 'sd35_large'),
+                                // Collections are Character or Game Asset only (SPEC §18) —
+                                // coerce anything else (photorealistic/icon/…) to game_asset
+                                // so the UI matches the backend's authoritative constraint.
+                                asset_type: (this._getAssetType() === 'character' ? 'character' : 'game_asset'),
+                                style_id: sid,
+                                // Resolve the human-readable style name so the Designer can
+                                // show which style is shaping the art direction + output.
+                                style_name: sid ? ((this._styles.find(s => s.id === sid) || {}).name || null) : null,
+                            };
+                        },
                         onCollectionStateChange: (st) => this._onCollectionStateChange(st),
                     });
                 } catch (err) {

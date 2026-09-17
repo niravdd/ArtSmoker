@@ -516,6 +516,7 @@
                 image_model: ctx.image_model || this.opts.imageModel || 'sd35_large',
                 asset_type: ctx.asset_type || this.opts.assetType || 'game_asset',
                 style_id: ctx.style_id ?? this.opts.styleId ?? null,
+                style_name: ctx.style_name ?? null,
             };
         }
 
