@@ -1638,6 +1638,7 @@
     "ad_button_title": "艺术指导控制器 — 调整此批次的方向",
     "ready_to_generate": "已准备就绪 — 点击下方的“生成”。",
     "model_single_note": "你选择了 {{count}} 个模型；合集为保持统一只使用其中一个（{{model}}）。",
+    "model_multi_note": "所选的 {{count}} 个模型将各自生成每个主体 — 跨模型合集。",
     "view_in_gallery": "在图库中查看",
     "generated_title": "已生成“{{name}}”",
     "generated_sub": "{{done}}/{{total}} 个批次 · {{images}} 张图片 — 已保存到图库",

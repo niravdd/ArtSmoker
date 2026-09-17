@@ -1638,6 +1638,7 @@
     "ad_button_title": "Art Direction Controller — refine this batch's direction",
     "ready_to_generate": "Ready to generate — click GENERATE below.",
     "model_single_note": "You selected {{count}} models; a collection uses one for cohesion ({{model}}).",
+    "model_multi_note": "All {{count}} selected models render every subject — a cross-model set.",
     "view_in_gallery": "View in Gallery",
     "generated_title": "“{{name}}” generated",
     "generated_sub": "{{done}}/{{total}} batches · {{images}} images — now in your Gallery",

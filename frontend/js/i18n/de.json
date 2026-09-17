@@ -1638,6 +1638,7 @@
     "ad_button_title": "Art-Direction-Controller — die Richtung dieses Batches verfeinern",
     "ready_to_generate": "Bereit zum Generieren — klicke unten auf GENERIEREN.",
     "model_single_note": "Du hast {{count}} Modelle gewählt; eine Kollektion nutzt für Kohärenz eines ({{model}}).",
+    "model_multi_note": "Alle {{count}} ausgewählten Modelle erzeugen jedes Motiv — ein modellübergreifendes Set.",
     "view_in_gallery": "In der Galerie ansehen",
     "generated_title": "„{{name}}“ generiert",
     "generated_sub": "{{done}}/{{total}} Batches · {{images}} Bilder — jetzt in deiner Galerie",

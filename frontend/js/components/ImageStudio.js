@@ -3156,7 +3156,9 @@
             const design = editor?.getCollectionDesign();
             if (!design) { window.showToast?.(t('artsmoker.ui.collection.generate_disabled_hint'), 'warning'); return; }
             const btn = document.getElementById('btn-generate');
-            const ctx = { image_model: (this._selectedModels?.[0] || 'sd35_large'),
+            const selModels = (this._selectedModels || []).slice();
+            const ctx = { image_model: (selModels[0] || 'sd35_large'),
+                          selected_models: selModels,
                           asset_type: this._getAssetType(), style_id: this._getStyleId() || null };
             const knobs = design.knobs || {};
             if (btn) btn.disabled = true;
@@ -3173,7 +3175,8 @@
                     raw_ask: editor.getUserText().trim(),
                     art_direction: { text: editor.getArtDirectionText() },
                     roster: design.roster,
-                    image_model: ctx.image_model, asset_type: ctx.asset_type, style_id: ctx.style_id,
+                    image_model: ctx.image_model, selected_models: ctx.selected_models,
+                    asset_type: ctx.asset_type, style_id: ctx.style_id,
                     num_options: knobs.options || 3, num_variations: knobs.variations || 2,
                     cohesion_mode: knobs.cohesion || 'prompt',
                     remove_background: knobs.removeBg !== false,   // collections default to cut-outs
@@ -3219,12 +3222,13 @@
             const box = document.getElementById('gen-collection-summary');
             if (!box || !info) { document.getElementById('gen-placeholder')?.classList.remove('hidden'); return; }
             const O = knobs.options || 3, V = knobs.variations || 2;
+            const M = Math.max(1, (this._selectedModels || []).length);   // each subject renders on every chosen model
             const title = document.getElementById('gen-collection-summary-title');
             const sub = document.getElementById('gen-collection-summary-sub');
             const btn = document.getElementById('gen-collection-view');
             if (title) title.textContent = t('artsmoker.ui.collection.generated_title', { name: info.name });
             if (sub) sub.textContent = t('artsmoker.ui.collection.generated_sub',
-                { done: info.done, total: info.total, images: info.done * O * V });
+                { done: info.done, total: info.total, images: info.done * O * V * M });
             box.classList.remove('hidden');
             if (btn) btn.onclick = () => {
                 if (info.id && window.CollectionAssetViewer) window.CollectionAssetViewer.open(info.id);

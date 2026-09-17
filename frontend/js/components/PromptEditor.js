@@ -673,15 +673,19 @@
             const k = design.knobs || {};
             const T = (key, p) => (typeof t !== 'undefined' ? t('artsmoker.ui.collection.' + key, p) : key);
             const ctx = this._collectionContext();
-            const O = k.options || 3, V = k.variations || 2, total = n * O * V;
+            const M = Math.max(1, ctx.models_selected_count || 1);   // each subject renders on every chosen model
+            const O = k.options || 3, V = k.variations || 2, total = n * O * V * M;
             const cohesionLabel = (k.cohesion === 'hero') ? T('cohesion_hero') : T('cohesion_prompt');
             const modelName = ctx.model_name || ctx.image_model;   // friendly name, not the raw key
+            const modelsLabel = M > 1
+                ? `${M} ${(typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.models_count') : 'models')}`
+                : modelName;
             const _aw = T('card_assets_' + (ctx.asset_type || 'game_asset'));
             const subjects = (_aw && _aw.indexOf('.') === -1) ? `${n} ${_aw}` : T('card_count', { count: n });
-            const line = `${subjects} · ${O}×${V} · ${T('images_count', { count: total })} · ${modelName} · ${cohesionLabel}`;
-            // A collection runs on ONE model; if the user selected several, say so.
-            const multiNote = (ctx.models_selected_count || 1) > 1
-                ? html`<div class="text-[10px] text-amber-300/70 mt-0.5">${T('model_single_note', { count: ctx.models_selected_count, model: modelName })}</div>`
+            const line = `${subjects} · ${O}×${V} · ${T('images_count', { count: total })} · ${modelsLabel} · ${cohesionLabel}`;
+            // Multiple models → every subject renders on each (a cross-model set); say so.
+            const multiNote = M > 1
+                ? html`<div class="text-[10px] text-sky-300/70 mt-0.5">${T('model_multi_note', { count: M })}</div>`
                 : '';
             if (this._collectionSummaryEl) {
                 // nosemgrep

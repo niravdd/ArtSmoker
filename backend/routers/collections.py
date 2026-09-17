@@ -100,14 +100,16 @@ def _derive_name(ask: str, art_direction: dict) -> str:
 
 
 def _projected_generation_cost(image_model: str, batches: int, options: int,
-                               variations: int, region: str = "", quality: str = "") -> dict:
-    """Projected image-generation cost for a collection = batches × O × V ×
+                               variations: int, region: str = "", quality: str = "",
+                               models: int = 1) -> dict:
+    """Projected image-generation cost for a collection = batches × models × O × V ×
     per-image price. Reuses the SAME registry-sourced resolver as the real cost
     path (`resolve_image_price`; base_price_usd fallback; None → unavailable — no
-    guess). SPEC §18.9."""
+    guess). With multiple selected models every subject renders on each model, so
+    the image count multiplies by the model count. SPEC §18.9."""
     from backend.services.model_registry import get_image_model
     from backend.services.cost_tracker import resolve_image_price
-    images = max(0, batches) * max(1, options) * max(1, variations)
+    images = max(0, batches) * max(1, options) * max(1, variations) * max(1, models)
     model = get_image_model(image_model) or {}
     reg = region or model.get("region", "")
     price = resolve_image_price(model, image_model, reg, quality or "")
@@ -419,6 +421,7 @@ class EstimateCollectionRequest(BaseModel):
     batches: int = 0
     options: int = 3
     variations: int = 2
+    models: int = 1                     # selected-model count (each subject renders on each)
     region: str | None = None
     quality: str | None = None
     design_cost: float = 0.0            # accrued LLM design cost so far (client-tracked)
@@ -429,7 +432,8 @@ async def estimate_collection(body: EstimateCollectionRequest):
     """Projected generation cost + running total (design + projected) for the live
     Designer cost display (SPEC §18.9). No generation, no LLM call."""
     proj = _projected_generation_cost(body.image_model, body.batches, body.options,
-                                      body.variations, body.region or "", body.quality or "")
+                                      body.variations, body.region or "", body.quality or "",
+                                      models=body.models)
     total = None
     if proj["projected_generation_cost"] is not None:
         total = round(body.design_cost + proj["projected_generation_cost"], 4)
@@ -444,7 +448,8 @@ class GenerateCollectionRequest(BaseModel):
     raw_ask: str = ""
     art_direction: dict = {}            # structured + flat "text"
     roster: list[dict]                 # [{name, slug, concept, model_agnostic_prompt}]
-    image_model: str = "sd35_large"
+    image_model: str = "sd35_large"    # primary model (fallback + single-model path)
+    selected_models: list[str] = []    # all chosen models; >1 → every subject renders on each
     asset_type: str = "game_asset"
     style_id: str | None = None
     num_options: int = 3
@@ -501,6 +506,12 @@ async def generate_collection(body: GenerateCollectionRequest):
     asset_type = _asset_enum(body.asset_type)
     n_opts = max(1, min(5, body.num_options))
     n_vars = max(1, min(5, body.num_variations))
+    # Selected models drive the render: ONE model → a cohesive single-model set;
+    # MULTIPLE → every subject renders on EVERY chosen model (the user opted into a
+    # cross-model comparison set), reusing the all-models engine per subject so each
+    # subject stays one Batch whose flat options carry per-model labels (SPEC §18.4).
+    models = list(dict.fromkeys([m for m in (body.selected_models or []) if m])) or [body.image_model]
+    multi = len(models) > 1
     base_seed = body.seed if body.seed is not None else random.randint(0, _SEED_MAX - len(roster) * n_opts * n_vars)
 
     # Write the master record at generation start (SPEC §18.2 — no pre-gen persistence).
@@ -511,7 +522,7 @@ async def generate_collection(body: GenerateCollectionRequest):
             name=e.get("name", ""), slug=e.get("slug", ""), concept=e.get("concept", ""),
             model_agnostic_prompt=e.get("model_agnostic_prompt", ""),
         ) for e in roster],
-        knobs={"N": len(roster), "O": n_opts, "V": n_vars, "models": [body.image_model],
+        knobs={"N": len(roster), "O": n_opts, "V": n_vars, "models": models,
                "cohesion_mode": body.cohesion_mode, "seed": base_seed,
                "asset_type": asset_type.value,
                "remove_background": body.remove_background},   # persisted so a per-Batch retry matches
@@ -522,7 +533,7 @@ async def generate_collection(body: GenerateCollectionRequest):
     # (design + projected generation) so a job's TOTAL cost is auditable later.
     record["llm_cost_ledger"] = list(body.llm_cost_ledger or [])
     _proj = _projected_generation_cost(body.image_model, len(roster), n_opts, n_vars,
-                                       region="", quality="")
+                                       region="", quality="", models=len(models))
     record["cost_estimate"] = {
         "design_cost": round(body.design_cost, 6),
         **_proj,
@@ -536,7 +547,9 @@ async def generate_collection(body: GenerateCollectionRequest):
     def sse(data: dict) -> str:
         return f"data: {json.dumps(data, default=str)}\n\n"
 
-    hero_mode = (body.cohesion_mode == "hero" and len(roster) > 1)
+    # Hero-anchor is a single-model cohesion device (one hero image styles the rest);
+    # it does not compose with a multi-model comparison set, so multi disables it.
+    hero_mode = (body.cohesion_mode == "hero" and len(roster) > 1 and not multi)
     design_cost = round(body.design_cost, 6)
     proj_total = record["cost_estimate"].get("projected_generation_cost")
     # Set-wide negative (e.g. anti-photorealism) from the art direction — applied to
@@ -560,7 +573,7 @@ async def generate_collection(body: GenerateCollectionRequest):
         completed_batches = 0
         hero_ref: str | None = None
         track_collection_generation(batches=total_batches, options=n_opts,
-                                    variations=n_vars, models=body.image_model)
+                                    variations=n_vars, models=",".join(models))
         if hero_mode:
             track_collection_hero_anchor_used(batch_count=total_batches)
 
@@ -580,7 +593,7 @@ async def generate_collection(body: GenerateCollectionRequest):
             sub = GenerationRequest(
                 prompt=prompt,
                 asset_type=asset_type,
-                image_model=body.image_model,
+                image_model=models[0],
                 style_id=body.style_id,
                 num_options=n_opts,
                 num_variations=n_vars,
@@ -588,16 +601,25 @@ async def generate_collection(body: GenerateCollectionRequest):
                 negative_prompt=collection_negative,
                 remove_background=body.remove_background,
             )
+            if multi:
+                # Multi-model set: render this subject on EVERY chosen model via the
+                # all-models engine. It reuses the saved model-agnostic prompt verbatim
+                # per model (no concept re-fan), applies the set-wide negative + BG
+                # removal, and returns ONE Batch whose flat options carry per-model
+                # labels — exactly what the viewer tags per option (SPEC §18.4).
+                sub.all_models = True
+                sub.selected_models = models
+                sub.saved_concept_prompts = {m: [prompt] * n_opts for m in models}
             # Cohesion tier 2 (hero-anchor): the FIRST Batch renders normally; every
             # later Batch is style-anchored to the hero via the existing
             # reference-guided "inspired" path (vision fuses hero style + this
             # subject). Default "prompt" cohesion skips all this → faithful verbatim
             # reuse (the model-agnostic prompt IS every option's concept, no re-fan).
-            if hero_mode and idx > 0 and hero_ref:
+            elif hero_mode and idx > 0 and hero_ref:
                 sub.reference_images = [hero_ref]
                 sub.reference_mode = "inspired"
             else:
-                sub.saved_concept_prompts = {body.image_model: [prompt] * n_opts}
+                sub.saved_concept_prompts = {models[0]: [prompt] * n_opts}
             # Split GENERATION (the expensive, failable part) from post-generation
             # BOOKKEEPING. Once images exist the Batch counts as complete and its
             # batch_id is recorded even if a transient lock/disk hiccup trips the

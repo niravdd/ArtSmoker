@@ -28,6 +28,7 @@
         async open(opts = {}) {
             this._ctx = {
                 image_model: opts.image_model || 'sd35_large',
+                models_count: Math.max(1, opts.models_selected_count || 1),   // each subject renders on every chosen model
                 asset_type: opts.asset_type || 'game_asset',
                 style_id: opts.style_id || null,
                 style_name: opts.style_name || null,
@@ -256,7 +257,7 @@
         },
         _projectedImages() {
             const s = this._state;
-            return s.roster.length * s.knobs.options * s.knobs.variations;
+            return s.roster.length * s.knobs.options * s.knobs.variations * (this._ctx.models_count || 1);
         },
 
         // ── Rendering ──────────────────────────────────────────────────────
@@ -326,7 +327,8 @@
             // Enrich with the projected $ total from the registry price (async, best-effort).
             API.collections.estimate({
                 image_model: this._ctx.image_model, batches: s.roster.length,
-                options: s.knobs.options, variations: s.knobs.variations, design_cost: s.designCost,
+                options: s.knobs.options, variations: s.knobs.variations,
+                models: this._ctx.models_count || 1, design_cost: s.designCost,
             }).then((r) => {
                 const cur = document.getElementById('cd-cost');
                 if (!cur || !r) return;
@@ -376,7 +378,7 @@
                             <option value="hero" ${s.knobs.cohesion==='hero'?'selected':''}>${t('collection.cohesion_hero')}</option>
                         </select></div>
                     <div><label class="block text-[11px] mb-1">${t('collection.model_label')}</label>
-                        <input class="input text-sm" value="${this._ctx.image_model}" disabled /></div>
+                        <input class="input text-sm" value="${(this._ctx.models_count || 1) > 1 ? `${this._ctx.models_count} ${t('image_studio.models_count')}` : this._ctx.image_model}" disabled /></div>
                 </div>
                 <label class="flex items-center gap-2 text-[11px] text-brand-text-muted cursor-pointer select-none">
                     <input id="cd-removebg" type="checkbox" class="rounded border-brand-border accent-cyan-500" ${s.knobs.removeBg ? 'checked' : ''} />
