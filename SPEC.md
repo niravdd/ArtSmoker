@@ -2791,8 +2791,8 @@ A **Collection** turns one prompt into a **coherent set of distinct assets** —
 
 Collections reuse the **same three-step prompt spine** as the single-asset flow — the two middle steps just switch meaning while the toggle is on. The toggle lives **directly under Step 1** (the ask).
 
-- **Step 1 → check "Collection" → LOCK IN.** Checking it (a) **disables the checkbox** (it can no longer be unchecked), (b) **disables Generate**, and (c) immediately runs a billable, ledgered (§18.9) LLM pass that produces the overarching **Art Direction** from the Step-1 ask. Because real design work has started, the mode is committed: the **only** exits are **Reset** (clears ask, art-direction, design, and the checkbox — full clean slate) or a browser refresh. There is no cheap "un-check back to single mode."
-- **Step 2 becomes "Art Direction".** The generated art-direction fills an **editable** Step-2 field — the shared creative DNA (world/era/medium/palette/mood/materials/render/negative), i.e. the collection-level analog of the single-asset Step-3 Enhanced Prompt: the ONE top-level guidance, derived from the ask, that shapes the whole set. The user reviews/edits it here.
+- **Step 1 → check "Collection" → LOCK IN.** Checking it (a) **disables the checkbox** (it can no longer be unchecked), (b) **disables Generate**, and (c) reveals Step 2/3 and seeds Step 2 with a **blank, genre-adaptive guided scaffold** (see below) — it does NOT auto-generate (that raced a user typing their own). The mode is committed: the **only** exits are **Reset** (clears ask, art-direction, design, and the checkbox — full clean slate) or a browser refresh.
+- **Step 2 becomes "Art Direction" (on-demand + guided).** The shared creative DNA — the collection-level analog of the single-asset Step-3 Enhanced Prompt. Its **dimensions are recommended dynamically from the prompt** (not a fixed template): an RPG roster gets `World/Era/Palette/Materials/Negative`, a chess set `Theme/Materials/Silhouette/Negative`, icons `Line & shape/Grid/…` — always including the core `Medium/Palette/Mood/Negative` for cross-set consistency. Step 2 seeds a **blank guided scaffold** of exactly those labels; the user can fill it in themselves **or** click **✨ Generate** to draft it on demand (the AI fills the *same* recommended fields; a filled-in box asks before replacing). The `Negative` line becomes the set-wide negative prompt applied to every Batch (so e.g. a "not photorealistic" brief actually reaches the model). Editing this field invalidates any accepted design (re-open the Designer).
 - **Step 3 becomes "Collection Designer".** A button opens the Designer (§18.3), which builds the **roster from the edited Step-2 art-direction**. The user must go through it and **Accept** it to close; on Accept, Step 3 shows a **read-only summary of what was decided** (e.g. "12 Batches · 3×2 · SD3.5 · prompt cohesion · est. $X").
 - **Generate re-enables only after the Designer is accepted** (a valid design = ≥1 Batch, art-direction set, every Batch has a prompt). The **main Generate button** then runs the collection — a collection is never generated blind.
 - While the toggle is on, the single-asset Step-2 (Prompt Designer) and Step-3 (Enhanced Prompt) surfaces are hidden; downstream state (Gallery, Asset Viewer, metadata) follows the collection path.
@@ -2802,8 +2802,9 @@ Collections reuse the **same three-step prompt spine** as the single-asset flow 
 Opened from Step 3, parallel to the Prompt Designer but **design-only — it does NOT generate** (generation is the main Generate button, §18.2). Layers:
 
 - **Overarching art-direction** — owned by Step 2 and passed in; shown here (editable, kept in sync with Step 2). **Editing it recomposes every Batch** (the cohesion control surface).
-- **Roster** — built from the art-direction: a board of **Batches**, each `name · concept · model-agnostic prompt (editable) · lock · regenerate · delete`, plus *add Batch* and *regenerate all unlocked* (preserves locked rows).
-- **Knobs (with a live cost estimate):** Batch count N (AI-inferred / canonical / explicit), options O, variations V, model(s), cohesion tier (§18.5).
+- **Roster** — built from the art-direction: a board of **Batches**, each `name · concept · model-agnostic prompt (editable) · 🎨 Art Direction Controller · lock · regenerate · delete`, plus *add Batch* and *regenerate all unlocked* (preserves locked rows).
+- **Per-Batch Art Direction Controller** — the creative control surface (a retitled reuse of the single-asset decomposition designer, *not* a separate "Prompt Designer"). Opened per Batch, seeded from that Batch's current prompt: the user tunes subject/scene/composition/lighting/style; on apply the Batch's model-agnostic prompt is **recomposed art-direction-aware** (stays on-theme, drives all that Batch's jobs). Opt-in **"apply to the whole collection"** lifts the refinement into the shared art direction and re-aligns the other *unlocked* Batches (locked ones preserved) — so the creative user steers the shared direction *through* batch edits, never by surprise.
+- **Knobs (with a live cost estimate):** Batch count N — shown as the **actual roster count** with an *auto-defined / user-defined* label (changing it re-fans the roster to that count, locked rows kept); options O, variations V, model (a collection runs on **one** model for cohesion — flagged if several were selected), cohesion tier (§18.5).
 - **Accept** closes the dialog and returns the accepted design (art-direction + roster + knobs) to the Step-3 summary; **Cancel/close without Accept** leaves Generate disabled.
 
 ### 18.4 Prompt pipeline (Collection mode)
@@ -2844,7 +2845,7 @@ Collection  →  Batch (one roster subject)  →  Option × Variation × Model  
 
 ### 18.7 Data model & metadata
 
-The Collection is stored **separately** from single-asset jobs, in its own top-level `data/collections/{collection_id}/` directory (no images live here — a Job's pixels stay in its existing `data/generated/{batch_id}_o{n}_v{m}/` folder). Provenance is reproducible at every tier of the Collection → Batch → Job hierarchy, and the data is split into a **source-of-truth master record** and a **derived Gallery index** so the Gallery never has to parse every Job to draw a card.
+The Collection is stored **separately** from single-asset jobs, in its own top-level `data/collections/{collection_id}/` directory (no images live here — a Job's pixels stay in its existing `data/images/{batch_id}_o{n}_v{m}/` folder). Provenance is reproducible at every tier of the Collection → Batch → Job hierarchy, and the data is split into a **source-of-truth master record** and a **derived Gallery index** so the Gallery never has to parse every Job to draw a card.
 
 **(a) Collection master record — `data/collections/{collection_id}/metadata.json` (SOURCE OF TRUTH for authored design + user choices):**
 - `collection_id, name, raw_ask, created_at, updated_at, status`
@@ -2870,8 +2871,13 @@ Collection **versioning** is per-Batch (reuses the existing per-asset versioning
 
 ### 18.8 Gallery & Collection Asset Viewer
 
-- The Gallery is **collection-aware**: a Collection appears as **a single card** (a set thumbnail / contact-sheet preview), not N loose Batches — the card is drawn from the lean `summary.json` index (§18.7(b)), so listing collections never parses their Jobs. Clicking it opens the **Collection Asset Viewer**.
-- The **Collection Asset Viewer** is the collection-level counterpart to the batch view + AssetViewer: a board of the collection's **Batches** (one per roster subject — the "pieces"; each showing its selected image + option thumbnails + status), drill-down into a Batch's options/variations/versions (the existing AssetViewer), and collection-level actions — edit art-direction (→ recompose), regenerate/add/swap a Batch, export the set, and (fast-follow) "3D the whole set".
+- The Gallery is **collection-aware**: a Collection appears as **a single card** — a **coverflow deck** (a prominent center cover flanked by peeking, framed batch-cover cards) so it reads as a set, not N loose Batches. The card also shows the content shape ("16 characters · 3×2 · 96 images") and a 3D tag when any Batch has a mesh. Drawn entirely from the lean `summary.json` index (§18.7(b)) — no extra requests. Clicking it opens the **Collection Asset Viewer**.
+- The **Collection Asset Viewer** is the collection-level counterpart to the batch view + AssetViewer:
+  - **Details panel** — the collection-level Metadata tab: batches, options×variations, total images, model, cohesion, status, created date, cost, and the full shared art direction (from the master record).
+  - **Batch board** — one card per roster subject (cover + status + 3D tag + selection checkbox). Clicking drills into a **batch-detail** view: a large preview + every **option as a bounded row** (labeled with the model that produced it) whose **variations sit in a row**, each with a selection checkbox and a per-**job** 3D tag; clicking a variation swaps the preview, clicking the preview opens the full AssetViewer (versions/edit/3D).
+  - **Selection → Convert to 3D** — checkboxes select whole batches or individual jobs; **Convert to 3D** opens a **single settings pane** (pipeline + quality + seed, mirroring the AssetViewer 3D tab) whose choices apply **uniformly** to every selected job (or the whole collection when nothing is selected), running the existing per-asset image-to-3D pipeline once per target. The user picks *what* to mesh (partial/blank images are theirs to judge).
+  - **Downloads** — **Download collection** (the selected/current PNG of each job, zipped) and **Download 3D models** (each job's mesh converted to glb/fbx/usd, zipped) — selected jobs, or all applicable.
+  - Plus: edit art-direction (→ recompose), per-Batch regenerate/lock/add/delete, the per-Batch **Art Direction Controller** (§18.3), per-Batch version pin, and Delete.
 
 ### 18.9 LLM cost accounting (running design-cost ledger)
 
@@ -2887,8 +2893,13 @@ Every valuable step emits a PulseBoard `track_event` (see the `pulseboard-teleme
 
 ### 18.11 Reuse map
 
-- **New:** the Collection toggle, the Collection Designer, the roster fan-out + per-Batch model-agnostic prompt templates (`prompt_templates.json`), the `data/collections/**` store + Collection record, the Collection Asset Viewer, the collection-membership metadata fields (`collection_id`/`batch_name`/`batch_slug`/`model_agnostic_prompt`), and the LLM cost ledger.
-- **Reused:** Style Library (theme source), a "faithful" per-model enhancement, Batch/Job generation + seed-family + retry, reference-guided "inspired" (hero-anchor), Gallery grouping, atomic-write/locks (§17), `cost_tracker`, and the image-to-3D pipeline downstream (fast-follow set handoff).
+- **New:** the Collection toggle, the Collection Designer + the per-Batch **Art Direction Controller** (opt-in lift to the shared art direction), the **dynamic art-direction field recommender** + guided Step-2 scaffold, the roster fan-out + per-Batch model-agnostic prompt templates (`prompt_templates.json`), the `data/collections/**` store + Collection record, the Collection Asset Viewer (coverflow card, Details panel, selection, **selective Convert-to-3D settings pane**, **collection/3D downloads**, per-job 3D tags), the collection-membership metadata fields, and the LLM cost ledger.
+- **Reused:** Style Library (theme source), a "faithful" per-model enhancement, the single-asset **decomposition designer** (retitled per-Batch), Batch/Job generation + seed-family + retry, reference-guided "inspired" (hero-anchor), Gallery grouping, atomic-write/locks (§17), `cost_tracker`, and — crucially — the **per-asset image-to-3D pipeline** run once per selected job so collection 3D is identical to the single-asset path.
+
+### 18.12 Notes
+
+- **Asset-type scope.** A collection's `asset_type` is coerced to **Character** or **Game Asset** (both enforce single-complete-subject framing + are 3D-ready). `game_asset` is a broad catch-all (chess pieces, cards, icons, props, emblems…). Dedicated `icon`/`environment`/`photorealistic`/`marketing_banner` framings are intentionally out of scope for collections.
+- **Multi-model collections** remain a deferred enhancement: a collection generates on one model for set cohesion; the metadata + viewer already surface the model per option, ready for the day it goes multi-model.
 
 ## 19. Disclaimer
 
