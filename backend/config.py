@@ -103,6 +103,17 @@ class Settings(BaseSettings):
     max_reference_images: int = 100
     max_analysis_images: int = 20
 
+    # ── Image-generation throttle handling ────────────────────────────────
+    # A Collection fires MANY image requests back-to-back (N batches × models ×
+    # options × variations) — exactly what trips Bedrock's per-account request
+    # rate limit. On top of boto3's adaptive retry, invoke_image_model rides out
+    # longer throttle windows with an app-level exponential backoff + jitter, so
+    # a whole Batch isn't failed for briefly outrunning the rate. Tunable per
+    # account (limits differ by account) without a code change.
+    image_retry_attempts: int = 6         # extra attempts after the first invoke
+    image_retry_base_delay: float = 2.0   # seconds; exponential (2, 4, 8, 16, …)
+    image_retry_max_delay: float = 30.0   # per-attempt delay cap
+
     model_config = {
         "env_prefix": "ARTSMOKER_",
         # Load a local, gitignored .env so per-instance settings persist
