@@ -12,14 +12,6 @@
 (function () {
     'use strict';
 
-    // The overarching art-direction fields the backend uses (ART_DIRECTION_FIELDS /
-    // art_direction_to_text). Kept in sync here so Collection mode can seed Step 2
-    // with a BLANK scaffold of the same labels the model would fill — the user can
-    // type into it OR click Generate. Also lets us tell an untouched scaffold from
-    // real content (Generate replaces a bare scaffold silently; a filled one asks).
-    const AD_FIELDS = ['World', 'Era', 'Medium', 'Palette', 'Mood', 'Materials', 'Render', 'Negative'];
-    const AD_SCAFFOLD = AD_FIELDS.map(f => f + ': ').join('\n');
-
     // Realistic example prompts per asset type — written as a real person would start describing
     const _ASSET_PLACEHOLDERS = {
         game_asset: "A weathered wooden treasure chest with iron straps and a brass lock, slightly open with golden light spilling out...",
@@ -486,15 +478,9 @@
         isCollectionMode() { return !!this._collectionMode; }
         getCollectionDesign() { return this._collectionDesign || null; }
         getArtDirectionText() { return this._artDirectionEl ? this._artDirectionEl.value : ''; }
-        /** Does Step 2 hold REAL art direction, or just the empty scaffold? Strips the
-         *  known field labels; if any non-label text remains, the user has content
-         *  (typed values, or free-form text). A bare scaffold → false. */
-        _artDirectionHasContent() {
-            let s = this.getArtDirectionText();
-            if (!s.trim()) return false;
-            AD_FIELDS.forEach(f => { s = s.replace(new RegExp('^\\s*' + f + '\\s*:', 'gmi'), ''); });
-            return s.replace(/[\s:]/g, '').length > 0;
-        }
+        /** Whether Step 2 has any art-direction content (the box starts empty; the
+         *  fields are LLM-driven dynamically on Generate, not a fixed template). */
+        _artDirectionHasContent() { return !!this.getArtDirectionText().trim(); }
         /** Generate is allowed only once a design is accepted (§18.2) — which itself
          *  requires real art direction, so Generate can never run without it. */
         collectionReadyToGenerate() { return !!(this._collectionMode && this._collectionDesign); }
@@ -561,11 +547,11 @@
             this._step3Collection?.classList.remove('hidden');
             this._collectionSummaryEl?.classList.add('hidden');
             this._collectionStep3Hint?.classList.remove('hidden');
-            // Art Direction is ON-DEMAND: seed Step 2 with a BLANK scaffold of the
-            // model's own fields (World:/Era:/…/Negative:) so the user sees the shape
-            // and can fill it in OR click Generate. No auto-call → no race where an
-            // arriving generated prompt clobbers what they were typing.
-            if (this._artDirectionEl) this._artDirectionEl.value = AD_SCAFFOLD;
+            // Art Direction is ON-DEMAND: leave Step 2 empty (the placeholder hints
+            // the kind of dimensions to write). The fields are chosen DYNAMICALLY by
+            // the model per genre on Generate — we don't impose a fixed template. The
+            // user can also write their own freely. No auto-call → no typing race.
+            if (this._artDirectionEl) this._artDirectionEl.value = '';
             window.Telemetry?.track?.('collection_mode_enabled', {});
             this._notifyCollectionState();   // disables Generate until a design is accepted
         }

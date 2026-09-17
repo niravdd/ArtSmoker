@@ -409,17 +409,22 @@ NEGATIVE guidance: ALWAYS include the universal quality terms (apply to every su
 === STYLE REFERENCE (if provided, ground the art direction in it) ===
 {style_section}
 
-Produce ONE shared art direction as a JSON object with these string fields:
-- "world": the setting / universe / genre
-- "era": time period or technological level
-- "medium": rendering medium (e.g. hand-painted, stylized 3D render, pixel art, watercolor)
-- "palette": the color palette (named colors + mood)
-- "mood": emotional tone
-- "materials": recurring materials / textures shared across the set
-- "render": rendering directives (lighting, detail level, finish)
-- "negative": things to avoid across the whole set
+Return ONE shared art direction as a JSON object. CHOOSE the dimensions that best fit THIS kind of set — a fantasy character roster, a chess set, a tarot deck, an icon pack, an environment/tileset, a logo suite… each needs DIFFERENT dimensions. Do not force irrelevant ones.
 
-Keep every field vivid but concise. The art direction must be broad enough to cover a whole set of DISTINCT subjects, yet specific enough that all pieces clearly belong together.
+ALWAYS include these core dimensions (for cross-set consistency):
+- "Medium": rendering medium (e.g. hand-painted, stylized 3D, pixel art, watercolor, flat vector)
+- "Palette": color palette (named colors + feel)
+- "Mood": emotional tone
+- "Negative": things to AVOID across the whole set — be specific and HONOR THE BRIEF (e.g. if it asks for a stylized/illustrated look, put "photorealistic, photograph, 3D render" here)
+
+Then ADD 2–5 MORE dimensions this particular set needs — pick the most relevant, for example:
+- a themed world/roster → "World", "Era"
+- physical objects/pieces (chess, figurines) → "Materials", "Silhouette", "Base"
+- a card deck → "Symbolism", "Border"
+- icons / UI / stickers → "Line & shape", "Background", "Grid & sizing"
+- environments / tilesets → "Lighting", "Composition"
+
+Rules: keys are short Title-Case labels; values are vivid but concise strings. The direction must cover a whole set of DISTINCT subjects, yet be specific enough that all pieces clearly belong together.
 
 Return ONLY the JSON object.""",
     },

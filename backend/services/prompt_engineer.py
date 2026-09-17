@@ -931,27 +931,39 @@ def _resolve_slug_collisions(entries: list[dict]) -> None:
         e["slug"] = base if n == 1 else f"{base}_{n}"
 
 
-ART_DIRECTION_FIELDS = ("world", "era", "medium", "palette", "mood", "materials", "render", "negative")
+# Core dimensions the art direction ALWAYS includes (cross-set consistency); the
+# model adds genre-appropriate dimensions on top. "negative" MUST be present — the
+# set-wide negative prompt is parsed from it (collections._negative_from_art_direction).
+ART_DIRECTION_CORE_FIELDS = ("medium", "palette", "mood", "negative")
 
 
 def art_direction_to_text(ad: dict) -> str:
-    """Flatten the structured art-direction dict into the text the roster and
-    per-piece templates consume (and the Designer shows/edits)."""
+    """Flatten the art-direction dict into the text the roster/per-piece templates
+    consume (and the Designer shows/edits). Renders WHATEVER dimensions the model
+    chose for this set (genre-adaptive, dynamic — NOT a fixed schema), in order, as
+    'Label: value'."""
     if not ad:
         return ""
     lines = []
-    for f in ART_DIRECTION_FIELDS:
-        v = str(ad.get(f, "")).strip()
-        if v:
-            lines.append(f"{f.capitalize()}: {v}")
+    for f, v in ad.items():
+        if f == "text":
+            continue
+        v = str(v).strip()
+        if not v:
+            continue
+        label = f if f[:1].isupper() else f.replace("_", " ").capitalize()
+        lines.append(f"{label}: {v}")
     return "\n".join(lines)
 
 
 def generate_art_direction(ask: str, style_profile: StyleProfile | None = None) -> dict:
     """Distill a set brief into ONE shared art direction (SPEC §18.4).
 
-    Returns the structured dict (ART_DIRECTION_FIELDS) plus a flat "text" key.
-    """
+    The model chooses the art-direction DIMENSIONS that fit THIS kind of set
+    (a fantasy roster, chess set, tarot deck, icon pack, environment set… all
+    differ) — driven dynamically by the prompt, not a fixed template — while always
+    including the core dimensions + a 'negative'. Returns the (dynamic) structured
+    dict plus a flat "text" key."""
     style_section = _build_style_section(style_profile)
     prompt = get_template('collection_art_direction').format(ask=ask, style_section=style_section)
     raw = invoke_llm(
@@ -961,11 +973,17 @@ def generate_art_direction(ask: str, style_profile: StyleProfile | None = None) 
         max_tokens=1500,
         temperature=0.7,
     )
-    ad = _extract_json_object(raw) or {}
-    # Keep only known fields (defensive against extra keys), then add flat text.
-    ad = {f: str(ad.get(f, "")).strip() for f in ART_DIRECTION_FIELDS}
+    obj = _extract_json_object(raw) or {}
+    # Keep whatever non-empty string dimensions the model returned, in order.
+    ad: dict = {}
+    for k, v in obj.items():
+        if isinstance(v, str) and v.strip():
+            ad[str(k).strip()] = v.strip()
+    if not any(k.lower() == "negative" for k in ad):
+        ad["Negative"] = ""     # keep the slot stable for downstream negative-extraction
     ad["text"] = art_direction_to_text(ad)
-    logger.info("Collection art direction: world=%r medium=%r", ad.get("world"), ad.get("medium"))
+    logger.info("Collection art direction: %d dims %s",
+                len([k for k in ad if k != "text"]), [k for k in ad if k != "text"][:8])
     return ad
 
 
