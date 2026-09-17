@@ -208,18 +208,26 @@
                         ? html`<img id="cv-bd-preview" src="/api/gallery/${selId}/png?t=${cb}" class="max-w-full object-contain cursor-pointer rounded" style="max-height:42vh" title="${t('collection.open_full')}" alt="${bd.name}" />`
                         : html`<span class="text-brand-text-muted text-xs py-10">${t('collection.empty')}</span>`}
                 </div>
-                <div class="space-y-3">
-                    ${opts.map((o, oi) => html`
-                        <div>
-                            <div class="text-[11px] font-semibold text-brand-text-muted mb-1">${t('collection.option_label')} ${oi + 1}</div>
+                <div class="space-y-2">
+                    ${opts.map((o, oi) => {
+                        // Each option = a bounded row: header (option # + the model that
+                        // produced it) then all its variations laid out in a row.
+                        const model = (o.variants && o.variants[0] && o.variants[0].model_label) || '';
+                        return html`
+                        <div class="rounded-lg border border-brand-border bg-brand-bg/40 p-2">
+                            <div class="flex items-center gap-2 mb-1.5">
+                                <span class="text-[11px] font-semibold">${t('collection.option_label')} ${oi + 1}</span>
+                                ${model ? html`<span class="text-[10px] px-1.5 py-0.5 rounded bg-brand-surface border border-brand-border text-brand-text-muted">${model}</span>` : ''}
+                            </div>
                             <div class="flex flex-wrap gap-2">
                                 ${(o.variants || []).map((v, vi) => html`
-                                    <button class="cv-bd-cell relative rounded-md overflow-hidden border ${oi === bd.sel.o && vi === bd.sel.v ? 'border-cyan-400 ring-1 ring-cyan-400' : 'border-brand-border hover:border-brand-text-muted'}" data-o="${oi}" data-v="${vi}" style="width:76px;height:76px" title="${t('collection.option_label')} ${oi + 1} · ${t('collection.variation_label')} ${vi + 1}">
+                                    <button class="cv-bd-cell relative rounded-md overflow-hidden border ${oi === bd.sel.o && vi === bd.sel.v ? 'border-cyan-400 ring-1 ring-cyan-400' : 'border-brand-border hover:border-brand-text-muted'}" data-o="${oi}" data-v="${vi}" style="width:84px;height:84px" title="${t('collection.option_label')} ${oi + 1} · ${t('collection.variation_label')} ${vi + 1}">
                                         <img src="/api/gallery/${v.id}/png?t=${cb}" class="w-full h-full object-cover" alt="" loading="lazy" />
                                         <span class="absolute bottom-0 right-0 text-[9px] px-1 bg-black/70 text-white rounded-tl">v${vi + 1}</span>
                                     </button>`)}
                             </div>
-                        </div>`)}
+                        </div>`;
+                    })}
                 </div>`;
             document.getElementById('cv-bd-back').addEventListener('click', () => this._render(this._data));
             document.getElementById('cv-bd-preview')?.addEventListener('click', () => {
