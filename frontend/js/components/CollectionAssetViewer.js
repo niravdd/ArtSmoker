@@ -190,34 +190,45 @@
             this._updateSelInfo();
         },
 
-        // ── Selection (batches / jobs) — drives 3D + downloads ─────────────
+        // ── Selection — a Set of "assetId@version" targets (job + version level;
+        //    a whole batch = every version of every job) that drives 3D + downloads.
+        _key(assetId, version) { return `${assetId}@${version || 1}`; },
         _selTargets() {
-            return this._sel ? Array.from(this._sel.entries()).map(([asset_id, version]) => ({ asset_id, version })) : [];
+            return this._sel ? Array.from(this._sel).map(k => {
+                const i = k.lastIndexOf('@');
+                return { asset_id: k.slice(0, i), version: parseInt(k.slice(i + 1), 10) || 1 };
+            }) : [];
         },
         _selCount() { return this._sel ? this._sel.size : 0; },
         _updateSelInfo() {
             const el = document.getElementById('cv-selinfo');
             if (el) el.textContent = this._selCount() ? t('collection.selected_count', { count: this._selCount() }) : '';
         },
-        /** All {asset_id, version} jobs of a batch (from the full reconstruction). */
+        _jobVersions(v) { return (v && v.versions && v.versions.length) ? v.versions : [(v && v.current_version) || 1]; },
+        /** All (asset_id, version) targets of a batch = EVERY version of EVERY job. */
         _batchJobTargets(batchId) {
             const entry = (this._data.batches || []).find(x => (x.roster_entry || {}).batch_id === batchId);
             const opts = (entry && entry.batch && entry.batch.options) || [];
             const out = [];
-            opts.forEach(o => (o.variants || []).forEach(v => out.push({ asset_id: v.id, version: v.current_version || 1 })));
+            opts.forEach(o => (o.variants || []).forEach(v => this._jobVersions(v).forEach(ver => out.push({ asset_id: v.id, version: ver }))));
             return out;
         },
         _batchAllSelected(batchId) {
-            const jobs = this._batchJobTargets(batchId);
-            return jobs.length > 0 && jobs.every(j => this._sel && this._sel.has(j.asset_id));
+            const tgs = this._batchJobTargets(batchId);
+            return tgs.length > 0 && tgs.every(t => this._sel.has(this._key(t.asset_id, t.version)));
         },
         _toggleBatchSel(batchId, on) {
-            const jobs = this._batchJobTargets(batchId);
-            jobs.forEach(j => on ? this._sel.set(j.asset_id, j.version) : this._sel.delete(j.asset_id));
+            this._batchJobTargets(batchId).forEach(t =>
+                on ? this._sel.add(this._key(t.asset_id, t.version)) : this._sel.delete(this._key(t.asset_id, t.version)));
             this._updateSelInfo();
         },
-        _toggleJobSel(assetId, version, on) {
-            if (on) this._sel.set(assetId, version || 1); else this._sel.delete(assetId);
+        _jobAllSelected(v) { return this._jobVersions(v).every(ver => this._sel.has(this._key(v.id, ver))); },
+        _toggleJobSel(v, on) {
+            this._jobVersions(v).forEach(ver => on ? this._sel.add(this._key(v.id, ver)) : this._sel.delete(this._key(v.id, ver)));
+            this._updateSelInfo();
+        },
+        _toggleVersionSel(assetId, version, on) {
+            on ? this._sel.add(this._key(assetId, version)) : this._sel.delete(this._key(assetId, version));
             this._updateSelInfo();
         },
 
@@ -375,13 +386,21 @@
                                 ${model ? html`<span class="text-[10px] px-1.5 py-0.5 rounded bg-brand-surface border border-brand-border text-brand-text-muted">${model}</span>` : ''}
                             </div>
                             <div class="flex flex-wrap gap-2">
-                                ${(o.variants || []).map((v, vi) => html`
-                                    <button class="cv-bd-cell relative rounded-md overflow-hidden border ${oi === bd.sel.o && vi === bd.sel.v ? 'border-cyan-400 ring-1 ring-cyan-400' : 'border-brand-border hover:border-brand-text-muted'}" data-o="${oi}" data-v="${vi}" style="width:84px;height:84px" title="${t('collection.option_label')} ${oi + 1} · ${t('collection.variation_label')} ${vi + 1}">
-                                        <input type="checkbox" class="cv-job-sel absolute top-0.5 left-0.5 z-10 w-3.5 h-3.5 accent-cyan-500 cursor-pointer" data-id="${v.id}" data-version="${v.current_version || 1}" title="${t('collection.select_job')}" ${this._sel && this._sel.has(v.id) ? 'checked' : ''} />
-                                        <img src="/api/gallery/${v.id}/png?t=${cb}" class="w-full h-full object-cover" alt="" loading="lazy" />
-                                        ${v.has_3d ? html`<span class="absolute top-0.5 right-0.5 text-[8px] px-1 rounded bg-violet-600/80 text-white">3D</span>` : ''}
-                                        <span class="absolute bottom-0 right-0 text-[9px] px-1 bg-black/70 text-white rounded-tl">v${vi + 1}</span>
-                                    </button>`)}
+                                ${(o.variants || []).map((v, vi) => {
+                                    const vers = this._jobVersions(v);
+                                    return html`
+                                    <div class="inline-block align-top">
+                                        <button class="cv-bd-cell relative rounded-md overflow-hidden border block ${oi === bd.sel.o && vi === bd.sel.v ? 'border-cyan-400 ring-1 ring-cyan-400' : 'border-brand-border hover:border-brand-text-muted'}" data-o="${oi}" data-v="${vi}" style="width:84px;height:84px" title="${t('collection.option_label')} ${oi + 1} · ${t('collection.variation_label')} ${vi + 1}">
+                                            <input type="checkbox" class="cv-job-sel absolute top-0.5 left-0.5 z-10 w-3.5 h-3.5 accent-cyan-500 cursor-pointer" title="${t('collection.select_job')}" ${this._jobAllSelected(v) ? 'checked' : ''} />
+                                            <img src="/api/gallery/${v.id}/png?t=${cb}" class="w-full h-full object-cover" alt="" loading="lazy" />
+                                            ${v.has_3d ? html`<span class="absolute top-0.5 right-0.5 text-[8px] px-1 rounded bg-violet-600/80 text-white">3D</span>` : ''}
+                                            <span class="absolute bottom-0 right-0 text-[9px] px-1 bg-black/70 text-white rounded-tl">v${vi + 1}</span>
+                                        </button>
+                                        ${vers.length > 1 ? html`<div class="flex flex-wrap gap-0.5 mt-0.5" style="max-width:84px">
+                                            ${vers.map((ver) => html`<button class="cv-ver-chip text-[8px] leading-none px-1 py-0.5 rounded border ${this._sel.has(this._key(v.id, ver)) ? 'bg-cyan-600 text-white border-cyan-500' : 'border-brand-border text-brand-text-muted hover:border-brand-text-muted'}" data-id="${v.id}" data-ver="${ver}" title="${t('collection.select_version')} ${ver}">v${ver}</button>`)}
+                                        </div>` : ''}
+                                    </div>`;
+                                })}
                             </div>
                         </div>`;
                     })}
@@ -402,7 +421,18 @@
                 cb.addEventListener('click', (e) => e.stopPropagation());
                 cb.addEventListener('change', (e) => {
                     e.stopPropagation();
-                    this._toggleJobSel(cb.dataset.id, parseInt(cb.dataset.version, 10) || 1, cb.checked);
+                    const cell = cb.closest('.cv-bd-cell');
+                    const v = cell && opts[+cell.dataset.o] && opts[+cell.dataset.o].variants[+cell.dataset.v];
+                    if (v) this._toggleJobSel(v, cb.checked);
+                    this._renderBatchDetail();   // sync per-version chips
+                });
+            });
+            body.querySelectorAll('.cv-ver-chip').forEach((chip) => {
+                chip.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const ver = parseInt(chip.dataset.ver, 10);
+                    this._toggleVersionSel(chip.dataset.id, ver, !this._sel.has(this._key(chip.dataset.id, ver)));
+                    this._renderBatchDetail();   // reflect chip + job-checkbox state
                 });
             });
         },

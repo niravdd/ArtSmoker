@@ -1612,6 +1612,7 @@
     "error": "問題が発生しました。もう一度お試しください。",
     "card_badge": "コレクション",
     "card_count": "{{count}} 個のバッチ",
+    "select_version": "バージョンを選択",
     "convert_3d": "3Dに変換",
     "pane_convert": "3Dに変換",
     "download_images": "コレクションをダウンロード",

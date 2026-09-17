@@ -1612,6 +1612,7 @@
     "error": "Algo salió mal. Inténtalo de nuevo.",
     "card_badge": "Colección",
     "card_count": "{{count}} lotes",
+    "select_version": "Seleccionar versión",
     "convert_3d": "Convertir a 3D",
     "pane_convert": "Convertir a 3D",
     "download_images": "Descargar colección",

@@ -1612,6 +1612,7 @@
     "error": "문제가 발생했습니다. 다시 시도하세요.",
     "card_badge": "컬렉션",
     "card_count": "배치 {{count}}개",
+    "select_version": "버전 선택",
     "convert_3d": "3D로 변환",
     "pane_convert": "3D로 변환",
     "download_images": "컬렉션 다운로드",

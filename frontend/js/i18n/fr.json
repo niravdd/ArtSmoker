@@ -1612,6 +1612,7 @@
     "error": "Une erreur s'est produite. Réessayez.",
     "card_badge": "Collection",
     "card_count": "{{count}} lots",
+    "select_version": "Sélectionner la version",
     "convert_3d": "Convertir en 3D",
     "pane_convert": "Convertir en 3D",
     "download_images": "Télécharger la collection",

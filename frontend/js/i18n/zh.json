@@ -1612,6 +1612,7 @@
     "error": "出现问题，请重试。",
     "card_badge": "合集",
     "card_count": "{{count}} 个批次",
+    "select_version": "选择版本",
     "convert_3d": "转换为3D",
     "pane_convert": "转换为3D",
     "download_images": "下载合集",

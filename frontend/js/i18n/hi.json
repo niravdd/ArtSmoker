@@ -1612,6 +1612,7 @@
     "error": "कुछ गलत हो गया। फिर से प्रयास करें।",
     "card_badge": "संग्रह",
     "card_count": "{{count}} बैच",
+    "select_version": "वर्शन चुनें",
     "convert_3d": "3D में बदलें",
     "pane_convert": "3D में बदलें",
     "download_images": "कलेक्शन डाउनलोड करें",
