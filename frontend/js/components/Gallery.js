@@ -676,12 +676,25 @@
                 const colSummaryHint = (O && V)
                     ? t('artsmoker.ui.collection.card_summary_hint', { count, o: O, v: V })
                     : '';
+                // A collection reads as a collection: a 2×2 collage of the first four
+                // batch covers (the summary carries every batch's thumb). Falls back
+                // to a single cover, then a placeholder icon.
+                const _cb = item.updated_at || '';
+                const colThumbs = (item.batches || [])
+                    .map(b => b && b.thumb_path).filter(Boolean).slice(0, 4)
+                    .map(tp => tp + `?t=${_cb}`);
                 return html`
                     <div class="gallery-card card cursor-pointer overflow-hidden group" data-id="${item.id}" data-media="collection">
-                        <div class="img-hover-zoom aspect-[4/3] bg-brand-bg flex items-center justify-center overflow-hidden relative">
-                            ${cover
-                                ? html`<img src="${cover}" class="w-full h-full object-cover" alt="${item.name}" />`
-                                : html`<svg class="w-10 h-10 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg>`}
+                        <div class="img-hover-zoom aspect-[4/3] bg-brand-bg overflow-hidden relative">
+                            ${colThumbs.length >= 2
+                                ? html`<div class="grid grid-cols-2 grid-rows-2 gap-0.5 w-full h-full">
+                                        ${[0, 1, 2, 3].map(i => colThumbs[i]
+                                            ? html`<img src="${colThumbs[i]}" class="w-full h-full object-cover" alt="" loading="lazy" />`
+                                            : html`<div class="w-full h-full bg-brand-bg/60"></div>`)}
+                                    </div>`
+                                : (cover
+                                    ? html`<img src="${cover}" class="w-full h-full object-cover" alt="${item.name}" />`
+                                    : html`<div class="w-full h-full flex items-center justify-center"><svg class="w-10 h-10 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg></div>`)}
                             <span class="absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-600/80 text-white font-semibold">${t('artsmoker.ui.collection.card_badge')}</span>
                         </div>
                         <div class="p-2">
