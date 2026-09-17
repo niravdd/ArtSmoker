@@ -313,6 +313,7 @@ async def get_batch(batch_id: str):
             "model_used": meta.get("image_model"),
             "model_label": meta.get("model_label"),
             "seed": meta.get("seed"),
+            "current_version": current_ver,   # the version 3D/download targets should use
             # Per-Job 3D indicator (SPEC §18 Phase N) — any mesh in the Job dir so the
             # collection batch-detail can tag exactly which jobs have a 3D model.
             "has_3d": any(store.generated_asset_dir(meta["id"]).glob("*.glb")),

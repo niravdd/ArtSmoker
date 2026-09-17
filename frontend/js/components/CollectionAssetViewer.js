@@ -13,6 +13,7 @@
         _data: null,
 
         async open(collectionId) {
+            this._sel = new Map();   // asset_id -> version, selection for 3D + downloads
             this._mount(t('collection.viewer_title'));
             try {
                 const data = await API.collections.get(collectionId);
@@ -36,8 +37,10 @@
                     <div class="flex items-center justify-between p-4 border-b border-brand-border">
                         <h2 id="cv-title" class="text-lg font-semibold truncate">${title}</h2>
                         <div class="flex items-center gap-2">
-                            <button id="cv-3d" class="btn btn-xs bg-violet-700/70 hover:bg-violet-600 text-white">${t('collection.viewer_3d_set')}</button>
-                            <button id="cv-export" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.viewer_export_set')}</button>
+                            <span id="cv-selinfo" class="text-[11px] text-cyan-300"></span>
+                            <button id="cv-3d" class="btn btn-xs bg-violet-700/70 hover:bg-violet-600 text-white">${t('collection.convert_3d')}</button>
+                            <button id="cv-dl-images" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.download_images')}</button>
+                            <button id="cv-dl-3d" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.download_3d')}</button>
                             <button id="cv-delete" class="btn btn-xs bg-red-700/70 hover:bg-red-600 text-white">${t('collection.delete')}</button>
                             <button id="cv-close" class="text-brand-text-muted hover:text-brand-text text-2xl leading-none ml-2">&times;</button>
                         </div>
@@ -126,7 +129,8 @@
                         const failed = (b.status === 'failed' || b.status === 'blocked');
                         return html`
                         <div class="cv-batch card ${failed ? '' : 'cursor-pointer'} overflow-hidden group" data-batch="${b.batch_id}" data-slug="${b.slug}" data-status="${b.status}">
-                            <div class="aspect-square bg-brand-bg flex items-center justify-center overflow-hidden">
+                            <div class="aspect-square bg-brand-bg flex items-center justify-center overflow-hidden relative">
+                                <input type="checkbox" class="cv-batch-sel absolute top-1.5 left-1.5 z-10 w-4 h-4 accent-cyan-500 cursor-pointer" data-batch="${b.batch_id}" title="${t('collection.select_batch')}" ${this._batchAllSelected(b.batch_id) ? 'checked' : ''} />
                                 ${b.thumb_path
                                     ? html`<img src="${b.thumb_path}?t=${summary.updated_at || ''}" class="w-full h-full object-cover" alt="${b.name}" />`
                                     : html`<span class="text-brand-text-muted text-xs">${this._statusBadge(b.status)}</span>`}
@@ -148,9 +152,16 @@
                         </div>`;
                     })}
                 </div>`;
-            // Batch card → drill into the existing AssetViewer for that Batch.
+            // Batch card → drill into the batch detail. (Checkbox toggles selection.)
             body.querySelectorAll('.cv-batch').forEach((card) => {
-                card.addEventListener('click', () => this._openBatch(card.dataset.batch));
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.cv-batch-sel')) return;   // checkbox handles itself
+                    this._openBatch(card.dataset.batch);
+                });
+            });
+            body.querySelectorAll('.cv-batch-sel').forEach((cb) => {
+                cb.addEventListener('click', (e) => e.stopPropagation());
+                cb.addEventListener('change', (e) => { e.stopPropagation(); this._toggleBatchSel(cb.dataset.batch, cb.checked); });
             });
             // Per-Batch version picker (Phase M) — pins which version represents the
             // Batch in the set. Stop propagation so it doesn't open the drill-down.
@@ -173,32 +184,130 @@
                 });
             });
             document.getElementById('cv-delete').addEventListener('click', () => this._delete(rec.collection_id));
-            document.getElementById('cv-3d').addEventListener('click', () => this._generate3d(rec.collection_id));
-            document.getElementById('cv-export').addEventListener('click', () => this._export(rec.collection_id));
+            document.getElementById('cv-3d').addEventListener('click', () => this._open3dPane(rec.collection_id));
+            document.getElementById('cv-dl-images').addEventListener('click', () => this._downloadImages(rec.collection_id));
+            document.getElementById('cv-dl-3d').addEventListener('click', () => this._download3d(rec.collection_id));
+            this._updateSelInfo();
         },
 
-        _export(collectionId) {
-            // Simple engine/format prompt → stream the bundle via a hidden download.
-            const fmt = (window.prompt(t('collection.export_prompt'), 'fbx') || '').trim().toLowerCase();
-            if (!fmt) return;
-            if (!['fbx', 'usd', 'glb'].includes(fmt)) { window.showToast?.('fmt must be fbx, usd, or glb', 'warning'); return; }
-            window.location.href = API.collections.exportUrl(collectionId, 'generic', fmt);
+        // ── Selection (batches / jobs) — drives 3D + downloads ─────────────
+        _selTargets() {
+            return this._sel ? Array.from(this._sel.entries()).map(([asset_id, version]) => ({ asset_id, version })) : [];
+        },
+        _selCount() { return this._sel ? this._sel.size : 0; },
+        _updateSelInfo() {
+            const el = document.getElementById('cv-selinfo');
+            if (el) el.textContent = this._selCount() ? t('collection.selected_count', { count: this._selCount() }) : '';
+        },
+        /** All {asset_id, version} jobs of a batch (from the full reconstruction). */
+        _batchJobTargets(batchId) {
+            const entry = (this._data.batches || []).find(x => (x.roster_entry || {}).batch_id === batchId);
+            const opts = (entry && entry.batch && entry.batch.options) || [];
+            const out = [];
+            opts.forEach(o => (o.variants || []).forEach(v => out.push({ asset_id: v.id, version: v.current_version || 1 })));
+            return out;
+        },
+        _batchAllSelected(batchId) {
+            const jobs = this._batchJobTargets(batchId);
+            return jobs.length > 0 && jobs.every(j => this._sel && this._sel.has(j.asset_id));
+        },
+        _toggleBatchSel(batchId, on) {
+            const jobs = this._batchJobTargets(batchId);
+            jobs.forEach(j => on ? this._sel.set(j.asset_id, j.version) : this._sel.delete(j.asset_id));
+            this._updateSelInfo();
+        },
+        _toggleJobSel(assetId, version, on) {
+            if (on) this._sel.set(assetId, version || 1); else this._sel.delete(assetId);
+            this._updateSelInfo();
         },
 
-        async _generate3d(collectionId) {
-            const btn = document.getElementById('cv-3d');
-            if (!collectionId || !btn) return;
-            btn.disabled = true; const orig = btn.textContent; btn.textContent = '…';
+        // ── Convert to 3D: one settings pane, applied uniformly ────────────
+        async _open3dPane(collectionId) {
+            const count = this._selCount();
+            let instances = [], defaults = {};
+            try { const r = await API.threeD.instances(); instances = (r.instances || []).filter(i => i.available); } catch (_) {}
+            try { defaults = (await API.threeD.defaults()) || {}; } catch (_) {}
+            const pane = document.createElement('div');
+            pane.id = 'cv-3d-pane';
+            pane.className = 'fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4';
+            // nosemgrep
+            pane.innerHTML = html`
+                <div class="card w-full max-w-md p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold">${t('collection.convert_3d')}</h3>
+                        <button id="cv3p-close" class="text-brand-text-muted hover:text-brand-text text-xl leading-none">&times;</button>
+                    </div>
+                    <p class="text-[11px] text-brand-text-muted">${count > 0 ? t('collection.pane_applies_sel', { count }) : t('collection.pane_applies_all')}</p>
+                    <div>
+                        <label class="block text-[11px] mb-1">${t('collection.pane_pipeline')}</label>
+                        <select id="cv3p-model" class="input text-sm w-full">
+                            ${instances.length
+                                ? instances.map(i => html`<option value="${i.key}">${i.label || i.key}</option>`)
+                                : html`<option value="">${t('collection.pane_default_pipeline')}</option>`}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="block text-[11px] mb-1">${t('collection.pane_quality')}</label>
+                            <select id="cv3p-quality" class="input text-sm w-full">
+                                <option value="standard">standard</option><option value="premium">premium</option>
+                            </select></div>
+                        <div><label class="block text-[11px] mb-1">${t('collection.pane_seed')}</label>
+                            <input id="cv3p-seed" type="number" class="input text-sm w-full" placeholder="${t('collection.count_auto')}" /></div>
+                    </div>
+                    <div class="flex justify-end pt-1">
+                        <button id="cv3p-go" class="btn btn-primary btn-sm">${t('collection.pane_convert')}</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(pane);
+            const close = () => pane.remove();
+            document.getElementById('cv3p-close').addEventListener('click', close);
+            pane.addEventListener('click', (e) => { if (e.target === pane) close(); });
+            if (defaults.quality) document.getElementById('cv3p-quality').value = defaults.quality;
+            document.getElementById('cv3p-go').addEventListener('click', async () => {
+                const settings = { quality: document.getElementById('cv3p-quality').value || 'standard' };
+                const mk = document.getElementById('cv3p-model').value;
+                if (mk) settings.model_key = mk;
+                const seedV = parseInt(document.getElementById('cv3p-seed').value, 10);
+                if (Number.isFinite(seedV)) settings.seed = seedV;
+                const go = document.getElementById('cv3p-go');
+                go.disabled = true; go.textContent = '…';
+                try {
+                    const r = await API.collections.generate3d(collectionId, { targets: this._selTargets(), settings });
+                    window.showToast?.(t('collection.threed_submitted', { count: (r.submitted || []).length }), 'success');
+                    if ((r.failures || []).length) window.showToast?.(r.failures[0].error, 'warning');
+                    close();
+                    setTimeout(() => this.open(collectionId), 800);   // reflect submitted status
+                } catch (e) {
+                    window.showToast?.(e.message || t('collection.error'), 'error');
+                    go.disabled = false; go.textContent = t('collection.pane_convert');
+                }
+            });
+        },
+
+        // ── Downloads (whole collection or selected) ───────────────────────
+        async _zipDownload(path, body, fallbackName) {
             try {
-                const r = await API.collections.generate3d(collectionId);
-                const n = (r.submitted || []).length;
-                window.showToast?.(t('collection.threed_submitted', { count: n }), 'success');
-                if ((r.failures || []).length) window.showToast?.(r.failures[0].error, 'warning');
-                setTimeout(() => this.open(collectionId), 800);   // reopen to reflect status
-            } catch (e) {
-                window.showToast?.(e.message || t('collection.error'), 'error');
-                btn.disabled = false; btn.textContent = orig;
-            }
+                // nosemgrep -- serialized HTTP body; ZIP response streamed to a download
+                const resp = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                if (!resp.ok) { let d = ''; try { d = (await resp.json()).detail; } catch (_) {} window.showToast?.(d || t('collection.error'), 'error'); return; }
+                const blob = await resp.blob();
+                const cd = resp.headers.get('Content-Disposition') || '';
+                const m = /filename="?([^"]+)"?/.exec(cd);
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = (m && m[1]) || fallbackName;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+            } catch (e) { window.showToast?.(e.message || t('collection.error'), 'error'); }
+        },
+        _downloadImages(collectionId) {
+            this._zipDownload(`/api/collections/${collectionId}/download-images`, { targets: this._selTargets() }, 'collection_images.zip');
+        },
+        _download3d(collectionId) {
+            const fmt = (window.prompt(t('collection.download_3d_fmt'), 'glb') || '').trim().toLowerCase();
+            if (!fmt) return;
+            if (!['glb', 'fbx', 'usd'].includes(fmt)) { window.showToast?.('fmt must be glb, fbx, or usd', 'warning'); return; }
+            this._zipDownload(`/api/collections/${collectionId}/download-3d`, { targets: this._selTargets(), fmt }, `collection_3d_${fmt}.zip`);
         },
 
         /** Retry a Failed/Blocked Batch. For a content-filter block, prompt the user
@@ -268,7 +377,9 @@
                             <div class="flex flex-wrap gap-2">
                                 ${(o.variants || []).map((v, vi) => html`
                                     <button class="cv-bd-cell relative rounded-md overflow-hidden border ${oi === bd.sel.o && vi === bd.sel.v ? 'border-cyan-400 ring-1 ring-cyan-400' : 'border-brand-border hover:border-brand-text-muted'}" data-o="${oi}" data-v="${vi}" style="width:84px;height:84px" title="${t('collection.option_label')} ${oi + 1} · ${t('collection.variation_label')} ${vi + 1}">
+                                        <input type="checkbox" class="cv-job-sel absolute top-0.5 left-0.5 z-10 w-3.5 h-3.5 accent-cyan-500 cursor-pointer" data-id="${v.id}" data-version="${v.current_version || 1}" title="${t('collection.select_job')}" ${this._sel && this._sel.has(v.id) ? 'checked' : ''} />
                                         <img src="/api/gallery/${v.id}/png?t=${cb}" class="w-full h-full object-cover" alt="" loading="lazy" />
+                                        ${v.has_3d ? html`<span class="absolute top-0.5 right-0.5 text-[8px] px-1 rounded bg-violet-600/80 text-white">3D</span>` : ''}
                                         <span class="absolute bottom-0 right-0 text-[9px] px-1 bg-black/70 text-white rounded-tl">v${vi + 1}</span>
                                     </button>`)}
                             </div>
@@ -281,9 +392,17 @@
                 window.AssetViewer?.open(flat[idx], flat, idx);
             });
             body.querySelectorAll('.cv-bd-cell').forEach((btn) => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
+                    if (e.target.closest('.cv-job-sel')) return;   // checkbox handles itself
                     bd.sel = { o: +btn.dataset.o, v: +btn.dataset.v };
                     this._renderBatchDetail();
+                });
+            });
+            body.querySelectorAll('.cv-job-sel').forEach((cb) => {
+                cb.addEventListener('click', (e) => e.stopPropagation());
+                cb.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    this._toggleJobSel(cb.dataset.id, parseInt(cb.dataset.version, 10) || 1, cb.checked);
                 });
             });
         },
