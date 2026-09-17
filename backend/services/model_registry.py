@@ -965,16 +965,23 @@ def ensure_format_families():
     changed = False
     families = _registry.setdefault("format_families", {})
 
+    # Declarative fields the code default may introduce over time. Existing
+    # families get MISSING ones backfilled (add-only — an admin's customization
+    # is never overwritten), so a runtime copy materialized before a field
+    # existed picks it up. supported_sizes is here so the SD family's UI size
+    # presets (incl. 720x1280) land in model_registry.json on the next load/Sync.
+    _BACKFILL_FIELDS = ("parameters", "supported_sizes")
     for name, default in _DEFAULT_FORMAT_FAMILIES.items():
         if name not in families:
             families[name] = default
             changed = True
             logger.info("Added missing format family: %s", name)
-        elif "parameters" not in families[name]:
-            # Existing family missing parameter specs — add them
-            families[name]["parameters"] = default.get("parameters", {})
-            changed = True
-            logger.info("Added parameters to format family: %s", name)
+            continue
+        for field in _BACKFILL_FIELDS:
+            if field not in families[name] and field in default:
+                families[name][field] = default[field]
+                changed = True
+                logger.info("Backfilled '%s' into format family: %s", field, name)
 
     if changed:
         _save()
