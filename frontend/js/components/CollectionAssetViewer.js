@@ -124,16 +124,16 @@
             // nosemgrep
             body.innerHTML = html`
                 ${this._metaPanelHTML(rec, summary)}
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                <div class="gallery-grid">
                     ${batches.map((b) => {
                         const failed = (b.status === 'failed' || b.status === 'blocked');
                         return html`
-                        <div class="cv-batch card ${failed ? '' : 'cursor-pointer'} overflow-hidden group" data-batch="${b.batch_id}" data-slug="${b.slug}" data-status="${b.status}">
-                            <div class="aspect-square bg-brand-bg flex items-center justify-center overflow-hidden relative">
+                        <div class="cv-batch gallery-card card ${failed ? '' : 'cursor-pointer'} overflow-hidden group" data-batch="${b.batch_id}" data-slug="${b.slug}" data-status="${b.status}">
+                            <div class="bg-brand-bg overflow-hidden relative">
                                 <input type="checkbox" class="cv-batch-sel absolute top-1.5 left-1.5 z-10 w-4 h-4 accent-cyan-500 cursor-pointer" data-batch="${b.batch_id}" title="${t('collection.select_batch')}" ${this._batchAllSelected(b.batch_id) ? 'checked' : ''} />
                                 ${b.thumb_path
-                                    ? html`<img src="${b.thumb_path}?t=${summary.updated_at || ''}" class="w-full h-full object-cover" alt="${b.name}" />`
-                                    : html`<span class="text-brand-text-muted text-xs">${this._statusBadge(b.status)}</span>`}
+                                    ? html`<img src="${b.thumb_path}?t=${summary.updated_at || ''}" class="w-full h-auto block" alt="${b.name}" loading="lazy" />`
+                                    : html`<div class="w-full flex items-center justify-center" style="min-height:140px">${this._statusBadge(b.status)}</div>`}
                             </div>
                             <div class="p-2">
                                 <p class="text-xs font-medium truncate">${b.name || b.slug}</p>
