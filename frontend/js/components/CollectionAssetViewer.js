@@ -66,6 +66,51 @@
             return html`<span class="text-[10px] px-1.5 py-0.5 rounded ${cls} text-white">${t('collection.' + key)}</span>`;
         },
 
+        _fact(label, value) {
+            if (value === undefined || value === null || value === '') return '';
+            return html`<div><span class="text-brand-text-muted/60">${label}:</span> <span class="text-brand-text">${value}</span></div>`;
+        },
+
+        /** Collection-level metadata panel (SPEC §18) — the collection counterpart of
+         *  the AssetViewer Metadata tab. All fields come from the master record. */
+        _metaPanelHTML(rec, summary) {
+            const k = rec.knobs || {};
+            const N = (rec.roster || []).length || summary.batch_count || 0;
+            const O = k.O, V = k.V;
+            const total = (N && O && V) ? N * O * V : null;
+            const models = (k.models || summary.models || []).join(', ');
+            const cohesion = k.cohesion_mode ? t('collection.cohesion_' + k.cohesion_mode) : '';
+            const created = rec.created_at
+                ? (window.formatTimestamp ? window.formatTimestamp(rec.created_at) : rec.created_at) : '';
+            const costObj = (rec.cost_actual && rec.cost_actual.total != null) ? rec.cost_actual
+                : (rec.cost_estimate || null);
+            const cost = costObj && costObj.total != null ? '$' + Number(costObj.total).toFixed(3) : null;
+            const ad = rec.overarching_art_direction || '';
+            const F = (l, v) => this._fact(l, v);
+            // nosemgrep
+            return html`
+                <details class="mb-3 rounded-lg border border-brand-border bg-brand-bg/40" open>
+                    <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-brand-text-muted">${t('collection.details')}</summary>
+                    <div class="px-3 pb-3 space-y-2">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px]">
+                            ${F(t('collection.roster_label'), N)}
+                            ${F(t('collection.options_label'), O)}
+                            ${F(t('collection.variations_label'), V)}
+                            ${total ? html`<div>${t('collection.images_count', { count: total })}</div>` : ''}
+                            ${F(t('collection.model_label'), models)}
+                            ${F(t('collection.cohesion_label'), cohesion)}
+                            ${F(t('collection.meta_status'), rec.status)}
+                            ${F(t('collection.meta_created'), created)}
+                            ${F(t('collection.cost_total'), cost)}
+                        </div>
+                        ${ad ? html`<div>
+                            <div class="text-[10px] uppercase tracking-wide text-brand-text-muted/60 mb-0.5">${t('collection.art_direction_label')}</div>
+                            <div class="text-[11px] text-brand-text/80 whitespace-pre-wrap bg-brand-bg/60 rounded p-2 border border-brand-border/50 max-h-40 overflow-y-auto">${ad}</div>
+                        </div>` : ''}
+                    </div>
+                </details>`;
+        },
+
         _render(data) {
             const rec = data.record || {};
             const summary = data.summary || {};
@@ -75,6 +120,7 @@
             const body = document.getElementById('cv-body');
             // nosemgrep
             body.innerHTML = html`
+                ${this._metaPanelHTML(rec, summary)}
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     ${batches.map((b) => {
                         const failed = (b.status === 'failed' || b.status === 'blocked');
