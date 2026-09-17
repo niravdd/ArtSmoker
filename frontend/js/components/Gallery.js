@@ -681,24 +681,25 @@
                 // to a single cover, then a placeholder icon.
                 const _cb = item.updated_at || '';
                 const colThumbs = (item.batches || [])
-                    .map(b => b && b.thumb_path).filter(Boolean).slice(0, 4)
+                    .map(b => b && b.thumb_path).filter(Boolean).slice(0, 5)
                     .map(tp => tp + `?t=${_cb}`);
-                // Coverflow of framed CARDS: a prominent center cover, two smaller
-                // image cards peeking left/right, and a back "deck edge" so it reads as
-                // a stack with more behind. Each layer is a bordered card (frame + mat +
-                // shadow), not a bare image; sides fan out on hover. _ccFrame = the card.
-                const _ccFrame = 'absolute rounded-lg bg-brand-surface border border-brand-border overflow-hidden p-0.5 transition-transform duration-300 ease-out';
-                const _ccImg = 'w-full h-full object-cover rounded-md';
+                // Symmetric graduated fan of framed CARDS (like a spread hand): the
+                // center cover is tallest + front; a pair of mid cards flank it, a bit
+                // shorter + behind; a pair of outer cards sit further out, shorter still.
+                // Each is a bordered card; all vertically centered; wider on hover.
+                const _cc = 'absolute w-[40%] rounded-md bg-brand-surface border border-brand-border overflow-hidden shadow-lg transition-transform duration-300 ease-out';
+                const _ccCard = (src, cls, alt) =>
+                    html`<div class="${_cc} ${cls}"><img src="${src}" class="w-full h-full object-cover" alt="${alt || ''}" loading="lazy" /></div>`;
                 return html`
                     <div class="gallery-card card cursor-pointer overflow-hidden group" data-id="${item.id}" data-media="collection">
                         <div class="aspect-[4/3] bg-brand-bg overflow-hidden relative">
                             ${colThumbs.length >= 2
                                 ? html`<div class="relative w-full h-full">
-                                        <!-- back deck edge: signals "more cards behind" -->
-                                        <div class="absolute left-1/2 -translate-x-1/2 top-0.5 w-[52%] h-[86%] z-10 rounded-lg bg-brand-surface border border-brand-border shadow-md"></div>
-                                        ${colThumbs[1] ? html`<div class="${_ccFrame} left-0.5 top-5 bottom-5 w-[42%] z-20 shadow-lg group-hover:-translate-x-1.5"><img src="${colThumbs[1]}" class="${_ccImg}" alt="" loading="lazy" /></div>` : ''}
-                                        ${colThumbs[2] ? html`<div class="${_ccFrame} right-0.5 top-5 bottom-5 w-[42%] z-20 shadow-lg group-hover:translate-x-1.5"><img src="${colThumbs[2]}" class="${_ccImg}" alt="" loading="lazy" /></div>` : ''}
-                                        <div class="${_ccFrame} left-1/2 -translate-x-1/2 top-2 bottom-2 w-[58%] z-30 shadow-2xl ring-1 ring-black/20 group-hover:-translate-y-0.5"><img src="${colThumbs[0]}" class="${_ccImg}" alt="${item.name}" loading="lazy" /></div>
+                                        ${colThumbs[3] ? _ccCard(colThumbs[3], 'left-[0%] top-7 bottom-7 z-10 group-hover:-translate-x-1.5') : ''}
+                                        ${colThumbs[4] ? _ccCard(colThumbs[4], 'left-[60%] top-7 bottom-7 z-10 group-hover:translate-x-1.5') : ''}
+                                        ${colThumbs[1] ? _ccCard(colThumbs[1], 'left-[14%] top-4 bottom-4 z-20 group-hover:-translate-x-1.5') : ''}
+                                        ${colThumbs[2] ? _ccCard(colThumbs[2], 'left-[46%] top-4 bottom-4 z-20 group-hover:translate-x-1.5') : ''}
+                                        ${_ccCard(colThumbs[0], 'left-[30%] top-1 bottom-1 z-30 shadow-2xl ring-1 ring-black/20', item.name)}
                                     </div>`
                                 : (cover
                                     ? html`<img src="${cover}" class="w-full h-full object-cover" alt="${item.name}" />`
