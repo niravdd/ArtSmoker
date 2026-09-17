@@ -212,14 +212,18 @@
                         </div>
                     </div>
 
-                    <!-- Step 2 (Collection): overarching Art Direction (editable). Hidden until Collection mode. -->
+                    <!-- Step 2 (Collection): overarching Art Direction. ON-DEMAND (SPEC
+                         §18.2): entering Collection mode no longer auto-generates this
+                         (that raced the user's own typing) — they click Generate, or
+                         write their own. Hidden until Collection mode. -->
                     <div class="step2-collection hidden">
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="text-[10px] font-bold text-fuchsia-400 bg-fuchsia-400/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step') : 'STEP'} 2</span>
                             <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_label') : 'Art direction (shared across the set)'}</span>
+                            <button type="button" class="btn-generate-art-direction ml-auto text-[10px] px-2 py-0.5 rounded-full bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 hover:bg-fuchsia-500/25 hover:border-fuchsia-500/50 transition-all font-medium">✨ ${typeof t !== 'undefined' ? t('artsmoker.ui.collection.generate_art_direction') : 'Generate'}</button>
                         </div>
                         <textarea class="collection-art-direction input w-full min-h-[120px] text-xs text-brand-text/80 bg-fuchsia-950/10 border-fuchsia-500/20" rows="6"
-                            placeholder="${typeof t !== 'undefined' ? t('artsmoker.ui.collection.decomposing') : 'Designing your set…'}"></textarea>
+                            placeholder="${typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_placeholder') : 'Write the shared art direction, or click Generate to draft it from your prompt.'}"></textarea>
                         <p class="text-[10px] text-brand-text-muted/60 mt-1">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_hint') : 'Editing this recomposes every batch in the set.'}</p>
                     </div>
 
@@ -278,6 +282,7 @@
             this._step2Single = this.container.querySelector('.step2-single');
             this._step2Collection = this.container.querySelector('.step2-collection');
             this._artDirectionEl = this.container.querySelector('.collection-art-direction');
+            this._btnGenerateArtDirection = this.container.querySelector('.btn-generate-art-direction');
             this._step3Single = this.container.querySelector('.step3-single');
             this._step3Collection = this.container.querySelector('.step3-collection');
             this._btnCollectionDesigner = this.container.querySelector('.btn-collection-designer');
@@ -430,11 +435,15 @@
             });
 
             // ── Collection (Set Generation) — SPEC §18.2 ──────────────────
-            // Check → LOCK the mode + generate the Art Direction into Step 2.
+            // Check → LOCK the mode + reveal Step 2/3. Art Direction is ON-DEMAND
+            // (a button), NOT auto-generated on check — auto-generating raced a
+            // user who started typing their own into the empty box.
             this._collectionCheckbox?.addEventListener('change', (ev) => {
                 if (ev.target.checked) this._enterCollectionMode();
                 else ev.target.checked = true;  // cannot un-check; only Reset/refresh exits
             });
+            // Step 2 button: generate the Art Direction on demand (from the Step-1 ask).
+            this._btnGenerateArtDirection?.addEventListener('click', () => this._generateArtDirection());
             // Example chips → fill Step 1 (teach good collection prompts). Disabled
             // once the mode is locked (checkbox checked) so an accepted design's ask
             // can't be silently swapped.
@@ -510,7 +519,7 @@
             };
         }
 
-        async _enterCollectionMode() {
+        _enterCollectionMode() {
             const prompt = this.getUserText().trim();
             if (!prompt) {
                 window.showToast?.(typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.enter_prompt') : 'Enter a prompt first', 'warning');
@@ -519,6 +528,8 @@
             }
             this._collectionMode = true;
             this._collectionDesign = null;
+            this._collectionId = null;
+            this._collectionName = null;
             this._collectionDesignCost = 0;
             this._collectionLedger = [];
             // Lock the checkbox (only Reset/refresh exits) + swap Step 2/3 surfaces.
@@ -529,35 +540,76 @@
             this._step3Collection?.classList.remove('hidden');
             this._collectionSummaryEl?.classList.add('hidden');
             this._collectionStep3Hint?.classList.remove('hidden');
-            this._notifyCollectionState();   // disables Generate
+            // Art Direction is ON-DEMAND now: leave Step 2 empty + editable so the
+            // user can type their own OR click Generate. No auto-call → no race
+            // where an arriving generated prompt clobbers what they were typing.
+            if (this._artDirectionEl) this._artDirectionEl.value = '';
+            window.Telemetry?.track?.('collection_mode_enabled', {});
+            this._notifyCollectionState();   // disables Generate until a design is accepted
+        }
 
-            // Generate the overarching Art Direction from the Step-1 ask.
-            const ctx = this._collectionContext();
-            if (this._artDirectionEl) {
-                this._artDirectionEl.value = '';
-                this._artDirectionEl.placeholder = typeof t !== 'undefined' ? t('artsmoker.ui.collection.decomposing') : 'Designing your set…';
+        /** Step 2, on demand: draft the overarching Art Direction from the Step-1
+         *  ask. Confirms before overwriting text the user has already put there. */
+        async _generateArtDirection() {
+            if (this._artDirBusy) return;
+            const prompt = this.getUserText().trim();
+            if (!prompt) return;
+            const el = this._artDirectionEl;
+            if (el && el.value.trim()) {
+                const ok = window.confirm(typeof t !== 'undefined'
+                    ? t('artsmoker.ui.collection.regenerate_art_direction_confirm')
+                    : 'Replace the current art direction with a freshly generated one?');
+                if (!ok) return;
             }
+            this._artDirBusy = true;
+            const btn = this._btnGenerateArtDirection;
+            const origLabel = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = typeof t !== 'undefined' ? t('artsmoker.ui.collection.decomposing') : 'Designing…'; }
+            if (el) el.placeholder = typeof t !== 'undefined' ? t('artsmoker.ui.collection.decomposing') : 'Designing your set…';
+            const ctx = this._collectionContext();
             try {
                 const r = await API.collections.artDirection({ prompt, ...ctx });
                 this._collectionId = r.collection_id;
                 this._collectionName = r.name;
                 this._collectionDesignCost += (r.cost || 0);
                 this._collectionLedger.push(...(r.llm_cost_ledger || []));
-                if (this._artDirectionEl) this._artDirectionEl.value = (r.art_direction && r.art_direction.text) || '';
-                window.Telemetry?.track?.('collection_mode_enabled', {});
+                if (el) el.value = (r.art_direction && r.art_direction.text) || '';
+                // A freshly generated art direction invalidates any accepted design.
+                if (this._collectionDesign) {
+                    this._collectionDesign = null;
+                    this._collectionSummaryEl?.classList.add('hidden');
+                    this._collectionStep3Hint?.classList.remove('hidden');
+                    this._notifyCollectionState();
+                }
             } catch (e) {
                 window.showToast?.(e.message || (typeof t !== 'undefined' ? t('artsmoker.ui.collection.error') : 'Something went wrong'), 'error');
-                if (this._artDirectionEl) this._artDirectionEl.placeholder = typeof t !== 'undefined' ? t('artsmoker.ui.collection.error') : 'Something went wrong. Try again.';
+            } finally {
+                this._artDirBusy = false;
+                if (btn) { btn.disabled = false; btn.textContent = origLabel; }
             }
         }
 
-        _openCollectionDesigner() {
+        async _openCollectionDesigner() {
             const artText = this.getArtDirectionText().trim();
             if (!artText) {
-                window.showToast?.(typeof t !== 'undefined' ? t('artsmoker.ui.collection.decomposing') : 'Art direction still generating…', 'warning');
+                window.showToast?.(typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_required') : 'Add an art direction first (write one or click Generate).', 'warning');
                 return;
             }
             const ctx = this._collectionContext();
+            // The collection_id is normally minted when Art Direction is generated.
+            // If the user wrote their OWN art direction and skipped Generate, mint it
+            // now (server echoes the text verbatim — no LLM call, no cost) so the
+            // final /generate has the id it requires.
+            if (!this._collectionId) {
+                try {
+                    const r = await API.collections.artDirection({ prompt: this.getUserText().trim(), art_direction: artText, ...ctx });
+                    this._collectionId = r.collection_id;
+                    this._collectionName = r.name;
+                } catch (e) {
+                    window.showToast?.(e.message || (typeof t !== 'undefined' ? t('artsmoker.ui.collection.error') : 'Something went wrong'), 'error');
+                    return;
+                }
+            }
             window.CollectionDesigner?.open({
                 collectionId: this._collectionId,
                 name: this._collectionName,

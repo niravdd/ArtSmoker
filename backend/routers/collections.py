@@ -110,6 +110,10 @@ class ArtDirectionRequest(BaseModel):
     image_model: str | None = None
     asset_type: str = "game_asset"
     style_id: str | None = None
+    # When set, the user wrote their OWN art direction (Step 2 is on-demand — the
+    # checkbox no longer auto-generates). We then only MINT the collection_id and
+    # echo the text back verbatim — no LLM call, no cost. Absent → generate it.
+    art_direction: str | None = None
 
 
 class DecomposeCollectionRequest(BaseModel):
@@ -181,6 +185,19 @@ async def collection_art_direction(body: ArtDirectionRequest):
     from backend.services.cost_tracker import reset_costs, get_total_cost
     from backend.services.telemetry import track_collection_art_direction_edited
     from backend.services import collection_store as cstore
+
+    # Mint-only path: the user supplied their own art direction (Step 2 is
+    # on-demand). Mint the id + echo the text back — no generation, no cost.
+    if body.art_direction and body.art_direction.strip():
+        text = body.art_direction.strip()
+        art = {"text": text}
+        return {
+            "collection_id": cstore.new_collection_id(),
+            "name": _derive_name(body.prompt, art),
+            "art_direction": art,
+            "cost": 0.0,
+            "llm_cost_ledger": [],
+        }
 
     reset_costs()
     try:
