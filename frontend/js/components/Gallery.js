@@ -683,18 +683,18 @@
                 const colThumbs = (item.batches || [])
                     .map(b => b && b.thumb_path).filter(Boolean).slice(0, 4)
                     .map(tp => tp + `?t=${_cb}`);
-                // Layer classes for the stacked-deck look: the cover sits on top as
-                // usual; up to two more batch covers peek out behind it (rotated), and
-                // fan slightly wider on hover. Shared card styling + transitions.
-                const _ccCard = 'absolute inset-2 rounded-md object-cover border border-brand-border/70 shadow-lg transition-transform duration-300 ease-out';
+                // Coverflow look: a prominent CENTER cover flanked by smaller, dimmed
+                // batch covers peeking on each side (they nudge outward + brighten on
+                // hover). Reads unmistakably as a set. Shared side-card styling.
+                const _ccSide = 'absolute top-4 bottom-4 w-[40%] z-10 rounded-lg object-cover opacity-60 shadow-lg transition-all duration-300 ease-out';
                 return html`
                     <div class="gallery-card card cursor-pointer overflow-hidden group" data-id="${item.id}" data-media="collection">
-                        <div class="img-hover-zoom aspect-[4/3] bg-brand-bg overflow-hidden relative">
+                        <div class="aspect-[4/3] bg-brand-bg overflow-hidden relative">
                             ${colThumbs.length >= 2
                                 ? html`<div class="relative w-full h-full">
-                                        ${colThumbs[2] ? html`<img src="${colThumbs[2]}" class="${_ccCard} z-10 -rotate-6 group-hover:-rotate-12 group-hover:-translate-x-1" alt="" loading="lazy" />` : ''}
-                                        ${colThumbs[1] ? html`<img src="${colThumbs[1]}" class="${_ccCard} z-20 rotate-6 group-hover:rotate-12 group-hover:translate-x-1" alt="" loading="lazy" />` : ''}
-                                        <img src="${colThumbs[0]}" class="${_ccCard} z-30" alt="${item.name}" loading="lazy" />
+                                        ${colThumbs[1] ? html`<img src="${colThumbs[1]}" class="${_ccSide} left-0 group-hover:opacity-80 group-hover:-translate-x-1" alt="" loading="lazy" />` : ''}
+                                        ${colThumbs[2] ? html`<img src="${colThumbs[2]}" class="${_ccSide} right-0 group-hover:opacity-80 group-hover:translate-x-1" alt="" loading="lazy" />` : ''}
+                                        <img src="${colThumbs[0]}" class="absolute top-1 bottom-1 left-1/2 -translate-x-1/2 w-[58%] z-30 rounded-lg object-cover shadow-2xl ring-1 ring-black/30" alt="${item.name}" loading="lazy" />
                                     </div>`
                                 : (cover
                                     ? html`<img src="${cover}" class="w-full h-full object-cover" alt="${item.name}" />`
