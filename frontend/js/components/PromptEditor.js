@@ -12,6 +12,14 @@
 (function () {
     'use strict';
 
+    // The overarching art-direction fields the backend uses (ART_DIRECTION_FIELDS /
+    // art_direction_to_text). Kept in sync here so Collection mode can seed Step 2
+    // with a BLANK scaffold of the same labels the model would fill — the user can
+    // type into it OR click Generate. Also lets us tell an untouched scaffold from
+    // real content (Generate replaces a bare scaffold silently; a filled one asks).
+    const AD_FIELDS = ['World', 'Era', 'Medium', 'Palette', 'Mood', 'Materials', 'Render', 'Negative'];
+    const AD_SCAFFOLD = AD_FIELDS.map(f => f + ': ').join('\n');
+
     // Realistic example prompts per asset type — written as a real person would start describing
     const _ASSET_PLACEHOLDERS = {
         game_asset: "A weathered wooden treasure chest with iron straps and a brass lock, slightly open with golden light spilling out...",
@@ -478,7 +486,17 @@
         isCollectionMode() { return !!this._collectionMode; }
         getCollectionDesign() { return this._collectionDesign || null; }
         getArtDirectionText() { return this._artDirectionEl ? this._artDirectionEl.value : ''; }
-        /** Generate is allowed only once a design is accepted (§18.2). */
+        /** Does Step 2 hold REAL art direction, or just the empty scaffold? Strips the
+         *  known field labels; if any non-label text remains, the user has content
+         *  (typed values, or free-form text). A bare scaffold → false. */
+        _artDirectionHasContent() {
+            let s = this.getArtDirectionText();
+            if (!s.trim()) return false;
+            AD_FIELDS.forEach(f => { s = s.replace(new RegExp('^\\s*' + f + '\\s*:', 'gmi'), ''); });
+            return s.replace(/[\s:]/g, '').length > 0;
+        }
+        /** Generate is allowed only once a design is accepted (§18.2) — which itself
+         *  requires real art direction, so Generate can never run without it. */
         collectionReadyToGenerate() { return !!(this._collectionMode && this._collectionDesign); }
 
         /** Guard the Collection checkbox: disabled until Step 1 has a prompt (so the
@@ -514,6 +532,8 @@
             const ctx = (this.opts.getCollectionContext && this.opts.getCollectionContext()) || {};
             return {
                 image_model: ctx.image_model || this.opts.imageModel || 'sd35_large',
+                model_name: ctx.model_name ?? null,
+                models_selected_count: ctx.models_selected_count ?? 1,
                 asset_type: ctx.asset_type || this.opts.assetType || 'game_asset',
                 style_id: ctx.style_id ?? this.opts.styleId ?? null,
                 style_name: ctx.style_name ?? null,
@@ -541,10 +561,11 @@
             this._step3Collection?.classList.remove('hidden');
             this._collectionSummaryEl?.classList.add('hidden');
             this._collectionStep3Hint?.classList.remove('hidden');
-            // Art Direction is ON-DEMAND now: leave Step 2 empty + editable so the
-            // user can type their own OR click Generate. No auto-call → no race
-            // where an arriving generated prompt clobbers what they were typing.
-            if (this._artDirectionEl) this._artDirectionEl.value = '';
+            // Art Direction is ON-DEMAND: seed Step 2 with a BLANK scaffold of the
+            // model's own fields (World:/Era:/…/Negative:) so the user sees the shape
+            // and can fill it in OR click Generate. No auto-call → no race where an
+            // arriving generated prompt clobbers what they were typing.
+            if (this._artDirectionEl) this._artDirectionEl.value = AD_SCAFFOLD;
             window.Telemetry?.track?.('collection_mode_enabled', {});
             this._notifyCollectionState();   // disables Generate until a design is accepted
         }
@@ -556,7 +577,9 @@
             const prompt = this.getUserText().trim();
             if (!prompt) return;
             const el = this._artDirectionEl;
-            if (el && el.value.trim()) {
+            // Only confirm if the user actually filled the scaffold in (a bare
+            // template is replaced silently).
+            if (this._artDirectionHasContent()) {
                 const ok = window.confirm(typeof t !== 'undefined'
                     ? t('artsmoker.ui.collection.regenerate_art_direction_confirm')
                     : 'Replace the current art direction with a freshly generated one?');
@@ -591,11 +614,12 @@
         }
 
         async _openCollectionDesigner() {
-            const artText = this.getArtDirectionText().trim();
-            if (!artText) {
+            // Require REAL art direction — a bare scaffold isn't enough to fan a roster.
+            if (!this._artDirectionHasContent()) {
                 window.showToast?.(typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_required') : 'Add an art direction first (write one or click Generate).', 'warning');
                 return;
             }
+            const artText = this.getArtDirectionText().trim();
             const ctx = this._collectionContext();
             // The collection_id is normally minted when Art Direction is generated.
             // If the user wrote their OWN art direction and skipped Generate, mint it
@@ -635,11 +659,23 @@
             const n = (design.roster || []).length;
             const k = design.knobs || {};
             const T = (key, p) => (typeof t !== 'undefined' ? t('artsmoker.ui.collection.' + key, p) : key);
+            const ctx = this._collectionContext();
+            const O = k.options || 3, V = k.variations || 2, total = n * O * V;
             const cohesionLabel = (k.cohesion === 'hero') ? T('cohesion_hero') : T('cohesion_prompt');
-            const summary = `${T('card_count', { count: n })} · ${k.options || 3}×${k.variations || 2} · `
-                + `${this._collectionContext().image_model} · ${T('cohesion_label')}: ${cohesionLabel}`;
+            const modelName = ctx.model_name || ctx.image_model;   // friendly name, not the raw key
+            const _aw = T('card_assets_' + (ctx.asset_type || 'game_asset'));
+            const subjects = (_aw && _aw.indexOf('.') === -1) ? `${n} ${_aw}` : T('card_count', { count: n });
+            const line = `${subjects} · ${O}×${V} · ${T('images_count', { count: total })} · ${modelName} · ${cohesionLabel}`;
+            // A collection runs on ONE model; if the user selected several, say so.
+            const multiNote = (ctx.models_selected_count || 1) > 1
+                ? html`<div class="text-[10px] text-amber-300/70 mt-0.5">${T('model_single_note', { count: ctx.models_selected_count, model: modelName })}</div>`
+                : '';
             if (this._collectionSummaryEl) {
-                this._collectionSummaryEl.textContent = summary;
+                // nosemgrep
+                this._collectionSummaryEl.innerHTML = html`
+                    <div>${line}</div>
+                    ${multiNote}
+                    <div class="text-[11px] font-semibold text-emerald-400 mt-1">✓ ${T('ready_to_generate')}</div>`;
                 this._collectionSummaryEl.classList.remove('hidden');
             }
             this._collectionStep3Hint?.classList.add('hidden');

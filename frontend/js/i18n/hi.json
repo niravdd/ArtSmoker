@@ -1612,6 +1612,8 @@
     "error": "कुछ गलत हो गया। फिर से प्रयास करें।",
     "card_badge": "संग्रह",
     "card_count": "{{count}} बैच",
+    "ready_to_generate": "जनरेट करने के लिए तैयार — नीचे GENERATE पर क्लिक करें।",
+    "model_single_note": "आपने {{count}} मॉडल चुने; कलेक्शन एकरूपता के लिए एक ({{model}}) का उपयोग करता है।",
     "view_in_gallery": "गैलरी में देखें",
     "generated_title": "“{{name}}” जनरेट हुआ",
     "generated_sub": "{{done}}/{{total}} बैच · {{images}} इमेज — अब आपकी गैलरी में",

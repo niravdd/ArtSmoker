@@ -1612,6 +1612,8 @@
     "error": "문제가 발생했습니다. 다시 시도하세요.",
     "card_badge": "컬렉션",
     "card_count": "배치 {{count}}개",
+    "ready_to_generate": "생성 준비 완료 — 아래 '생성'을 클릭하세요.",
+    "model_single_note": "{{count}}개 모델을 선택했지만, 컬렉션은 통일성을 위해 하나({{model}})만 사용합니다.",
     "view_in_gallery": "갤러리에서 보기",
     "generated_title": "‘{{name}}’ 생성 완료",
     "generated_sub": "{{done}}/{{total}} 배치 · {{images}}장 — 갤러리에 저장됨",

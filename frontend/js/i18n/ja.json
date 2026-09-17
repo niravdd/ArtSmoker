@@ -1612,6 +1612,8 @@
     "error": "問題が発生しました。もう一度お試しください。",
     "card_badge": "コレクション",
     "card_count": "{{count}} 個のバッチ",
+    "ready_to_generate": "生成の準備ができました — 下の「生成」をクリックしてください。",
+    "model_single_note": "{{count}} 個のモデルを選択しましたが、コレクションは統一感のため1つ（{{model}}）を使用します。",
     "view_in_gallery": "ギャラリーで表示",
     "generated_title": "「{{name}}」を生成しました",
     "generated_sub": "{{done}}/{{total}} バッチ · {{images}} 枚 — ギャラリーに保存済み",

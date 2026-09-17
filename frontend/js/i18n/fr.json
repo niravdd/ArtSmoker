@@ -1612,6 +1612,8 @@
     "error": "Une erreur s'est produite. Réessayez.",
     "card_badge": "Collection",
     "card_count": "{{count}} lots",
+    "ready_to_generate": "Prêt à générer — cliquez sur GÉNÉRER ci-dessous.",
+    "model_single_note": "Vous avez sélectionné {{count}} modèles ; une collection en utilise un seul pour la cohérence ({{model}}).",
     "view_in_gallery": "Voir dans la Galerie",
     "generated_title": "« {{name}} » générée",
     "generated_sub": "{{done}}/{{total}} batches · {{images}} images — dans votre Galerie",

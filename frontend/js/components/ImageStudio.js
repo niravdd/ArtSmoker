@@ -476,8 +476,15 @@
                         // callback to re-gate the main Generate button.
                         getCollectionContext: () => {
                             const sid = this._getStyleId() || null;
+                            // A collection generates on ONE model (for set cohesion) — the
+                            // first selected. Surface its friendly name + how many were
+                            // selected, so the summary can be accurate (not the raw key)
+                            // and flag that the other selections aren't used.
+                            const mk = (this._selectedModels?.[0] || 'sd35_large');
                             return {
-                                image_model: (this._selectedModels?.[0] || 'sd35_large'),
+                                image_model: mk,
+                                model_name: ((MODELS.find(m => m.value === mk) || {}).label) || mk,
+                                models_selected_count: (this._selectedModels || []).length,
                                 // Collections are Character or Game Asset only (SPEC §18) —
                                 // coerce anything else (photorealistic/icon/…) to game_asset
                                 // so the UI matches the backend's authoritative constraint.

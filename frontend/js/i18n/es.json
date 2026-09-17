@@ -1612,6 +1612,8 @@
     "error": "Algo salió mal. Inténtalo de nuevo.",
     "card_badge": "Colección",
     "card_count": "{{count}} lotes",
+    "ready_to_generate": "Listo para generar — haz clic en GENERAR abajo.",
+    "model_single_note": "Seleccionaste {{count}} modelos; una colección usa uno para la cohesión ({{model}}).",
     "view_in_gallery": "Ver en la Galería",
     "generated_title": "«{{name}}» generada",
     "generated_sub": "{{done}}/{{total}} lotes · {{images}} imágenes — ya en tu Galería",

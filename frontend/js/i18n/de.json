@@ -1612,6 +1612,8 @@
     "error": "Etwas ist schiefgelaufen. Versuche es erneut.",
     "card_badge": "Kollektion",
     "card_count": "{{count}} Stapel",
+    "ready_to_generate": "Bereit zum Generieren — klicke unten auf GENERIEREN.",
+    "model_single_note": "Du hast {{count}} Modelle gewählt; eine Collection nutzt für Kohärenz eines ({{model}}).",
     "view_in_gallery": "In der Galerie ansehen",
     "generated_title": "„{{name}}“ generiert",
     "generated_sub": "{{done}}/{{total}} Batches · {{images}} Bilder — jetzt in deiner Galerie",
