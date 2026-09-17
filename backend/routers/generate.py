@@ -149,11 +149,11 @@ def _resolve_model_size(model_key: str, width: int, height: int) -> tuple[int, i
          supported size just because it's numerically nearer the request). The
          model's supported sizes are all quality-validated, so bigger = better.
     """
-    from backend.services.model_registry import get_image_model
+    from backend.services.model_registry import get_image_model, get_model_supported_sizes
     cfg = get_image_model(model_key) if model_key else None
     if not cfg:
         return width, height
-    sizes = cfg.get("invoke", {}).get("supported_sizes", [])
+    sizes = get_model_supported_sizes(cfg) or []
     if not sizes:
         return width, height
     if width <= 0 or height <= 0:

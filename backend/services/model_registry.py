@@ -597,6 +597,20 @@ _DEFAULT_FORMAT_FAMILIES = {
         "seed_path": "seed", "dimensions_mode": "aspect_ratio",
         "response_image_path": "images[0]",
         "body_template": {"output_format": "png"},
+        # UI size presets shared by every model in this family (registry-driven —
+        # NOT hardcoded in the frontend). Each maps to one of the family's
+        # aspect_ratio options; every landscape has its portrait sibling. Since
+        # these models take aspect_ratio (not exact pixels), the backend derives
+        # the ratio from w/h — the pixel values are the representative preset.
+        "supported_sizes": [
+            {"w": 512, "h": 512, "label": "512 × 512"},
+            {"w": 768, "h": 768, "label": "768 × 768"},
+            {"w": 1024, "h": 1024, "label": "1024 × 1024"},
+            {"w": 1024, "h": 576, "label": "1024 × 576 (16:9)"},
+            {"w": 576, "h": 1024, "label": "576 × 1024 (9:16)"},
+            {"w": 1280, "h": 720, "label": "1280 × 720 (16:9)"},
+            {"w": 720, "h": 1280, "label": "720 × 1280 (9:16)"},
+        ],
         "parameters": {
             "prompt": {"type": "string", "required": True, "max_length": 10000},
             "negative_prompt": {"type": "string", "required": False, "max_length": 10000},
@@ -1045,6 +1059,36 @@ def get_fallback_model_id() -> str:
 def get_image_model(key: str) -> dict:
     """Get image model config by key (e.g. 'sd35_large')."""
     return _registry.get("image_models", {}).get(key, {})
+
+
+def get_model_supported_sizes(cfg: dict) -> list | None:
+    """Resolve a model's supported output sizes — the single source of truth for
+    both the UI size dropdown and the backend size-snap. Registry-driven:
+
+      1. a model that declares its own ``invoke.supported_sizes`` wins (custom
+         hosted models do this), else
+      2. it inherits from its ``format_family`` (Bedrock models that share one —
+         e.g. every Stability text-to-image model), else
+      3. None → the caller falls back to the generic UI default presets.
+
+    This is why the SD models offer portrait/landscape sizes without hardcoding
+    them per model: the sizes live on the shared family."""
+    if not cfg:
+        return None
+    inv = cfg.get("invoke") or {}
+    if inv.get("supported_sizes"):
+        return inv["supported_sizes"]
+    fam_name = cfg.get("format_family")
+    if fam_name:
+        # Per-FIELD fallback to the code default: the materialized family in the
+        # JSON registry may exist yet predate this field (ensure_format_families
+        # only adds missing families, not new fields), so an empty/missing
+        # supported_sizes on the runtime copy must fall through to the
+        # code-source-of-truth default rather than short-circuit to None.
+        fams = _registry.get("format_families", {}) or {}
+        return (fams.get(fam_name, {}).get("supported_sizes")
+                or _DEFAULT_FORMAT_FAMILIES.get(fam_name, {}).get("supported_sizes"))
+    return None
 
 
 def _lifecycle_usable(cfg: dict) -> bool:
