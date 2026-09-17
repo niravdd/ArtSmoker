@@ -364,6 +364,12 @@ def _project_summary(record: dict) -> dict:
         "updated_at": record.get("updated_at"),
         "batch_count": len(batches),
         "models": knobs.get("models", []),
+        # Content shape for the Gallery card label (SPEC §18.8): asset type + the
+        # per-Batch options×variations grid, so a card can read
+        # "16 characters · 3×2 · 96 images" instead of the bare "16 batches".
+        "asset_type": knobs.get("asset_type", ""),
+        "num_options": knobs.get("O"),
+        "num_variations": knobs.get("V"),
         "cost_estimate": record.get("cost_estimate"),
         "cost_actual": record.get("cost_actual"),
         "cover": cover,

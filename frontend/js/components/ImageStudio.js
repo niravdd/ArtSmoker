@@ -381,6 +381,14 @@
                                         </div>
                                     </div>
                                     <img id="gen-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="${t('artsmoker.ui.image_studio.title')}" />
+                                    <!-- Collection completion summary (SPEC §18): a set generates into the
+                                         Gallery, not the single-asset preview — so show a summary + a way in. -->
+                                    <div id="gen-collection-summary" class="hidden text-center max-w-sm px-4">
+                                        <div class="text-5xl mb-3">🗂️</div>
+                                        <p id="gen-collection-summary-title" class="text-sm font-semibold text-brand-text mb-1"></p>
+                                        <p id="gen-collection-summary-sub" class="text-xs text-brand-text-muted mb-4"></p>
+                                        <button id="gen-collection-view" class="btn btn-primary btn-sm">${t('artsmoker.ui.collection.view_in_gallery')}</button>
+                                    </div>
                                     <!-- Hint that the big preview opens the AssetViewer on click. -->
                                     <div id="gen-click-hint" class="hidden absolute bottom-3 right-3 bg-black/70 text-white text-[10px] font-medium px-2.5 py-1 rounded-full pointer-events-none flex items-center gap-1.5">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -2350,6 +2358,7 @@
 
         _renderResults(result) {
             const options = result.options || [];
+            document.getElementById('gen-collection-summary')?.classList.add('hidden');  // clear any prior collection summary
 
             // Switch to "Post-Processing" mode now that results exist
             const labelEl = document.getElementById('gen-processing-label');
@@ -3145,6 +3154,11 @@
             const knobs = design.knobs || {};
             if (btn) btn.disabled = true;
             this._generating = true;
+            this._lastCollection = null;
+            // Fresh run: clear any prior collection summary + show the loading state.
+            document.getElementById('gen-collection-summary')?.classList.add('hidden');
+            document.getElementById('gen-placeholder')?.classList.add('hidden');
+            document.getElementById('gen-loading')?.classList.remove('hidden');
             try {
                 window.Telemetry?.track?.('collection_generation_started', { batches: (design.roster || []).length });
                 await API.collections.generateStream({
@@ -3162,16 +3176,51 @@
                         window.showToast && evt.type === 'batch_started' &&
                             window.showToast(`${t('artsmoker.ui.collection.generating')} ${done}/${tot}`, 'info');
                     }
+                    if (evt.type === 'collection_complete') {
+                        this._lastCollection = {
+                            id: evt.collection_id || design.collectionId,
+                            name: design.name || 'Collection',
+                            done: evt.completed_batches ?? (design.roster || []).length,
+                            total: evt.total_batches ?? (design.roster || []).length,
+                        };
+                    }
                 });
                 window.showToast?.(t('artsmoker.ui.collection.generating').replace('…', '') + ' ✓', 'success');
-                if (location.hash !== '#gallery') location.hash = '#gallery';
+                // A collection lands in the Gallery, not the single-asset preview.
+                // Show a completion summary here (with a way in) instead of silently
+                // leaving the preview empty or yanking the user to the Gallery.
+                this._showCollectionSummary(this._lastCollection, knobs);
                 setTimeout(() => window.Gallery?.refresh?.(), 200);
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
+                document.getElementById('gen-loading')?.classList.add('hidden');
+                document.getElementById('gen-placeholder')?.classList.remove('hidden');
             } finally {
                 this._generating = false;
                 if (btn) btn.disabled = false;
             }
+        },
+
+        /** Show the collection-completion summary in the preview area (a set lands
+         *  in the Gallery, so the single-asset preview would otherwise be empty). */
+        _showCollectionSummary(info, knobs) {
+            document.getElementById('gen-loading')?.classList.add('hidden');
+            document.getElementById('gen-placeholder')?.classList.add('hidden');
+            document.getElementById('gen-result-img')?.classList.add('hidden');
+            const box = document.getElementById('gen-collection-summary');
+            if (!box || !info) { document.getElementById('gen-placeholder')?.classList.remove('hidden'); return; }
+            const O = knobs.options || 3, V = knobs.variations || 2;
+            const title = document.getElementById('gen-collection-summary-title');
+            const sub = document.getElementById('gen-collection-summary-sub');
+            const btn = document.getElementById('gen-collection-view');
+            if (title) title.textContent = t('artsmoker.ui.collection.generated_title', { name: info.name });
+            if (sub) sub.textContent = t('artsmoker.ui.collection.generated_sub',
+                { done: info.done, total: info.total, images: info.done * O * V });
+            box.classList.remove('hidden');
+            if (btn) btn.onclick = () => {
+                if (info.id && window.CollectionAssetViewer) window.CollectionAssetViewer.open(info.id);
+                else location.hash = '#gallery';
+            };
         },
 
         /** Seed helpers. The base seed is user-visible (next to Options ×

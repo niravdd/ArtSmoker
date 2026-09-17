@@ -176,13 +176,62 @@
         _openBatch(batchId) {
             const entry = (this._data.batches || []).find(x => (x.roster_entry || {}).batch_id === batchId);
             const batch = entry && entry.batch;
-            if (!batch || !batch.options) return;
-            // Flatten this Batch's options × variations into a gallery-item list so
-            // the existing AssetViewer's prev/next walks the whole Batch.
-            const list = [];
-            batch.options.forEach((o) => (o.variants || []).forEach((v) => list.push({ id: v.id, prompt: o.enhanced_prompt })));
-            if (!list.length) return;
-            window.AssetViewer?.open(list[0], list, 0);
+            if (!batch || !(batch.options || []).length) return;
+            // Drill into a batch-DETAIL view (SPEC §18.8) that shows the whole
+            // options × variations grid — like the Image Studio result view — instead
+            // of opening a single image with no way to reach the siblings.
+            this._batchDetail = { batch, name: (entry.roster_entry || {}).name || batch.batch_id || '', sel: { o: 0, v: 0 } };
+            this._renderBatchDetail();
+        },
+
+        /** Batch detail: a large preview + every option with its variation thumbnails
+         *  (click a thumb to switch the preview; click the preview for the full viewer). */
+        _renderBatchDetail() {
+            const bd = this._batchDetail;
+            const body = document.getElementById('cv-body');
+            if (!bd || !body) return;
+            const opts = bd.batch.options || [];
+            const cb = this._data.summary?.updated_at || '';
+            // Flat list (option-major) for the full AssetViewer's prev/next.
+            const flat = [];
+            opts.forEach((o) => (o.variants || []).forEach((v) => flat.push({ id: v.id, prompt: o.enhanced_prompt })));
+            const selVariant = (opts[bd.sel.o]?.variants || [])[bd.sel.v] || flat[0];
+            const selId = selVariant && selVariant.id;
+            // nosemgrep
+            body.innerHTML = html`
+                <div class="mb-3 flex items-center gap-2">
+                    <button id="cv-bd-back" class="btn btn-xs bg-brand-bg border border-brand-border">← ${t('collection.back_to_set')}</button>
+                    <h3 class="text-sm font-semibold truncate">${bd.name}</h3>
+                </div>
+                <div class="bg-brand-bg rounded-lg flex items-center justify-center overflow-hidden mb-3 p-2" style="max-height:45vh">
+                    ${selId
+                        ? html`<img id="cv-bd-preview" src="/api/gallery/${selId}/png?t=${cb}" class="max-w-full object-contain cursor-pointer rounded" style="max-height:42vh" title="${t('collection.open_full')}" alt="${bd.name}" />`
+                        : html`<span class="text-brand-text-muted text-xs py-10">${t('collection.empty')}</span>`}
+                </div>
+                <div class="space-y-3">
+                    ${opts.map((o, oi) => html`
+                        <div>
+                            <div class="text-[11px] font-semibold text-brand-text-muted mb-1">${t('collection.option_label')} ${oi + 1}</div>
+                            <div class="flex flex-wrap gap-2">
+                                ${(o.variants || []).map((v, vi) => html`
+                                    <button class="cv-bd-cell relative rounded-md overflow-hidden border ${oi === bd.sel.o && vi === bd.sel.v ? 'border-cyan-400 ring-1 ring-cyan-400' : 'border-brand-border hover:border-brand-text-muted'}" data-o="${oi}" data-v="${vi}" style="width:76px;height:76px" title="${t('collection.option_label')} ${oi + 1} · ${t('collection.variation_label')} ${vi + 1}">
+                                        <img src="/api/gallery/${v.id}/png?t=${cb}" class="w-full h-full object-cover" alt="" loading="lazy" />
+                                        <span class="absolute bottom-0 right-0 text-[9px] px-1 bg-black/70 text-white rounded-tl">v${vi + 1}</span>
+                                    </button>`)}
+                            </div>
+                        </div>`)}
+                </div>`;
+            document.getElementById('cv-bd-back').addEventListener('click', () => this._render(this._data));
+            document.getElementById('cv-bd-preview')?.addEventListener('click', () => {
+                const idx = Math.max(0, flat.findIndex(x => x.id === selId));
+                window.AssetViewer?.open(flat[idx], flat, idx);
+            });
+            body.querySelectorAll('.cv-bd-cell').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    bd.sel = { o: +btn.dataset.o, v: +btn.dataset.v };
+                    this._renderBatchDetail();
+                });
+            });
         },
 
         async _delete(collectionId) {

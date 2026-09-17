@@ -661,6 +661,21 @@
                 const cover = item.cover && item.cover.thumb_path
                     ? item.cover.thumb_path + `?t=${item.updated_at || ''}` : null;
                 const count = item.batch_count || (item.batches ? item.batches.length : 0);
+                // Content-shape label (SPEC §18.8): "16 characters · 3×2 · 96 images".
+                // asset word from a small i18n map (collections are character/game_asset
+                // only); breakdown + total when options×variations are known.
+                const O = item.num_options, V = item.num_variations;
+                let _asset = '';
+                if (item.asset_type) {
+                    const w = t('artsmoker.ui.collection.card_assets_' + item.asset_type);
+                    if (w && w.indexOf('.') === -1) _asset = ' ' + w;   // skip a missing-key echo
+                }
+                const colSummary = (O && V)
+                    ? `${count}${_asset} · ${O}×${V} · ${t('artsmoker.ui.collection.images_count', { count: count * O * V })}`
+                    : t('artsmoker.ui.collection.card_count', { count });
+                const colSummaryHint = (O && V)
+                    ? t('artsmoker.ui.collection.card_summary_hint', { count, o: O, v: V })
+                    : '';
                 return html`
                     <div class="gallery-card card cursor-pointer overflow-hidden group" data-id="${item.id}" data-media="collection">
                         <div class="img-hover-zoom aspect-[4/3] bg-brand-bg flex items-center justify-center overflow-hidden relative">
@@ -671,7 +686,7 @@
                         </div>
                         <div class="p-2">
                             <p class="text-xs font-medium truncate">${item.name || 'Collection'}</p>
-                            <p class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.collection.card_count', { count })}</p>
+                            <p class="text-[10px] text-brand-text-muted truncate" title="${colSummaryHint}">${colSummary}</p>
                         </div>
                     </div>`;
             }

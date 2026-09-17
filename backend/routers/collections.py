@@ -61,6 +61,24 @@ def _is_moderation_error(text: str | None) -> bool:
     return any(s in t for s in _MODERATION_SIGNALS)
 
 
+def _negative_from_art_direction(art_direction: dict | None) -> str:
+    """Pull the 'Negative:' directive out of the (flat) art-direction text so the
+    WHOLE collection generates with it as the negative prompt.
+
+    Collections feed each Batch's prompt via saved_concept_prompts, which bypasses
+    refine_prompt — so nothing else sets a negative, and the set's 'avoid' guidance
+    (e.g. a non-photorealistic brief → 'photorealistic, photograph, 3d render') was
+    only living in the positive text, which the model happily ignores. The art
+    direction already carries a structured `negative` field; art_direction_to_text
+    renders it as a 'Negative: …' line, so parse it back out here."""
+    text = (art_direction or {}).get("text", "") or ""
+    for line in text.splitlines():
+        s = line.strip()
+        if s.lower().startswith("negative:"):
+            return s.split(":", 1)[1].strip()
+    return ""
+
+
 def _load_style_profile(style_id: str | None):
     if not style_id:
         return None
@@ -465,6 +483,9 @@ async def generate_collection(body: GenerateCollectionRequest):
     hero_mode = (body.cohesion_mode == "hero" and len(roster) > 1)
     design_cost = round(body.design_cost, 6)
     proj_total = record["cost_estimate"].get("projected_generation_cost")
+    # Set-wide negative (e.g. anti-photorealism) from the art direction — applied to
+    # every Batch so a "not photorealistic" brief actually reaches the model (§18.4).
+    collection_negative = _negative_from_art_direction(body.art_direction)
 
     def _hero_reference_b64(hero_batch_id: str) -> str | None:
         """Base64 of the hero Batch's representative image, to style-anchor the rest."""
@@ -508,6 +529,7 @@ async def generate_collection(body: GenerateCollectionRequest):
                 num_options=n_opts,
                 num_variations=n_vars,
                 seed=base_seed + idx * n_opts * n_vars,
+                negative_prompt=collection_negative,
             )
             # Cohesion tier 2 (hero-anchor): the FIRST Batch renders normally; every
             # later Batch is style-anchored to the hero via the existing
@@ -664,6 +686,9 @@ async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
         image_model=image_model, num_options=n_opts, num_variations=n_vars,
         seed=base_seed + idx * n_opts * n_vars,
         saved_concept_prompts={image_model: [prompt] * n_opts},
+        # Same set-wide negative (e.g. anti-photorealism) the initial run used.
+        negative_prompt=_negative_from_art_direction(
+            rec.get("art_direction_structured") or {"text": rec.get("overarching_art_direction", "")}),
     )
 
     def _mark_failed(emsg, blocked):
