@@ -313,6 +313,9 @@ async def get_batch(batch_id: str):
             "model_used": meta.get("image_model"),
             "model_label": meta.get("model_label"),
             "seed": meta.get("seed"),
+            # Per-Job 3D indicator (SPEC §18 Phase N) — any mesh in the Job dir so the
+            # collection batch-detail can tag exactly which jobs have a 3D model.
+            "has_3d": any(store.generated_asset_dir(meta["id"]).glob("*.glb")),
         }
         # Carry async job info so frontend shows proper status
         if async_status and async_status != "complete":

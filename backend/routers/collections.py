@@ -797,10 +797,24 @@ def _resolve_batch_source(collection_id: str, batch_id: str):
     return rep["id"], version
 
 
+class Collection3DRequest(BaseModel):
+    # Explicit (job, version) targets to convert to 3D — the client expands the
+    # user's selection (whole batches / specific jobs / specific versions) into
+    # these. Empty → fall back to every Batch's representative (legacy behavior).
+    targets: list[dict] = []            # [{asset_id, version}]
+    # 3D settings applied UNIFORMLY to every target (a subset of the AssetViewer's
+    # 3D Model tab: pipeline/model_key, quality, steps, guidance, seed, faces,
+    # octree_depth, texture_backend/size, save_as, …). Uniform → the whole
+    # collection is meshed consistently.
+    settings: dict = {}
+
+
 @router.post("/{collection_id}/generate-3d")
-async def generate_collection_3d(collection_id: str, model_key: str | None = None):
-    """3D the whole set: submit an image-to-3D job for each Batch's selected image,
-    reusing the existing /api/generate/3d pipeline. Best-effort per Batch."""
+async def generate_collection_3d(collection_id: str, body: Collection3DRequest | None = None):
+    """Convert selected jobs (or the whole collection) to 3D, reusing the existing
+    per-asset /api/generate/3d pipeline UNCHANGED — one submission per (job,version)
+    target, all with the SAME user-chosen pipeline + settings (SPEC §18 Phase N).
+    Best-effort per target; the collection index refreshes so 3D tags appear."""
     from backend.services import collection_store as cstore
     from backend.routers.generate_3d import generate_3d, ThreeDGenerateRequest
 
@@ -808,29 +822,38 @@ async def generate_collection_3d(collection_id: str, model_key: str | None = Non
     if rec is None:
         raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
 
+    body = body or Collection3DRequest()
+    # Sanitize the shared settings to valid ThreeDGenerateRequest fields (never let
+    # the caller override the per-target asset_id/version).
+    allowed = set(ThreeDGenerateRequest.model_fields) - {"asset_id", "version"}
+    settings = {k: v for k, v in (body.settings or {}).items() if k in allowed and v is not None}
+
+    targets = [{"asset_id": t["asset_id"], "version": int(t.get("version") or 1)}
+               for t in (body.targets or []) if t.get("asset_id")]
+    if not targets:
+        # Legacy fallback: every Batch's representative image at its selected version.
+        for entry in rec.get("roster", []):
+            bid = entry.get("batch_id")
+            if not bid:
+                continue
+            asset_id, version = _resolve_batch_source(collection_id, bid)
+            if asset_id:
+                targets.append({"asset_id": asset_id, "version": version})
+    if not targets:
+        raise HTTPException(400, detail="No jobs selected (or generated) to convert to 3D.")
+
     submitted, failures = [], []
-    for entry in rec.get("roster", []):
-        bid = entry.get("batch_id")
-        if not bid:
-            continue
-        asset_id, version = _resolve_batch_source(collection_id, bid)
-        if not asset_id:
-            failures.append({"batch": entry.get("name"), "error": "no image"})
-            continue
+    for tg in targets:
+        aid, ver = tg["asset_id"], tg["version"]
         try:
-            res = await generate_3d(ThreeDGenerateRequest(asset_id=asset_id, version=version, model_key=model_key))
-            job_id = res.get("job_id") if isinstance(res, dict) else None
-            def _set(rc, _b=bid, _a=asset_id, _v=version, _j=job_id):
-                e = next((x for x in rc.get("roster", []) if x.get("batch_id") == _b), None)
-                if e is not None:
-                    e["three_d"] = {"source_version": _v, "source_asset_id": _a, "job_id": _j, "status": "submitted"}
-            cstore.update_collection(collection_id, _set)
-            submitted.append({"batch": entry.get("name"), "asset_id": asset_id, "version": version, "job_id": job_id})
+            res = await generate_3d(ThreeDGenerateRequest(asset_id=aid, version=ver, **settings))
+            submitted.append({"asset_id": aid, "version": ver,
+                              "job_id": res.get("job_id") if isinstance(res, dict) else None})
         except HTTPException as he:
-            failures.append({"batch": entry.get("name"), "error": he.detail})
+            failures.append({"asset_id": aid, "error": he.detail})
         except Exception as exc:
-            logger.exception("Collection 3D submit failed for batch %s", bid)
-            failures.append({"batch": entry.get("name"), "error": str(exc)})
+            logger.exception("Collection 3D submit failed for %s v%s", aid, ver)
+            failures.append({"asset_id": aid, "error": str(exc)})
 
     cstore.refresh_collection_summary(collection_id)
     try:
@@ -922,6 +945,104 @@ async def export_collection(collection_id: str, target: str = Query("generic"),
     except Exception as exc:
         logger.exception("Collection export failed")
         raise HTTPException(500, detail=f"Export failed: {exc}")
+
+
+# ── Downloads: 3D-mesh bundle + image bundle (SPEC §18 Phase N) ───────────────
+
+class CollectionDownloadRequest(BaseModel):
+    # Specific (job, version) targets; empty → ALL applicable jobs in the collection.
+    targets: list[dict] = []            # [{asset_id, version}]
+    fmt: str = "glb"                    # 3D download only: glb | fbx | usd
+    target: str = "generic"            # export engine target (Unreal/Unity/generic)
+
+
+def _all_member_targets(rec: dict) -> list[dict]:
+    """Every Job in the collection as {asset_id, version(current)}."""
+    from backend.services import collection_store as cstore
+    out = []
+    for entry in rec.get("roster", []):
+        bid = entry.get("batch_id")
+        if not bid:
+            continue
+        for j in cstore._member_jobs(bid):
+            out.append({"asset_id": j["id"], "version": int(j.get("current_version", 1) or 1)})
+    return out
+
+
+@router.post("/{collection_id}/download-3d")
+async def download_collection_3d(collection_id: str, body: CollectionDownloadRequest):
+    """Package the collection's 3D meshes into ONE zip — the selected (job,version)
+    targets, or every Job that HAS a mesh. Converts to the chosen format via the
+    headless-Blender path. Jobs without a mesh are skipped (SPEC §18 Phase N)."""
+    import tempfile, zipfile
+    from fastapi.responses import FileResponse
+    from backend.services import collection_store as cstore
+    from backend.services import mesh_export
+
+    rec = cstore.load_collection(collection_id)
+    if rec is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+    fmt = (body.fmt or "glb").lower()
+    if fmt not in ("glb", "fbx", "usd"):
+        raise HTTPException(400, detail="fmt must be glb, fbx, or usd.")
+    targets = [t for t in (body.targets or []) if t.get("asset_id")] or _all_member_targets(rec)
+
+    tmp = Path(tempfile.mkdtemp(prefix=f"coll3d_{collection_id[:8]}_"))
+    exported = []
+    for tg in targets:
+        aid, ver = tg["asset_id"], int(tg.get("version") or 1)
+        glb = _batch_default_glb(aid, ver)
+        if glb is None:
+            continue
+        try:
+            if fmt == "glb":
+                out = tmp / f"{aid}.glb"
+                out.write_bytes(glb.read_bytes())
+                exported.append(out)
+            else:
+                outs = mesh_export.convert_mesh(glb, {fmt: tmp / f"{aid}.{fmt}"}, target=body.target)
+                if fmt in outs:
+                    exported.append(Path(outs[fmt]))
+        except Exception as exc:
+            logger.warning("Collection 3D download: %s failed: %r", aid, exc)
+    if not exported:
+        raise HTTPException(400, detail="No 3D models to download yet. Generate 3D first.")
+    bundle = tmp / f"{(rec.get('name') or 'collection').replace(' ', '_')}_3d_{fmt}.zip"
+    with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in exported:
+            zf.write(f, arcname=f.name)
+    return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name)
+
+
+@router.post("/{collection_id}/download-images")
+async def download_collection_images(collection_id: str, body: CollectionDownloadRequest):
+    """Package the collection's IMAGES into ONE zip — the selected/current version
+    PNG of each Job (or the selected targets). This is 'Download Collection'."""
+    import tempfile, zipfile
+    from fastapi.responses import FileResponse
+    from backend.services import collection_store as cstore
+
+    rec = cstore.load_collection(collection_id)
+    if rec is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+    targets = [t for t in (body.targets or []) if t.get("asset_id")] or _all_member_targets(rec)
+
+    tmp = Path(tempfile.mkdtemp(prefix=f"collimg_{collection_id[:8]}_"))
+    added = []
+    for tg in targets:
+        aid, ver = tg["asset_id"], int(tg.get("version") or 1)
+        png = (store.get_generated_file_path(aid, f"asset_v{ver}.png")
+               or store.get_generated_file_path(aid, "asset.png"))
+        if png is None:
+            continue
+        added.append((aid, png))
+    if not added:
+        raise HTTPException(400, detail="No images to download.")
+    bundle = tmp / f"{(rec.get('name') or 'collection').replace(' ', '_')}_images.zip"
+    with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
+        for aid, png in added:
+            zf.write(str(png), arcname=f"{aid}.png")
+    return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name)
 
 
 # ── Versioning (SPEC §18 Phase M — per-Batch selected-version pointer) ────────

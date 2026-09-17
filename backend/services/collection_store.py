@@ -322,9 +322,11 @@ def _project_batch(entry: dict) -> dict:
     # (the existing 3D pipeline writes it there), OR a recorded roster three_d.
     three_d = entry.get("three_d") or {}
     has_3d = bool(three_d.get("status") == "complete")
-    if not has_3d and thumb_asset_id:
+    if not has_3d:
+        # A Batch counts as 3D if ANY of its Jobs has a mesh — the user can 3D
+        # individual jobs, not just the representative (SPEC §18 Phase N).
         try:
-            has_3d = any(store.generated_asset_dir(thumb_asset_id).glob("*.glb"))
+            has_3d = any(any(store.generated_asset_dir(j["id"]).glob("*.glb")) for j in jobs)
         except Exception:
             has_3d = False
 
