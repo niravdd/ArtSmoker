@@ -1612,6 +1612,7 @@
     "error": "문제가 발생했습니다. 다시 시도하세요.",
     "card_badge": "컬렉션",
     "card_count": "배치 {{count}}개",
+    "remove_bg_hint": "투명 컷아웃(바로 사용 가능); 끄면 배경 유지",
     "select_version": "버전 선택",
     "convert_3d": "3D로 변환",
     "pane_convert": "3D로 변환",

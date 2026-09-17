@@ -40,7 +40,7 @@
                 artDirection: { text: (opts.artDirectionText || '').trim() },
                 roster: [], designCost: opts.priorDesignCost || 0,
                 ledger: (opts.priorLedger || []).slice(), projected: null,
-                knobs: { count: null, options: 3, variations: 2, cohesion: 'prompt' },
+                knobs: { count: null, options: 3, variations: 2, cohesion: 'prompt', removeBg: true },
             };
             this._mount();
             if (!this._state.artDirection.text) { this._renderError(t('collection.error')); return; }
@@ -378,6 +378,11 @@
                     <div><label class="block text-[11px] mb-1">${t('collection.model_label')}</label>
                         <input class="input text-sm" value="${this._ctx.image_model}" disabled /></div>
                 </div>
+                <label class="flex items-center gap-2 text-[11px] text-brand-text-muted cursor-pointer select-none">
+                    <input id="cd-removebg" type="checkbox" class="rounded border-brand-border accent-cyan-500" ${s.knobs.removeBg ? 'checked' : ''} />
+                    <span>${typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.remove_bg') : 'Remove background'}</span>
+                    <span class="text-brand-text-muted/50">— ${t('collection.remove_bg_hint')}</span>
+                </label>
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-semibold uppercase tracking-wide text-brand-text-muted">${t('collection.roster_label')} (${s.roster.length})</h3>
                     <button id="cd-regen-all" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.regenerate_all')}</button>
@@ -405,6 +410,7 @@
             document.getElementById('cd-options').addEventListener('change', (ev) => { s.knobs.options = +ev.target.value; this._updateCost(); this._setBusy(false); });
             document.getElementById('cd-variations').addEventListener('change', (ev) => { s.knobs.variations = +ev.target.value; this._updateCost(); this._setBusy(false); });
             document.getElementById('cd-cohesion').addEventListener('change', (ev) => { s.knobs.cohesion = ev.target.value; });
+            document.getElementById('cd-removebg')?.addEventListener('change', (ev) => { s.knobs.removeBg = ev.target.checked; });
             s.roster.forEach((e, i) => {
                 document.getElementById(`cd-ad-${i}`)?.addEventListener('click', () => this._openArtDirectionController(i));
                 document.getElementById(`cd-lock-${i}`)?.addEventListener('click', () => { e.locked = !e.locked; this._render(); });

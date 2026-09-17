@@ -1612,6 +1612,7 @@
     "error": "問題が発生しました。もう一度お試しください。",
     "card_badge": "コレクション",
     "card_count": "{{count}} 個のバッチ",
+    "remove_bg_hint": "背景を除去した切り抜き（すぐ使える）。オフで背景を保持",
     "select_version": "バージョンを選択",
     "convert_3d": "3Dに変換",
     "pane_convert": "3Dに変換",

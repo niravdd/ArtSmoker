@@ -451,6 +451,7 @@ class GenerateCollectionRequest(BaseModel):
     num_variations: int = 2
     seed: int | None = None            # collection base seed (None → random per Batch)
     cohesion_mode: str = "prompt"      # "prompt" (default) | "hero" (hero-anchor)
+    remove_background: bool = True     # collections are asset sets → cut-outs by default
     llm_cost_ledger: list[dict] = []   # design-phase per-step costs (client-accrued)
     design_cost: float = 0.0           # total accrued LLM design cost
 
@@ -512,7 +513,8 @@ async def generate_collection(body: GenerateCollectionRequest):
         ) for e in roster],
         knobs={"N": len(roster), "O": n_opts, "V": n_vars, "models": [body.image_model],
                "cohesion_mode": body.cohesion_mode, "seed": base_seed,
-               "asset_type": asset_type.value},   # persisted so a per-Batch retry knows it
+               "asset_type": asset_type.value,
+               "remove_background": body.remove_background},   # persisted so a per-Batch retry matches
         status="generating",
     )
     record["art_direction_structured"] = body.art_direction or {}
@@ -584,6 +586,7 @@ async def generate_collection(body: GenerateCollectionRequest):
                 num_variations=n_vars,
                 seed=base_seed + idx * n_opts * n_vars,
                 negative_prompt=collection_negative,
+                remove_background=body.remove_background,
             )
             # Cohesion tier 2 (hero-anchor): the FIRST Batch renders normally; every
             # later Batch is style-anchored to the hero via the existing
@@ -743,6 +746,7 @@ async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
         # Same set-wide negative (e.g. anti-photorealism) the initial run used.
         negative_prompt=_negative_from_art_direction(
             rec.get("art_direction_structured") or {"text": rec.get("overarching_art_direction", "")}),
+        remove_background=knobs.get("remove_background", True),   # match the collection's setting
     )
 
     def _mark_failed(emsg, blocked):

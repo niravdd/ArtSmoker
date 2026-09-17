@@ -3176,6 +3176,8 @@
                     image_model: ctx.image_model, asset_type: ctx.asset_type, style_id: ctx.style_id,
                     num_options: knobs.options || 3, num_variations: knobs.variations || 2,
                     cohesion_mode: knobs.cohesion || 'prompt',
+                    remove_background: knobs.removeBg !== false,   // collections default to cut-outs
+
                     llm_cost_ledger: design.ledger || [], design_cost: design.designCost || 0,
                 }, (evt) => {
                     if (evt.type === 'batch_started' || evt.type === 'cost_update' || evt.type === 'collection_complete') {

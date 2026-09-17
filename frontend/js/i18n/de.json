@@ -1612,6 +1612,7 @@
     "error": "Etwas ist schiefgelaufen. Versuche es erneut.",
     "card_badge": "Kollektion",
     "card_count": "{{count}} Stapel",
+    "remove_bg_hint": "transparente Freisteller (einsatzbereit); aus behält die Hintergründe",
     "select_version": "Version auswählen",
     "convert_3d": "In 3D umwandeln",
     "pane_convert": "In 3D umwandeln",

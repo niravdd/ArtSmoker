@@ -374,16 +374,18 @@
                         ? html`<img id="cv-bd-preview" src="/api/gallery/${selId}/png?t=${cb}" class="max-w-full object-contain cursor-pointer rounded" style="max-height:42vh" title="${t('collection.open_full')}" alt="${bd.name}" />`
                         : html`<span class="text-brand-text-muted text-xs py-10">${t('collection.empty')}</span>`}
                 </div>
-                <div class="space-y-2">
+                <div class="flex flex-wrap gap-3 items-start">
                     ${opts.map((o, oi) => {
-                        // Each option = a bounded row: header (option # + the model that
-                        // produced it) then all its variations laid out in a row.
-                        const model = (o.variants && o.variants[0] && o.variants[0].model_label) || '';
+                        // Each option = a bounded box (side-by-side in a row, wrapping if
+                        // many): header (option # + the model that produced it) then all
+                        // its variations laid out in a row inside the box.
+                        const v0 = (o.variants && o.variants[0]) || {};
+                        const model = v0.model_label || v0.model_used || '';   // friendly name, else the key
                         return html`
-                        <div class="rounded-lg border border-brand-border bg-brand-bg/40 p-2">
+                        <div class="rounded-lg border border-brand-border bg-brand-bg/40 p-2 max-w-xs">
                             <div class="flex items-center gap-2 mb-1.5">
                                 <span class="text-[11px] font-semibold">${t('collection.option_label')} ${oi + 1}</span>
-                                ${model ? html`<span class="text-[10px] px-1.5 py-0.5 rounded bg-brand-surface border border-brand-border text-brand-text-muted">${model}</span>` : ''}
+                                ${model ? html`<span class="text-[10px] px-1.5 py-0.5 rounded bg-brand-surface border border-brand-border text-brand-text-muted" title="${t('collection.model_label')}">${model}</span>` : ''}
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 ${(o.variants || []).map((v, vi) => {
