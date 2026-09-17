@@ -255,6 +255,7 @@
         /** Collections (Set Generation) — SPEC §18 */
         collections: {
             artDirection(data) { return request('/api/collections/art-direction', { method: 'POST', body: data }); },
+            artDirectionFields(data) { return request('/api/collections/art-direction-fields', { method: 'POST', body: data }); },
             decompose(data) { return request('/api/collections/decompose', { method: 'POST', body: data }); },
             recomposeBatch(data) { return request('/api/collections/recompose-batch', { method: 'POST', body: data }); },
             regenerateRoster(data) { return request('/api/collections/regenerate-roster', { method: 'POST', body: data }); },

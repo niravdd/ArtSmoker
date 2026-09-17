@@ -373,6 +373,17 @@
     "text": "You maintain the SHARED art direction for a cohesive set of assets. The creative user refined the direction on ONE piece; lift the SET-WIDE-relevant parts of that refinement into the shared direction, WITHOUT narrowing the whole set to that single subject.\n\n=== CURRENT SHARED ART DIRECTION ===\n{art_direction}\n\n=== THE USER'S REFINED DIRECTION (from one piece) ===\n{batch_direction}\n\nReturn the UPDATED shared art direction as a JSON object. Keep the same kind of dynamic dimensions (short Title-Case keys), ALWAYS including \"Medium\", \"Palette\", \"Mood\", and \"Negative\". Blend in the refinement's style / medium / palette / mood / negative intent (the set-wide aspects) — do NOT copy subject-specific details that only apply to that one piece. Keep it broad enough to cover the whole set.\n\nReturn ONLY the JSON object.",
     "system_prompt": "You are a senior art director. You return STRICT JSON only — a single object, no prose, no markdown."
   },
+  "collection_art_direction_fields": {
+    "label": "Collection — Recommend Art-Direction Fields",
+    "description": "Recommends the genre-appropriate art-direction dimension labels for a brief (seeds the Step-2 scaffold + the generator's keys).",
+    "used_by": "Collections — Art Direction scaffold (SPEC §18.4)",
+    "variables": [
+      "{ask}"
+    ],
+    "model": "fast LLM",
+    "text": "For the following set brief, list the 5–8 ART-DIRECTION DIMENSIONS most useful to define a COHESIVE set of THIS kind — a fantasy roster, chess set, tarot deck, icon pack, environment/tileset, logo suite… each needs DIFFERENT dimensions.\n\n=== THE BRIEF ===\n\"{ask}\"\n\nALWAYS include: \"Medium\", \"Palette\", \"Mood\", \"Negative\".\nThen add the most relevant genre-specific dimensions — for example: a themed roster → \"World\", \"Era\"; physical pieces (chess, figurines) → \"Materials\", \"Silhouette\", \"Base\"; a card deck → \"Symbolism\", \"Border\"; icons/UI → \"Line & shape\", \"Grid & sizing\"; environments → \"Lighting\", \"Composition\".\n\nUse short Title-Case labels. Return ONLY a JSON array of the labels, e.g. [\"World\",\"Era\",\"Medium\",\"Palette\",\"Mood\",\"Materials\",\"Negative\"].",
+    "system_prompt": "You return STRICT JSON only — a single array of short strings, no prose, no markdown."
+  },
   "collection_roster": {
     "label": "Collection — Roster Fan-out",
     "description": "Invents the roster of distinct, in-theme pieces for a collection (recognizes canonical structures or invents).",

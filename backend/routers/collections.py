@@ -132,6 +132,14 @@ class ArtDirectionRequest(BaseModel):
     # checkbox no longer auto-generates). We then only MINT the collection_id and
     # echo the text back verbatim — no LLM call, no cost. Absent → generate it.
     art_direction: str | None = None
+    # The genre-appropriate dimension labels the Step-2 scaffold used — the generated
+    # art direction fills EXACTLY these, so the AI output matches what the user saw.
+    fields: list[str] | None = None
+
+
+class ArtDirectionFieldsRequest(BaseModel):
+    prompt: str
+    style_id: str | None = None
 
 
 class DecomposeCollectionRequest(BaseModel):
@@ -219,7 +227,10 @@ async def collection_art_direction(body: ArtDirectionRequest):
 
     reset_costs()
     try:
-        art = generate_art_direction(body.prompt, _load_style_profile(body.style_id))
+        # Fill EXACTLY the scaffold's recommended dimensions when the client sent
+        # them (so the AI output matches the guided fields the user saw); else the
+        # generator picks genre-appropriate dimensions itself.
+        art = generate_art_direction(body.prompt, _load_style_profile(body.style_id), body.fields)
         cost = round(get_total_cost(), 6)
         return {
             "collection_id": cstore.new_collection_id(),
@@ -233,6 +244,23 @@ async def collection_art_direction(body: ArtDirectionRequest):
         raise HTTPException(502, detail=f"Art direction failed: {exc}")
     finally:
         track_collection_art_direction_edited(cost_usd=get_total_cost())
+
+
+@router.post("/art-direction-fields")
+async def collection_art_direction_fields(body: ArtDirectionFieldsRequest):
+    """Recommend the genre-appropriate art-direction dimension LABELS for the Step-2
+    scaffold (SPEC §18.4). Cheap (labels only); the same labels are passed back to
+    /art-direction so the generated values fill exactly the guided fields."""
+    from backend.services.prompt_engineer import recommend_art_direction_fields
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+
+    reset_costs()
+    try:
+        fields = recommend_art_direction_fields(body.prompt, _load_style_profile(body.style_id))
+        return {"fields": fields, "cost": round(get_total_cost(), 6)}
+    except Exception as exc:
+        logger.exception("Art-direction field recommendation failed")
+        raise HTTPException(502, detail=f"Field recommendation failed: {exc}")
 
 
 @router.post("/decompose")

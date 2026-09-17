@@ -449,6 +449,24 @@ Return the UPDATED shared art direction as a JSON object. Keep the same kind of 
 Return ONLY the JSON object.""",
     },
 
+    "collection_art_direction_fields": {
+        "label": "Collection — Recommend Art-Direction Fields",
+        "description": "Recommends the genre-appropriate art-direction dimension labels for a brief (seeds the Step-2 scaffold + the generator's keys).",
+        "used_by": "Collections — Art Direction scaffold (SPEC §18.4)",
+        "variables": ["{ask}"],
+        "model": "fast LLM",
+        "system_prompt": "You return STRICT JSON only — a single array of short strings, no prose, no markdown.",
+        "text": """For the following set brief, list the 5–8 ART-DIRECTION DIMENSIONS most useful to define a COHESIVE set of THIS kind — a fantasy roster, chess set, tarot deck, icon pack, environment/tileset, logo suite… each needs DIFFERENT dimensions.
+
+=== THE BRIEF ===
+"{ask}"
+
+ALWAYS include: "Medium", "Palette", "Mood", "Negative".
+Then add the most relevant genre-specific dimensions — for example: a themed roster → "World", "Era"; physical pieces (chess, figurines) → "Materials", "Silhouette", "Base"; a card deck → "Symbolism", "Border"; icons/UI → "Line & shape", "Grid & sizing"; environments → "Lighting", "Composition".
+
+Use short Title-Case labels. Return ONLY a JSON array of the labels, e.g. ["World","Era","Medium","Palette","Mood","Materials","Negative"].""",
+    },
+
     "collection_roster": {
         "label": "Collection — Roster Fan-out",
         "description": "Invents the roster of distinct, in-theme pieces for a collection (recognizes canonical structures or invents).",

@@ -1612,6 +1612,7 @@
     "error": "Une erreur s'est produite. Réessayez.",
     "card_badge": "Collection",
     "card_count": "{{count}} lots",
+    "recommending_fields": "Recommandation des champs…",
     "ad_controller_title": "Contrôleur de direction artistique — {{name}}",
     "ad_recompose_batch": "Recomposer ce batch",
     "ad_lift_confirm": "Appliquer cette direction à tout l'ensemble ? Les batches déverrouillés se réalignent ; les verrouillés sont conservés.",

@@ -1612,6 +1612,7 @@
     "error": "Something went wrong. Try again.",
     "card_badge": "Collection",
     "card_count": "{{count}} batches",
+    "recommending_fields": "Recommending fields…",
     "ad_controller_title": "Art Direction Controller — {{name}}",
     "ad_recompose_batch": "Recompose this batch",
     "ad_lift_confirm": "Apply this direction to the whole set? Unlocked batches re-align to it; locked ones are kept.",

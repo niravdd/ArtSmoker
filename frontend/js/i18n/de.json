@@ -1612,6 +1612,7 @@
     "error": "Etwas ist schiefgelaufen. Versuche es erneut.",
     "card_badge": "Kollektion",
     "card_count": "{{count}} Stapel",
+    "recommending_fields": "Felder werden empfohlen…",
     "ad_controller_title": "Art-Direction-Controller — {{name}}",
     "ad_recompose_batch": "Diesen Batch neu zusammensetzen",
     "ad_lift_confirm": "Diese Richtung auf das ganze Set anwenden? Nicht gesperrte Batches richten sich neu aus; gesperrte bleiben erhalten.",

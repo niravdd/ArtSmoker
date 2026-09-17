@@ -1612,6 +1612,7 @@
     "error": "問題が発生しました。もう一度お試しください。",
     "card_badge": "コレクション",
     "card_count": "{{count}} 個のバッチ",
+    "recommending_fields": "フィールドを推奨中…",
     "ad_controller_title": "アートディレクション コントローラー — {{name}}",
     "ad_recompose_batch": "このバッチを再構成",
     "ad_lift_confirm": "この方向性をセット全体に適用しますか？ ロックされていないバッチが再調整され、ロック済みは保持されます。",

@@ -1612,6 +1612,7 @@
     "error": "Algo salió mal. Inténtalo de nuevo.",
     "card_badge": "Colección",
     "card_count": "{{count}} lotes",
+    "recommending_fields": "Recomendando campos…",
     "ad_controller_title": "Controlador de dirección de arte — {{name}}",
     "ad_recompose_batch": "Recomponer este batch",
     "ad_lift_confirm": "¿Aplicar esta dirección a todo el conjunto? Los batches desbloqueados se realinean; los bloqueados se conservan.",

@@ -1612,6 +1612,7 @@
     "error": "문제가 발생했습니다. 다시 시도하세요.",
     "card_badge": "컬렉션",
     "card_count": "배치 {{count}}개",
+    "recommending_fields": "필드 추천 중…",
     "ad_controller_title": "아트 디렉션 컨트롤러 — {{name}}",
     "ad_recompose_batch": "이 배치 재구성",
     "ad_lift_confirm": "이 방향을 세트 전체에 적용할까요? 잠기지 않은 배치는 재정렬되고 잠긴 배치는 유지됩니다.",

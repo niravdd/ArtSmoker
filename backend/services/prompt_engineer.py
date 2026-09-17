@@ -956,16 +956,50 @@ def art_direction_to_text(ad: dict) -> str:
     return "\n".join(lines)
 
 
-def generate_art_direction(ask: str, style_profile: StyleProfile | None = None) -> dict:
+def recommend_art_direction_fields(ask: str, style_profile: StyleProfile | None = None) -> list[str]:
+    """Recommend the genre-appropriate art-direction dimension LABELS for a brief —
+    used to seed the Step-2 scaffold ("World: ", "Era: ", …) AND as the exact keys
+    the generator fills, so the guided template and the AI output stay in sync
+    (SPEC §18.4). Fast + cheap: labels only, no values. Always includes the core
+    four; falls back to them if the LLM is unavailable."""
+    core = ["Medium", "Palette", "Mood", "Negative"]
+    try:
+        raw = invoke_llm(
+            get_template('collection_art_direction_fields').format(ask=ask),
+            system=get_system_prompt('collection_art_direction_fields'),
+            complexity="fast", max_tokens=200, temperature=0.4,
+        )
+        arr = _extract_json_array(raw) or []
+    except Exception as exc:
+        logger.warning("Art-direction field recommendation failed (%s) — using core fields", exc)
+        arr = []
+    fields, seen = [], set()
+    for x in arr:
+        s = str(x).strip()
+        if s and s.lower() not in seen:
+            seen.add(s.lower()); fields.append(s)
+    fields = fields[:8]
+    for c in core:                                   # guarantee the core dimensions
+        if c.lower() not in {f.lower() for f in fields}:
+            fields.append(c)
+    return fields
+
+
+def generate_art_direction(ask: str, style_profile: StyleProfile | None = None,
+                           fields: list[str] | None = None) -> dict:
     """Distill a set brief into ONE shared art direction (SPEC §18.4).
 
-    The model chooses the art-direction DIMENSIONS that fit THIS kind of set
-    (a fantasy roster, chess set, tarot deck, icon pack, environment set… all
-    differ) — driven dynamically by the prompt, not a fixed template — while always
-    including the core dimensions + a 'negative'. Returns the (dynamic) structured
-    dict plus a flat "text" key."""
+    The dimensions are genre-adaptive: either the exact `fields` the caller
+    recommended (so the AI output matches the Step-2 scaffold the user saw), or —
+    when none are given — the model chooses the dimensions that fit this kind of
+    set. Always includes the core dimensions + a 'negative'. Returns the (dynamic)
+    structured dict plus a flat "text" key."""
     style_section = _build_style_section(style_profile)
     prompt = get_template('collection_art_direction').format(ask=ask, style_section=style_section)
+    if fields:
+        prompt += ("\n\nIMPORTANT: use EXACTLY these dimensions as the JSON keys "
+                   "(short Title-Case), and no others — always include a \"Negative\": "
+                   + ", ".join(fields))
     raw = invoke_llm(
         prompt,
         system=get_system_prompt('collection_art_direction'),

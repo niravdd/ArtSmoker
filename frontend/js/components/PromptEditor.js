@@ -478,9 +478,21 @@
         isCollectionMode() { return !!this._collectionMode; }
         getCollectionDesign() { return this._collectionDesign || null; }
         getArtDirectionText() { return this._artDirectionEl ? this._artDirectionEl.value : ''; }
-        /** Whether Step 2 has any art-direction content (the box starts empty; the
-         *  fields are LLM-driven dynamically on Generate, not a fixed template). */
-        _artDirectionHasContent() { return !!this.getArtDirectionText().trim(); }
+        /** The blank guided scaffold from the recommended fields ("World: \nEra: …").
+         *  Fields are recommended dynamically per prompt (not a fixed template). */
+        _adScaffold() { return (this._adFields || []).map(f => f + ': ').join('\n'); }
+        /** Whether Step 2 holds REAL art direction vs just the empty guided scaffold.
+         *  Strips the recommended field labels; any remaining text = user content
+         *  (typed values or free-form). A bare scaffold → false. */
+        _artDirectionHasContent() {
+            let s = this.getArtDirectionText();
+            if (!s.trim()) return false;
+            (this._adFields || []).forEach(f => {
+                const esc = f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');   // labels may hold & [ ] etc.
+                s = s.replace(new RegExp('^\\s*' + esc + '\\s*:', 'gmi'), '');
+            });
+            return s.replace(/[\s:]/g, '').length > 0;
+        }
         /** Generate is allowed only once a design is accepted (§18.2) — which itself
          *  requires real art direction, so Generate can never run without it. */
         collectionReadyToGenerate() { return !!(this._collectionMode && this._collectionDesign); }
@@ -526,7 +538,7 @@
             };
         }
 
-        _enterCollectionMode() {
+        async _enterCollectionMode() {
             const prompt = this.getUserText().trim();
             if (!prompt) {
                 window.showToast?.(typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.enter_prompt') : 'Enter a prompt first', 'warning');
@@ -539,6 +551,7 @@
             this._collectionName = null;
             this._collectionDesignCost = 0;
             this._collectionLedger = [];
+            this._adFields = [];
             // Lock the checkbox (only Reset/refresh exits) + swap Step 2/3 surfaces.
             if (this._collectionCheckbox) this._collectionCheckbox.disabled = true;
             this._step2Single?.classList.add('hidden');
@@ -547,13 +560,26 @@
             this._step3Collection?.classList.remove('hidden');
             this._collectionSummaryEl?.classList.add('hidden');
             this._collectionStep3Hint?.classList.remove('hidden');
-            // Art Direction is ON-DEMAND: leave Step 2 empty (the placeholder hints
-            // the kind of dimensions to write). The fields are chosen DYNAMICALLY by
-            // the model per genre on Generate — we don't impose a fixed template. The
-            // user can also write their own freely. No auto-call → no typing race.
-            if (this._artDirectionEl) this._artDirectionEl.value = '';
             window.Telemetry?.track?.('collection_mode_enabled', {});
             this._notifyCollectionState();   // disables Generate until a design is accepted
+            // Recommend the genre-appropriate guiding fields for THIS prompt and seed
+            // Step 2 with a blank guided scaffold ("World: ", "Era: ", "Palette: ",
+            // "Negative: "). The SAME fields are passed to Generate so the AI fills
+            // exactly this structure. Labels only → fast + cheap; no content to race.
+            const el = this._artDirectionEl;
+            if (el) { el.value = ''; el.placeholder = (typeof t !== 'undefined' ? t('artsmoker.ui.collection.recommending_fields') : 'Recommending fields…'); }
+            try {
+                const ctx = this._collectionContext();
+                const r = await API.collections.artDirectionFields({ prompt, style_id: ctx.style_id });
+                this._adFields = (r.fields || []).filter(Boolean);
+            } catch (e) {
+                this._adFields = ['Medium', 'Palette', 'Mood', 'Negative'];   // core fallback
+            }
+            if (el) {
+                el.placeholder = (typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_placeholder') : 'Write the shared art direction, or click Generate.');
+                // Seed the scaffold only if the user hasn't typed anything meanwhile.
+                if (!el.value.trim() && this._adFields.length) el.value = this._adScaffold();
+            }
         }
 
         /** Step 2, on demand: draft the overarching Art Direction from the Step-1
@@ -578,7 +604,8 @@
             if (el) el.placeholder = typeof t !== 'undefined' ? t('artsmoker.ui.collection.decomposing') : 'Designing your set…';
             const ctx = this._collectionContext();
             try {
-                const r = await API.collections.artDirection({ prompt, ...ctx });
+                // Fill EXACTLY the recommended guiding fields the scaffold showed.
+                const r = await API.collections.artDirection({ prompt, fields: this._adFields, ...ctx });
                 this._collectionId = r.collection_id;
                 this._collectionName = r.name;
                 this._collectionDesignCost += (r.cost || 0);
