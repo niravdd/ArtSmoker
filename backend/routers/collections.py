@@ -11,6 +11,7 @@ Every design LLM round-trip is costed: reset_costs() at entry, a per-step ledger
 built from get_total_cost() deltas, and track_aux_llm_cost() in finally (§18.9).
 """
 
+import base64
 import json
 import logging
 import queue
@@ -167,11 +168,16 @@ class ArtDirectionRequest(BaseModel):
     # The genre-appropriate dimension labels the Step-2 scaffold used — the generated
     # art direction fills EXACTLY these, so the AI output matches what the user saw.
     fields: list[str] | None = None
+    # Image-Inspired collections (SPEC §18): b64 (or data-URL) reference image(s) whose
+    # LOOK drives the art direction — the vision model derives the set's aesthetic from
+    # them. Inspired-only (Match/Remix don't map to a multi-subject set). Empty → text.
+    reference_images: list[str] = []
 
 
 class ArtDirectionFieldsRequest(BaseModel):
     prompt: str
     style_id: str | None = None
+    reference_images: list[str] = []    # image-inspired scaffold: dimensions from the look
 
 
 class DecomposeCollectionRequest(BaseModel):
@@ -180,6 +186,7 @@ class DecomposeCollectionRequest(BaseModel):
     asset_type: str = "game_asset"
     style_id: str | None = None
     count: int | None = None            # None → infer natural count
+    reference_images: list[str] = []    # image-inspired: reference look drives the art direction
 
 
 class RecomposeBatchRequest(BaseModel):
@@ -208,6 +215,24 @@ class RecomposeAllRequest(BaseModel):
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _decode_ref_images(b64_list: list[str] | None) -> list[bytes]:
+    """Decode up to 3 client-supplied reference images (raw b64 OR a data-URL) to
+    bytes for the vision art-direction call. A bad/garbage entry is skipped, never
+    fatal — a broken image must not sink the whole design request (the service then
+    falls back to a text-only art direction)."""
+    out: list[bytes] = []
+    for s in (b64_list or [])[:3]:
+        if not s:
+            continue
+        try:
+            if s.strip().startswith("data:") and "," in s:
+                s = s.split(",", 1)[1]          # strip a data-URL prefix
+            out.append(base64.b64decode(s))
+        except Exception:
+            continue
+    return out
+
 
 def _gen_batch_prompts(roster: list[dict], art_direction_text: str, asset_type: AssetType,
                       image_model: str | None) -> None:
@@ -262,7 +287,8 @@ async def collection_art_direction(body: ArtDirectionRequest):
         # Fill EXACTLY the scaffold's recommended dimensions when the client sent
         # them (so the AI output matches the guided fields the user saw); else the
         # generator picks genre-appropriate dimensions itself.
-        art = generate_art_direction(body.prompt, _load_style_profile(body.style_id), body.fields)
+        art = generate_art_direction(body.prompt, _load_style_profile(body.style_id), body.fields,
+                                     reference_images=_decode_ref_images(body.reference_images))
         cost = round(get_total_cost(), 6)
         return {
             "collection_id": cstore.new_collection_id(),
@@ -288,7 +314,8 @@ async def collection_art_direction_fields(body: ArtDirectionFieldsRequest):
 
     reset_costs()
     try:
-        fields = recommend_art_direction_fields(body.prompt, _load_style_profile(body.style_id))
+        fields = recommend_art_direction_fields(body.prompt, _load_style_profile(body.style_id),
+                                               reference_images=_decode_ref_images(body.reference_images))
         return {"fields": fields, "cost": round(get_total_cost(), 6)}
     except Exception as exc:
         logger.exception("Art-direction field recommendation failed")
@@ -311,7 +338,8 @@ async def decompose_collection(body: DecomposeCollectionRequest):
         style_profile = _load_style_profile(body.style_id)
         asset_type = _asset_enum(body.asset_type)
 
-        art = generate_art_direction(body.prompt, style_profile)
+        art = generate_art_direction(body.prompt, style_profile,
+                                    reference_images=_decode_ref_images(body.reference_images))
         c1 = get_total_cost()
         ledger.append({"step": "art_direction", "cost": round(c1, 6)})
 

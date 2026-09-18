@@ -956,18 +956,46 @@ def art_direction_to_text(ad: dict) -> str:
     return "\n".join(lines)
 
 
-def recommend_art_direction_fields(ask: str, style_profile: StyleProfile | None = None) -> list[str]:
+def _fit_reference_images(reference_images: list[bytes] | None) -> list[bytes]:
+    """Size raw reference-image bytes for a Bedrock Converse vision call, reusing the
+    same plumbing as the single-asset "Inspired by the reference" path
+    (`generate_3d._fit_image_for_vision`, ≤5 MB each, ≤3 images). Returns [] on any
+    failure so callers transparently fall back to a text-only prompt — an
+    image-inspired collection must never crash the design step over a bad image."""
+    if not reference_images:
+        return []
+    try:
+        from backend.routers.generate_3d import _fit_image_for_vision
+        return [_fit_image_for_vision(b) for b in reference_images[:3] if b]
+    except Exception as exc:
+        logger.warning("Reference-image fit for art direction failed (%s) — text-only", exc)
+        return []
+
+
+def recommend_art_direction_fields(ask: str, style_profile: StyleProfile | None = None,
+                                   reference_images: list[bytes] | None = None) -> list[str]:
     """Recommend the genre-appropriate art-direction dimension LABELS for a brief —
     used to seed the Step-2 scaffold ("World: ", "Era: ", …) AND as the exact keys
     the generator fills, so the guided template and the AI output stay in sync
     (SPEC §18.4). Fast + cheap: labels only, no values. Always includes the core
-    four; falls back to them if the LLM is unavailable."""
+    four; falls back to them if the LLM is unavailable.
+
+    When `reference_images` are given (the Image-Inspired collection path) the call
+    goes to a VISION model so the recommended dimensions capture what makes the
+    supplied look distinctive (line/shading style, rendering technique, materials)."""
     core = ["Medium", "Palette", "Mood", "Negative"]
+    vision_imgs = _fit_reference_images(reference_images)
     try:
+        prompt = get_template('collection_art_direction_fields').format(ask=ask or "")
+        if vision_imgs:
+            prompt += ("\n\nThe user attached reference image(s) as the PRIMARY visual "
+                       "inspiration — pick dimensions that capture what makes THIS look "
+                       "distinctive (e.g. line & shading style, rendering technique, materials).")
         raw = invoke_llm(
-            get_template('collection_art_direction_fields').format(ask=ask),
+            prompt,
             system=get_system_prompt('collection_art_direction_fields'),
-            complexity="fast", max_tokens=200, temperature=0.4,
+            complexity=("complex" if vision_imgs else "fast"),
+            images=(vision_imgs or None), max_tokens=200, temperature=0.4,
         )
         arr = _extract_json_array(raw) or []
     except Exception as exc:
@@ -986,16 +1014,28 @@ def recommend_art_direction_fields(ask: str, style_profile: StyleProfile | None 
 
 
 def generate_art_direction(ask: str, style_profile: StyleProfile | None = None,
-                           fields: list[str] | None = None) -> dict:
+                           fields: list[str] | None = None,
+                           reference_images: list[bytes] | None = None) -> dict:
     """Distill a set brief into ONE shared art direction (SPEC §18.4).
 
     The dimensions are genre-adaptive: either the exact `fields` the caller
     recommended (so the AI output matches the Step-2 scaffold the user saw), or —
     when none are given — the model chooses the dimensions that fit this kind of
     set. Always includes the core dimensions + a 'negative'. Returns the (dynamic)
-    structured dict plus a flat "text" key."""
+    structured dict plus a flat "text" key.
+
+    When `reference_images` are given (the Image-Inspired collection path) the call
+    goes to a VISION model and the art direction is derived from what the images
+    SHOW (an artist's hand-drawn base, a mood board, …), with the brief refining
+    intent — so the rest of the set is generated in that supplied look."""
     style_section = _build_style_section(style_profile)
-    prompt = get_template('collection_art_direction').format(ask=ask, style_section=style_section)
+    vision_imgs = _fit_reference_images(reference_images)
+    prompt = get_template('collection_art_direction').format(ask=ask or "", style_section=style_section)
+    if vision_imgs:
+        prompt += ("\n\nThe user attached reference image(s) as the PRIMARY visual inspiration. "
+                   "Derive the art direction from what you SEE — medium, palette, mood, line & "
+                   "shading style, materials, rendering technique, overall aesthetic — using the "
+                   "brief above only to refine intent (it may be sparse). Let the images lead.")
     if fields:
         prompt += ("\n\nIMPORTANT: use EXACTLY these dimensions as the JSON keys "
                    "(short Title-Case), and no others — always include a \"Negative\": "
@@ -1003,7 +1043,8 @@ def generate_art_direction(ask: str, style_profile: StyleProfile | None = None,
     raw = invoke_llm(
         prompt,
         system=get_system_prompt('collection_art_direction'),
-        complexity="fast",
+        complexity=("complex" if vision_imgs else "fast"),
+        images=(vision_imgs or None),
         max_tokens=1500,
         temperature=0.7,
     )

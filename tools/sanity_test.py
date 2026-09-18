@@ -385,6 +385,19 @@ def _delete_json(base, path, timeout=60):
         return json.loads(r.read().decode())
 
 
+def _tiny_reference_png_b64():
+    """A small two-tone PNG to exercise the Image-Inspired art-direction VISION path
+    (the model just needs SOMETHING to describe). Returns raw b64 (no data-URL)."""
+    import io, base64
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (96, 96), (34, 40, 92))          # deep indigo ground
+    d = ImageDraw.Draw(img)
+    d.ellipse([20, 20, 76, 76], fill=(224, 176, 64), outline=(250, 240, 200), width=3)  # gold disc
+    d.rectangle([40, 40, 56, 88], fill=(180, 60, 70))       # crimson bar
+    buf = io.BytesIO(); img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 def run_collection(base, model, region, extra_models=None):
     """Collections (SPEC §18) FULL end-to-end regression on the given image model:
     decompose → estimate → recompose-batch → recompose-all → regenerate-roster
@@ -408,6 +421,25 @@ def run_collection(base, model, region, extra_models=None):
         if not dec.get("art_direction", {}).get("text") or not (dec.get("cost", 0) > 0):
             return False, "decompose missing art-direction/cost", cid
         ad = dec["art_direction"]["text"]; steps.append("decompose")
+
+        # 1b) IMAGE-INSPIRED art direction (SPEC §18 — the reference LOOK drives the
+        # art direction via a vision call). Real vision LLM: assert it returns a
+        # non-empty art direction AND booked cost (proves the vision path actually
+        # ran, not a text fallback). Mints an id only — writes nothing to clean up.
+        img_ai = post_json(base, "/api/collections/art-direction",
+                           {"prompt": "a matching set in this style", "asset_type": "game_asset",
+                            "image_model": mk, "reference_images": [_tiny_reference_png_b64()]},
+                           timeout=180)
+        if not (img_ai.get("art_direction", {}).get("text") or "").strip():
+            return False, "image-inspired art-direction returned empty text", cid
+        if not (img_ai.get("cost", 0) > 0):
+            return False, "image-inspired art-direction booked no cost (vision path didn't run)", cid
+        # And the guided-scaffold dimensions from the same reference image.
+        img_fields = post_json(base, "/api/collections/art-direction-fields",
+                              {"prompt": "", "reference_images": [_tiny_reference_png_b64()]}, timeout=120)
+        if not (img_fields.get("fields") and "Negative" in img_fields["fields"]):
+            return False, "image-inspired field scaffold missing core dimensions", cid
+        steps.append("image-inspired-AD")
 
         # 2) estimate — projected-cost math (batches × O × V × price)
         est = post_json(base, "/api/collections/estimate",
