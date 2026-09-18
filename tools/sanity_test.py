@@ -537,6 +537,46 @@ def run_collection(base, model, region, extra_models=None):
         else:
             steps.append("multi-model(n/a:1 enabled model)")
 
+        # 6c) IMAGE-INSPIRED generation with the reference ANCHOR (SPEC §18): a fresh
+        # 1-Batch collection whose art direction AND per-Batch render are driven by a
+        # reference image (cohesion_mode=reference). Assert it completes AND the record
+        # persisted the reference + image_inspired flag + reference cohesion — proving
+        # the anchor branch actually ran (not a silent text fallback). Own cid+cleanup.
+        cid3 = None
+        try:
+            ref_png = _tiny_reference_png_b64()
+            d3 = post_json(base, "/api/collections/decompose",
+                           {"prompt": "a small matching set in this style", "asset_type": "game_asset",
+                            "image_model": mk, "count": 1, "reference_images": [ref_png]}, timeout=180)
+            r3, cid3 = (d3.get("roster") or [])[:1], d3.get("collection_id")
+            if not r3 or not cid3:
+                return False, "image-inspired decompose returned no roster/cid", cid
+            ev3 = post_sse(base, "/api/collections/generate",
+                           {"collection_id": cid3, "name": d3.get("name", "Img Set"),
+                            "raw_ask": "a small matching set in this style",
+                            "art_direction": d3["art_direction"], "roster": r3,
+                            "image_model": mk, "asset_type": "game_asset",
+                            "num_options": 1, "num_variations": 1,
+                            "cohesion_mode": "reference", "reference_images": [ref_png],
+                            "llm_cost_ledger": d3.get("llm_cost_ledger", []), "design_cost": d3.get("cost", 0)},
+                           timeout=300)
+            c3 = next((e for e in ev3 if e.get("type") == "collection_complete"), None)
+            if c3 is None or c3.get("completed_batches") != 1:
+                return False, f"image-inspired generate did not complete 1 batch: {c3}", cid
+            full3 = get_json(base, f"/api/collections/{cid3}", timeout=30)
+            rec3 = full3.get("record", {})
+            if rec3.get("knobs", {}).get("cohesion_mode") != "reference":
+                return False, "image-inspired run did not persist reference cohesion", cid
+            if not rec3.get("reference_images") or not rec3.get("knobs", {}).get("image_inspired"):
+                return False, "image-inspired run did not persist the reference/flag (anchor branch skipped)", cid
+            steps.append("image-inspired-generate")
+        finally:
+            if cid3:
+                try:
+                    _delete_json(base, f"/api/collections/{cid3}?delete_assets=true")
+                except Exception:
+                    pass
+
         # 7) Gallery fast-path: one card w/ cover, batch_count, per-Batch versions field
         card = next((c for c in get_json(base, "/api/collections", timeout=30).get("collections", [])
                      if c.get("collection_id") == cid), None)

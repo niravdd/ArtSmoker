@@ -234,6 +234,21 @@ def _decode_ref_images(b64_list: list[str] | None) -> list[bytes]:
     return out
 
 
+def _load_collection_ref_b64(collection_id: str, rec: dict) -> str | None:
+    """Load the first persisted image-inspired reference for a collection as clean
+    b64 (used by a per-Batch retry of a reference-anchored set so it re-anchors to
+    the SAME image). Returns None if none were persisted / the file is gone."""
+    from backend.services import collection_store as cstore
+    for fn in (rec.get("reference_images") or []):
+        p = cstore.collection_dir(collection_id) / fn
+        if p.exists():
+            try:
+                return base64.b64encode(p.read_bytes()).decode("ascii")
+            except OSError:
+                continue
+    return None
+
+
 def _gen_batch_prompts(roster: list[dict], art_direction_text: str, asset_type: AssetType,
                       image_model: str | None) -> None:
     """Fill each roster entry's `model_agnostic_prompt` in place, in parallel,
@@ -513,7 +528,8 @@ class GenerateCollectionRequest(BaseModel):
     num_options: int = 3
     num_variations: int = 2
     seed: int | None = None            # collection base seed (None → random per Batch)
-    cohesion_mode: str = "prompt"      # "prompt" (default) | "hero" (hero-anchor)
+    cohesion_mode: str = "prompt"      # "prompt" (default) | "hero" (hero-anchor) | "reference" (image-inspired anchor)
+    reference_images: list[str] = []   # image-inspired: b64/data-URL image(s) that anchor every Batch's look
     remove_background: bool = True     # collections are asset sets → cut-outs by default
     llm_cost_ledger: list[dict] = []   # design-phase per-step costs (client-accrued)
     design_cost: float = 0.0           # total accrued LLM design cost
@@ -572,6 +588,27 @@ async def generate_collection(body: GenerateCollectionRequest):
     multi = len(models) > 1
     base_seed = body.seed if body.seed is not None else random.randint(0, _SEED_MAX - len(roster) * n_opts * n_vars)
 
+    # Image-Inspired anchor: when the set was inspired by reference image(s) AND the
+    # user chose "reference" cohesion, visually anchor EVERY Batch to the supplied
+    # image — reusing the single-asset "inspired" path (vision fuses the reference
+    # look with each subject's prompt). Single-model only (like hero-anchor; the
+    # all-models engine's own reference handling isn't composed here), so a
+    # multi-model set falls back to art-direction-only — the reference still shaped
+    # the shared art-direction text upstream. Persist the image(s) so a per-Batch
+    # retry re-anchors identically (and as provenance for what inspired the set).
+    ref_anchor_imgs = _decode_ref_images(body.reference_images)
+    reference_anchor = bool(ref_anchor_imgs) and body.cohesion_mode == "reference" and not multi
+    anchor_ref_b64 = base64.b64encode(ref_anchor_imgs[0]).decode("ascii") if reference_anchor else None
+    saved_refs: list[str] = []
+    if ref_anchor_imgs:
+        cdir = cstore.collection_dir(cid)
+        for i, b in enumerate(ref_anchor_imgs):
+            try:
+                (cdir / f"ref_{i}.png").write_bytes(b)
+                saved_refs.append(f"ref_{i}.png")
+            except OSError:
+                logger.warning("Collection %s: could not persist reference image %d", cid, i)
+
     # Write the master record at generation start (SPEC §18.2 — no pre-gen persistence).
     record = cstore.new_collection_record(
         collection_id=cid, name=body.name, raw_ask=body.raw_ask,
@@ -583,10 +620,12 @@ async def generate_collection(body: GenerateCollectionRequest):
         knobs={"N": len(roster), "O": n_opts, "V": n_vars, "models": models,
                "cohesion_mode": body.cohesion_mode, "seed": base_seed,
                "asset_type": asset_type.value,
+               "image_inspired": bool(saved_refs),   # so a retry knows to re-anchor
                "remove_background": body.remove_background},   # persisted so a per-Batch retry matches
         status="generating",
     )
     record["art_direction_structured"] = body.art_direction or {}
+    record["reference_images"] = saved_refs   # persisted filenames (relative to the collection dir)
     # Persist the design-phase LLM cost ledger (SPEC §18.9) + a full cost estimate
     # (design + projected generation) so a job's TOTAL cost is auditable later.
     record["llm_cost_ledger"] = list(body.llm_cost_ledger or [])
@@ -668,6 +707,13 @@ async def generate_collection(body: GenerateCollectionRequest):
                 sub.all_models = True
                 sub.selected_models = models
                 sub.saved_concept_prompts = {m: [prompt] * n_opts for m in models}
+            # Image-Inspired anchor: EVERY Batch (from the first) is anchored to the
+            # user's supplied reference image via the "inspired" path — vision fuses
+            # the reference look with this subject's prompt so the whole set adheres
+            # to the supplied aesthetic (e.g. an artist's hand-drawn base).
+            elif reference_anchor and anchor_ref_b64:
+                sub.reference_images = [anchor_ref_b64]
+                sub.reference_mode = "inspired"
             # Cohesion tier 2 (hero-anchor): the FIRST Batch renders normally; every
             # later Batch is style-anchored to the hero via the existing
             # reference-guided "inspired" path (vision fuses hero style + this
@@ -833,6 +879,8 @@ async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
             rec.get("art_direction_structured") or {"text": rec.get("overarching_art_direction", "")}),
         remove_background=knobs.get("remove_background", True),   # match the collection's setting
     )
+    # Reproduce the SAME cohesion shape as the original run.
+    ref_b64 = _load_collection_ref_b64(collection_id, rec) if knobs.get("cohesion_mode") == "reference" else None
     if multi:
         # Mirror the main /generate loop's multi-model branch (all-models engine,
         # verbatim saved prompt per model, one batch_id whose flat options carry
@@ -840,6 +888,11 @@ async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
         sub.all_models = True
         sub.selected_models = models
         sub.saved_concept_prompts = {m: [prompt] * n_opts for m in models}
+    elif ref_b64:
+        # Image-Inspired anchor (single-model): re-anchor to the SAME persisted
+        # reference image so the retried Batch matches the rest of the set.
+        sub.reference_images = [ref_b64]
+        sub.reference_mode = "inspired"
     else:
         sub.saved_concept_prompts = {image_model: [prompt] * n_opts}
 
