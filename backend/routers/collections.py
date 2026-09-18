@@ -255,6 +255,38 @@ def _load_collection_ref_b64(collection_id: str, rec: dict) -> str | None:
     return None
 
 
+_ASYNC_POLL_INTERVAL_S = 5   # how often the collection loop re-scans a Batch's async Jobs
+
+
+def _await_batch_terminal(batch_id: str, timeout_s: int, on_wait=None) -> list[dict]:
+    """Return a Batch's Job metadatas once none is still async-'pending' — i.e. every
+    Job has reached a terminal state. Sync Bedrock Jobs are terminal on the first
+    scan → returns at once (no wait); ASYNC self-hosted Jobs land later via the
+    background poller, so poll (every _ASYNC_POLL_INTERVAL_S) up to timeout_s. On
+    timeout, returns whatever landed so the caller can judge + move on (the
+    async-complete hook still refreshes the set when stragglers arrive). A Batch with
+    NO Jobs (sync moderation cleanup) has no pending → already terminal, no wait.
+    `on_wait(waited_seconds)` fires once per poll iteration for an SSE heartbeat."""
+    import time as _t
+    from backend.services import collection_store as cstore
+    jobs = cstore._member_jobs(batch_id)
+    if not any(m.get("async_status") == "pending" for m in jobs):
+        return jobs
+    start = _t.time()
+    deadline = start + max(0, timeout_s)
+    while _t.time() < deadline:
+        if on_wait:
+            try:
+                on_wait(int(_t.time() - start))
+            except Exception:
+                pass
+        _t.sleep(_ASYNC_POLL_INTERVAL_S)
+        jobs = cstore._member_jobs(batch_id)
+        if not any(m.get("async_status") == "pending" for m in jobs):
+            return jobs
+    return jobs
+
+
 def _gen_batch_prompts(roster: list[dict], art_direction_text: str, asset_type: AssetType,
                       image_model: str | None) -> None:
     """Fill each roster entry's `model_agnostic_prompt` in place, in parallel,
@@ -764,13 +796,20 @@ async def generate_collection(body: GenerateCollectionRequest):
                 result = _run_generation(sub, cb)
                 bid = result.id
                 gen_cost += get_total_cost()          # _run_generation reset+tracked this Batch
-                # Moderation on a raw prompt CLEANS UP + RETURNS an empty result (it does
-                # NOT raise), so a Batch can "succeed" with zero images. Treat no-images
-                # as blocked, not complete. (Assumes the Batch's Jobs are on disk by the
-                # time _run_generation returns — true for the sync Bedrock SD models
-                # collections use today; an async self-hosted model would need a
-                # completion wait here rather than an immediate member scan.)
-                jobs_landed = len(cstore._member_jobs(bid)) > 0
+                # Judge the Batch once its Jobs are TERMINAL. A sync Bedrock Batch is
+                # already terminal on return; an ASYNC self-hosted Batch submitted its
+                # Jobs and returned before they landed — so wait for the background
+                # poller to finalize them (up to the configured timeout), emitting a
+                # "waiting on async" heartbeat, before judging. Moderation on a raw
+                # prompt CLEANS UP + RETURNS an empty result (no raise) → no Jobs → not
+                # a wait, just blocked. On timeout we move on; the async-complete hook
+                # still refreshes the set when the image finally lands.
+                jobs = _await_batch_terminal(
+                    bid, settings.collection_async_batch_timeout_s,
+                    on_wait=lambda waited: event_queue.put({
+                        "type": "batch_pending", "batch_index": idx, "batch_name": name,
+                        "waited_seconds": waited, "total_batches": total_batches}))
+                jobs_landed = any(m.get("async_status") in (None, "complete") for m in jobs)
             except Exception as exc:
                 logger.exception("Collection %s batch %d (%s) failed", cid, idx, name)
                 emsg = str(exc)

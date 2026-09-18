@@ -114,6 +114,14 @@ class Settings(BaseSettings):
     image_retry_base_delay: float = 2.0   # seconds; exponential (2, 4, 8, 16, …)
     image_retry_max_delay: float = 30.0   # per-attempt delay cap
 
+    # Collections on an ASYNC self-hosted model: the per-Batch generate submits and
+    # returns before the image lands (the background poller finalizes it later). The
+    # collection loop WAITS this long for a Batch's Jobs to reach a terminal state
+    # before judging it, so async models work in a set. On timeout the loop moves on;
+    # the async-complete hook still refreshes the set when the image lands. Sync
+    # Bedrock Batches are already terminal → no wait. Env: ARTSMOKER_COLLECTION_ASYNC_BATCH_TIMEOUT_S.
+    collection_async_batch_timeout_s: int = 900   # 15 min (matches the async stale/resubmit window)
+
     model_config = {
         "env_prefix": "ARTSMOKER_",
         # Load a local, gitignored .env so per-instance settings persist

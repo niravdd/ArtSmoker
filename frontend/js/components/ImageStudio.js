@@ -3230,17 +3230,15 @@
         // shared art direction, then the whole set generates (reusing the same
         // Collection Designer + engine as the text path — only the ENTRY differs).
 
-        /** Sync Bedrock text-to-image models for a reference collection. Excludes
-         *  custom self-hosted (async) models — the collection generate loop assumes
-         *  sync landing (SPEC §18). Prefers the user's sidebar picks filtered to sync;
-         *  else the first sync model. Single → visual anchor; multiple → AD-only fan. */
+        /** Models for a reference collection = the user's sidebar selection, honored
+         *  as-is (sync Bedrock AND custom self-hosted async both work — the collection
+         *  generate loop waits for async Batches to land, SPEC §18). Single → visual
+         *  anchor; multiple → art-direction-only fan-out. Falls back to the first
+         *  available model only if nothing is selected. */
         _referenceCollectionModels() {
-            const sync = (m) => m && m.model_source !== 'custom_hosted';
-            const picked = (this._selectedModels || [])
-                .map(k => MODELS.find(m => m.value === k)).filter(sync).map(m => m.value);
+            const picked = (this._selectedModels || []).filter(k => MODELS.some(m => m.value === k));
             if (picked.length) return picked;
-            const first = MODELS.find(sync);
-            return first ? [first.value] : ['sd35_large'];
+            return MODELS[0] ? [MODELS[0].value] : ['sd35_large'];
         },
 
         /** Toggling collection mode discards any prior accepted design (a new one is
@@ -3261,13 +3259,6 @@
             const refImgs = rs.getReferenceImagesB64();
             const prompt = rs.getPrompt();
             const models = this._referenceCollectionModels();
-            // If the user's selection was only custom self-hosted (async) models, we
-            // substitute a sync Bedrock model (a set needs sync landing) — say so.
-            const hadAsyncOnly = (this._selectedModels || []).length > 0
-                && (this._selectedModels || []).every(k => (MODELS.find(m => m.value === k) || {}).model_source === 'custom_hosted');
-            if (hadAsyncOnly) {
-                window.showToast?.(t('artsmoker.ui.collection.reference_sync_only'), 'info');
-            }
             const assetType = (this._getAssetType() === 'character' ? 'character' : 'game_asset');
             const styleId = this._getStyleId() || null;
             const btn = document.getElementById('btn-generate');

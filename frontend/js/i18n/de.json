@@ -1676,7 +1676,6 @@
     "retry": "Erneut versuchen",
     "retry_edit": "Der Inhaltsfilter hat den Prompt dieses Teils blockiert. Bearbeite ihn und versuche es erneut:",
     "retrying": "Erneuter Versuch…",
-    "reference_reading": "Referenz wird analysiert…",
-    "reference_sync_only": "Selbst gehostete Modelle können noch kein Set erzeugen — für diese Sammlung wird ein Bedrock-Modell verwendet."
+    "reference_reading": "Referenz wird analysiert…"
   }
 }
