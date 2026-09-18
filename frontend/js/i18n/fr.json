@@ -845,7 +845,10 @@
     "switch_to": "Passer à {{sug}}",
     "keep": "Conserver {{cur}}",
     "generating_with": "Génération avec {{model}}...",
-    "custom_model_fallback": "modèle personnalisé"
+    "custom_model_fallback": "modèle personnalisé",
+    "reference_collection_toggle": "Générer un ensemble assorti (Collection)",
+    "reference_collection_hint": "Utilisez le style de cette référence pour diriger artistiquement tout un ensemble d'assets distincts.",
+    "reference_collection_design": "Concevoir l'ensemble…"
   },
   "lang": {
     "en": "Anglais",
@@ -1672,6 +1675,7 @@
     "status_blocked": "Filtré",
     "retry": "Réessayer",
     "retry_edit": "Le filtre de contenu a bloqué le prompt de cette pièce. Modifiez-le et réessayez :",
-    "retrying": "Nouvel essai…"
+    "retrying": "Nouvel essai…",
+    "reference_reading": "Analyse de la référence…"
   }
 }

@@ -340,7 +340,10 @@
     "switch_to": "Switch to {{sug}}",
     "keep": "Keep {{cur}}",
     "generating_with": "Generating with {{model}}...",
-    "custom_model_fallback": "custom model"
+    "custom_model_fallback": "custom model",
+    "reference_collection_toggle": "Generate a matching set (Collection)",
+    "reference_collection_hint": "Use this reference's look to art-direct a whole set of distinct assets.",
+    "reference_collection_design": "Design the set…"
   },
   "video_studio": {
     "title": "Video Studio",
@@ -1672,6 +1675,7 @@
     "status_blocked": "Filtered",
     "retry": "Retry",
     "retry_edit": "The content filter blocked this piece's prompt. Edit it and retry:",
-    "retrying": "Retrying…"
+    "retrying": "Retrying…",
+    "reference_reading": "Reading the reference…"
   }
 }

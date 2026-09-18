@@ -340,7 +340,10 @@
     "switch_to": "{{sug}} पर स्विच करें",
     "keep": "{{cur}} रखें",
     "generating_with": "{{model}} से जनन हो रहा है...",
-    "custom_model_fallback": "कस्टम मॉडल"
+    "custom_model_fallback": "कस्टम मॉडल",
+    "reference_collection_toggle": "मिलती-जुलती सीरीज़ बनाएँ (कलेक्शन)",
+    "reference_collection_hint": "इस संदर्भ के लुक से अलग-अलग एसेट के पूरे सेट का आर्ट-डायरेक्शन तय करें।",
+    "reference_collection_design": "सेट डिज़ाइन करें…"
   },
   "video_studio": {
     "title": "वीडियो स्टूडियो",
@@ -1672,6 +1675,7 @@
     "status_blocked": "फ़िल्टर किया गया",
     "retry": "पुनः प्रयास",
     "retry_edit": "कंटेंट फ़िल्टर ने इस पीस के प्रॉम्प्ट को ब्लॉक कर दिया। इसे संपादित करके पुनः प्रयास करें:",
-    "retrying": "पुनः प्रयास हो रहा है…"
+    "retrying": "पुनः प्रयास हो रहा है…",
+    "reference_reading": "संदर्भ पढ़ा जा रहा है…"
   }
 }

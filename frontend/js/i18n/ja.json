@@ -845,7 +845,10 @@
     "switch_to": "{{sug}}に切り替え",
     "keep": "{{cur}}のまま",
     "generating_with": "{{model}} で生成中...",
-    "custom_model_fallback": "カスタムモデル"
+    "custom_model_fallback": "カスタムモデル",
+    "reference_collection_toggle": "統一感のあるセットを生成（コレクション）",
+    "reference_collection_hint": "この参照画像の見た目を使って、異なるアセット一式のアートディレクションを行います。",
+    "reference_collection_design": "セットをデザイン…"
   },
   "lang": {
     "en": "英語",
@@ -1672,6 +1675,7 @@
     "status_blocked": "フィルター済み",
     "retry": "再試行",
     "retry_edit": "このピースのプロンプトはコンテンツフィルターにブロックされました。編集して再試行してください:",
-    "retrying": "再試行中…"
+    "retrying": "再試行中…",
+    "reference_reading": "参照画像を解析中…"
   }
 }

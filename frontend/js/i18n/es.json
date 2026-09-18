@@ -845,7 +845,10 @@
     "switch_to": "Cambiar a {{sug}}",
     "keep": "Mantener {{cur}}",
     "generating_with": "Generando con {{model}}...",
-    "custom_model_fallback": "modelo personalizado"
+    "custom_model_fallback": "modelo personalizado",
+    "reference_collection_toggle": "Generar un conjunto a juego (Colección)",
+    "reference_collection_hint": "Usa el estilo de esta referencia para dirigir artísticamente todo un conjunto de recursos distintos.",
+    "reference_collection_design": "Diseñar el conjunto…"
   },
   "lang": {
     "en": "English",
@@ -1672,6 +1675,7 @@
     "status_blocked": "Filtrado",
     "retry": "Reintentar",
     "retry_edit": "El filtro de contenido bloqueó el prompt de esta pieza. Edítalo y reinténtalo:",
-    "retrying": "Reintentando…"
+    "retrying": "Reintentando…",
+    "reference_reading": "Analizando la referencia…"
   }
 }

@@ -340,7 +340,10 @@
     "switch_to": "Zu {{sug}} wechseln",
     "keep": "{{cur}} behalten",
     "generating_with": "Generierung mit {{model}}...",
-    "custom_model_fallback": "benutzerdefiniertes Modell"
+    "custom_model_fallback": "benutzerdefiniertes Modell",
+    "reference_collection_toggle": "Passendes Set erzeugen (Sammlung)",
+    "reference_collection_hint": "Nutze den Look dieser Referenz als Art-Direction für ein ganzes Set unterschiedlicher Assets.",
+    "reference_collection_design": "Set entwerfen…"
   },
   "video_studio": {
     "title": "Video-Studio",
@@ -1672,6 +1675,7 @@
     "status_blocked": "Gefiltert",
     "retry": "Erneut versuchen",
     "retry_edit": "Der Inhaltsfilter hat den Prompt dieses Teils blockiert. Bearbeite ihn und versuche es erneut:",
-    "retrying": "Erneuter Versuch…"
+    "retrying": "Erneuter Versuch…",
+    "reference_reading": "Referenz wird analysiert…"
   }
 }

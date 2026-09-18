@@ -845,7 +845,10 @@
     "switch_to": "{{sug}}(으)로 전환",
     "keep": "{{cur}} 유지",
     "generating_with": "{{model}}(으)로 생성 중...",
-    "custom_model_fallback": "사용자 지정 모델"
+    "custom_model_fallback": "사용자 지정 모델",
+    "reference_collection_toggle": "어울리는 세트 생성 (컬렉션)",
+    "reference_collection_hint": "이 참조 이미지의 룩으로 서로 다른 에셋 세트 전체의 아트 디렉션을 잡습니다.",
+    "reference_collection_design": "세트 디자인…"
   },
   "lang": {
     "en": "영어",
@@ -1672,6 +1675,7 @@
     "status_blocked": "필터됨",
     "retry": "재시도",
     "retry_edit": "콘텐츠 필터가 이 조각의 프롬프트를 차단했습니다. 수정 후 다시 시도하세요:",
-    "retrying": "재시도 중…"
+    "retrying": "재시도 중…",
+    "reference_reading": "참조 이미지 분석 중…"
   }
 }

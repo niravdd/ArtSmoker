@@ -523,6 +523,9 @@
                         // filters to capable models, Dimensions become meaningless in
                         // remix (output follows the reference), Options mean strengths.
                         onModeChange: (mode) => this._applyReferenceMode(mode),
+                        // Image-Inspired collection: the reference look art-directs a set.
+                        onCollectionChange: (on) => this._onReferenceCollectionChange(on),
+                        onDesignCollection: () => this._designReferenceCollection(),
                     });
                 } catch (err) {
                     console.error('Failed to create ReferenceStudio:', err);
@@ -1158,6 +1161,15 @@
             // in the Designer, Generate runs the WHOLE collection, not a single asset.
             if (this._promptEditor?.collectionReadyToGenerate?.()) {
                 return this._generateCollection();
+            }
+
+            // Image-Inspired collection (SPEC §18): the reference look art-directs a set.
+            // Generate first DESIGNS the set (art direction from the image → Designer),
+            // then — once accepted — runs the whole collection.
+            if (this._activeTab === 'reference' && this._referenceStudio?.isCollectionMode?.()) {
+                return this._referenceStudio.isCollectionReady()
+                    ? this._generateReferenceCollection()
+                    : this._designReferenceCollection();
             }
 
             // Reference-guided tab has its own prompt + validation + payload patch.
@@ -3213,16 +3225,147 @@
             }
         },
 
+        // ── Image-Inspired collection (SPEC §18) ─────────────────────────
+        // The reference tab's collection flow: the reference image inspires the
+        // shared art direction, then the whole set generates (reusing the same
+        // Collection Designer + engine as the text path — only the ENTRY differs).
+
+        /** Sync Bedrock text-to-image models for a reference collection. Excludes
+         *  custom self-hosted (async) models — the collection generate loop assumes
+         *  sync landing (SPEC §18). Prefers the user's sidebar picks filtered to sync;
+         *  else the first sync model. Single → visual anchor; multiple → AD-only fan. */
+        _referenceCollectionModels() {
+            const sync = (m) => m && m.model_source !== 'custom_hosted';
+            const picked = (this._selectedModels || [])
+                .map(k => MODELS.find(m => m.value === k)).filter(sync).map(m => m.value);
+            if (picked.length) return picked;
+            const first = MODELS.find(sync);
+            return first ? [first.value] : ['sd35_large'];
+        },
+
+        /** Toggling collection mode discards any prior accepted design (a new one is
+         *  required); the design button itself lives in ReferenceStudio. */
+        _onReferenceCollectionChange(_on) {
+            this._refCollectionDesign = null;
+        },
+
+        /** Step 1 of the reference-collection flow: the reference image(s) inspire the
+         *  art direction (vision), then the input-agnostic Collection Designer builds
+         *  the roster from that art direction (roster is text-driven — the image shaped
+         *  the art direction, not the membership). */
+        async _designReferenceCollection() {
+            const rs = this._referenceStudio;
+            if (!rs) return;
+            const err = rs.validate();   // needs image(s) + an instruction (what the set IS)
+            if (err) { window.showToast?.(err, 'warning'); return; }
+            const refImgs = rs.getReferenceImagesB64();
+            const prompt = rs.getPrompt();
+            const models = this._referenceCollectionModels();
+            const assetType = (this._getAssetType() === 'character' ? 'character' : 'game_asset');
+            const styleId = this._getStyleId() || null;
+            const btn = document.getElementById('btn-generate');
+            if (btn) btn.disabled = true;
+            try {
+                window.showToast?.(t('artsmoker.ui.collection.reference_reading') || 'Reading the reference…', 'info');
+                const ad = await API.collections.artDirection({
+                    prompt, reference_images: refImgs,
+                    image_model: models[0], asset_type: assetType, style_id: styleId,
+                });
+                window.CollectionDesigner?.open({
+                    collectionId: ad.collection_id, name: ad.name,
+                    prompt, artDirectionText: (ad.art_direction || {}).text || '',
+                    priorDesignCost: ad.cost || 0, priorLedger: ad.llm_cost_ledger || [],
+                    image_model: models[0], models_selected_count: models.length,
+                    asset_type: assetType, style_id: styleId,
+                    model_name: ((MODELS.find(m => m.value === models[0]) || {}).label) || models[0],
+                    onAccept: (design) => {
+                        this._refCollectionDesign = { ...design, reference_images: refImgs, models, prompt };
+                        rs.setCollectionReady('✓ ' + (t('artsmoker.ui.collection.ready_to_generate') || 'Ready — click GENERATE'));
+                        window.showToast?.(t('artsmoker.ui.collection.ready_to_generate') || 'Ready to generate', 'success');
+                    },
+                });
+            } catch (e) {
+                window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        },
+
+        /** Step 2: run the designed reference-collection. Single model → anchor every
+         *  Batch to the reference image (visual adherence); multiple → art-direction-only
+         *  fan-out (the anchor is single-model, mirroring hero-anchor). */
+        async _generateReferenceCollection() {
+            const design = this._refCollectionDesign;
+            if (!design) { window.showToast?.(t('artsmoker.ui.collection.generate_disabled_hint'), 'warning'); return; }
+            const rs = this._referenceStudio;
+            const models = design.models || this._referenceCollectionModels();
+            const knobs = design.knobs || {};
+            const cohesion = models.length === 1 ? 'reference' : 'prompt';
+            const btn = document.getElementById('btn-generate');
+            if (btn) btn.disabled = true;
+            this._generating = true;
+            this._lastCollection = null;
+            document.getElementById('gen-collection-summary')?.classList.add('hidden');
+            document.getElementById('gen-placeholder')?.classList.add('hidden');
+            document.getElementById('gen-loading')?.classList.remove('hidden');
+            try {
+                window.Telemetry?.track?.('collection_generation_started',
+                    { batches: (design.roster || []).length, image_inspired: true });
+                await API.collections.generateStream({
+                    collection_id: design.collectionId, name: design.name || 'Collection',
+                    raw_ask: design.prompt || '',
+                    art_direction: { text: design.artDirectionText || '' },
+                    roster: design.roster,
+                    image_model: models[0], selected_models: models,
+                    asset_type: (this._getAssetType() === 'character' ? 'character' : 'game_asset'),
+                    style_id: this._getStyleId() || null,
+                    num_options: knobs.options || 3, num_variations: knobs.variations || 2,
+                    cohesion_mode: cohesion,
+                    reference_images: design.reference_images || [],
+                    remove_background: knobs.removeBg !== false,
+                    llm_cost_ledger: design.ledger || [], design_cost: design.designCost || 0,
+                }, (evt) => {
+                    if (evt.type === 'batch_started') {
+                        const done = evt.completed_batches ?? 0, tot = evt.total_batches ?? (design.roster || []).length;
+                        window.showToast?.(`${t('artsmoker.ui.collection.generating')} ${done}/${tot}`, 'info');
+                    }
+                    if (evt.type === 'collection_complete') {
+                        this._lastCollection = {
+                            id: evt.collection_id || design.collectionId,
+                            name: design.name || 'Collection',
+                            done: evt.completed_batches ?? (design.roster || []).length,
+                            total: evt.total_batches ?? (design.roster || []).length,
+                        };
+                    }
+                });
+                window.showToast?.(t('artsmoker.ui.collection.generating').replace('…', '') + ' ✓', 'success');
+                this._showCollectionSummary(this._lastCollection,
+                    { options: knobs.options || 3, variations: knobs.variations || 2 }, models.length);
+                rs?.setCollectionReady('');          // consumed → require a fresh design next time
+                this._refCollectionDesign = null;
+                setTimeout(() => window.Gallery?.refresh?.(), 200);
+            } catch (e) {
+                window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
+                document.getElementById('gen-loading')?.classList.add('hidden');
+                document.getElementById('gen-placeholder')?.classList.remove('hidden');
+            } finally {
+                this._generating = false;
+                if (btn) btn.disabled = false;
+            }
+        },
+
         /** Show the collection-completion summary in the preview area (a set lands
-         *  in the Gallery, so the single-asset preview would otherwise be empty). */
-        _showCollectionSummary(info, knobs) {
+         *  in the Gallery, so the single-asset preview would otherwise be empty).
+         *  modelsCount overrides the sidebar count (reference collections use a gated
+         *  model set that may differ from this._selectedModels). */
+        _showCollectionSummary(info, knobs, modelsCount) {
             document.getElementById('gen-loading')?.classList.add('hidden');
             document.getElementById('gen-placeholder')?.classList.add('hidden');
             document.getElementById('gen-result-img')?.classList.add('hidden');
             const box = document.getElementById('gen-collection-summary');
             if (!box || !info) { document.getElementById('gen-placeholder')?.classList.remove('hidden'); return; }
             const O = knobs.options || 3, V = knobs.variations || 2;
-            const M = Math.max(1, (this._selectedModels || []).length);   // each subject renders on every chosen model
+            const M = Math.max(1, modelsCount || (this._selectedModels || []).length);   // each subject renders on every chosen model
             const title = document.getElementById('gen-collection-summary-title');
             const sub = document.getElementById('gen-collection-summary-sub');
             const btn = document.getElementById('gen-collection-view');

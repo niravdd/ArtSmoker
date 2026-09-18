@@ -340,7 +340,10 @@
     "switch_to": "Переключить на {{sug}}",
     "keep": "Оставить {{cur}}",
     "generating_with": "Генерация с {{model}}...",
-    "custom_model_fallback": "пользовательская модель"
+    "custom_model_fallback": "пользовательская модель",
+    "reference_collection_toggle": "Создать единый набор (коллекцию)",
+    "reference_collection_hint": "Задайте арт-дирекшн целого набора разных ассетов по стилю этого референса.",
+    "reference_collection_design": "Спроектировать набор…"
   },
   "video_studio": {
     "title": "Видеостудия",
@@ -1672,6 +1675,7 @@
     "status_blocked": "Отфильтровано",
     "retry": "Повторить",
     "retry_edit": "Фильтр контента заблокировал промпт этого элемента. Измените его и повторите:",
-    "retrying": "Повтор…"
+    "retrying": "Повтор…",
+    "reference_reading": "Анализ референса…"
   }
 }

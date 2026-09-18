@@ -25,9 +25,10 @@
     class ReferenceStudio {
         constructor(container, opts = {}) {
             this.container = container;
-            this.opts = opts;               // { assetType, onGenerate(payload) }
+            this.opts = opts;               // { assetType, onGenerate(payload), onCollectionChange(on), onDesignCollection() }
             this._images = [];              // [{ dataUrl, b64 }]
-            this._mode = 'inspired';        // "match" | "inspired"
+            this._mode = 'inspired';        // "match" | "remix" | "inspired"
+            this._collectionMode = false;   // inspired-only: art-direct a whole set from the reference
             this._available = null;         // reference-model availability (cached)
             this._analysis = null;          // last "inspired" preview result
             this._render();
@@ -178,6 +179,21 @@
                             <div class="rs-preview-out hidden mt-1.5 space-y-1.5 text-[11px] text-brand-text/80"></div>
                         </div>
                     </div>
+
+                    <!-- Image-Inspired COLLECTION (SPEC §18): only in "inspired" mode —
+                         the reference LOOK art-directs a whole set of distinct assets.
+                         Match/Remix are single-image transforms and don't map to a set. -->
+                    <div class="rs-collection hidden p-2.5 rounded-lg bg-sky-950/20 border border-sky-500/25">
+                        <label class="flex items-center gap-2 text-[11px] cursor-pointer select-none">
+                            <input type="checkbox" class="rs-collection-cb accent-sky-500">
+                            <span class="font-semibold text-sky-200/90">${_t('image_studio.reference_collection_toggle')}</span>
+                        </label>
+                        <p class="text-[10px] text-brand-text-muted/70 mt-1">${_t('image_studio.reference_collection_hint')}</p>
+                        <button type="button" class="rs-collection-design hidden btn btn-sm text-xs mt-2 w-full bg-sky-600 hover:bg-sky-500 text-white">
+                            ${_t('image_studio.reference_collection_design')}
+                        </button>
+                        <p class="rs-collection-ready hidden text-[11px] font-semibold text-emerald-400 mt-1.5"></p>
+                    </div>
                     <p class="text-[10px] text-brand-text-muted/40">${_t('image_studio.reference_draft_note')}</p>
                 </div>`;
 
@@ -192,6 +208,10 @@
             this._gateEl = this.container.querySelector('.rs-gate');
             this._previewWrap = this.container.querySelector('.rs-preview');
             this._previewOut = this.container.querySelector('.rs-preview-out');
+            this._collectionEl = this.container.querySelector('.rs-collection');
+            this._collectionCb = this.container.querySelector('.rs-collection-cb');
+            this._collectionDesignBtn = this.container.querySelector('.rs-collection-design');
+            this._collectionReadyEl = this.container.querySelector('.rs-collection-ready');
 
             // Mic on the instruction (Step 2) — same reusable VoiceInput as
             // the other studios; appends the transcript to the instruction.
@@ -245,6 +265,16 @@
             this.container.querySelector('.rs-gate-deploy')?.addEventListener('click', () => {
                 window.ModelSettings?.open?.('custom-models');
             });
+
+            // Image-Inspired collection toggle: enabling it means "build a set from
+            // this look" — a new design is required, so any prior one is cleared.
+            this._collectionCb?.addEventListener('change', () => {
+                this._collectionMode = !!this._collectionCb.checked;
+                this._setCollectionReady('');            // toggling invalidates a prior design
+                this._collectionDesignBtn?.classList.toggle('hidden', !this._collectionMode);
+                this.opts.onCollectionChange?.(this._collectionMode);
+            });
+            this._collectionDesignBtn?.addEventListener('click', () => this.opts.onDesignCollection?.());
 
             // Inspired-by preview
             this.container.querySelector('.rs-preview-btn')?.addEventListener('click', () => this._runPreview());
@@ -364,7 +394,37 @@
             // Inspired-by preview only meaningful in "inspired" mode — except a
             // reloaded job's read-only enhanced prompt, which shows for both modes.
             this._previewWrap.classList.toggle('hidden', this._mode !== 'inspired' && !this._loadedEnhanced);
+            // Image-Inspired collections are inspired-only (Match/Remix are single-image
+            // transforms — they don't map to a multi-subject set). Leaving inspired mode
+            // turns the collection option off + clears any accepted design.
+            const inspired = this._mode === 'inspired';
+            this._collectionEl?.classList.toggle('hidden', !inspired);
+            if (!inspired && this._collectionMode) {
+                this._collectionMode = false;
+                if (this._collectionCb) this._collectionCb.checked = false;
+                this._collectionDesignBtn?.classList.add('hidden');
+                this._setCollectionReady('');
+                this.opts.onCollectionChange?.(false);
+            }
         }
+
+        // ── Image-Inspired collection (SPEC §18) ────────────────────────
+        /** True when the reference should art-direct a whole set (inspired mode only). */
+        isCollectionMode() { return this._mode === 'inspired' && this._collectionMode; }
+        /** The uploaded reference images as raw b64 (what the collection art-direction
+         *  + anchor consume). */
+        getReferenceImagesB64() { return this._images.map(i => i.b64); }
+        /** Show/clear the "set designed — ready to Generate" confirmation line, and
+         *  swap the design button's label to reflect a redesign vs first design. */
+        _setCollectionReady(text) {
+            this._collectionReady = !!text;
+            if (this._collectionReadyEl) {
+                this._collectionReadyEl.textContent = text || '';
+                this._collectionReadyEl.classList.toggle('hidden', !text);
+            }
+        }
+        setCollectionReady(text) { this._setCollectionReady(text); }
+        isCollectionReady() { return !!this._collectionReady; }
 
         /** The remix strength ladder: one strength per sidebar Option, evenly
          *  spread ±0.15 around the slider (clamped 0.1–0.9). n=1 → just the
