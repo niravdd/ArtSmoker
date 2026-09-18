@@ -23,6 +23,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
+from backend.config import settings
 from backend.models.generation_request import AssetType, GenerationRequest
 from backend.storage.local_store import store
 
