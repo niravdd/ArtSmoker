@@ -423,9 +423,10 @@ def run_collection(base, model, region, extra_models=None):
         ad = dec["art_direction"]["text"]; steps.append("decompose")
 
         # 1b) IMAGE-INSPIRED art direction (SPEC §18 — the reference LOOK drives the
-        # art direction via a vision call). Real vision LLM: assert it returns a
-        # non-empty art direction AND booked cost (proves the vision path actually
-        # ran, not a text fallback). Mints an id only — writes nothing to clean up.
+        # art direction via a VISION call). `reference_used` is set by the endpoint to
+        # the number of images that actually reached the vision model (0 = a text-only
+        # fallback ran) — so asserting >=1 GENUINELY proves the vision path executed,
+        # not just that some art direction came back. Also assert non-empty text + cost.
         img_ai = post_json(base, "/api/collections/art-direction",
                            {"prompt": "a matching set in this style", "asset_type": "game_asset",
                             "image_model": mk, "reference_images": [_tiny_reference_png_b64()]},
@@ -434,11 +435,22 @@ def run_collection(base, model, region, extra_models=None):
             return False, "image-inspired art-direction returned empty text", cid
         if not (img_ai.get("cost", 0) > 0):
             return False, "image-inspired art-direction booked no cost (vision path didn't run)", cid
-        # And the guided-scaffold dimensions from the same reference image.
+        if not (img_ai.get("reference_used", 0) >= 1):
+            return False, f"image-inspired AD did NOT feed the image to vision (reference_used={img_ai.get('reference_used')})", cid
+        # A GARBAGE 'image' (valid b64, not an image) must be rejected → text fallback
+        # (reference_used == 0). Proves the validation gate is real, not decode-only.
+        junk = post_json(base, "/api/collections/art-direction",
+                        {"prompt": "x", "image_model": mk,
+                         "reference_images": ["bm90LWFuLWltYWdl"]}, timeout=120)  # b64("not-an-image")
+        if junk.get("reference_used", 0) != 0:
+            return False, f"garbage reference not rejected (reference_used={junk.get('reference_used')})", cid
+        # And the guided-scaffold dimensions from the same reference image (vision).
         img_fields = post_json(base, "/api/collections/art-direction-fields",
                               {"prompt": "", "reference_images": [_tiny_reference_png_b64()]}, timeout=120)
         if not (img_fields.get("fields") and "Negative" in img_fields["fields"]):
             return False, "image-inspired field scaffold missing core dimensions", cid
+        if not (img_fields.get("reference_used", 0) >= 1):
+            return False, "image-inspired field scaffold did NOT run vision", cid
         steps.append("image-inspired-AD")
 
         # 2) estimate — projected-cost math (batches × O × V × price)
@@ -475,8 +487,13 @@ def run_collection(base, model, region, extra_models=None):
                         "locked": [{"name": roster[0]["name"], "slug": roster[0]["slug"],
                                     "concept": roster[0].get("concept", ""),
                                     "model_agnostic_prompt": roster[0]["model_agnostic_prompt"]}]}, timeout=120)
-        if roster[0]["slug"] not in [x["slug"] for x in rr.get("roster", [])]:
+        rr_locked = next((x for x in rr.get("roster", []) if x["slug"] == roster[0]["slug"]), None)
+        if not rr_locked:
             return False, "regenerate-roster dropped the locked entry", cid
+        # LOCK must preserve the entry VERBATIM — not merely keep the slug. A regen that
+        # kept the slug but rewrote its prompt would otherwise pass falsely.
+        if rr_locked.get("model_agnostic_prompt") != roster[0]["model_agnostic_prompt"]:
+            return False, "regenerate-roster did not preserve the locked entry's prompt verbatim", cid
         steps.append("regenerate-roster(lock)")
 
         # 6) generate 2 Batches × 1×1 (SSE) — assert complete + cost_update
@@ -528,6 +545,25 @@ def run_collection(base, model, region, extra_models=None):
                 if missing:
                     return False, f"multi-model set missing model(s) {sorted(missing)} (got {sorted(m for m in mods if m)})", cid
                 steps.append("multi-model×2")
+
+                # 6b-retry) The per-Batch RETRY endpoint (/generate-batch) must reproduce
+                # the SAME model shape — this is the path that carried the multi-model
+                # bug (single-model retry orphaned the set). Retry the one Batch on a
+                # VALID slug (no forced block needed) and re-assert BOTH models land in
+                # the (newly-minted) batch. A single-model regression here would fail.
+                slug2 = (r2[0] or {}).get("slug")
+                rb = post_json(base, f"/api/collections/{cid2}/generate-batch",
+                               {"slug": slug2}, timeout=300)
+                if not (rb.get("ok") and rb.get("batch_id")):
+                    return False, f"multi-model retry did not succeed: {rb}", cid
+                mm2 = get_json(base, f"/api/collections/{cid2}", timeout=30)
+                mods2 = {v.get("model_used")
+                         for b in mm2.get("batches", [])
+                         for o in ((b.get("batch") or {}).get("options") or [])
+                         for v in o.get("variants", [])}
+                if {mk, mk2} - mods2:
+                    return False, f"multi-model RETRY regressed to single-model (got {sorted(m for m in mods2 if m)})", cid
+                steps.append("multi-model-retry×2")
             finally:
                 if cid2:
                     try:
@@ -551,6 +587,8 @@ def run_collection(base, model, region, extra_models=None):
             r3, cid3 = (d3.get("roster") or [])[:1], d3.get("collection_id")
             if not r3 or not cid3:
                 return False, "image-inspired decompose returned no roster/cid", cid
+            if not (d3.get("reference_used", 0) >= 1):
+                return False, "image-inspired decompose did NOT run vision on the reference", cid
             ev3 = post_sse(base, "/api/collections/generate",
                            {"collection_id": cid3, "name": d3.get("name", "Img Set"),
                             "raw_ask": "a small matching set in this style",
@@ -568,7 +606,17 @@ def run_collection(base, model, region, extra_models=None):
             if rec3.get("knobs", {}).get("cohesion_mode") != "reference":
                 return False, "image-inspired run did not persist reference cohesion", cid
             if not rec3.get("reference_images") or not rec3.get("knobs", {}).get("image_inspired"):
-                return False, "image-inspired run did not persist the reference/flag (anchor branch skipped)", cid
+                return False, "image-inspired run did not persist the reference/flag", cid
+            # The DECISIVE check: a produced Job must carry reference_mode='inspired'
+            # (written only when the render actually used the anchor image) — proving
+            # the anchor BRANCH ran, not just that config persisted. Config fields above
+            # can be set even if the anchor were skipped; this cannot.
+            variants3 = [v for b in full3.get("batches", [])
+                         for o in ((b.get("batch") or {}).get("options") or [])
+                         for v in o.get("variants", [])]
+            if not any(v.get("reference_mode") == "inspired" and v.get("reference_guided")
+                       for v in variants3):
+                return False, "image-inspired set did NOT anchor to the reference (no job reference_mode=inspired)", cid
             steps.append("image-inspired-generate")
         finally:
             if cid3:
@@ -595,6 +643,29 @@ def run_collection(base, model, region, extra_models=None):
         if not b0 or not full.get("batches"):
             return False, "reconstruction missing batch_id/batches", cid
         steps.append("get/reconstruct")
+
+        # 8b) BACKGROUND REMOVAL (collections default to cut-outs, remove_background=True):
+        # fetch a produced Job's PNG and assert it actually carries an alpha channel with
+        # some transparency — proving the cut-out ran (not just that generation completed).
+        png_rel = next((v.get("png_path") for b in full.get("batches", [])
+                        for o in ((b.get("batch") or {}).get("options") or [])
+                        for v in o.get("variants", []) if v.get("png_path")), None)
+        if not png_rel:
+            return False, "no produced Job PNG to check background removal", cid
+        try:
+            import io as _io
+            from PIL import Image as _Image
+            with urllib.request.urlopen(_req(f"{base}{png_rel}", timeout=60), timeout=60) as _r:
+                _img = _Image.open(_io.BytesIO(_r.read()))
+            if _img.mode not in ("RGBA", "LA") and "transparency" not in _img.info:
+                return False, f"background not removed — Job PNG has no alpha (mode={_img.mode})", cid
+            # a cut-out has genuinely transparent pixels (min alpha well below opaque)
+            alpha = _img.convert("RGBA").getchannel("A")
+            if alpha.getextrema()[0] > 250:
+                return False, "background not removed — alpha channel is fully opaque", cid
+        except urllib.error.HTTPError as e:
+            return False, f"could not fetch Job PNG for bg-removal check ({e.code})", cid
+        steps.append("bg-removed(alpha)")
 
         # 9) select-version pointer + design_history provenance
         sv = post_json(base, f"/api/collections/{cid}/select-version",

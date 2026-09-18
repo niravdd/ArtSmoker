@@ -218,9 +218,13 @@ class RecomposeAllRequest(BaseModel):
 
 def _decode_ref_images(b64_list: list[str] | None) -> list[bytes]:
     """Decode up to 3 client-supplied reference images (raw b64 OR a data-URL) to
-    bytes for the vision art-direction call. A bad/garbage entry is skipped, never
-    fatal — a broken image must not sink the whole design request (the service then
-    falls back to a text-only art direction)."""
+    bytes for the vision art-direction call + the per-Batch anchor. Each is VALIDATED
+    as a loadable image (not just b64-decodable) so both consumers reject junk
+    uniformly — the art-direction path already dropped bad images via the vision fit,
+    but the anchor path would otherwise persist unusable bytes. A bad/garbage entry
+    is skipped, never fatal (the design then falls back to text-only art direction)."""
+    import io as _io
+    from PIL import Image
     out: list[bytes] = []
     for s in (b64_list or [])[:3]:
         if not s:
@@ -228,7 +232,9 @@ def _decode_ref_images(b64_list: list[str] | None) -> list[bytes]:
         try:
             if s.strip().startswith("data:") and "," in s:
                 s = s.split(",", 1)[1]          # strip a data-URL prefix
-            out.append(base64.b64decode(s))
+            raw = base64.b64decode(s)
+            Image.open(_io.BytesIO(raw)).verify()   # real image? (integrity check, no full decode)
+            out.append(raw)
         except Exception:
             continue
     return out
@@ -302,14 +308,20 @@ async def collection_art_direction(body: ArtDirectionRequest):
         # Fill EXACTLY the scaffold's recommended dimensions when the client sent
         # them (so the AI output matches the guided fields the user saw); else the
         # generator picks genre-appropriate dimensions itself.
+        from backend.services.prompt_engineer import _fit_reference_images
+        decoded = _decode_ref_images(body.reference_images)
         art = generate_art_direction(body.prompt, _load_style_profile(body.style_id), body.fields,
-                                     reference_images=_decode_ref_images(body.reference_images))
+                                     reference_images=decoded)
         cost = round(get_total_cost(), 6)
         return {
             "collection_id": cstore.new_collection_id(),
             "name": _derive_name(body.prompt, art),
             "art_direction": art,           # structured dict + flat "text"
             "cost": cost,
+            # How many reference images actually reached the VISION call (0 = a
+            # text-only art direction ran). Mirrors exactly what the service fed the
+            # model, so a client/test can prove the image-inspired path truly ran.
+            "reference_used": len(_fit_reference_images(decoded)),
             "llm_cost_ledger": [{"step": "art_direction", "cost": cost}],
         }
     except Exception as exc:
@@ -329,9 +341,12 @@ async def collection_art_direction_fields(body: ArtDirectionFieldsRequest):
 
     reset_costs()
     try:
+        from backend.services.prompt_engineer import _fit_reference_images
+        decoded = _decode_ref_images(body.reference_images)
         fields = recommend_art_direction_fields(body.prompt, _load_style_profile(body.style_id),
-                                               reference_images=_decode_ref_images(body.reference_images))
-        return {"fields": fields, "cost": round(get_total_cost(), 6)}
+                                               reference_images=decoded)
+        return {"fields": fields, "cost": round(get_total_cost(), 6),
+                "reference_used": len(_fit_reference_images(decoded))}
     except Exception as exc:
         logger.exception("Art-direction field recommendation failed")
         raise HTTPException(502, detail=f"Field recommendation failed: {exc}")
@@ -350,11 +365,12 @@ async def decompose_collection(body: DecomposeCollectionRequest):
     ledger: list[dict] = []
     roster: list[dict] = []
     try:
+        from backend.services.prompt_engineer import _fit_reference_images
         style_profile = _load_style_profile(body.style_id)
         asset_type = _asset_enum(body.asset_type)
 
-        art = generate_art_direction(body.prompt, style_profile,
-                                    reference_images=_decode_ref_images(body.reference_images))
+        decoded = _decode_ref_images(body.reference_images)
+        art = generate_art_direction(body.prompt, style_profile, reference_images=decoded)
         c1 = get_total_cost()
         ledger.append({"step": "art_direction", "cost": round(c1, 6)})
 
@@ -376,6 +392,7 @@ async def decompose_collection(body: DecomposeCollectionRequest):
             "roster": roster,             # [{name, slug, concept, model_agnostic_prompt}]
             "llm_cost_ledger": ledger,
             "cost": round(get_total_cost(), 6),
+            "reference_used": len(_fit_reference_images(decoded)),   # images that reached vision
         }
     except HTTPException:
         raise

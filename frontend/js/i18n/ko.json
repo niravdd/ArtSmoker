@@ -1676,6 +1676,7 @@
     "retry": "재시도",
     "retry_edit": "콘텐츠 필터가 이 조각의 프롬프트를 차단했습니다. 수정 후 다시 시도하세요:",
     "retrying": "재시도 중…",
-    "reference_reading": "참조 이미지 분석 중…"
+    "reference_reading": "참조 이미지 분석 중…",
+    "reference_sync_only": "자체 호스팅 모델은 아직 세트 생성을 지원하지 않습니다 — 이 컬렉션에는 Bedrock 모델을 사용합니다."
   }
 }

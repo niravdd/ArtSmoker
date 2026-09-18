@@ -1676,6 +1676,7 @@
     "retry": "重试",
     "retry_edit": "内容过滤器拦截了该角色的提示词。请编辑后重试：",
     "retrying": "重试中…",
-    "reference_reading": "正在解析参考图…"
+    "reference_reading": "正在解析参考图…",
+    "reference_sync_only": "自托管模型暂不支持成套生成 — 本合集将使用 Bedrock 模型。"
   }
 }

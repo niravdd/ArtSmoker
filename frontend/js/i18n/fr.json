@@ -1676,6 +1676,7 @@
     "retry": "Réessayer",
     "retry_edit": "Le filtre de contenu a bloqué le prompt de cette pièce. Modifiez-le et réessayez :",
     "retrying": "Nouvel essai…",
-    "reference_reading": "Analyse de la référence…"
+    "reference_reading": "Analyse de la référence…",
+    "reference_sync_only": "Les modèles auto-hébergés ne peuvent pas encore générer un ensemble — utilisation d'un modèle Bedrock pour cette collection."
   }
 }

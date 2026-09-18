@@ -313,6 +313,11 @@ async def get_batch(batch_id: str):
             "model_used": meta.get("image_model"),
             "model_label": meta.get("model_label"),
             "seed": meta.get("seed"),
+            # Reference-guided provenance (set by _persist_reference_inputs only when
+            # the render actually used a reference image) — lets a client/viewer/test
+            # confirm an image-inspired anchor truly ran, not just that it was requested.
+            "reference_mode": meta.get("reference_mode"),
+            "reference_guided": bool(meta.get("reference_guided")),
             "current_version": current_ver,   # the version 3D/download targets should use
             # Live (non-tombstone) version numbers — lets the collection batch-detail
             # offer per-VERSION selection for 3D/download (SPEC §18 Phase N/M).

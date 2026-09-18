@@ -1676,6 +1676,7 @@
     "retry": "再試行",
     "retry_edit": "このピースのプロンプトはコンテンツフィルターにブロックされました。編集して再試行してください:",
     "retrying": "再試行中…",
-    "reference_reading": "参照画像を解析中…"
+    "reference_reading": "参照画像を解析中…",
+    "reference_sync_only": "セルフホストモデルはまだセット生成に使えません — このコレクションには Bedrock モデルを使用します。"
   }
 }

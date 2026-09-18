@@ -1676,6 +1676,7 @@
     "retry": "Reintentar",
     "retry_edit": "El filtro de contenido bloqueó el prompt de esta pieza. Edítalo y reinténtalo:",
     "retrying": "Reintentando…",
-    "reference_reading": "Analizando la referencia…"
+    "reference_reading": "Analizando la referencia…",
+    "reference_sync_only": "Los modelos autoalojados aún no pueden generar un conjunto — se usará un modelo de Bedrock para esta colección."
   }
 }

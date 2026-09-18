@@ -555,6 +555,14 @@
                 this._previewOut.classList.add('hidden');
                 this._previewOut.innerHTML = '';
             }
+            // A pending reference-collection design was built from THESE images + this
+            // instruction; changing either makes it stale. Drop it so Generate can't
+            // run an out-of-date set (art direction + anchor were captured at design
+            // time). The checkbox stays on so the user can simply re-Design.
+            if (this._collectionReady) {
+                this._setCollectionReady('');
+                this.opts.onCollectionChange?.(this._collectionMode);
+            }
         }
 
         /** Read-only display of a RELOADED job's enhanced prompt (Gallery →

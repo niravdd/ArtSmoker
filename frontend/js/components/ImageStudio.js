@@ -3261,6 +3261,13 @@
             const refImgs = rs.getReferenceImagesB64();
             const prompt = rs.getPrompt();
             const models = this._referenceCollectionModels();
+            // If the user's selection was only custom self-hosted (async) models, we
+            // substitute a sync Bedrock model (a set needs sync landing) — say so.
+            const hadAsyncOnly = (this._selectedModels || []).length > 0
+                && (this._selectedModels || []).every(k => (MODELS.find(m => m.value === k) || {}).model_source === 'custom_hosted');
+            if (hadAsyncOnly) {
+                window.showToast?.(t('artsmoker.ui.collection.reference_sync_only'), 'info');
+            }
             const assetType = (this._getAssetType() === 'character' ? 'character' : 'game_asset');
             const styleId = this._getStyleId() || null;
             const btn = document.getElementById('btn-generate');
