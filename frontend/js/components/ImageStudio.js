@@ -476,10 +476,10 @@
                         // callback to re-gate the main Generate button.
                         getCollectionContext: () => {
                             const sid = this._getStyleId() || null;
-                            // A collection generates on ONE model (for set cohesion) — the
-                            // first selected. Surface its friendly name + how many were
-                            // selected, so the summary can be accurate (not the raw key)
-                            // and flag that the other selections aren't used.
+                            // A collection honors the model selection: ONE model → a cohesive
+                            // single-model set; MULTIPLE → every subject renders on each. Surface
+                            // the primary's friendly name (for the single-model summary) + the
+                            // selected count (so the summary shows "N models" and the right total).
                             const mk = (this._selectedModels?.[0] || 'sd35_large');
                             return {
                                 image_model: mk,

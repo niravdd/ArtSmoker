@@ -1637,7 +1637,6 @@
     "ad_lift_confirm": "¿Aplicar esta dirección a toda la colección? Los batches desbloqueados se realinean; los bloqueados se conservan.",
     "ad_button_title": "Controlador de dirección de arte — afinar la dirección de este batch",
     "ready_to_generate": "Listo para generar — haz clic en GENERAR abajo.",
-    "model_single_note": "Seleccionaste {{count}} modelos; una colección usa uno para la cohesión ({{model}}).",
     "model_multi_note": "Los {{count}} modelos seleccionados generan cada sujeto — un conjunto multimodelo.",
     "view_in_gallery": "Ver en la Galería",
     "generated_title": "«{{name}}» generada",

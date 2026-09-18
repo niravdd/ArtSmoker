@@ -101,25 +101,55 @@ def _derive_name(ask: str, art_direction: dict) -> str:
 
 def _projected_generation_cost(image_model: str, batches: int, options: int,
                                variations: int, region: str = "", quality: str = "",
-                               models: int = 1) -> dict:
-    """Projected image-generation cost for a collection = batches × models × O × V ×
-    per-image price. Reuses the SAME registry-sourced resolver as the real cost
-    path (`resolve_image_price`; base_price_usd fallback; None → unavailable — no
-    guess). With multiple selected models every subject renders on each model, so
-    the image count multiplies by the model count. SPEC §18.9."""
+                               models: int = 1, model_keys: list[str] | None = None) -> dict:
+    """Projected image-generation cost for a collection. Every subject renders on
+    each selected model, so images = batches × models × O × V. Reuses the SAME
+    registry-sourced resolver as the real cost path (`resolve_image_price`;
+    base_price_usd fallback; None → unavailable — no guess). SPEC §18.9.
+
+    Two modes:
+      • model_keys given (the persisted record path, where we know the exact set)
+        → ACCURATE: sum each model's OWN per-image price (models can differ in
+        price). Unavailable unless every model prices.
+      • model_keys omitted (the live Designer /estimate, which only knows a count)
+        → primary model's price × total image count (a close approximation)."""
     from backend.services.model_registry import get_image_model
     from backend.services.cost_tracker import resolve_image_price
-    images = max(0, batches) * max(1, options) * max(1, variations) * max(1, models)
-    model = get_image_model(image_model) or {}
-    reg = region or model.get("region", "")
-    price = resolve_image_price(model, image_model, reg, quality or "")
-    if price is None:
-        price = model.get("base_price_usd")
+
+    def _price(key: str):
+        m = get_image_model(key) or {}
+        reg = region or m.get("region", "")
+        p = resolve_image_price(m, key, reg, quality or "")
+        return p if p is not None else m.get("base_price_usd")
+
+    per_subject = max(1, options) * max(1, variations)
+    keys = [k for k in (model_keys or []) if k]
+    if keys:
+        # Accurate per-model sum: each model renders `batches × per_subject` images.
+        total = 0.0
+        priced = 0
+        for k in keys:
+            p = _price(k)
+            if p is not None:
+                total += p * max(0, batches) * per_subject
+                priced += 1
+        images = max(0, batches) * per_subject * len(keys)
+        available = priced == len(keys) and priced > 0
+        return {
+            "images": images,
+            "price_per_image": round(total / images, 4) if (available and images) else None,
+            "price_available": available,
+            "projected_generation_cost": round(total, 4) if available else None,
+        }
+
+    # Count-based approximation (live estimate: only a model count is known).
+    images = max(0, batches) * per_subject * max(1, models)
+    price = _price(image_model)
     return {
         "images": images,
         "price_per_image": round(price, 4) if price is not None else None,
         "price_available": price is not None,
-        "projected_generation_cost": round((price or 0) * images, 4) if price is not None else None,
+        "projected_generation_cost": round(price * images, 4) if price is not None else None,
     }
 
 
@@ -533,7 +563,7 @@ async def generate_collection(body: GenerateCollectionRequest):
     # (design + projected generation) so a job's TOTAL cost is auditable later.
     record["llm_cost_ledger"] = list(body.llm_cost_ledger or [])
     _proj = _projected_generation_cost(body.image_model, len(roster), n_opts, n_vars,
-                                       region="", quality="", models=len(models))
+                                       region="", quality="", model_keys=models)
     record["cost_estimate"] = {
         "design_cost": round(body.design_cost, 6),
         **_proj,
@@ -749,7 +779,13 @@ async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
     knobs = rec.get("knobs", {})
     n_opts = max(1, min(5, int(knobs.get("O", 3))))
     n_vars = max(1, min(5, int(knobs.get("V", 2))))
-    image_model = (knobs.get("models") or ["sd35_large"])[0]
+    # Retry must reproduce the SAME model shape as the original run: a multi-model
+    # collection rendered every subject on EVERY selected model, so the retry does
+    # too — otherwise a retried Batch would come back with fewer options than its
+    # siblings AND orphan the prior multi-model Jobs when its batch_id is reassigned.
+    models = [m for m in (knobs.get("models") or []) if m] or ["sd35_large"]
+    multi = len(models) > 1
+    image_model = models[0]
     base_seed = knobs.get("seed") if knobs.get("seed") is not None else random.randint(0, _SEED_MAX - 10_000)
     prompt = (body.prompt or entry.get("model_agnostic_prompt") or "").strip()
     if not prompt:
@@ -764,12 +800,20 @@ async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
         prompt=prompt, asset_type=_asset_enum(knobs.get("asset_type")),
         image_model=image_model, num_options=n_opts, num_variations=n_vars,
         seed=base_seed + idx * n_opts * n_vars,
-        saved_concept_prompts={image_model: [prompt] * n_opts},
         # Same set-wide negative (e.g. anti-photorealism) the initial run used.
         negative_prompt=_negative_from_art_direction(
             rec.get("art_direction_structured") or {"text": rec.get("overarching_art_direction", "")}),
         remove_background=knobs.get("remove_background", True),   # match the collection's setting
     )
+    if multi:
+        # Mirror the main /generate loop's multi-model branch (all-models engine,
+        # verbatim saved prompt per model, one batch_id whose flat options carry
+        # per-model labels) — keeps a retried Batch consistent with the set.
+        sub.all_models = True
+        sub.selected_models = models
+        sub.saved_concept_prompts = {m: [prompt] * n_opts for m in models}
+    else:
+        sub.saved_concept_prompts = {image_model: [prompt] * n_opts}
 
     def _mark_failed(emsg, blocked):
         def _mut(r):

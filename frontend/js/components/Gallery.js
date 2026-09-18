@@ -665,13 +665,17 @@
                 // asset word from a small i18n map (collections are character/game_asset
                 // only); breakdown + total when options×variations are known.
                 const O = item.num_options, V = item.num_variations;
+                // Multi-model set: every subject renders on each chosen model, so the
+                // image total is count · models · O · V (not count · O · V).
+                const M = Math.max(1, (item.models && item.models.length) || 1);
                 let _asset = '';
                 if (item.asset_type) {
                     const w = t('artsmoker.ui.collection.card_assets_' + item.asset_type);
                     if (w && w.indexOf('.') === -1) _asset = ' ' + w;   // skip a missing-key echo
                 }
+                const _modelsSeg = M > 1 ? `${M} ${t('artsmoker.ui.image_studio.models_count')} × ` : '';
                 const colSummary = (O && V)
-                    ? `${count}${_asset} · ${O}×${V} · ${t('artsmoker.ui.collection.images_count', { count: count * O * V })}`
+                    ? `${count}${_asset} · ${_modelsSeg}${O}×${V} · ${t('artsmoker.ui.collection.images_count', { count: count * O * V * M })}`
                     : t('artsmoker.ui.collection.card_count', { count });
                 const colSummaryHint = (O && V)
                     ? t('artsmoker.ui.collection.card_summary_hint', { count, o: O, v: V })

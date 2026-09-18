@@ -124,6 +124,10 @@
             if (this._composedText) {
                 this._clearComposed();
             }
+            // A model add/remove after the Designer was accepted does NOT invalidate
+            // the design, but it DOES change the live model count — re-render the
+            // Step-3 summary so its image total/model count never goes stale.
+            if (this._collectionDesign) this._renderCollectionSummary();
         }
 
         destroy() {
@@ -668,7 +672,19 @@
             this._collectionLedger = design.ledger || this._collectionLedger;
             // Keep Step-2 art-direction in sync with any edit made inside the Designer.
             if (design.artDirectionText && this._artDirectionEl) this._artDirectionEl.value = design.artDirectionText;
-            // Show the decided summary in Step 3 (fully localized).
+            this._renderCollectionSummary();   // Step-3 decided-summary (model count read LIVE)
+            this._collectionStep3Hint?.classList.add('hidden');
+            this._notifyCollectionState();   // enables Generate
+        }
+
+        /** Render the Step-3 "decided" summary from the accepted design + the LIVE
+         *  model selection. Kept separate from _onCollectionAccepted so a model
+         *  add/remove AFTER accept (which does NOT invalidate the design) re-renders
+         *  the count instead of showing a stale one — generation reads the same live
+         *  selection, so the text now always matches what will be produced. */
+        _renderCollectionSummary() {
+            const design = this._collectionDesign;
+            if (!design || !this._collectionSummaryEl) return;
             const n = (design.roster || []).length;
             const k = design.knobs || {};
             const T = (key, p) => (typeof t !== 'undefined' ? t('artsmoker.ui.collection.' + key, p) : key);
@@ -687,16 +703,12 @@
             const multiNote = M > 1
                 ? html`<div class="text-[10px] text-sky-300/70 mt-0.5">${T('model_multi_note', { count: M })}</div>`
                 : '';
-            if (this._collectionSummaryEl) {
-                // nosemgrep
-                this._collectionSummaryEl.innerHTML = html`
-                    <div>${line}</div>
-                    ${multiNote}
-                    <div class="text-[11px] font-semibold text-emerald-400 mt-1">✓ ${T('ready_to_generate')}</div>`;
-                this._collectionSummaryEl.classList.remove('hidden');
-            }
-            this._collectionStep3Hint?.classList.add('hidden');
-            this._notifyCollectionState();   // enables Generate
+            // nosemgrep
+            this._collectionSummaryEl.innerHTML = html`
+                <div>${line}</div>
+                ${multiNote}
+                <div class="text-[11px] font-semibold text-emerald-400 mt-1">✓ ${T('ready_to_generate')}</div>`;
+            this._collectionSummaryEl.classList.remove('hidden');
         }
 
         /** Full clean slate for collection mode. Public API for an in-place exit;
