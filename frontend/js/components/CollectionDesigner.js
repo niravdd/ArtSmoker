@@ -41,7 +41,16 @@
                 artDirection: { text: (opts.artDirectionText || '').trim() },
                 roster: [], designCost: opts.priorDesignCost || 0,
                 ledger: (opts.priorLedger || []).slice(), projected: null,
-                knobs: { count: null, options: 3, variations: 2, cohesion: 'prompt', removeBg: true },
+                // Seed Options × Variations (+ remove-bg) from the sidebar when the
+                // caller passes them, so the user's chosen counts carry through instead
+                // of a fixed 3×2 default. `count` (roster size) is still inferred/derived.
+                knobs: {
+                    count: opts.count ?? null,
+                    options: Math.max(1, Math.min(5, parseInt(opts.options, 10) || 3)),
+                    variations: Math.max(1, Math.min(5, parseInt(opts.variations, 10) || 2)),
+                    cohesion: opts.cohesion || 'prompt',
+                    removeBg: opts.removeBg !== false,
+                },
             };
             this._mount();
             if (!this._state.artDirection.text) { this._renderError(t('collection.error')); return; }

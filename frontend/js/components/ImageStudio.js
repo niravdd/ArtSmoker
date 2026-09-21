@@ -493,6 +493,11 @@
                                 // Resolve the human-readable style name so the Designer can
                                 // show which style is shaping the art direction + output.
                                 style_name: sid ? ((this._styles.find(s => s.id === sid) || {}).name || null) : null,
+                                // Seed the Collection Designer's O × V (+ remove-bg) from the
+                                // sidebar so the user's chosen counts carry through (not a 3×2 default).
+                                options: parseInt(document.getElementById('gen-num-options')?.value, 10) || 3,
+                                variations: parseInt(document.getElementById('gen-num-variations')?.value, 10) || 2,
+                                removeBg: document.getElementById('gen-remove-bg') ? document.getElementById('gen-remove-bg').checked : true,
                             };
                         },
                         onCollectionStateChange: (st) => this._onCollectionStateChange(st),
@@ -3356,6 +3361,7 @@
          *  the roster from that art direction (roster is text-driven — the image shaped
          *  the art direction, not the membership). */
         async _designReferenceCollection() {
+            if (this._designingRefCollection) return;   // guard: the vision call is slow — ignore repeat clicks
             const rs = this._referenceStudio;
             if (!rs) return;
             const err = rs.validate();   // needs image(s) + an instruction (what the set IS)
@@ -3365,7 +3371,14 @@
             const models = this._referenceCollectionModels();
             const assetType = (this._getAssetType() === 'character' ? 'character' : 'game_asset');
             const styleId = this._getStyleId() || null;
+            // Seed the Designer's Options × Variations (+ remove-bg) from the sidebar so
+            // the user's chosen counts carry through instead of the 3×2 default.
+            const sOpts = parseInt(document.getElementById('gen-num-options')?.value, 10) || 3;
+            const sVars = parseInt(document.getElementById('gen-num-variations')?.value, 10) || 2;
+            const sRemoveBg = document.getElementById('gen-remove-bg') ? document.getElementById('gen-remove-bg').checked : true;
             const btn = document.getElementById('btn-generate');
+            this._designingRefCollection = true;
+            rs.setDesigning(true);          // disable + "reading…" label on the Collection Designer button
             if (btn) btn.disabled = true;
             try {
                 window.showToast?.(t('artsmoker.ui.collection.reference_reading') || 'Reading the reference…', 'info');
@@ -3379,6 +3392,7 @@
                     priorDesignCost: ad.cost || 0, priorLedger: ad.llm_cost_ledger || [],
                     image_model: models[0], models_selected_count: models.length,
                     asset_type: assetType, style_id: styleId,
+                    options: sOpts, variations: sVars, removeBg: sRemoveBg,
                     model_name: ((MODELS.find(m => m.value === models[0]) || {}).label) || models[0],
                     onAccept: (design) => {
                         this._refCollectionDesign = { ...design, reference_images: refImgs, models, prompt };
@@ -3390,6 +3404,8 @@
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
             } finally {
+                this._designingRefCollection = false;
+                rs.setDesigning(false);     // restore the button
                 this._syncGenerateGate();   // reassert the gate (disabled until a design is accepted)
             }
         },

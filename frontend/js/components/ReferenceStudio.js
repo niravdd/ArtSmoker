@@ -108,6 +108,22 @@
                         <textarea class="rs-prompt input w-full min-h-[90px]" rows="3"
                             placeholder="${_t('image_studio.reference_prompt_ph')}"></textarea>
                         <p class="rs-prompt-warn text-[10px] text-amber-400/80 mt-0.5 hidden">${_t('image_studio.reference_prompt_required')}</p>
+
+                        <!-- Image-Inspired COLLECTION (SPEC §18): sits under Step 2 (the ask),
+                             shown only in "inspired" mode — the reference LOOK art-directs a whole
+                             set of distinct assets. Match/Remix are single-image transforms and
+                             don't map to a set. -->
+                        <div class="rs-collection hidden mt-2 p-2.5 rounded-lg bg-sky-950/20 border border-sky-500/25">
+                            <label class="rs-collection-row flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" class="rs-collection-cb rounded border-brand-border">
+                                <span class="text-sm font-medium">${_t('image_studio.reference_collection_toggle')}</span>
+                            </label>
+                            <p class="text-[10px] text-brand-text-muted mt-1">${_t('image_studio.reference_collection_hint')}</p>
+                            <button type="button" class="rs-collection-design hidden btn btn-sm text-xs mt-2 w-full bg-sky-600 hover:bg-sky-500 text-white">
+                                🗂️ ${_t('collection.designer_title')}
+                            </button>
+                            <p class="rs-collection-ready hidden text-[11px] font-semibold text-emerald-400 mt-1.5"></p>
+                        </div>
                     </div>
 
                     <!-- Step 3: How to use the reference -->
@@ -178,21 +194,6 @@
                             </button>
                             <div class="rs-preview-out hidden mt-1.5 space-y-1.5 text-[11px] text-brand-text/80"></div>
                         </div>
-                    </div>
-
-                    <!-- Image-Inspired COLLECTION (SPEC §18): only in "inspired" mode —
-                         the reference LOOK art-directs a whole set of distinct assets.
-                         Match/Remix are single-image transforms and don't map to a set. -->
-                    <div class="rs-collection hidden p-2.5 rounded-lg bg-sky-950/20 border border-sky-500/25">
-                        <label class="rs-collection-row flex items-center gap-2 cursor-pointer select-none">
-                            <input type="checkbox" class="rs-collection-cb rounded border-brand-border">
-                            <span class="text-sm font-medium">${_t('image_studio.reference_collection_toggle')}</span>
-                        </label>
-                        <p class="text-[10px] text-brand-text-muted mt-1">${_t('image_studio.reference_collection_hint')}</p>
-                        <button type="button" class="rs-collection-design hidden btn btn-sm text-xs mt-2 w-full bg-sky-600 hover:bg-sky-500 text-white">
-                            🗂️ ${_t('collection.designer_title')}
-                        </button>
-                        <p class="rs-collection-ready hidden text-[11px] font-semibold text-emerald-400 mt-1.5"></p>
                     </div>
                 </div>`;
 
@@ -454,6 +455,19 @@
         }
         setCollectionReady(text) { this._setCollectionReady(text); }
         isCollectionReady() { return !!this._collectionReady; }
+        /** Disable the "Collection Designer" button + show a working label while the
+         *  reference is being read into an art direction (a slow vision call) — so the
+         *  user isn't left clicking an unresponsive button. Restored when the Designer opens. */
+        setDesigning(on) {
+            const b = this._collectionDesignBtn;
+            if (!b) return;
+            b.disabled = !!on;
+            b.classList.toggle('opacity-60', !!on);
+            b.classList.toggle('cursor-wait', !!on);
+            b.textContent = on
+                ? `⏳ ${_t('collection.reference_reading')}`
+                : `🗂️ ${_t('collection.designer_title')}`;
+        }
 
         /** The remix strength ladder: one strength per sidebar Option, evenly
          *  spread ±0.15 around the slider (clamped 0.1–0.9). n=1 → just the

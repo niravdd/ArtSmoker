@@ -539,6 +539,10 @@
                 asset_type: ctx.asset_type || this.opts.assetType || 'game_asset',
                 style_id: ctx.style_id ?? this.opts.styleId ?? null,
                 style_name: ctx.style_name ?? null,
+                // Seed the Collection Designer's O × V (+ remove-bg) from the sidebar.
+                options: ctx.options,
+                variations: ctx.variations,
+                removeBg: ctx.removeBg,
             };
         }
 
