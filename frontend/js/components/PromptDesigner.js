@@ -261,7 +261,7 @@
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-w-3xl h-[80vh] flex flex-col overflow-hidden">
                     <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
                         <h2 class="text-sm font-semibold text-brand-text flex items-center gap-2">
-                            <span class="text-lg">🎨</span> ${_t('prompt_designer.title')}
+                            <span class="text-lg">🎨</span> ${(this._opts && this._opts.title) || _t('prompt_designer.title')}
                         </h2>
                         <button class="pd-close text-brand-text-muted hover:text-brand-text text-lg leading-none">&times;</button>
                     </div>
@@ -415,7 +415,7 @@
             const actionBar = html`
                 <div class="flex items-center justify-end px-5 py-3 border-t border-brand-border bg-black/10 gap-2">
                     <button class="pd-cancel text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${_t('prompt_designer.cancel')}</button>
-                    <button class="pd-save text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${_t('prompt_designer.save_continue')}</button>
+                    <button class="pd-save text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${(this._opts && this._opts.applyLabel) || _t('prompt_designer.save_continue')}</button>
                 </div>`;
 
             // Info footer explaining lock/vary — below buttons, visible on every tab

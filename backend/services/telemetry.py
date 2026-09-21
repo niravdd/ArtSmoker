@@ -148,6 +148,51 @@ def track_aux_llm_cost(operation: str = "", cost_usd: float = 0, studio: str = "
         _track(f"{studio}.aux.cost", cost_usd=cost_usd, operation=op)
 
 
+# ── Collections (Set Generation) Events — SPEC §18.10 ───────────────
+# Action events carry cost_usd=0; real spend is a separate `collection_studio.cost`
+# event (the .cost convention) so PulseBoard's aggregate total includes it once.
+
+def _collection_cost(cost_usd: float, operation: str):
+    if cost_usd and cost_usd > 0:
+        _track("collection_studio.cost", cost_usd=cost_usd, operation=operation)
+
+def track_collection_designed(batch_count: int = 0, models: str = "", cost_usd: float = 0):
+    _track("collection_studio.designed", cost_usd=0, batch_count=batch_count, models=models)
+    _collection_cost(cost_usd, "design")
+
+def track_collection_roster_regenerated(cost_usd: float = 0):
+    _track("collection_studio.roster_regenerated", cost_usd=0)
+    _collection_cost(cost_usd, "roster_regenerate")
+
+def track_collection_art_direction_edited(cost_usd: float = 0):
+    _track("collection_studio.art_direction_edited", cost_usd=0)
+    _collection_cost(cost_usd, "recompose_all")
+
+def track_collection_batch_regenerated(cost_usd: float = 0):
+    _track("collection_studio.batch_regenerated", cost_usd=0)
+    _collection_cost(cost_usd, "batch_regenerate")
+
+def track_collection_generation(batches: int = 0, options: int = 1, variations: int = 1, models: str = ""):
+    _track("collection_studio.generate", cost_usd=0, batches=batches, options=options,
+           variations=variations, num_images=batches * options * variations, models=models)
+
+def track_collection_generation_complete(success: int = 0, partial: int = 0, cost_usd: float = 0):
+    _track("collection_studio.generate_complete", cost_usd=0, success=success, partial=partial)
+    _collection_cost(cost_usd, "generation")
+
+def track_collection_hero_anchor_used(batch_count: int = 0):
+    _track("collection_studio.hero_anchor", cost_usd=0, batch_count=batch_count)
+
+def track_collection_3d_handoff(batch_count: int = 0):
+    _track("collection_studio.3d_handoff", cost_usd=0, batch_count=batch_count)
+
+def track_collection_export(engine: str = "", batch_count: int = 0):
+    _track("collection_studio.export", cost_usd=0, engine=engine, batch_count=batch_count)
+
+def track_collection_version_selected(version: int = 0):
+    _track("collection_studio.version_selected", cost_usd=0, version=version)
+
+
 # ── Video Studio Events ─────────────────────────────────────────────
 
 def track_video_generation(model: str = "", duration_seconds: int = 0,

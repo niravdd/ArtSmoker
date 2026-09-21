@@ -8,7 +8,7 @@ import logging
 from backend.models.generation_request import AssetType, ImageModel
 from backend.models.style_profile import StyleProfile
 from backend.services.bedrock_client import invoke_llm
-from backend.services.prompt_templates import get_template
+from backend.services.prompt_templates import get_template, get_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -875,3 +875,310 @@ def generate_concept_prompts(
 
     logger.info("Generated %d concept prompts (lengths: %s)", len(result), [len(p) for p in result])
     return result
+
+
+# ── Collections (Set Generation) — SPEC §18.4 ────────────────────────────────
+
+def _extract_json_object(raw: str) -> dict | None:
+    """Robustly extract a single JSON object from an LLM response (object twin of
+    _extract_json_array: strips code fences, finds first {...} balanced block)."""
+    text = raw.strip()
+    if "```" in text:
+        for part in text.split("```")[1::2]:
+            inner = part.strip()
+            if inner.lower().startswith("json"):
+                inner = inner[4:].strip()
+            if inner.startswith("{"):
+                try:
+                    return json.loads(inner)
+                except json.JSONDecodeError:
+                    pass
+    first = text.find("{")
+    if first >= 0:
+        depth = 0
+        for i in range(first, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        obj = json.loads(text[first:i + 1])
+                        if isinstance(obj, dict):
+                            return obj
+                    except json.JSONDecodeError:
+                        break
+    try:
+        obj = json.loads(text)
+        return obj if isinstance(obj, dict) else None
+    except json.JSONDecodeError:
+        return None
+
+
+def slugify(name: str) -> str:
+    """Lowercase, export-safe slug: alphanumerics + underscores only."""
+    s = _re.sub(r"[^a-z0-9]+", "_", (name or "").lower()).strip("_")
+    return s or "piece"
+
+
+def _resolve_slug_collisions(entries: list[dict]) -> None:
+    """Ensure every roster entry's slug is unique (in place): king / king_2 / …"""
+    seen: dict[str, int] = {}
+    for e in entries:
+        base = slugify(e.get("slug") or e.get("name") or "piece")
+        n = seen.get(base, 0) + 1
+        seen[base] = n
+        e["slug"] = base if n == 1 else f"{base}_{n}"
+
+
+# Core dimensions the art direction ALWAYS includes (cross-set consistency); the
+# model adds genre-appropriate dimensions on top. "negative" MUST be present — the
+# set-wide negative prompt is parsed from it (collections._negative_from_art_direction).
+ART_DIRECTION_CORE_FIELDS = ("medium", "palette", "mood", "negative")
+
+
+def art_direction_to_text(ad: dict) -> str:
+    """Flatten the art-direction dict into the text the roster/per-piece templates
+    consume (and the Designer shows/edits). Renders WHATEVER dimensions the model
+    chose for this set (genre-adaptive, dynamic — NOT a fixed schema), in order, as
+    'Label: value'."""
+    if not ad:
+        return ""
+    lines = []
+    for f, v in ad.items():
+        if f == "text":
+            continue
+        v = str(v).strip()
+        if not v:
+            continue
+        label = f if f[:1].isupper() else f.replace("_", " ").capitalize()
+        lines.append(f"{label}: {v}")
+    return "\n".join(lines)
+
+
+def _fit_reference_images(reference_images: list[bytes] | None) -> list[bytes]:
+    """Size raw reference-image bytes for a Bedrock Converse vision call, reusing the
+    same plumbing as the single-asset "Inspired by the reference" path
+    (`generate_3d._fit_image_for_vision`, ≤5 MB each, ≤3 images). Returns [] on any
+    failure so callers transparently fall back to a text-only prompt — an
+    image-inspired collection must never crash the design step over a bad image."""
+    if not reference_images:
+        return []
+    try:
+        from backend.routers.generate_3d import _fit_image_for_vision
+        return [_fit_image_for_vision(b) for b in reference_images[:3] if b]
+    except Exception as exc:
+        logger.warning("Reference-image fit for art direction failed (%s) — text-only", exc)
+        return []
+
+
+def recommend_art_direction_fields(ask: str, style_profile: StyleProfile | None = None,
+                                   reference_images: list[bytes] | None = None) -> list[str]:
+    """Recommend the genre-appropriate art-direction dimension LABELS for a brief —
+    used to seed the Step-2 scaffold ("World: ", "Era: ", …) AND as the exact keys
+    the generator fills, so the guided template and the AI output stay in sync
+    (SPEC §18.4). Fast + cheap: labels only, no values. Always includes the core
+    four; falls back to them if the LLM is unavailable.
+
+    When `reference_images` are given (the Image-Inspired collection path) the call
+    goes to a VISION model so the recommended dimensions capture what makes the
+    supplied look distinctive (line/shading style, rendering technique, materials)."""
+    core = ["Medium", "Palette", "Mood", "Negative"]
+    vision_imgs = _fit_reference_images(reference_images)
+    try:
+        prompt = get_template('collection_art_direction_fields').format(ask=ask or "")
+        if vision_imgs:
+            prompt += ("\n\nThe user attached reference image(s) as the PRIMARY visual "
+                       "inspiration — pick dimensions that capture what makes THIS look "
+                       "distinctive (e.g. line & shading style, rendering technique, materials).")
+        raw = invoke_llm(
+            prompt,
+            system=get_system_prompt('collection_art_direction_fields'),
+            complexity=("complex" if vision_imgs else "fast"),
+            images=(vision_imgs or None), max_tokens=200, temperature=0.4,
+        )
+        arr = _extract_json_array(raw) or []
+    except Exception as exc:
+        logger.warning("Art-direction field recommendation failed (%s) — using core fields", exc)
+        arr = []
+    fields, seen = [], set()
+    for x in arr:
+        s = str(x).strip()
+        if s and s.lower() not in seen:
+            seen.add(s.lower()); fields.append(s)
+    fields = fields[:8]
+    for c in core:                                   # guarantee the core dimensions
+        if c.lower() not in {f.lower() for f in fields}:
+            fields.append(c)
+    return fields
+
+
+def generate_art_direction(ask: str, style_profile: StyleProfile | None = None,
+                           fields: list[str] | None = None,
+                           reference_images: list[bytes] | None = None) -> dict:
+    """Distill a set brief into ONE shared art direction (SPEC §18.4).
+
+    The dimensions are genre-adaptive: either the exact `fields` the caller
+    recommended (so the AI output matches the Step-2 scaffold the user saw), or —
+    when none are given — the model chooses the dimensions that fit this kind of
+    set. Always includes the core dimensions + a 'negative'. Returns the (dynamic)
+    structured dict plus a flat "text" key.
+
+    When `reference_images` are given (the Image-Inspired collection path) the call
+    goes to a VISION model and the art direction is derived from what the images
+    SHOW (an artist's hand-drawn base, a mood board, …), with the brief refining
+    intent — so the rest of the set is generated in that supplied look."""
+    style_section = _build_style_section(style_profile)
+    vision_imgs = _fit_reference_images(reference_images)
+    prompt = get_template('collection_art_direction').format(ask=ask or "", style_section=style_section)
+    if vision_imgs:
+        prompt += ("\n\nThe user attached reference image(s) as the PRIMARY visual inspiration. "
+                   "Derive the art direction from what you SEE — medium, palette, mood, line & "
+                   "shading style, materials, rendering technique, overall aesthetic — using the "
+                   "brief above only to refine intent (it may be sparse). Let the images lead.")
+    if fields:
+        prompt += ("\n\nIMPORTANT: use EXACTLY these dimensions as the JSON keys "
+                   "(short Title-Case), and no others — always include a \"Negative\": "
+                   + ", ".join(fields))
+    raw = invoke_llm(
+        prompt,
+        system=get_system_prompt('collection_art_direction'),
+        complexity=("complex" if vision_imgs else "fast"),
+        images=(vision_imgs or None),
+        max_tokens=1500,
+        temperature=0.7,
+    )
+    obj = _extract_json_object(raw) or {}
+    # Keep whatever non-empty string dimensions the model returned, in order.
+    ad: dict = {}
+    for k, v in obj.items():
+        if isinstance(v, str) and v.strip():
+            ad[str(k).strip()] = v.strip()
+    if not any(k.lower() == "negative" for k in ad):
+        ad["Negative"] = ""     # keep the slot stable for downstream negative-extraction
+    ad["text"] = art_direction_to_text(ad)
+    logger.info("Collection art direction: %d dims %s",
+                len([k for k in ad if k != "text"]), [k for k in ad if k != "text"][:8])
+    return ad
+
+
+def merge_art_direction_with_batch(art_direction_text: str, batch_direction: str) -> dict:
+    """Lift a creative direction the user refined on ONE Batch UP into the SHARED
+    art direction (SPEC §18 — the Art Direction Controller's opt-in 'apply to the
+    whole set'). Blends the batch's set-wide-relevant intent into the existing
+    direction WITHOUT narrowing it to that one subject, keeping the same dynamic
+    dimensions + a 'negative'. Returns the merged structured dict + flat 'text'."""
+    prompt = get_template('collection_merge_art_direction').format(
+        art_direction=art_direction_text or "", batch_direction=batch_direction or "")
+    raw = invoke_llm(
+        prompt,
+        system=get_system_prompt('collection_merge_art_direction'),
+        complexity="fast", max_tokens=1500, temperature=0.6,
+    )
+    obj = _extract_json_object(raw) or {}
+    ad: dict = {}
+    for k, v in obj.items():
+        if isinstance(v, str) and v.strip():
+            ad[str(k).strip()] = v.strip()
+    if not ad:                       # LLM returned nothing usable → keep the original
+        return {"text": art_direction_text or ""}
+    if not any(k.lower() == "negative" for k in ad):
+        ad["Negative"] = ""
+    ad["text"] = art_direction_to_text(ad)
+    return ad
+
+
+def generate_roster(
+    ask: str,
+    art_direction_text: str,
+    count: int | None = None,
+    style_profile: StyleProfile | None = None,
+) -> list[dict]:
+    """Fan one set brief into a roster of DISTINCT, in-theme pieces (SPEC §18.4).
+
+    `count=None` lets the model infer the natural count (chess=numbered pieces,
+    tarot=structured); a given count is enforced (trim overflow). Each entry is
+    {name, slug, concept}; slugs are collision-resolved to stay export-safe.
+    """
+    if count and count > 0:
+        count_directive = f"exactly {count} pieces"
+        count_rule = f"Produce EXACTLY {count} pieces — no more, no fewer."
+    else:
+        count_directive = "the pieces that belong in this set"
+        count_rule = "Choose the NATURAL count for this kind of set (infer it from the brief) and list every piece once."
+
+    prompt = get_template('collection_roster').format(
+        ask=ask,
+        art_direction=art_direction_text,
+        count_directive=count_directive,
+        count_rule=count_rule,
+    )
+    raw = invoke_llm(
+        prompt,
+        system=get_system_prompt('collection_roster'),
+        complexity="complex",
+        max_tokens=8192,
+        temperature=0.85,
+    )
+    items = _extract_json_array(raw) or []
+
+    # Normalize into {name, slug, concept}; drop malformed/blank entries.
+    roster: list[dict] = []
+    seen_names: set[str] = set()
+    for it in items:
+        if isinstance(it, str):
+            name, concept, slug = it.strip(), "", ""
+        elif isinstance(it, dict):
+            name = str(it.get("name", "")).strip()
+            concept = str(it.get("concept", "")).strip()
+            slug = str(it.get("slug", "")).strip()
+        else:
+            continue
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen_names:      # de-dup near-identical names
+            continue
+        seen_names.add(key)
+        roster.append({"name": name, "slug": slug, "concept": concept})
+
+    if count and count > 0 and len(roster) > count:
+        roster = roster[:count]          # trim overflow to the requested count
+    _resolve_slug_collisions(roster)
+    logger.info("Collection roster: %d pieces (requested=%s): %s",
+                len(roster), count, [e["slug"] for e in roster][:12])
+    return roster
+
+
+def generate_batch_prompt(
+    art_direction_text: str,
+    batch_name: str,
+    batch_concept: str,
+    asset_type: AssetType,
+    image_model: str | None = None,
+) -> str:
+    """Write ONE model-agnostic image prompt for a single Batch (SPEC §18.4)."""
+    max_chars = get_prompt_limit(image_model)
+    optimal_length = get_optimal_length(image_model)
+    asset_context = _asset_type_context(asset_type)
+    prompt = get_template('collection_batch_prompt').format(
+        art_direction=art_direction_text,
+        batch_name=batch_name,
+        batch_concept=batch_concept,
+        asset_context=asset_context,
+        optimal_length=f"{optimal_length} words",
+        max_chars=max_chars,
+    )
+    text = invoke_llm(
+        prompt,
+        system=get_system_prompt('collection_batch_prompt'),
+        complexity="fast",
+        max_tokens=2048,
+        temperature=0.8,
+    ).strip()
+    # Strip accidental wrapping quotes / code fences.
+    text = _re.sub(r"^```[a-zA-Z]*\n?", "", text)
+    text = _re.sub(r"\n?```$", "", text).strip()
+    if len(text) > max_chars:
+        text = text[:max_chars - 4].rsplit(" ", 1)[0]
+    return _cap_prompt_words(text, optimal_length, image_model)

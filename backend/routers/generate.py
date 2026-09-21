@@ -149,11 +149,11 @@ def _resolve_model_size(model_key: str, width: int, height: int) -> tuple[int, i
          supported size just because it's numerically nearer the request). The
          model's supported sizes are all quality-validated, so bigger = better.
     """
-    from backend.services.model_registry import get_image_model
+    from backend.services.model_registry import get_image_model, get_model_supported_sizes
     cfg = get_image_model(model_key) if model_key else None
     if not cfg:
         return width, height
-    sizes = cfg.get("invoke", {}).get("supported_sizes", [])
+    sizes = get_model_supported_sizes(cfg) or []
     if not sizes:
         return width, height
     if width <= 0 or height <= 0:
@@ -497,6 +497,20 @@ def _prepare_reference_generation(body: GenerationRequest, progress_cb=None) -> 
     )
 
 
+def _discard_partial_asset(asset_id: str) -> None:
+    """Remove a half-written job dir — image (+ SVG) saved but metadata.json not
+    yet committed — so it can never orphan. An asset dir without metadata.json is
+    invisible to the Gallery (``list_generated_ids`` requires it), to a
+    Collection's membership scan (``_member_jobs``), AND to a batch's own
+    moderation-cleanup (which only revisits variants that returned a
+    VariantResult) — so a partial dir left behind lingers forever. Best-effort:
+    never raises into the caller."""
+    try:
+        store.delete_generated_asset(asset_id)
+    except Exception:
+        logger.debug("Cleanup of partial asset %s failed", asset_id, exc_info=True)
+
+
 def _build_variant(
     *,
     batch_id: str,
@@ -619,8 +633,12 @@ def _build_variant(
 
     final_bytes = gen_result
 
-    # Check after generation but before saving (another task may have triggered cancel)
+    # A sibling variant's raw-prompt moderation block cancels the batch. The
+    # image was ALREADY generated + saved to disk inside _generate_single_image,
+    # so discard that partial asset before bailing — otherwise it orphans (png/
+    # svg with no metadata.json, invisible to the Gallery AND to batch cleanup).
     if cancel_event and cancel_event.is_set():
+        _discard_partial_asset(asset_id)
         raise RuntimeError("Batch cancelled due to content moderation block")
 
     png_filename = f"{prompt_slug}_opt{option_index + 1}_var{variant_index + 1}.png"
@@ -628,7 +646,7 @@ def _build_variant(
 
     effective_model = model_override or body.image_model
     _ref_meta = _persist_reference_inputs(asset_id, body, option_index)
-    store.save_generation_metadata(asset_id, {
+    _metadata = {
         "id": asset_id,
         "batch_id": batch_id,
         "option_index": option_index,
@@ -680,7 +698,16 @@ def _build_variant(
         "estimated_image_cost_usd": _get_model_price(effective_model),
         "cost_history": [{"action": "generate", "model": effective_model.value if hasattr(effective_model, 'value') else str(effective_model), "cost_usd": _get_model_price(effective_model)}],
         **_ref_meta,
-    })
+    }
+
+    # The image (+ optional SVG) is already on disk (saved inside
+    # _generate_single_image); writing metadata.json is what COMMITS the job.
+    # If the write fails, remove the partial asset dir so it can't orphan.
+    try:
+        store.save_generation_metadata(asset_id, _metadata)
+    except Exception:
+        _discard_partial_asset(asset_id)
+        raise
 
     result = VariantResult(
         id=asset_id,
@@ -2297,6 +2324,15 @@ async def edit_image(body: ImageEditRequest):
         store.save_generation_metadata(asset_id, new_meta)
     finally:
         _asset_lock.release()
+
+    # If this asset belongs to a Collection, refresh its Gallery index (cover /
+    # selected version) now that the lock is released. Guarded NO-OP for
+    # single-asset jobs (SPEC §18.7 — never nests the two locks).
+    try:
+        from backend.services import collection_store as _cstore
+        _cstore.refresh_if_member(asset_id)
+    except Exception:
+        pass
 
     svg_url = new_meta.get("svg_path")
     png_filename = new_meta.get("png_filename", f"{asset_id}.png")

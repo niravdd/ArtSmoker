@@ -25,10 +25,12 @@ class LocalStore:
         self.images_dir = settings.images_dir
         self.legacy_generated_dir = settings.legacy_generated_dir
         self.video_dir = settings.video_dir
+        self.collections_dir = settings.collections_dir
         self.styles_dir.mkdir(parents=True, exist_ok=True)
         self._migrate_legacy_generated_dir()
         self.images_dir.mkdir(parents=True, exist_ok=True)
         self.video_dir.mkdir(parents=True, exist_ok=True)
+        self.collections_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Legacy storage migration (data/generated → data/images) ───────────
     def _migrate_legacy_generated_dir(self) -> None:

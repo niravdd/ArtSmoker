@@ -660,6 +660,13 @@
                 promptLineage += promptBlock(t('artsmoker.ui.asset_viewer.meta_moderation_rewrite'), meta.moderation_original,
                     { tone: 'amber', note: t('artsmoker.ui.asset_viewer.meta_moderation_note') });
             }
+            // Collection: the model-agnostic prompt for THIS subject, derived from the
+            // set's shared art direction — the canonical creative artifact of a
+            // collection Job (shown regardless of edit/type view).
+            if (meta.model_agnostic_prompt) {
+                promptLineage += promptBlock(t('artsmoker.ui.asset_viewer.meta_collection_prompt'), meta.model_agnostic_prompt,
+                    { tone: 'indigo', note: t('artsmoker.ui.asset_viewer.meta_collection_prompt_note') });
+            }
 
             // 2. PROMPT DESIGNER (optional) — decomposed fields + concatenated
             //    (recomposed) text. Only for non-edit views (a base generation).
@@ -738,6 +745,21 @@
             genDetails += fact(t('artsmoker.ui.asset_viewer.meta_batch'), this._esc(meta.batch_id || meta.id), { mono: true });
             if (allModelsChip) genDetails += fact(t('artsmoker.ui.asset_viewer.meta_all_models'), allModelsChip);
             genDetails += `</div>`;
+
+            // ── Collection lineage ─────────────────────────────────────────
+            // When this Job belongs to a Collection (SPEC §18), surface which set +
+            // subject it's part of, with a way to open the whole collection.
+            let collectionContent = '';
+            if (meta.collection_id) {
+                let cc = '<div class="space-y-3">';
+                cc += fact(t('artsmoker.ui.asset_viewer.meta_collection_name_label'),
+                           this._esc(meta.collection_name || t('artsmoker.ui.asset_viewer.meta_collection_section')));
+                if (meta.batch_name) cc += fact(t('artsmoker.ui.asset_viewer.meta_collection_subject'), this._esc(meta.batch_name));
+                // nosemgrep -- hand-escaped raw HTML template (data-collection via escAttr, i18n via t())
+                cc += `<button class="av-open-collection btn btn-xs bg-cyan-700/70 hover:bg-cyan-600 text-white" data-collection="${escAttr(meta.collection_id)}">${t('artsmoker.ui.asset_viewer.meta_open_collection')}</button>`;
+                cc += '</div>';
+                collectionContent = cc;
+            }
 
             // ── Section 4: Post-Processing ─────────────────────────────────
             let postProcessing = '';
@@ -952,6 +974,7 @@
             const factsRail = `
                 <div class="space-y-5">
                     <div>${railHeader(t('artsmoker.ui.asset_viewer.meta_generation_details'))}${genDetails}</div>
+                    ${collectionContent ? /* nosemgrep -- _esc/escAttr-escaped raw template */ `<div>${railHeader(t('artsmoker.ui.asset_viewer.meta_collection_section'))}${collectionContent}</div>` : ''}
                     ${threeDContent ? /* nosemgrep -- _esc/escAttr-escaped raw template */ `<div>${railHeader(t('artsmoker.ui.asset_viewer.meta_three_d_section'))}${threeDContent}</div>` : ''}
                     ${postProcessing ? /* nosemgrep -- _esc/escAttr-escaped raw template */ `<div>${railHeader(t('artsmoker.ui.asset_viewer.meta_post_processing'))}${postProcessing}</div>` : ''}
                     ${editHistoryContent ? /* nosemgrep -- _esc/escAttr-escaped raw template */ `<div>${railHeader(t('artsmoker.ui.asset_viewer.meta_version_history'))}${editHistoryContent}</div>` : ''}
@@ -969,6 +992,13 @@
                     </div>
                 </div>
             `;
+
+            // Open the whole Collection this Job belongs to (closes this viewer first).
+            container.querySelector('.av-open-collection')?.addEventListener('click', (e) => {
+                const id = e.currentTarget.getAttribute('data-collection');
+                this.close();
+                window.CollectionAssetViewer?.open?.(id);
+            });
 
             // Attach section toggle handlers
             container.querySelectorAll('.av-meta-section-header').forEach(header => {

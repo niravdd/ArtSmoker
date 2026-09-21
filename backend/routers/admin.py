@@ -392,7 +392,7 @@ def get_image_model_options(region: str | None = Query(default=None)):
     Optional `region` filter: if provided, only returns models available
     in that region. If omitted, returns all enabled models.
     """
-    from backend.services.model_registry import get_enabled_image_models, get_registry
+    from backend.services.model_registry import get_enabled_image_models, get_registry, get_model_supported_sizes
     from backend.services.cost_tracker import resolve_image_price
     from backend.services.custom_models import get_instance_hourly_rate
     enabled = get_enabled_image_models()
@@ -486,7 +486,7 @@ def get_image_model_options(region: str | None = Query(default=None)):
                     (cfg.get("deployment", {}) or {}).get("region"))
                 if cfg.get("model_source") == "custom_hosted" else None),
             "typical_latency_seconds": (cfg.get("invoke", {}) or {}).get("typical_latency_seconds"),
-            "supported_sizes": cfg.get("invoke", {}).get("supported_sizes"),
+            "supported_sizes": get_model_supported_sizes(cfg),
             "_last_updated": cfg.get("last_updated", cfg.get("invoke", {}).get("last_updated", "")),
         })
 

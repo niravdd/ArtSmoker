@@ -3,7 +3,7 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-APP_VERSION = "1.9-20260908_01"
+APP_VERSION = "1.9-20260918_01"
 
 class Settings(BaseSettings):
     # ── AWS ───────────────────────────────────────────────────────────────
@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     images_dir: Path = data_dir / "images"
     legacy_generated_dir: Path = data_dir / "generated"   # pre-rename location
     video_dir: Path = data_dir / "video"
+    collections_dir: Path = data_dir / "collections"  # Collections feature (SPEC §18)
 
     # ── Telemetry ──────────────────────────────────────────────────────────
     telemetry_enabled: bool = True
@@ -101,6 +102,25 @@ class Settings(BaseSettings):
     default_image_height: int = 1024
     max_reference_images: int = 100
     max_analysis_images: int = 20
+
+    # ── Image-generation throttle handling ────────────────────────────────
+    # A Collection fires MANY image requests back-to-back (N batches × models ×
+    # options × variations) — exactly what trips Bedrock's per-account request
+    # rate limit. On top of boto3's adaptive retry, invoke_image_model rides out
+    # longer throttle windows with an app-level exponential backoff + jitter, so
+    # a whole Batch isn't failed for briefly outrunning the rate. Tunable per
+    # account (limits differ by account) without a code change.
+    image_retry_attempts: int = 6         # extra attempts after the first invoke
+    image_retry_base_delay: float = 2.0   # seconds; exponential (2, 4, 8, 16, …)
+    image_retry_max_delay: float = 30.0   # per-attempt delay cap
+
+    # Collections on an ASYNC self-hosted model: the per-Batch generate submits and
+    # returns before the image lands (the background poller finalizes it later). The
+    # collection loop WAITS this long for a Batch's Jobs to reach a terminal state
+    # before judging it, so async models work in a set. On timeout the loop moves on;
+    # the async-complete hook still refreshes the set when the image lands. Sync
+    # Bedrock Batches are already terminal → no wait. Env: ARTSMOKER_COLLECTION_ASYNC_BATCH_TIMEOUT_S.
+    collection_async_batch_timeout_s: int = 900   # 15 min (matches the async stale/resubmit window)
 
     model_config = {
         "env_prefix": "ARTSMOKER_",

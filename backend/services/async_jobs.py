@@ -401,6 +401,17 @@ def _update_gallery_on_complete(job: dict, image_bytes: bytes):
     })
     meta_path.write_text(json.dumps(meta, indent=2))
 
+    # If this Job belongs to a Collection, refresh its Gallery index so the set's
+    # cover / status reflect the just-landed async image (mirrors the edit-complete
+    # hook; guarded NO-OP for single-asset). This is what lets a Collection built on
+    # an async self-hosted model finalize even if the generate loop's per-Batch wait
+    # timed out before the image arrived (SPEC §18 — async-aware collections).
+    try:
+        from backend.services import collection_store as cstore
+        cstore.refresh_if_member(asset_id)
+    except Exception:
+        pass
+
     return image_path
 
 
@@ -413,7 +424,16 @@ def _update_gallery_on_edit_complete(job: dict, image_bytes: bytes):
     """
     from backend.services.asset_locks import asset_write_lock
     with asset_write_lock(job["edit_asset_id"]):
-        return _update_gallery_on_edit_complete_locked(job, image_bytes)
+        result = _update_gallery_on_edit_complete_locked(job, image_bytes)
+    # If this asset belongs to a Collection, refresh its Gallery index (cover /
+    # selected version). Guarded NO-OP for single-asset jobs; runs AFTER the lock
+    # releases (never nested with collection_write_lock — SPEC §18.7 ordering).
+    try:
+        from backend.services import collection_store as cstore
+        cstore.refresh_if_member(job["edit_asset_id"])
+    except Exception:
+        pass
+    return result
 
 
 def _update_gallery_on_edit_complete_locked(job: dict, image_bytes: bytes):

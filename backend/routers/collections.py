@@ -1,0 +1,1359 @@
+"""Collections (Set Generation) API — SPEC §18.
+
+Design-time endpoints (decompose / recompose / regenerate) turn ONE brief into a
+shared art direction + a roster of distinct, in-theme Batches, each with its own
+model-agnostic prompt. The design is held IN-MEMORY by the client (like the
+single-asset Prompt Designer) — no pre-generation persistence; the Collection
+record is written at generation start (see routers/generate.py). Read endpoints
+(list / get / delete) serve the Gallery + Collection Asset Viewer from the store.
+
+Every design LLM round-trip is costed: reset_costs() at entry, a per-step ledger
+built from get_total_cost() deltas, and track_aux_llm_cost() in finally (§18.9).
+"""
+
+import base64
+import json
+import logging
+import queue
+import random
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
+
+from backend.config import settings
+from backend.models.generation_request import AssetType, GenerationRequest
+from backend.storage.local_store import store
+
+logger = logging.getLogger(__name__)
+
+_SEED_MAX = 2 ** 31 - 1
+
+router = APIRouter(prefix="/api/collections", tags=["collections"])
+
+# Bounded fan-out for per-Batch prompt generation — parallel for speed, capped to
+# respect Bedrock/Mantle throttle (the sanity-harness lesson).
+_BATCH_PROMPT_WORKERS = 4
+
+
+def _asset_enum(value: str | None) -> AssetType:
+    """A Collection is a SET of distinct SUBJECTS, so only Character or Game Asset
+    apply — they enforce single-complete-subject framing (uncropped, in-frame) and
+    are 3D-ready, whereas photorealistic/icon/etc. don't. Everything except an
+    explicit 'character' coerces to Game Asset (SPEC §18). Authoritative — this
+    guarantees a collection never generates as photorealistic regardless of the
+    Image Studio asset-type selector."""
+    return AssetType.CHARACTER if (value or "").lower() == "character" else AssetType.GAME_ASSET
+
+
+# Single source of truth for "was this generation failure a content-moderation
+# block?" — used to pick the Batch badge (blocked/amber vs failed/red) and whether
+# retry prompts the user to edit the prompt first. Phrase-based (not bare
+# "content"/"filter"/"blocked", which matched unrelated errors like
+# "content-length"): covers Bedrock SD3.5's "Filter reason: prompt" and Bedrock
+# content-moderation ("blocked by content filtering policy", "content policy").
+_MODERATION_SIGNALS = ("moderation", "content filter", "content policy",
+                       "filter reason", "safety filter", "blocked by")
+
+
+def _is_moderation_error(text: str | None) -> bool:
+    t = (text or "").lower()
+    return any(s in t for s in _MODERATION_SIGNALS)
+
+
+def _negative_from_art_direction(art_direction: dict | None) -> str:
+    """Pull the 'Negative:' directive out of the (flat) art-direction text so the
+    WHOLE collection generates with it as the negative prompt.
+
+    Collections feed each Batch's prompt via saved_concept_prompts, which bypasses
+    refine_prompt — so nothing else sets a negative, and the set's 'avoid' guidance
+    (e.g. a non-photorealistic brief → 'photorealistic, photograph, 3d render') was
+    only living in the positive text, which the model happily ignores. The art
+    direction already carries a structured `negative` field; art_direction_to_text
+    renders it as a 'Negative: …' line, so parse it back out here."""
+    text = (art_direction or {}).get("text", "") or ""
+    for line in text.splitlines():
+        s = line.strip()
+        if s.lower().startswith("negative:"):
+            return s.split(":", 1)[1].strip()
+    return ""
+
+
+def _load_style_profile(style_id: str | None):
+    if not style_id:
+        return None
+    data = store.load_style_profile(style_id)
+    if not data:
+        return None
+    from backend.models.style_profile import StyleProfile
+    return StyleProfile(**data)
+
+
+def _derive_name(ask: str, art_direction: dict) -> str:
+    """A short human title for the collection card (free — no extra LLM call)."""
+    ask = (ask or "").strip()
+    if ask:
+        words = ask.split()
+        name = " ".join(words[:8])
+        return (name[:60] + "…") if len(name) > 60 else name.title()
+    return (art_direction.get("world") or "Collection")[:60]
+
+
+def _projected_generation_cost(image_model: str, batches: int, options: int,
+                               variations: int, region: str = "", quality: str = "",
+                               models: int = 1, model_keys: list[str] | None = None) -> dict:
+    """Projected image-generation cost for a collection. Every subject renders on
+    each selected model, so images = batches × models × O × V. Reuses the SAME
+    registry-sourced resolver as the real cost path (`resolve_image_price`;
+    base_price_usd fallback; None → unavailable — no guess). SPEC §18.9.
+
+    Two modes:
+      • model_keys given (the persisted record path, where we know the exact set)
+        → ACCURATE: sum each model's OWN per-image price (models can differ in
+        price). Unavailable unless every model prices.
+      • model_keys omitted (the live Designer /estimate, which only knows a count)
+        → primary model's price × total image count (a close approximation)."""
+    from backend.services.model_registry import get_image_model
+    from backend.services.cost_tracker import resolve_image_price
+
+    def _price(key: str):
+        m = get_image_model(key) or {}
+        reg = region or m.get("region", "")
+        p = resolve_image_price(m, key, reg, quality or "")
+        return p if p is not None else m.get("base_price_usd")
+
+    per_subject = max(1, options) * max(1, variations)
+    keys = [k for k in (model_keys or []) if k]
+    if keys:
+        # Accurate per-model sum: each model renders `batches × per_subject` images.
+        total = 0.0
+        priced = 0
+        for k in keys:
+            p = _price(k)
+            if p is not None:
+                total += p * max(0, batches) * per_subject
+                priced += 1
+        images = max(0, batches) * per_subject * len(keys)
+        available = priced == len(keys) and priced > 0
+        return {
+            "images": images,
+            "price_per_image": round(total / images, 4) if (available and images) else None,
+            "price_available": available,
+            "projected_generation_cost": round(total, 4) if available else None,
+        }
+
+    # Count-based approximation (live estimate: only a model count is known).
+    images = max(0, batches) * per_subject * max(1, models)
+    price = _price(image_model)
+    return {
+        "images": images,
+        "price_per_image": round(price, 4) if price is not None else None,
+        "price_available": price is not None,
+        "projected_generation_cost": round(price * images, 4) if price is not None else None,
+    }
+
+
+# ── Request models ───────────────────────────────────────────────────────────
+
+class ArtDirectionRequest(BaseModel):
+    prompt: str
+    image_model: str | None = None
+    asset_type: str = "game_asset"
+    style_id: str | None = None
+    # When set, the user wrote their OWN art direction (Step 2 is on-demand — the
+    # checkbox no longer auto-generates). We then only MINT the collection_id and
+    # echo the text back verbatim — no LLM call, no cost. Absent → generate it.
+    art_direction: str | None = None
+    # The genre-appropriate dimension labels the Step-2 scaffold used — the generated
+    # art direction fills EXACTLY these, so the AI output matches what the user saw.
+    fields: list[str] | None = None
+    # Image-Inspired collections (SPEC §18): b64 (or data-URL) reference image(s) whose
+    # LOOK drives the art direction — the vision model derives the set's aesthetic from
+    # them. Inspired-only (Match/Remix don't map to a multi-subject set). Empty → text.
+    reference_images: list[str] = []
+
+
+class ArtDirectionFieldsRequest(BaseModel):
+    prompt: str
+    style_id: str | None = None
+    reference_images: list[str] = []    # image-inspired scaffold: dimensions from the look
+
+
+class DecomposeCollectionRequest(BaseModel):
+    prompt: str
+    image_model: str | None = None
+    asset_type: str = "game_asset"
+    style_id: str | None = None
+    count: int | None = None            # None → infer natural count
+    reference_images: list[str] = []    # image-inspired: reference look drives the art direction
+
+
+class RecomposeBatchRequest(BaseModel):
+    art_direction: str                  # flat art-direction text
+    name: str
+    concept: str = ""
+    image_model: str | None = None
+    asset_type: str = "game_asset"
+
+
+class RegenerateRosterRequest(BaseModel):
+    prompt: str
+    art_direction: str
+    count: int | None = None
+    locked: list[dict] = []             # entries to preserve verbatim
+    image_model: str | None = None
+    asset_type: str = "game_asset"
+    style_id: str | None = None
+
+
+class RecomposeAllRequest(BaseModel):
+    art_direction: str                  # EDITED flat art-direction text
+    roster: list[dict]                  # [{name, slug, concept}, …]
+    image_model: str | None = None
+    asset_type: str = "game_asset"
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _decode_ref_images(b64_list: list[str] | None) -> list[bytes]:
+    """Decode up to 3 client-supplied reference images (raw b64 OR a data-URL) to
+    bytes for the vision art-direction call + the per-Batch anchor. Each is VALIDATED
+    as a loadable image (not just b64-decodable) so both consumers reject junk
+    uniformly — the art-direction path already dropped bad images via the vision fit,
+    but the anchor path would otherwise persist unusable bytes. A bad/garbage entry
+    is skipped, never fatal (the design then falls back to text-only art direction)."""
+    import io as _io
+    from PIL import Image
+    out: list[bytes] = []
+    for s in (b64_list or [])[:3]:
+        if not s:
+            continue
+        try:
+            if s.strip().startswith("data:") and "," in s:
+                s = s.split(",", 1)[1]          # strip a data-URL prefix
+            raw = base64.b64decode(s)
+            Image.open(_io.BytesIO(raw)).verify()   # real image? (integrity check, no full decode)
+            out.append(raw)
+        except Exception:
+            continue
+    return out
+
+
+def _load_collection_ref_b64(collection_id: str, rec: dict) -> str | None:
+    """Load the first persisted image-inspired reference for a collection as clean
+    b64 (used by a per-Batch retry of a reference-anchored set so it re-anchors to
+    the SAME image). Returns None if none were persisted / the file is gone."""
+    from backend.services import collection_store as cstore
+    for fn in (rec.get("reference_images") or []):
+        p = cstore.collection_dir(collection_id) / fn
+        if p.exists():
+            try:
+                return base64.b64encode(p.read_bytes()).decode("ascii")
+            except OSError:
+                continue
+    return None
+
+
+_ASYNC_POLL_INTERVAL_S = 5   # how often the collection loop re-scans a Batch's async Jobs
+
+
+def _await_batch_terminal(batch_id: str, timeout_s: int, on_wait=None) -> list[dict]:
+    """Return a Batch's Job metadatas once none is still async-'pending' — i.e. every
+    Job has reached a terminal state. Sync Bedrock Jobs are terminal on the first
+    scan → returns at once (no wait); ASYNC self-hosted Jobs land later via the
+    background poller, so poll (every _ASYNC_POLL_INTERVAL_S) up to timeout_s. On
+    timeout, returns whatever landed so the caller can judge + move on (the
+    async-complete hook still refreshes the set when stragglers arrive). A Batch with
+    NO Jobs (sync moderation cleanup) has no pending → already terminal, no wait.
+    `on_wait(waited_seconds)` fires once per poll iteration for an SSE heartbeat."""
+    import time as _t
+    from backend.services import collection_store as cstore
+    jobs = cstore._member_jobs(batch_id)
+    if not any(m.get("async_status") == "pending" for m in jobs):
+        return jobs
+    start = _t.time()
+    deadline = start + max(0, timeout_s)
+    while _t.time() < deadline:
+        if on_wait:
+            try:
+                on_wait(int(_t.time() - start))
+            except Exception:
+                pass
+        _t.sleep(_ASYNC_POLL_INTERVAL_S)
+        jobs = cstore._member_jobs(batch_id)
+        if not any(m.get("async_status") == "pending" for m in jobs):
+            return jobs
+    return jobs
+
+
+def _gen_batch_prompts(roster: list[dict], art_direction_text: str, asset_type: AssetType,
+                      image_model: str | None) -> None:
+    """Fill each roster entry's `model_agnostic_prompt` in place, in parallel,
+    sharing the request's cost accumulator with the worker threads."""
+    from backend.services.prompt_engineer import generate_batch_prompt
+    from backend.services.cost_tracker import share_accumulator_with_thread, install_shared_accumulator
+
+    acc = share_accumulator_with_thread()
+
+    def _one(entry: dict):
+        install_shared_accumulator(acc)  # accrue this thread's LLM cost to the request
+        entry["model_agnostic_prompt"] = generate_batch_prompt(
+            art_direction_text, entry.get("name", ""), entry.get("concept", ""),
+            asset_type, image_model,
+        )
+
+    if not roster:
+        return
+    with ThreadPoolExecutor(max_workers=min(_BATCH_PROMPT_WORKERS, len(roster))) as ex:
+        list(ex.map(_one, roster))
+
+
+# ── Design endpoints ─────────────────────────────────────────────────────────
+
+@router.post("/art-direction")
+async def collection_art_direction(body: ArtDirectionRequest):
+    """Step 2 of the collection flow (SPEC §18.2): from the Step-1 ask, generate
+    ONLY the overarching Art Direction (the top-level guidance) + mint the
+    collection_id. The roster is built later, in the Collection Designer, from the
+    (possibly edited) art-direction."""
+    from backend.services.prompt_engineer import generate_art_direction
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_collection_art_direction_edited
+    from backend.services import collection_store as cstore
+
+    # Mint-only path: the user supplied their own art direction (Step 2 is
+    # on-demand). Mint the id + echo the text back — no generation, no cost.
+    if body.art_direction and body.art_direction.strip():
+        text = body.art_direction.strip()
+        art = {"text": text}
+        return {
+            "collection_id": cstore.new_collection_id(),
+            "name": _derive_name(body.prompt, art),
+            "art_direction": art,
+            "cost": 0.0,
+            "llm_cost_ledger": [],
+        }
+
+    reset_costs()
+    try:
+        # Fill EXACTLY the scaffold's recommended dimensions when the client sent
+        # them (so the AI output matches the guided fields the user saw); else the
+        # generator picks genre-appropriate dimensions itself.
+        from backend.services.prompt_engineer import _fit_reference_images
+        decoded = _decode_ref_images(body.reference_images)
+        art = generate_art_direction(body.prompt, _load_style_profile(body.style_id), body.fields,
+                                     reference_images=decoded)
+        cost = round(get_total_cost(), 6)
+        return {
+            "collection_id": cstore.new_collection_id(),
+            "name": _derive_name(body.prompt, art),
+            "art_direction": art,           # structured dict + flat "text"
+            "cost": cost,
+            # How many reference images actually reached the VISION call (0 = a
+            # text-only art direction ran). Mirrors exactly what the service fed the
+            # model, so a client/test can prove the image-inspired path truly ran.
+            "reference_used": len(_fit_reference_images(decoded)),
+            "llm_cost_ledger": [{"step": "art_direction", "cost": cost}],
+        }
+    except Exception as exc:
+        logger.exception("Collection art-direction failed")
+        raise HTTPException(502, detail=f"Art direction failed: {exc}")
+    finally:
+        track_collection_art_direction_edited(cost_usd=get_total_cost())
+
+
+@router.post("/art-direction-fields")
+async def collection_art_direction_fields(body: ArtDirectionFieldsRequest):
+    """Recommend the genre-appropriate art-direction dimension LABELS for the Step-2
+    scaffold (SPEC §18.4). Cheap (labels only); the same labels are passed back to
+    /art-direction so the generated values fill exactly the guided fields."""
+    from backend.services.prompt_engineer import recommend_art_direction_fields
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+
+    reset_costs()
+    try:
+        from backend.services.prompt_engineer import _fit_reference_images
+        decoded = _decode_ref_images(body.reference_images)
+        fields = recommend_art_direction_fields(body.prompt, _load_style_profile(body.style_id),
+                                               reference_images=decoded)
+        return {"fields": fields, "cost": round(get_total_cost(), 6),
+                "reference_used": len(_fit_reference_images(decoded))}
+    except Exception as exc:
+        logger.exception("Art-direction field recommendation failed")
+        raise HTTPException(502, detail=f"Field recommendation failed: {exc}")
+
+
+@router.post("/decompose")
+async def decompose_collection(body: DecomposeCollectionRequest):
+    """Toggle → one brief becomes {art direction, roster of Batches, per-Batch
+    model-agnostic prompts} + a running LLM cost ledger (SPEC §18.4/§18.9)."""
+    from backend.services.prompt_engineer import generate_art_direction, generate_roster
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_collection_designed
+    from backend.services import collection_store as cstore
+
+    reset_costs()
+    ledger: list[dict] = []
+    roster: list[dict] = []
+    try:
+        from backend.services.prompt_engineer import _fit_reference_images
+        style_profile = _load_style_profile(body.style_id)
+        asset_type = _asset_enum(body.asset_type)
+
+        decoded = _decode_ref_images(body.reference_images)
+        art = generate_art_direction(body.prompt, style_profile, reference_images=decoded)
+        c1 = get_total_cost()
+        ledger.append({"step": "art_direction", "cost": round(c1, 6)})
+
+        roster = generate_roster(body.prompt, art.get("text", ""), body.count, style_profile) or []
+        if not roster:
+            raise HTTPException(502, detail="Could not generate a roster for this brief.")
+        c2 = get_total_cost()
+        ledger.append({"step": "roster", "cost": round(c2 - c1, 6)})
+
+        _gen_batch_prompts(roster, art.get("text", ""), asset_type, body.image_model)
+        c3 = get_total_cost()
+        ledger.append({"step": "batch_prompts", "cost": round(c3 - c2, 6)})
+
+        collection_id = cstore.new_collection_id()
+        return {
+            "collection_id": collection_id,
+            "name": _derive_name(body.prompt, art),
+            "art_direction": art,          # structured dict + flat "text"
+            "roster": roster,             # [{name, slug, concept, model_agnostic_prompt}]
+            "llm_cost_ledger": ledger,
+            "cost": round(get_total_cost(), 6),
+            "reference_used": len(_fit_reference_images(decoded)),   # images that reached vision
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Collection decompose failed")
+        raise HTTPException(502, detail=f"Collection design failed: {exc}")
+    finally:
+        track_collection_designed(batch_count=len(roster), models=body.image_model or "",
+                                  cost_usd=get_total_cost())
+
+
+@router.post("/recompose-batch")
+async def recompose_batch(body: RecomposeBatchRequest):
+    """Regenerate ONE Batch's model-agnostic prompt (keep the rest)."""
+    from backend.services.prompt_engineer import generate_batch_prompt
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_collection_batch_regenerated
+
+    reset_costs()
+    try:
+        text = generate_batch_prompt(
+            body.art_direction, body.name, body.concept,
+            _asset_enum(body.asset_type), body.image_model,
+        )
+        return {"model_agnostic_prompt": text, "cost": round(get_total_cost(), 6)}
+    except Exception as exc:
+        logger.exception("Collection recompose-batch failed")
+        raise HTTPException(502, detail=f"Batch prompt failed: {exc}")
+    finally:
+        track_collection_batch_regenerated(cost_usd=get_total_cost())
+
+
+@router.post("/regenerate-roster")
+async def regenerate_roster(body: RegenerateRosterRequest):
+    """Re-fan the roster, PRESERVING locked entries; fill new Batches' prompts."""
+    from backend.services.prompt_engineer import generate_roster, _resolve_slug_collisions
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_collection_roster_regenerated
+
+    reset_costs()
+    try:
+        asset_type = _asset_enum(body.asset_type)
+        style_profile = _load_style_profile(body.style_id)
+        locked = [dict(e) for e in body.locked]
+        locked_names = {str(e.get("name", "")).lower() for e in locked}
+
+        # How many NEW Batches to fan (keep the target count stable if given).
+        want = (body.count - len(locked)) if body.count else None
+        fresh = generate_roster(body.prompt, body.art_direction, want, style_profile)
+        fresh = [e for e in fresh if str(e.get("name", "")).lower() not in locked_names]
+
+        c1 = get_total_cost()
+        _gen_batch_prompts(fresh, body.art_direction, asset_type, body.image_model)
+
+        roster = locked + fresh
+        _resolve_slug_collisions(roster)
+        return {"roster": roster, "cost": round(get_total_cost(), 6),
+                "llm_cost_ledger": [
+                    {"step": "roster", "cost": round(c1, 6)},
+                    {"step": "batch_prompts", "cost": round(get_total_cost() - c1, 6)},
+                ]}
+    except Exception as exc:
+        logger.exception("Collection regenerate-roster failed")
+        raise HTTPException(502, detail=f"Roster regeneration failed: {exc}")
+    finally:
+        track_collection_roster_regenerated(cost_usd=get_total_cost())
+
+
+@router.post("/recompose-all")
+async def recompose_all(body: RecomposeAllRequest):
+    """Art direction edited → recompose EVERY Batch's model-agnostic prompt so the
+    whole set re-aligns to the new direction (SPEC §18.3)."""
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_collection_art_direction_edited
+
+    reset_costs()
+    try:
+        roster = [dict(e) for e in body.roster]
+        _gen_batch_prompts(roster, body.art_direction, _asset_enum(body.asset_type), body.image_model)
+        return {"roster": roster, "cost": round(get_total_cost(), 6)}
+    except Exception as exc:
+        logger.exception("Collection recompose-all failed")
+        raise HTTPException(502, detail=f"Recompose failed: {exc}")
+    finally:
+        track_collection_art_direction_edited(cost_usd=get_total_cost())
+
+
+class LiftArtDirectionRequest(BaseModel):
+    art_direction: str                  # current shared art-direction text
+    batch_direction: str                # the batch's refined prompt/direction to lift
+
+
+@router.post("/lift-art-direction")
+async def lift_art_direction(body: LiftArtDirectionRequest):
+    """Art Direction Controller (SPEC §18): lift a per-Batch creative refinement UP
+    into the SHARED art direction (opt-in 'apply to the whole set'). Returns the
+    merged art direction; the client then re-aligns UNLOCKED batches via
+    /recompose-all. Locked batches are preserved by the client."""
+    from backend.services.prompt_engineer import merge_art_direction_with_batch
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_collection_art_direction_edited
+
+    reset_costs()
+    try:
+        ad = merge_art_direction_with_batch(body.art_direction, body.batch_direction)
+        return {"art_direction": ad, "cost": round(get_total_cost(), 6)}
+    except Exception as exc:
+        logger.exception("Collection lift-art-direction failed")
+        raise HTTPException(502, detail=f"Lift failed: {exc}")
+    finally:
+        track_collection_art_direction_edited(cost_usd=get_total_cost())
+
+
+class EstimateCollectionRequest(BaseModel):
+    image_model: str = "sd35_large"
+    batches: int = 0
+    options: int = 3
+    variations: int = 2
+    models: int = 1                     # selected-model count (each subject renders on each)
+    region: str | None = None
+    quality: str | None = None
+    design_cost: float = 0.0            # accrued LLM design cost so far (client-tracked)
+
+
+@router.post("/estimate")
+async def estimate_collection(body: EstimateCollectionRequest):
+    """Projected generation cost + running total (design + projected) for the live
+    Designer cost display (SPEC §18.9). No generation, no LLM call."""
+    proj = _projected_generation_cost(body.image_model, body.batches, body.options,
+                                      body.variations, body.region or "", body.quality or "",
+                                      models=body.models)
+    total = None
+    if proj["projected_generation_cost"] is not None:
+        total = round(body.design_cost + proj["projected_generation_cost"], 4)
+    return {**proj, "design_cost": round(body.design_cost, 6), "total": total}
+
+
+# ── Generation (SPEC §18.4/§18.7 — orchestrate per-Batch, reuse generate.py) ──
+
+class GenerateCollectionRequest(BaseModel):
+    collection_id: str                  # minted at decompose; the client holds it
+    name: str
+    raw_ask: str = ""
+    art_direction: dict = {}            # structured + flat "text"
+    roster: list[dict]                 # [{name, slug, concept, model_agnostic_prompt}]
+    image_model: str = "sd35_large"    # primary model (fallback + single-model path)
+    selected_models: list[str] = []    # all chosen models; >1 → every subject renders on each
+    asset_type: str = "game_asset"
+    style_id: str | None = None
+    num_options: int = 3
+    num_variations: int = 2
+    seed: int | None = None            # collection base seed (None → random per Batch)
+    cohesion_mode: str = "prompt"      # "prompt" (default) | "hero" (hero-anchor) | "reference" (image-inspired anchor)
+    reference_images: list[str] = []   # image-inspired: b64/data-URL image(s) that anchor every Batch's look
+    remove_background: bool = True     # collections are asset sets → cut-outs by default
+    llm_cost_ledger: list[dict] = []   # design-phase per-step costs (client-accrued)
+    design_cost: float = 0.0           # total accrued LLM design cost
+
+
+def _stamp_collection_lineage(batch_id: str, collection_id: str, entry: dict,
+                              collection_name: str = "") -> None:
+    """After a Batch generates, stamp collection lineage onto each of its Jobs'
+    metadata (SPEC §18.7(c)) — so the Asset Viewer can show which Collection + subject
+    a Job belongs to and offer to open the set. Post-hoc so the single-asset
+    generation path stays byte-identical. RMW under asset_write_lock (its own metadata
+    write already committed + released by _run_generation, so no nested collection lock)."""
+    from backend.services.asset_locks import asset_write_lock
+    for aid in store.list_generated_ids():
+        if not aid.startswith(batch_id + "_"):
+            continue
+        with asset_write_lock(aid):
+            meta = store.load_generation_metadata(aid)
+            if not meta or meta.get("batch_id") != batch_id:
+                continue
+            meta["collection_id"] = collection_id
+            meta["collection_name"] = collection_name or ""
+            meta["batch_name"] = entry.get("name", "")
+            meta["batch_slug"] = entry.get("slug", "")
+            meta["model_agnostic_prompt"] = entry.get("model_agnostic_prompt", "")
+            store.save_generation_metadata(aid, meta)
+
+
+@router.post("/generate")
+async def generate_collection(body: GenerateCollectionRequest):
+    """Generate a whole Collection: one Batch per roster subject (each reusing the
+    existing generation pipeline verbatim from its model-agnostic prompt), writing
+    the master record at start and refreshing the Gallery index as each finishes.
+
+    Streams SSE: collection_started, batch_started, (per-Batch progress relabeled),
+    batch_complete, batch_error, collection_complete.
+    """
+    from backend.routers.generate import _run_generation
+    from backend.services.cost_tracker import get_total_cost
+    from backend.services import collection_store as cstore
+    from backend.services.telemetry import (
+        track_collection_generation, track_collection_generation_complete,
+        track_collection_hero_anchor_used,
+    )
+
+    roster = [e for e in body.roster if e.get("model_agnostic_prompt")]
+    if not roster:
+        raise HTTPException(400, detail="Collection has no Batches with prompts to generate.")
+
+    cid = body.collection_id
+    asset_type = _asset_enum(body.asset_type)
+    n_opts = max(1, min(5, body.num_options))
+    n_vars = max(1, min(5, body.num_variations))
+    # Selected models drive the render: ONE model → a cohesive single-model set;
+    # MULTIPLE → every subject renders on EVERY chosen model (the user opted into a
+    # cross-model comparison set), reusing the all-models engine per subject so each
+    # subject stays one Batch whose flat options carry per-model labels (SPEC §18.4).
+    models = list(dict.fromkeys([m for m in (body.selected_models or []) if m])) or [body.image_model]
+    multi = len(models) > 1
+    base_seed = body.seed if body.seed is not None else random.randint(0, _SEED_MAX - len(roster) * n_opts * n_vars)
+
+    # Image-Inspired anchor: when the set was inspired by reference image(s) AND the
+    # user chose "reference" cohesion, visually anchor EVERY Batch to the supplied
+    # image — reusing the single-asset "inspired" path (vision fuses the reference
+    # look with each subject's prompt). Single-model only (like hero-anchor; the
+    # all-models engine's own reference handling isn't composed here), so a
+    # multi-model set falls back to art-direction-only — the reference still shaped
+    # the shared art-direction text upstream. Persist the image(s) so a per-Batch
+    # retry re-anchors identically (and as provenance for what inspired the set).
+    ref_anchor_imgs = _decode_ref_images(body.reference_images)
+    reference_anchor = bool(ref_anchor_imgs) and body.cohesion_mode == "reference" and not multi
+    anchor_ref_b64 = base64.b64encode(ref_anchor_imgs[0]).decode("ascii") if reference_anchor else None
+    saved_refs: list[str] = []
+    if ref_anchor_imgs:
+        cdir = cstore.collection_dir(cid)
+        for i, b in enumerate(ref_anchor_imgs):
+            try:
+                (cdir / f"ref_{i}.png").write_bytes(b)
+                saved_refs.append(f"ref_{i}.png")
+            except OSError:
+                logger.warning("Collection %s: could not persist reference image %d", cid, i)
+
+    # Write the master record at generation start (SPEC §18.2 — no pre-gen persistence).
+    record = cstore.new_collection_record(
+        collection_id=cid, name=body.name, raw_ask=body.raw_ask,
+        overarching_art_direction=(body.art_direction or {}).get("text", ""),
+        roster=[cstore.new_roster_entry(
+            name=e.get("name", ""), slug=e.get("slug", ""), concept=e.get("concept", ""),
+            model_agnostic_prompt=e.get("model_agnostic_prompt", ""),
+        ) for e in roster],
+        knobs={"N": len(roster), "O": n_opts, "V": n_vars, "models": models,
+               "cohesion_mode": body.cohesion_mode, "seed": base_seed,
+               "asset_type": asset_type.value,
+               "image_inspired": bool(saved_refs),   # so a retry knows to re-anchor
+               "remove_background": body.remove_background},   # persisted so a per-Batch retry matches
+        status="generating",
+    )
+    record["art_direction_structured"] = body.art_direction or {}
+    record["reference_images"] = saved_refs   # persisted filenames (relative to the collection dir)
+    # Persist the design-phase LLM cost ledger (SPEC §18.9) + a full cost estimate
+    # (design + projected generation) so a job's TOTAL cost is auditable later.
+    record["llm_cost_ledger"] = list(body.llm_cost_ledger or [])
+    _proj = _projected_generation_cost(body.image_model, len(roster), n_opts, n_vars,
+                                       region="", quality="", model_keys=models)
+    record["cost_estimate"] = {
+        "design_cost": round(body.design_cost, 6),
+        **_proj,
+        "total": (round(body.design_cost + _proj["projected_generation_cost"], 4)
+                  if _proj["projected_generation_cost"] is not None else None),
+    }
+    cstore.save_collection(cid, record)
+
+    event_queue: queue.Queue = queue.Queue()
+
+    def sse(data: dict) -> str:
+        return f"data: {json.dumps(data, default=str)}\n\n"
+
+    # Hero-anchor is a single-model cohesion device (one hero image styles the rest);
+    # it does not compose with a multi-model comparison set, so multi disables it.
+    hero_mode = (body.cohesion_mode == "hero" and len(roster) > 1 and not multi)
+    design_cost = round(body.design_cost, 6)
+    proj_total = record["cost_estimate"].get("projected_generation_cost")
+    # Set-wide negative (e.g. anti-photorealism) from the art direction — applied to
+    # every Batch so a "not photorealistic" brief actually reaches the model (§18.4).
+    collection_negative = _negative_from_art_direction(body.art_direction)
+
+    def _hero_reference_b64(hero_batch_id: str) -> str | None:
+        """Base64 of the hero Batch's representative image, to style-anchor the rest."""
+        import base64 as _b64
+        p = store.get_generated_file_path(f"{hero_batch_id}_o0_v0", "asset.png")
+        if p is None:
+            return None
+        try:
+            return _b64.b64encode(p.read_bytes()).decode("ascii")
+        except OSError:
+            return None
+
+    def run_all():
+        total_batches = len(roster)
+        gen_cost = 0.0
+        completed_batches = 0
+        hero_ref: str | None = None
+        track_collection_generation(batches=total_batches, options=n_opts,
+                                    variations=n_vars, models=",".join(models))
+        if hero_mode:
+            track_collection_hero_anchor_used(batch_count=total_batches)
+
+        for idx, entry in enumerate(roster):
+            name = entry.get("name", f"Batch {idx + 1}")
+            event_queue.put({"type": "batch_started", "batch_index": idx,
+                             "batch_name": name, "total_batches": total_batches})
+
+            def cb(ev, _idx=idx, _name=name):
+                ev["collection_batch_index"] = _idx
+                ev["collection_batch_name"] = _name
+                if ev.get("type") == "complete":
+                    ev["type"] = "batch_complete"
+                event_queue.put(ev)
+
+            prompt = entry["model_agnostic_prompt"]
+            sub = GenerationRequest(
+                prompt=prompt,
+                asset_type=asset_type,
+                image_model=models[0],
+                style_id=body.style_id,
+                num_options=n_opts,
+                num_variations=n_vars,
+                seed=base_seed + idx * n_opts * n_vars,
+                negative_prompt=collection_negative,
+                remove_background=body.remove_background,
+            )
+            if multi:
+                # Multi-model set: render this subject on EVERY chosen model via the
+                # all-models engine. It reuses the saved model-agnostic prompt verbatim
+                # per model (no concept re-fan), applies the set-wide negative + BG
+                # removal, and returns ONE Batch whose flat options carry per-model
+                # labels — exactly what the viewer tags per option (SPEC §18.4).
+                sub.all_models = True
+                sub.selected_models = models
+                sub.saved_concept_prompts = {m: [prompt] * n_opts for m in models}
+            # Image-Inspired anchor: EVERY Batch (from the first) is anchored to the
+            # user's supplied reference image via the "inspired" path — vision fuses
+            # the reference look with this subject's prompt so the whole set adheres
+            # to the supplied aesthetic (e.g. an artist's hand-drawn base).
+            elif reference_anchor and anchor_ref_b64:
+                sub.reference_images = [anchor_ref_b64]
+                sub.reference_mode = "inspired"
+            # Cohesion tier 2 (hero-anchor): the FIRST Batch renders normally; every
+            # later Batch is style-anchored to the hero via the existing
+            # reference-guided "inspired" path (vision fuses hero style + this
+            # subject). Default "prompt" cohesion skips all this → faithful verbatim
+            # reuse (the model-agnostic prompt IS every option's concept, no re-fan).
+            elif hero_mode and idx > 0 and hero_ref:
+                sub.reference_images = [hero_ref]
+                sub.reference_mode = "inspired"
+            else:
+                sub.saved_concept_prompts = {models[0]: [prompt] * n_opts}
+            # Split GENERATION (the expensive, failable part) from post-generation
+            # BOOKKEEPING. Once images exist the Batch counts as complete and its
+            # batch_id is recorded even if a transient lock/disk hiccup trips the
+            # record/index write — otherwise real images could project as "pending".
+            def _record_batch_failure(_idx, _emsg, _blocked):
+                """Mark a Batch Failed/Blocked on the record (not a phantom
+                'Generating') so it's clearly surfaced + retryable."""
+                def _mut(rec):
+                    if _idx < len(rec.get("roster", [])):
+                        rec["roster"][_idx]["gen_status"] = "blocked" if _blocked else "failed"
+                        rec["roster"][_idx]["gen_error"] = _emsg[:200]
+                try:
+                    cstore.update_collection(cid, _mut)
+                    cstore.refresh_collection_summary(cid)
+                except Exception:
+                    logger.exception("Collection %s: could not record batch %d failure", cid, idx)
+                event_queue.put({"type": "batch_error", "batch_index": _idx,
+                                 "batch_name": name, "error": _emsg[:200], "blocked": _blocked})
+
+            try:
+                result = _run_generation(sub, cb)
+                bid = result.id
+                gen_cost += get_total_cost()          # _run_generation reset+tracked this Batch
+                # Judge the Batch once its Jobs are TERMINAL. A sync Bedrock Batch is
+                # already terminal on return; an ASYNC self-hosted Batch submitted its
+                # Jobs and returned before they landed — so wait for the background
+                # poller to finalize them (up to the configured timeout), emitting a
+                # "waiting on async" heartbeat, before judging. Moderation on a raw
+                # prompt CLEANS UP + RETURNS an empty result (no raise) → no Jobs → not
+                # a wait, just blocked. On timeout we move on; the async-complete hook
+                # still refreshes the set when the image finally lands.
+                jobs = _await_batch_terminal(
+                    bid, settings.collection_async_batch_timeout_s,
+                    on_wait=lambda waited: event_queue.put({
+                        "type": "batch_pending", "batch_index": idx, "batch_name": name,
+                        "waited_seconds": waited, "total_batches": total_batches}))
+                jobs_landed = any(m.get("async_status") in (None, "complete") for m in jobs)
+            except Exception as exc:
+                logger.exception("Collection %s batch %d (%s) failed", cid, idx, name)
+                emsg = str(exc)
+                _record_batch_failure(idx, emsg, _is_moderation_error(emsg))
+            else:
+                if not jobs_landed:
+                    _record_batch_failure(idx, "Content filter blocked the prompt", True)
+                else:
+                    entry["batch_id"] = bid
+                    completed_batches += 1                # images are on disk — count it
+                    if hero_mode and idx == 0 and hero_ref is None:
+                        hero_ref = _hero_reference_b64(bid)   # capture hero image for the rest
+                    # Best-effort: stamp lineage + record the batch_id + refresh the index.
+                    # A failure here must NOT drop the Batch (images already exist).
+                    try:
+                        _stamp_collection_lineage(bid, cid, entry, body.name)
+                        def _set_bid(rec, _i=idx, _b=bid):
+                            if _i < len(rec.get("roster", [])):
+                                rec["roster"][_i]["batch_id"] = _b
+                                rec["roster"][_i].pop("gen_status", None)   # clear any prior failure
+                                rec["roster"][_i].pop("gen_error", None)
+                        cstore.update_collection(cid, _set_bid)
+                        cstore.refresh_collection_summary(cid, bid)
+                    except Exception:
+                        logger.exception("Collection %s batch %d bookkeeping failed (images OK)", cid, idx)
+
+            # Running cost surface (SPEC §18.9): design + generation-so-far + total.
+            running_total = round(design_cost + gen_cost, 4)
+            event_queue.put({"type": "cost_update", "design_cost": design_cost,
+                             "generation_cost": round(gen_cost, 6),
+                             "projected_generation_cost": proj_total,
+                             "total": running_total,
+                             "completed_batches": completed_batches,
+                             "total_batches": total_batches})
+
+        # Finalize the master record + index. Guarded so a write hiccup here can
+        # never strand the record in "generating" nor suppress collection_complete.
+        def _finalize(rec):
+            rec["status"] = "complete" if completed_batches == total_batches else "partial"
+            rec["cost_actual"] = {"design_cost": design_cost, "generation_cost": round(gen_cost, 6),
+                                  "total": round(design_cost + gen_cost, 4)}
+        try:
+            cstore.update_collection(cid, _finalize)
+            cstore.rebuild_collection_summary(cid)
+        except Exception:
+            logger.exception("Collection %s finalize/rebuild failed", cid)
+        track_collection_generation_complete(success=completed_batches,
+                                             partial=total_batches - completed_batches,
+                                             cost_usd=round(gen_cost, 6))
+        event_queue.put({"type": "collection_complete", "collection_id": cid,
+                         "completed_batches": completed_batches, "total_batches": total_batches,
+                         "design_cost": design_cost, "generation_cost": round(gen_cost, 6),
+                         "cost_actual": round(design_cost + gen_cost, 4)})
+
+    def stream():
+        event_queue.put({"type": "collection_started", "collection_id": cid,
+                         "name": body.name, "total_batches": len(roster),
+                         "num_options": n_opts, "num_variations": n_vars})
+        with ThreadPoolExecutor(max_workers=1) as ex:
+            future = ex.submit(run_all)
+            while not future.done():
+                try:
+                    yield sse(event_queue.get(timeout=0.5))
+                except queue.Empty:
+                    yield ": keepalive\n\n"
+            while not event_queue.empty():
+                yield sse(event_queue.get_nowait())
+            exc = future.exception()
+            if exc:
+                yield sse({"type": "error", "detail": str(exc)})
+
+    return StreamingResponse(stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+class RetryBatchRequest(BaseModel):
+    slug: str
+    prompt: str | None = None   # optional EDITED model-agnostic prompt (e.g. to clear a filter)
+
+
+@router.post("/{collection_id}/generate-batch")
+async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
+    """Regenerate ONE Batch's images — retry a Failed/Blocked Batch, optionally with an
+    edited prompt (to get past a content filter). Reuses the single-Batch generation
+    path, updates the master record + index. Synchronous (one Batch)."""
+    from backend.routers.generate import _run_generation
+    from backend.services import collection_store as cstore
+
+    rec = cstore.load_collection(collection_id)
+    if rec is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+    roster = rec.get("roster", [])
+    idx = next((i for i, e in enumerate(roster) if e.get("slug") == body.slug), -1)
+    if idx < 0:
+        raise HTTPException(404, detail=f"Batch '{body.slug}' not found in this collection.")
+    entry = roster[idx]
+    knobs = rec.get("knobs", {})
+    n_opts = max(1, min(5, int(knobs.get("O", 3))))
+    n_vars = max(1, min(5, int(knobs.get("V", 2))))
+    # Retry must reproduce the SAME model shape as the original run: a multi-model
+    # collection rendered every subject on EVERY selected model, so the retry does
+    # too — otherwise a retried Batch would come back with fewer options than its
+    # siblings AND orphan the prior multi-model Jobs when its batch_id is reassigned.
+    models = [m for m in (knobs.get("models") or []) if m] or ["sd35_large"]
+    multi = len(models) > 1
+    image_model = models[0]
+    base_seed = knobs.get("seed") if knobs.get("seed") is not None else random.randint(0, _SEED_MAX - 10_000)
+    prompt = (body.prompt or entry.get("model_agnostic_prompt") or "").strip()
+    if not prompt:
+        raise HTTPException(400, detail="This batch has no prompt to generate.")
+
+    # Persist an edited prompt so future reads + reproducibility use it.
+    if body.prompt and body.prompt.strip() != (entry.get("model_agnostic_prompt") or ""):
+        cstore.update_collection(collection_id, lambda r: r["roster"][idx].__setitem__("model_agnostic_prompt", body.prompt.strip())
+                                 if idx < len(r.get("roster", [])) else None)
+
+    sub = GenerationRequest(
+        prompt=prompt, asset_type=_asset_enum(knobs.get("asset_type")),
+        image_model=image_model, num_options=n_opts, num_variations=n_vars,
+        seed=base_seed + idx * n_opts * n_vars,
+        # Same set-wide negative (e.g. anti-photorealism) the initial run used.
+        negative_prompt=_negative_from_art_direction(
+            rec.get("art_direction_structured") or {"text": rec.get("overarching_art_direction", "")}),
+        remove_background=knobs.get("remove_background", True),   # match the collection's setting
+    )
+    # Reproduce the SAME cohesion shape as the original run.
+    ref_b64 = _load_collection_ref_b64(collection_id, rec) if knobs.get("cohesion_mode") == "reference" else None
+    if multi:
+        # Mirror the main /generate loop's multi-model branch (all-models engine,
+        # verbatim saved prompt per model, one batch_id whose flat options carry
+        # per-model labels) — keeps a retried Batch consistent with the set.
+        sub.all_models = True
+        sub.selected_models = models
+        sub.saved_concept_prompts = {m: [prompt] * n_opts for m in models}
+    elif ref_b64:
+        # Image-Inspired anchor (single-model): re-anchor to the SAME persisted
+        # reference image so the retried Batch matches the rest of the set.
+        sub.reference_images = [ref_b64]
+        sub.reference_mode = "inspired"
+    else:
+        sub.saved_concept_prompts = {image_model: [prompt] * n_opts}
+
+    def _mark_failed(emsg, blocked):
+        def _mut(r):
+            if idx < len(r.get("roster", [])):
+                r["roster"][idx]["gen_status"] = "blocked" if blocked else "failed"
+                r["roster"][idx]["gen_error"] = emsg[:200]
+        cstore.update_collection(collection_id, _mut)
+        cstore.refresh_collection_summary(collection_id)
+
+    try:
+        result = _run_generation(sub)
+        bid = result.id
+    except HTTPException as he:
+        _mark_failed(str(he.detail), _is_moderation_error(str(he.detail)))
+        raise HTTPException(502, detail=f"Retry failed: {str(he.detail)[:160]}")
+    except Exception as exc:
+        _mark_failed(str(exc), _is_moderation_error(str(exc)))
+        raise HTTPException(502, detail=f"Retry failed: {str(exc)[:160]}")
+
+    # Moderation returns an empty result (no raise) — treat no-images as blocked.
+    if not cstore._member_jobs(bid):
+        _mark_failed("Content filter blocked the prompt", True)
+        raise HTTPException(400, detail="The content filter blocked this prompt. Edit it and retry.")
+
+    _stamp_collection_lineage(bid, collection_id, entry, rec.get("name", ""))
+    def _ok(r):
+        if idx < len(r.get("roster", [])):
+            r["roster"][idx]["batch_id"] = bid
+            r["roster"][idx].pop("gen_status", None)
+            r["roster"][idx].pop("gen_error", None)
+    cstore.update_collection(collection_id, _ok)
+    cstore.refresh_collection_summary(collection_id, bid)
+    return {"ok": True, "batch_id": bid, "slug": body.slug}
+
+
+# ── 3D set handoff (SPEC §18, Phase N — reuse the existing image-to-3D path) ──
+
+def _resolve_batch_source(collection_id: str, batch_id: str):
+    """Resolve a Batch to its representative Job + selected/latest version for 3D
+    (SPEC §18 Phase N). Returns (asset_id, version) or (None, None). The Phase-M
+    `selected_version` pointer wins; else the Job's current_version — so a 3D run
+    always picks up the newest chosen image, never a stale v1."""
+    from backend.services import collection_store as cstore
+    rec = cstore.load_collection(collection_id) or {}
+    entry = next((e for e in rec.get("roster", []) if e.get("batch_id") == batch_id), None)
+    jobs = cstore._member_jobs(batch_id)
+    if not jobs:
+        return None, None
+    rep = jobs[0]  # o0_v0 — the Batch's representative image
+    version = (entry or {}).get("selected_version") or rep.get("current_version", 1)
+    return rep["id"], version
+
+
+class Collection3DRequest(BaseModel):
+    # Explicit (job, version) targets to convert to 3D — the client expands the
+    # user's selection (whole batches / specific jobs / specific versions) into
+    # these. Empty → fall back to every Batch's representative (legacy behavior).
+    targets: list[dict] = []            # [{asset_id, version}]
+    # 3D settings applied UNIFORMLY to every target (a subset of the AssetViewer's
+    # 3D Model tab: pipeline/model_key, quality, steps, guidance, seed, faces,
+    # octree_depth, texture_backend/size, save_as, …). Uniform → the whole
+    # collection is meshed consistently.
+    settings: dict = {}
+
+
+@router.post("/{collection_id}/generate-3d")
+async def generate_collection_3d(collection_id: str, body: Collection3DRequest | None = None):
+    """Convert selected jobs (or the whole collection) to 3D, reusing the existing
+    per-asset /api/generate/3d pipeline UNCHANGED — one submission per (job,version)
+    target, all with the SAME user-chosen pipeline + settings (SPEC §18 Phase N).
+    Best-effort per target; the collection index refreshes so 3D tags appear."""
+    from backend.services import collection_store as cstore
+    from backend.routers.generate_3d import generate_3d, ThreeDGenerateRequest
+
+    rec = cstore.load_collection(collection_id)
+    if rec is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+
+    body = body or Collection3DRequest()
+    # Sanitize the shared settings to valid ThreeDGenerateRequest fields (never let
+    # the caller override the per-target asset_id/version).
+    allowed = set(ThreeDGenerateRequest.model_fields) - {"asset_id", "version"}
+    settings = {k: v for k, v in (body.settings or {}).items() if k in allowed and v is not None}
+
+    targets = [{"asset_id": t["asset_id"], "version": int(t.get("version") or 1)}
+               for t in (body.targets or []) if t.get("asset_id")]
+    if not targets:
+        # Legacy fallback: every Batch's representative image at its selected version.
+        for entry in rec.get("roster", []):
+            bid = entry.get("batch_id")
+            if not bid:
+                continue
+            asset_id, version = _resolve_batch_source(collection_id, bid)
+            if asset_id:
+                targets.append({"asset_id": asset_id, "version": version})
+    if not targets:
+        raise HTTPException(400, detail="No jobs selected (or generated) to convert to 3D.")
+
+    submitted, failures = [], []
+    for tg in targets:
+        aid, ver = tg["asset_id"], tg["version"]
+        try:
+            res = await generate_3d(ThreeDGenerateRequest(asset_id=aid, version=ver, **settings))
+            submitted.append({"asset_id": aid, "version": ver,
+                              "job_id": res.get("job_id") if isinstance(res, dict) else None})
+        except HTTPException as he:
+            failures.append({"asset_id": aid, "error": he.detail})
+        except Exception as exc:
+            logger.exception("Collection 3D submit failed for %s v%s", aid, ver)
+            failures.append({"asset_id": aid, "error": str(exc)})
+
+    cstore.refresh_collection_summary(collection_id)
+    try:
+        from backend.services.telemetry import track_collection_3d_handoff
+        track_collection_3d_handoff(batch_count=len(submitted))
+    except Exception:
+        pass
+    if not submitted and failures:
+        raise HTTPException(400, detail=failures[0].get("error", "3D submission failed."))
+    return {"submitted": submitted, "failures": failures}
+
+
+def _batch_default_glb(asset_id: str, version: int):
+    """The representative GLB for a Batch's selected version — the canonical
+    default file the 3D pipeline writes (asset_3d.glb / asset_3d_v{N}.glb), else
+    any .glb in the Job dir. None if this Batch has no 3D model yet."""
+    d = store.generated_asset_dir(asset_id)
+    for name in (f"asset_3d_v{version}.glb", "asset_3d.glb"):
+        p = d / name
+        if p.exists():
+            return p
+    globbed = sorted(d.glob("*.glb"))
+    return globbed[0] if globbed else None
+
+
+@router.get("/{collection_id}/export")
+async def export_collection(collection_id: str, target: str = Query("generic"),
+                            fmt: str = Query("fbx")):
+    """Set-level export: convert each Batch's selected 3D mesh to `target`/`fmt`
+    and bundle them into ONE zip, named per piece-slug. Reuses the existing
+    headless-Blender GLB→FBX/USD path (SPEC §18 Phase N). Batches without a 3D
+    model yet are skipped."""
+    import tempfile, zipfile
+    from backend.services import collection_store as cstore
+    from backend.services import mesh_export
+
+    rec = cstore.load_collection(collection_id)
+    if rec is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+    fmt = (fmt or "fbx").lower()
+    if fmt not in ("fbx", "usd", "glb"):
+        raise HTTPException(400, detail="fmt must be fbx, usd, or glb.")
+
+    tmp = Path(tempfile.mkdtemp(prefix=f"collexport_{collection_id[:8]}_"))
+    exported, skipped = [], []
+    try:
+        for entry in rec.get("roster", []):
+            bid = entry.get("batch_id")
+            if not bid:
+                continue
+            asset_id, version = _resolve_batch_source(collection_id, bid)
+            glb = _batch_default_glb(asset_id, version) if asset_id else None
+            slug = entry.get("slug") or (entry.get("name", "") or "piece").lower().replace(" ", "_")
+            if glb is None:
+                skipped.append(entry.get("name"))
+                continue
+            try:
+                if fmt == "glb":
+                    out = tmp / f"{slug}.glb"
+                    out.write_bytes(glb.read_bytes())
+                    exported.append(out)
+                else:
+                    outs = mesh_export.convert_mesh(glb, {fmt: tmp / f"{slug}.{fmt}"}, target=target)
+                    if fmt in outs:
+                        exported.append(Path(outs[fmt]))
+                    else:
+                        skipped.append(entry.get("name"))
+            except Exception as exc:
+                logger.warning("Collection export: batch %s failed: %r", slug, exc)
+                skipped.append(entry.get("name"))
+
+        if not exported:
+            raise HTTPException(400, detail="No Batches have a 3D model to export yet. Generate 3D first.")
+
+        bundle = tmp / f"{(rec.get('name') or 'collection').replace(' ', '_')}_{fmt}.zip"
+        with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
+            for f in exported:
+                zf.write(f, arcname=f.name)
+        try:
+            from backend.services.telemetry import track_collection_export
+            track_collection_export(engine=target, batch_count=len(exported))
+        except Exception:
+            pass
+        # FileResponse streams then the temp dir is cleaned by the OS on reboot;
+        # we don't rmtree here because the response reads the file lazily.
+        return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Collection export failed")
+        raise HTTPException(500, detail=f"Export failed: {exc}")
+
+
+# ── Downloads: 3D-mesh bundle + image bundle (SPEC §18 Phase N) ───────────────
+
+class CollectionDownloadRequest(BaseModel):
+    # Specific (job, version) targets; empty → ALL applicable jobs in the collection.
+    targets: list[dict] = []            # [{asset_id, version}]
+    fmt: str = "glb"                    # 3D download only: glb | fbx | usd
+    target: str = "generic"            # export engine target (Unreal/Unity/generic)
+
+
+def _all_member_targets(rec: dict) -> list[dict]:
+    """Every Job in the collection as {asset_id, version(current)}."""
+    from backend.services import collection_store as cstore
+    out = []
+    for entry in rec.get("roster", []):
+        bid = entry.get("batch_id")
+        if not bid:
+            continue
+        for j in cstore._member_jobs(bid):
+            out.append({"asset_id": j["id"], "version": int(j.get("current_version", 1) or 1)})
+    return out
+
+
+@router.post("/{collection_id}/download-3d")
+async def download_collection_3d(collection_id: str, body: CollectionDownloadRequest):
+    """Package the collection's 3D meshes into ONE zip — the selected (job,version)
+    targets, or every Job that HAS a mesh. Converts to the chosen format via the
+    headless-Blender path. Jobs without a mesh are skipped (SPEC §18 Phase N)."""
+    import tempfile, zipfile
+    from fastapi.responses import FileResponse
+    from backend.services import collection_store as cstore
+    from backend.services import mesh_export
+
+    rec = cstore.load_collection(collection_id)
+    if rec is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+    fmt = (body.fmt or "glb").lower()
+    if fmt not in ("glb", "fbx", "usd"):
+        raise HTTPException(400, detail="fmt must be glb, fbx, or usd.")
+    targets = [t for t in (body.targets or []) if t.get("asset_id")] or _all_member_targets(rec)
+
+    tmp = Path(tempfile.mkdtemp(prefix=f"coll3d_{collection_id[:8]}_"))
+    exported = []
+    for tg in targets:
+        aid, ver = tg["asset_id"], int(tg.get("version") or 1)
+        glb = _batch_default_glb(aid, ver)
+        if glb is None:
+            continue
+        try:
+            if fmt == "glb":
+                out = tmp / f"{aid}.glb"
+                out.write_bytes(glb.read_bytes())
+                exported.append(out)
+            else:
+                outs = mesh_export.convert_mesh(glb, {fmt: tmp / f"{aid}.{fmt}"}, target=body.target)
+                if fmt in outs:
+                    exported.append(Path(outs[fmt]))
+        except Exception as exc:
+            logger.warning("Collection 3D download: %s failed: %r", aid, exc)
+    if not exported:
+        raise HTTPException(400, detail="No 3D models to download yet. Generate 3D first.")
+    bundle = tmp / f"{(rec.get('name') or 'collection').replace(' ', '_')}_3d_{fmt}.zip"
+    with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in exported:
+            zf.write(f, arcname=f.name)
+    return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name)
+
+
+@router.post("/{collection_id}/download-images")
+async def download_collection_images(collection_id: str, body: CollectionDownloadRequest):
+    """Package the collection's IMAGES into ONE zip — the selected/current version
+    PNG of each Job (or the selected targets). This is 'Download Collection'."""
+    import tempfile, zipfile
+    from fastapi.responses import FileResponse
+    from backend.services import collection_store as cstore
+
+    rec = cstore.load_collection(collection_id)
+    if rec is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+    targets = [t for t in (body.targets or []) if t.get("asset_id")] or _all_member_targets(rec)
+
+    tmp = Path(tempfile.mkdtemp(prefix=f"collimg_{collection_id[:8]}_"))
+    added = []
+    for tg in targets:
+        aid, ver = tg["asset_id"], int(tg.get("version") or 1)
+        png = (store.get_generated_file_path(aid, f"asset_v{ver}.png")
+               or store.get_generated_file_path(aid, "asset.png"))
+        if png is None:
+            continue
+        added.append((aid, png))
+    if not added:
+        raise HTTPException(400, detail="No images to download.")
+    bundle = tmp / f"{(rec.get('name') or 'collection').replace(' ', '_')}_images.zip"
+    with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
+        for aid, png in added:
+            zf.write(str(png), arcname=f"{aid}.png")
+    return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name)
+
+
+# ── Versioning (SPEC §18 Phase M — per-Batch selected-version pointer) ────────
+
+class SelectVersionRequest(BaseModel):
+    batch_id: str
+    version: int
+
+
+@router.post("/{collection_id}/select-version")
+async def select_batch_version(collection_id: str, body: SelectVersionRequest):
+    """Pin which version of a Batch represents it in the set (cover/export/3D all
+    read this). Updates the master record + refreshes the Gallery index."""
+    from backend.services import collection_store as cstore
+    rec = cstore.set_selected_version(collection_id, body.batch_id, body.version)
+    if rec is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+    cstore.refresh_collection_summary(collection_id, body.batch_id)
+    try:
+        from backend.services.telemetry import track_collection_version_selected
+        track_collection_version_selected(version=body.version)
+    except Exception:
+        pass
+    return {"ok": True, "batch_id": body.batch_id, "selected_version": body.version}
+
+
+# ── Read / delete endpoints (Gallery + Collection Asset Viewer) ──────────────
+
+@router.get("")
+async def list_collections():
+    """Lean list for the Gallery — one summary per collection (no Job parsing)."""
+    from backend.services import collection_store as cstore
+    out = []
+    for cid in cstore.list_collection_ids():
+        s = cstore.read_summary(cid)
+        if s:
+            out.append(s)
+    out.sort(key=lambda s: s.get("updated_at") or "", reverse=True)
+    return {"collections": out}
+
+
+@router.get("/{collection_id}/reference/{ref_file}")
+async def get_collection_reference(collection_id: str, ref_file: str):
+    """Serve a persisted image-inspired reference (ref_N.png) so the Reference Studio
+    can be repopulated when a Collection is reloaded into Image Studio. Restricted to
+    the ref_N.png naming convention (basename only) → no path traversal."""
+    import os as _os
+    import re as _re
+    from backend.services import collection_store as cstore
+    safe = _os.path.basename(ref_file)
+    if not _re.fullmatch(r"ref_\d+\.png", safe):
+        raise HTTPException(400, detail="Not a reference file.")
+    path = cstore.collection_dir(collection_id) / safe
+    if not path.exists():
+        raise HTTPException(404, detail="Reference image not found.")
+    return FileResponse(path, media_type="image/png", filename=safe)
+
+
+@router.get("/{collection_id}")
+async def get_collection(collection_id: str):
+    """Full Collection Asset Viewer view: master record + per-Batch reconstruction."""
+    from backend.services import collection_store as cstore
+    from backend.routers.gallery import get_batch
+
+    record = cstore.load_collection(collection_id)
+    if record is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+
+    batches = []
+    for entry in record.get("roster", []):
+        bid = entry.get("batch_id")
+        batch = None
+        if bid:
+            try:
+                batch = await get_batch(bid)
+            except HTTPException:
+                batch = None
+        batches.append({"roster_entry": entry, "batch": batch})
+
+    return {"record": record, "summary": cstore.read_summary(collection_id), "batches": batches}
+
+
+@router.delete("/{collection_id}")
+async def delete_collection(collection_id: str, delete_assets: bool = True):
+    """Delete the collection record + index, and (default) its member Job assets."""
+    from backend.services import collection_store as cstore
+
+    record = cstore.load_collection(collection_id)
+    if record is None:
+        raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
+
+    removed_assets = 0
+    if delete_assets:
+        member_batch_ids = {e.get("batch_id") for e in record.get("roster", []) if e.get("batch_id")}
+        for aid in store.list_generated_ids():
+            meta = store.load_generation_metadata(aid)
+            if meta and (meta.get("collection_id") == collection_id
+                         or meta.get("batch_id") in member_batch_ids):
+                if store.delete_generated_asset(aid):
+                    removed_assets += 1
+
+    cstore.delete_collection(collection_id)
+    return {"deleted": True, "collection_id": collection_id, "removed_assets": removed_assets}

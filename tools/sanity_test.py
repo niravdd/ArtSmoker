@@ -378,6 +378,363 @@ def run_image(base, model, region):
     return False, f"no image ({len(events)} events)", None
 
 
+def _delete_json(base, path, timeout=60):
+    """Execute a DELETE and return the parsed JSON (the older code built a Request
+    but never opened it — so cleanup silently no-op'd). Always urlopen."""
+    with urllib.request.urlopen(_req(base + path, method="DELETE", timeout=timeout), timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+
+def _tiny_reference_png_b64():
+    """A small two-tone PNG to exercise the Image-Inspired art-direction VISION path
+    (the model just needs SOMETHING to describe). Returns raw b64 (no data-URL)."""
+    import io, base64
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (96, 96), (34, 40, 92))          # deep indigo ground
+    d = ImageDraw.Draw(img)
+    d.ellipse([20, 20, 76, 76], fill=(224, 176, 64), outline=(250, 240, 200), width=3)  # gold disc
+    d.rectangle([40, 40, 56, 88], fill=(180, 60, 70))       # crimson bar
+    buf = io.BytesIO(); img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def run_collection(base, model, region, extra_models=None):
+    """Collections (SPEC §18) FULL end-to-end regression on the given image model:
+    decompose → estimate → recompose-batch → recompose-all → regenerate-roster
+    (locked-preserve) → generate (2 Batches × 1×1) → multi-model set (when a 2nd
+    model is enabled) → gallery card/index → get/reconstruct → select-version
+    (+ design_history) → export graceful-400 → delete cleanup. Real HTTP,
+    registry-driven. Live 3D SUBMIT is intentionally NOT fired (SageMaker cost +
+    async side-effects); export's no-3D path exercises the export wiring instead."""
+    import urllib.error
+    mk = model["key"]
+    mk2 = (extra_models or [{}])[0].get("key") if extra_models else None   # a 2nd enabled model → multi-model set
+    ask = "a tiny set of two fantasy gemstones"
+    steps, cid = [], None
+    try:
+        # 1) decompose (art-direction + roster + per-Batch prompts + cost ledger)
+        dec = post_json(base, "/api/collections/decompose",
+                        {"prompt": ask, "asset_type": "game_asset", "image_model": mk, "count": 2}, timeout=180)
+        roster, cid = dec.get("roster") or [], dec.get("collection_id")
+        if len(roster) != 2 or not all(r.get("model_agnostic_prompt") for r in roster):
+            return False, f"decompose bad roster ({len(roster)})", cid
+        if not dec.get("art_direction", {}).get("text") or not (dec.get("cost", 0) > 0):
+            return False, "decompose missing art-direction/cost", cid
+        ad = dec["art_direction"]["text"]; steps.append("decompose")
+
+        # 1b) IMAGE-INSPIRED art direction (SPEC §18 — the reference LOOK drives the
+        # art direction via a VISION call). `reference_used` is set by the endpoint to
+        # the number of images that actually reached the vision model (0 = a text-only
+        # fallback ran) — so asserting >=1 GENUINELY proves the vision path executed,
+        # not just that some art direction came back. Also assert non-empty text + cost.
+        img_ai = post_json(base, "/api/collections/art-direction",
+                           {"prompt": "a matching set in this style", "asset_type": "game_asset",
+                            "image_model": mk, "reference_images": [_tiny_reference_png_b64()]},
+                           timeout=180)
+        if not (img_ai.get("art_direction", {}).get("text") or "").strip():
+            return False, "image-inspired art-direction returned empty text", cid
+        if not (img_ai.get("cost", 0) > 0):
+            return False, "image-inspired art-direction booked no cost (vision path didn't run)", cid
+        if not (img_ai.get("reference_used", 0) >= 1):
+            return False, f"image-inspired AD did NOT feed the image to vision (reference_used={img_ai.get('reference_used')})", cid
+        # A GARBAGE 'image' (valid b64, not an image) must be rejected → text fallback
+        # (reference_used == 0). Proves the validation gate is real, not decode-only.
+        junk = post_json(base, "/api/collections/art-direction",
+                        {"prompt": "x", "image_model": mk,
+                         "reference_images": ["bm90LWFuLWltYWdl"]}, timeout=120)  # b64("not-an-image")
+        if junk.get("reference_used", 0) != 0:
+            return False, f"garbage reference not rejected (reference_used={junk.get('reference_used')})", cid
+        # And the guided-scaffold dimensions from the same reference image (vision).
+        img_fields = post_json(base, "/api/collections/art-direction-fields",
+                              {"prompt": "", "reference_images": [_tiny_reference_png_b64()]}, timeout=120)
+        if not (img_fields.get("fields") and "Negative" in img_fields["fields"]):
+            return False, "image-inspired field scaffold missing core dimensions", cid
+        if not (img_fields.get("reference_used", 0) >= 1):
+            return False, "image-inspired field scaffold did NOT run vision", cid
+        steps.append("image-inspired-AD")
+
+        # 2) estimate — projected-cost math (batches × O × V × price)
+        est = post_json(base, "/api/collections/estimate",
+                        {"image_model": mk, "batches": 2, "options": 3, "variations": 2,
+                         "design_cost": dec["cost"]}, timeout=30)
+        if est.get("images") != 12:
+            return False, f"estimate images={est.get('images')} (want 12)", cid
+        if est.get("price_available") and abs((est.get("projected_generation_cost") or 0)
+                                              - round(est["price_per_image"] * 12, 4)) > 1e-4:
+            return False, "estimate projected-cost math wrong", cid
+        steps.append("estimate")
+
+        # 3) recompose ONE Batch prompt
+        rb = post_json(base, "/api/collections/recompose-batch",
+                       {"art_direction": ad, "name": roster[0]["name"], "concept": roster[0].get("concept", ""),
+                        "image_model": mk, "asset_type": "game_asset"}, timeout=90)
+        if not rb.get("model_agnostic_prompt"):
+            return False, "recompose-batch empty", cid
+        steps.append("recompose-batch")
+
+        # 4) recompose ALL prompts (art-direction cascade)
+        ra = post_json(base, "/api/collections/recompose-all",
+                       {"art_direction": ad, "image_model": mk, "asset_type": "game_asset",
+                        "roster": [{"name": r["name"], "slug": r["slug"], "concept": r.get("concept", "")} for r in roster]},
+                       timeout=120)
+        if len(ra.get("roster", [])) != 2 or not all(x.get("model_agnostic_prompt") for x in ra["roster"]):
+            return False, "recompose-all incomplete", cid
+        steps.append("recompose-all")
+
+        # 5) regenerate roster PRESERVING a locked entry
+        rr = post_json(base, "/api/collections/regenerate-roster",
+                       {"prompt": ask, "art_direction": ad, "count": 2, "image_model": mk, "asset_type": "game_asset",
+                        "locked": [{"name": roster[0]["name"], "slug": roster[0]["slug"],
+                                    "concept": roster[0].get("concept", ""),
+                                    "model_agnostic_prompt": roster[0]["model_agnostic_prompt"]}]}, timeout=120)
+        rr_locked = next((x for x in rr.get("roster", []) if x["slug"] == roster[0]["slug"]), None)
+        if not rr_locked:
+            return False, "regenerate-roster dropped the locked entry", cid
+        # LOCK must preserve the entry VERBATIM — not merely keep the slug. A regen that
+        # kept the slug but rewrote its prompt would otherwise pass falsely.
+        if rr_locked.get("model_agnostic_prompt") != roster[0]["model_agnostic_prompt"]:
+            return False, "regenerate-roster did not preserve the locked entry's prompt verbatim", cid
+        steps.append("regenerate-roster(lock)")
+
+        # 6) generate 2 Batches × 1×1 (SSE) — assert complete + cost_update
+        events = post_sse(base, "/api/collections/generate",
+                          {"collection_id": cid, "name": dec.get("name", "Sanity Set"), "raw_ask": ask,
+                           "art_direction": dec["art_direction"], "roster": roster, "image_model": mk,
+                           "region": region, "asset_type": "game_asset", "num_options": 1, "num_variations": 1,
+                           "llm_cost_ledger": dec.get("llm_cost_ledger", []), "design_cost": dec.get("cost", 0)},
+                          timeout=300)
+        comp = next((e for e in events if e.get("type") == "collection_complete"), None)
+        if next((e for e in events if e.get("type") == "error"), None) or comp is None:
+            return False, f"generate failed ({len(events)} events)", cid
+        if comp.get("completed_batches") != 2:
+            return False, f"only {comp.get('completed_batches')}/2 batches completed", cid
+        if not any(e.get("type") == "cost_update" for e in events):
+            return False, "no cost_update event", cid
+        steps.append("generate2×1×1")
+
+        # 6b) MULTI-MODEL set (SPEC §18.4): a multi-model selection must render EVERY
+        # chosen model (the exact gap behind "where are the other models' outputs?").
+        # Only when a 2nd model is enabled: a fresh 1-Batch collection, 2 models × 1×1,
+        # then assert the reconstructed Batch's Jobs carry BOTH model keys. Own cid +
+        # own cleanup so the primary flow (steps 7-11) stays on the single-model cid.
+        if mk2:
+            cid2 = None
+            try:
+                d2 = post_json(base, "/api/collections/decompose",
+                               {"prompt": ask, "asset_type": "game_asset", "image_model": mk, "count": 1}, timeout=180)
+                r2, cid2 = (d2.get("roster") or [])[:1], d2.get("collection_id")
+                if not r2 or not cid2:
+                    return False, "multi-model decompose returned no roster/cid", cid
+                ev2 = post_sse(base, "/api/collections/generate",
+                               {"collection_id": cid2, "name": d2.get("name", "MM Set"), "raw_ask": ask,
+                                "art_direction": d2["art_direction"], "roster": r2,
+                                "image_model": mk, "selected_models": [mk, mk2],
+                                "region": region, "asset_type": "game_asset",
+                                "num_options": 1, "num_variations": 1,
+                                "llm_cost_ledger": d2.get("llm_cost_ledger", []), "design_cost": d2.get("cost", 0)},
+                               timeout=300)
+                c2 = next((e for e in ev2 if e.get("type") == "collection_complete"), None)
+                if c2 is None or c2.get("completed_batches") != 1:
+                    return False, f"multi-model generate did not complete 1 batch: {c2}", cid
+                mm = get_json(base, f"/api/collections/{cid2}", timeout=30)
+                mods = {v.get("model_used")
+                        for b in mm.get("batches", [])
+                        for o in ((b.get("batch") or {}).get("options") or [])
+                        for v in o.get("variants", [])}
+                missing = {mk, mk2} - mods
+                if missing:
+                    return False, f"multi-model set missing model(s) {sorted(missing)} (got {sorted(m for m in mods if m)})", cid
+                steps.append("multi-model×2")
+
+                # 6b-retry) The per-Batch RETRY endpoint (/generate-batch) must reproduce
+                # the SAME model shape — this is the path that carried the multi-model
+                # bug (single-model retry orphaned the set). Retry the one Batch on a
+                # VALID slug (no forced block needed) and re-assert BOTH models land in
+                # the (newly-minted) batch. A single-model regression here would fail.
+                slug2 = (r2[0] or {}).get("slug")
+                rb = post_json(base, f"/api/collections/{cid2}/generate-batch",
+                               {"slug": slug2}, timeout=300)
+                if not (rb.get("ok") and rb.get("batch_id")):
+                    return False, f"multi-model retry did not succeed: {rb}", cid
+                mm2 = get_json(base, f"/api/collections/{cid2}", timeout=30)
+                mods2 = {v.get("model_used")
+                         for b in mm2.get("batches", [])
+                         for o in ((b.get("batch") or {}).get("options") or [])
+                         for v in o.get("variants", [])}
+                if {mk, mk2} - mods2:
+                    return False, f"multi-model RETRY regressed to single-model (got {sorted(m for m in mods2 if m)})", cid
+                steps.append("multi-model-retry×2")
+            finally:
+                if cid2:
+                    try:
+                        _delete_json(base, f"/api/collections/{cid2}?delete_assets=true")
+                    except Exception:
+                        pass
+        else:
+            steps.append("multi-model(n/a:1 enabled model)")
+
+        # 6c) IMAGE-INSPIRED generation with the reference ANCHOR (SPEC §18): a fresh
+        # 1-Batch collection whose art direction AND per-Batch render are driven by a
+        # reference image (cohesion_mode=reference). Assert it completes AND the record
+        # persisted the reference + image_inspired flag + reference cohesion — proving
+        # the anchor branch actually ran (not a silent text fallback). Own cid+cleanup.
+        cid3 = None
+        try:
+            ref_png = _tiny_reference_png_b64()
+            d3 = post_json(base, "/api/collections/decompose",
+                           {"prompt": "a small matching set in this style", "asset_type": "game_asset",
+                            "image_model": mk, "count": 1, "reference_images": [ref_png]}, timeout=180)
+            r3, cid3 = (d3.get("roster") or [])[:1], d3.get("collection_id")
+            if not r3 or not cid3:
+                return False, "image-inspired decompose returned no roster/cid", cid
+            if not (d3.get("reference_used", 0) >= 1):
+                return False, "image-inspired decompose did NOT run vision on the reference", cid
+            ev3 = post_sse(base, "/api/collections/generate",
+                           {"collection_id": cid3, "name": d3.get("name", "Img Set"),
+                            "raw_ask": "a small matching set in this style",
+                            "art_direction": d3["art_direction"], "roster": r3,
+                            "image_model": mk, "asset_type": "game_asset",
+                            "num_options": 1, "num_variations": 1,
+                            "cohesion_mode": "reference", "reference_images": [ref_png],
+                            "llm_cost_ledger": d3.get("llm_cost_ledger", []), "design_cost": d3.get("cost", 0)},
+                           timeout=300)
+            c3 = next((e for e in ev3 if e.get("type") == "collection_complete"), None)
+            if c3 is None or c3.get("completed_batches") != 1:
+                return False, f"image-inspired generate did not complete 1 batch: {c3}", cid
+            full3 = get_json(base, f"/api/collections/{cid3}", timeout=30)
+            rec3 = full3.get("record", {})
+            if rec3.get("knobs", {}).get("cohesion_mode") != "reference":
+                return False, "image-inspired run did not persist reference cohesion", cid
+            if not rec3.get("reference_images") or not rec3.get("knobs", {}).get("image_inspired"):
+                return False, "image-inspired run did not persist the reference/flag", cid
+            # The DECISIVE check: a produced Job must carry reference_mode='inspired'
+            # (written only when the render actually used the anchor image) — proving
+            # the anchor BRANCH ran, not just that config persisted. Config fields above
+            # can be set even if the anchor were skipped; this cannot.
+            variants3 = [v for b in full3.get("batches", [])
+                         for o in ((b.get("batch") or {}).get("options") or [])
+                         for v in o.get("variants", [])]
+            if not any(v.get("reference_mode") == "inspired" and v.get("reference_guided")
+                       for v in variants3):
+                return False, "image-inspired set did NOT anchor to the reference (no job reference_mode=inspired)", cid
+            steps.append("image-inspired-generate")
+
+            # 6c-reload) The persisted reference must be SERVABLE for reloading the
+            # collection into Image Studio — GET /{cid}/reference/ref_0.png returns the
+            # PNG; a non-conforming name is rejected (no path traversal). Without this
+            # the image-inspired reload can't repopulate the Reference Studio.
+            ref_fn = (rec3.get("reference_images") or ["ref_0.png"])[0]
+            with urllib.request.urlopen(_req(f"{base}/api/collections/{cid3}/reference/{ref_fn}", timeout=30), timeout=30) as _rr:
+                if _rr.status != 200 or not _rr.read(8).startswith(b"\x89PNG"):
+                    return False, "collection reference route did not serve the persisted PNG", cid
+            try:
+                urllib.request.urlopen(_req(f"{base}/api/collections/{cid3}/reference/asset.png", timeout=15), timeout=15)
+                return False, "collection reference route accepted a non-ref filename (should 400)", cid
+            except urllib.error.HTTPError as e:
+                if e.code != 400:
+                    return False, f"collection reference route bad-name status {e.code} (want 400)", cid
+            steps.append("collection-reference-route")
+        finally:
+            if cid3:
+                try:
+                    _delete_json(base, f"/api/collections/{cid3}?delete_assets=true")
+                except Exception:
+                    pass
+
+        # 7) Gallery fast-path: one card w/ cover, batch_count, per-Batch versions field
+        card = next((c for c in get_json(base, "/api/collections", timeout=30).get("collections", [])
+                     if c.get("collection_id") == cid), None)
+        if not card or card.get("batch_count") != 2 or not card.get("cover"):
+            return False, "gallery card missing/incomplete", cid
+        if not card.get("batches") or "versions" not in card["batches"][0]:
+            return False, "summary missing per-Batch versions field", cid
+        steps.append("gallery-card")
+
+        # 8) Full view: record finalized + Batches reconstructed with batch_ids
+        full = get_json(base, f"/api/collections/{cid}", timeout=30)
+        rec = full.get("record", {})
+        if rec.get("status") not in ("complete", "partial"):
+            return False, "record not finalized", cid
+        b0 = (rec.get("roster") or [{}])[0].get("batch_id")
+        if not b0 or not full.get("batches"):
+            return False, "reconstruction missing batch_id/batches", cid
+        steps.append("get/reconstruct")
+
+        # 8b) BACKGROUND REMOVAL (collections default to cut-outs, remove_background=True):
+        # fetch a produced Job's PNG and assert it actually carries an alpha channel with
+        # some transparency — proving the cut-out ran (not just that generation completed).
+        png_rel = next((v.get("png_path") for b in full.get("batches", [])
+                        for o in ((b.get("batch") or {}).get("options") or [])
+                        for v in o.get("variants", []) if v.get("png_path")), None)
+        if not png_rel:
+            return False, "no produced Job PNG to check background removal", cid
+        try:
+            import io as _io
+            from PIL import Image as _Image
+            with urllib.request.urlopen(_req(f"{base}{png_rel}", timeout=60), timeout=60) as _r:
+                _img = _Image.open(_io.BytesIO(_r.read()))
+            if _img.mode not in ("RGBA", "LA") and "transparency" not in _img.info:
+                return False, f"background not removed — Job PNG has no alpha (mode={_img.mode})", cid
+            # a cut-out has genuinely transparent pixels (min alpha well below opaque)
+            alpha = _img.convert("RGBA").getchannel("A")
+            if alpha.getextrema()[0] > 250:
+                return False, "background not removed — alpha channel is fully opaque", cid
+        except urllib.error.HTTPError as e:
+            return False, f"could not fetch Job PNG for bg-removal check ({e.code})", cid
+        steps.append("bg-removed(alpha)")
+
+        # 8c) COLLECTION LINEAGE stamped on Jobs (SPEC §18.7c) — the Asset Viewer's
+        # Collection panel reads these off the Job's metadata. Fetch a member Job's
+        # full metadata and assert the lineage (collection id + NAME + subject +
+        # model-agnostic prompt) is actually stamped — not just that a Job exists.
+        job_id = next((v.get("id") for b in full.get("batches", [])
+                       for o in ((b.get("batch") or {}).get("options") or [])
+                       for v in o.get("variants", []) if v.get("id")), None)
+        if not job_id:
+            return False, "no member Job to check collection lineage", cid
+        jm = get_json(base, f"/api/gallery/{job_id}", timeout=30)
+        _lin = {k: (jm.get(k) or "") for k in ("collection_id", "collection_name", "batch_name", "model_agnostic_prompt")}
+        if _lin["collection_id"] != cid or not all(str(_lin[k]).strip() for k in _lin):
+            return False, f"Job metadata missing collection lineage: {_lin}", cid
+        steps.append("collection-lineage")
+
+        # 9) select-version pointer + design_history provenance
+        sv = post_json(base, f"/api/collections/{cid}/select-version",
+                       {"batch_id": b0, "version": 1}, timeout=30)
+        if not sv.get("ok"):
+            return False, "select-version failed", cid
+        if not get_json(base, f"/api/collections/{cid}", timeout=30).get("record", {}).get("design_history"):
+            return False, "design_history not appended", cid
+        steps.append("select-version+history")
+
+        # 10) export with no 3D yet → graceful 400 (exercises export wiring)
+        try:
+            urllib.request.urlopen(_req(f"{base}/api/collections/{cid}/export?fmt=fbx", timeout=60), timeout=60)
+            return False, "export should 400 (no 3D) but returned 200", cid
+        except urllib.error.HTTPError as e:
+            if e.code != 400:
+                return False, f"export unexpected status {e.code}", cid
+        steps.append("export-graceful400")
+
+        # 11) delete cleanup (ACTUALLY executed) + verify gone
+        _delete_json(base, f"/api/collections/{cid}?delete_assets=true")
+        if any(c.get("collection_id") == cid for c in get_json(base, "/api/collections", timeout=30).get("collections", [])):
+            return False, "collection not deleted", cid
+        cid = None
+        steps.append("delete-cleanup")
+
+        return True, " → ".join(steps), None
+    except urllib.error.HTTPError as e:
+        return False, f"HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:140]}", cid
+    finally:
+        # If we bailed mid-flow, best-effort clean up the collection we created.
+        if cid:
+            try:
+                _delete_json(base, f"/api/collections/{cid}?delete_assets=true")
+            except Exception:
+                pass
+
+
 def run_video(base, model, region, timeout):
     payload = {
         "model_key": model["key"], "prompt": VIDEO_PROMPT,
@@ -412,7 +769,7 @@ def main():
     ap = argparse.ArgumentParser(description="ArtSmoker end-to-end sanity harness")
     ap.add_argument("--base-url", default="http://127.0.0.1:8000")
     ap.add_argument("--stages", default="chat,image,video",
-                    help="comma list of: chat,image,video")
+                    help="comma list of: chat,image,video,collections")
     ap.add_argument("--region-scope", choices=("all", "pinned"), default="all")
     ap.add_argument("--concurrency", type=int, default=10,
                     help="parallel in-flight requests per stage (hides cross-geo hangs)")
@@ -538,6 +895,14 @@ def main():
     if "video" in stages:
         run_stage("video", select_video_models(reg, args.include_custom),
                   lambda m, r: run_video(base, m, r, args.video_timeout))
+    if "collections" in stages:
+        # One image model is enough to smoke the whole Collections flow (SPEC §18);
+        # capped to the first enabled image model to bound cost. A 2nd enabled model
+        # (when present) is passed through so run_collection can also verify the
+        # multi-model set path (every selected model must render) — SPEC §18.4.
+        _coll_models = select_image_models(reg, args.include_custom)
+        run_stage("collections", _coll_models[:1],
+                  lambda m, r: run_collection(base, m, r, extra_models=_coll_models[1:2]))
 
     results["finished"] = datetime.now(timezone.utc).isoformat()
     Path(args.report).write_text(json.dumps(results, indent=2))

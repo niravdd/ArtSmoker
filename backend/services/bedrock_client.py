@@ -3,6 +3,7 @@
 import base64
 import json
 import logging
+import random
 import time
 from contextvars import ContextVar
 
@@ -38,6 +39,33 @@ _LLM_FALLBACK_ERROR_CODES = _LLM_TRANSIENT_ERROR_CODES | _LLM_DENIAL_ERROR_CODES
 # 10s, 20s, 40s (≈70s total) before giving up on the preferred model.
 _LLM_RETRY_ATTEMPTS = 3       # extra attempts against the preferred model
 _LLM_RETRY_BASE_DELAY = 10.0  # seconds; exponential backoff (10, 20, 40)
+
+# Image-generation transient errors — the generic Bedrock-runtime codes that
+# clear on their own (throttle / momentary unavailability / warm-up). A
+# Collection bursts many image requests at once (N batches × models × options ×
+# variations), so ThrottlingException is the one we most expect to see; on top
+# of boto3's adaptive retry, invoke_image_model rides out longer throttle
+# windows with an app-level exponential backoff + jitter (attempts/delays from
+# settings). A single-image request rarely throttles → the loop is a no-op.
+_IMAGE_TRANSIENT_ERROR_CODES = frozenset({
+    "ThrottlingException",
+    "TooManyRequestsException",
+    "ServiceUnavailableException",
+    "InternalServerException",
+    "ModelNotReadyException",
+    "ModelTimeoutException",
+})
+
+
+def _image_retry_delay(attempt: int) -> float:
+    """Equal-jitter exponential backoff, capped (settings-driven). Jitter avoids a
+    thundering herd when a Collection's concurrent Jobs all get throttled at the
+    same instant and would otherwise retry in lockstep."""
+    ceiling = min(settings.image_retry_max_delay,
+                  settings.image_retry_base_delay * (2 ** attempt))
+    half = ceiling / 2.0
+    return half + random.uniform(0, half)
+
 
 # Startup-probe retry policy — MUCH shorter. The probe is a non-fatal sanity
 # check run at server startup; a transient failure only produces a cosmetic
@@ -951,23 +979,51 @@ def invoke_image_model(
     logger.info("Invoking %s (%s) in %s: prompt=%d chars, seed=%s",
                 label, model_id, region, len(prompt), seed)
 
-    try:
-        response = client.invoke_model(
-            modelId=model_id,
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps(body),
-        )
-    except Exception as _inv_exc:
-        # Reactive lifecycle gate: if the model is LEGACY and this account lost
-        # access (inactive), Bedrock denies the call. Record it per-user so the
-        # model drops from the pickers going forward — never proactively, only on
-        # a real confirmed failure (a Legacy model still in active use keeps working).
-        from backend.services.model_registry import is_legacy_unavailable_error, mark_lifecycle_unavailable
-        if is_legacy_unavailable_error(_inv_exc):
-            mark_lifecycle_unavailable("image_models", model_key)
-            logger.warning("Image model %s is Legacy and no longer accessible for this account — excluded from pickers", model_key)
-        raise
+    from backend.services.model_registry import is_legacy_unavailable_error, mark_lifecycle_unavailable
+
+    # Throttle-aware invoke: on TRANSIENT errors (Bedrock's per-account request
+    # rate limit is easy to trip when a Collection fires many Jobs back-to-back),
+    # cool down and retry with an exponential backoff + jitter — settings-driven,
+    # on top of boto3's adaptive retry. Non-transient errors re-raise immediately.
+    _body_json = json.dumps(body)
+    _attempts = max(0, settings.image_retry_attempts)
+    response = None
+    for attempt in range(_attempts + 1):
+        try:
+            response = client.invoke_model(
+                modelId=model_id,
+                contentType="application/json",
+                accept="application/json",
+                body=_body_json,
+            )
+            break
+        except ClientError as _inv_exc:
+            err_code = _inv_exc.response.get("Error", {}).get("Code", "")
+            # Reactive lifecycle gate: a LEGACY model this account lost access to
+            # is denied by Bedrock. Record it (drops from pickers going forward) —
+            # never proactively, only on a real confirmed failure. Not transient.
+            if is_legacy_unavailable_error(_inv_exc):
+                mark_lifecycle_unavailable("image_models", model_key)
+                logger.warning("Image model %s is Legacy and no longer accessible for this account — excluded from pickers", model_key)
+                raise
+            # Transient (throttle / brief unavailability) → cool down + backoff.
+            if err_code in _IMAGE_TRANSIENT_ERROR_CODES and attempt < _attempts:
+                delay = _image_retry_delay(attempt)
+                logger.warning(
+                    "Image model %s transient error (%s) — cooling down, retry %d/%d in %.1fs",
+                    model_id, err_code, attempt + 1, _attempts, delay,
+                )
+                time.sleep(delay)
+                continue
+            # Non-transient, or throttle retries exhausted → give up (the caller /
+            # Collection loop records the Batch as failed and offers a retry).
+            raise
+        except Exception as _inv_exc:
+            # Non-ClientError (e.g. read timeout): keep the lifecycle gate, no retry.
+            if is_legacy_unavailable_error(_inv_exc):
+                mark_lifecycle_unavailable("image_models", model_key)
+                logger.warning("Image model %s is Legacy and no longer accessible for this account — excluded from pickers", model_key)
+            raise
     result = json.loads(response["body"].read())
 
     # Track image model cost — REGISTRY-sourced and REGION + quality aware.

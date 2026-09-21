@@ -86,6 +86,7 @@
             this._updateCharCount();
             // Clear composed prompt when user text changes externally
             this._clearComposed();
+            this._updateCollectionCheckboxState?.();  // keep the Collection gate in sync
             if (this._changeCb) this._changeCb(text);
         }
 
@@ -123,6 +124,10 @@
             if (this._composedText) {
                 this._clearComposed();
             }
+            // A model add/remove after the Designer was accepted does NOT invalidate
+            // the design, but it DOES change the live model count — re-render the
+            // Step-3 summary so its image total/model count never goes stale.
+            if (this._collectionDesign) this._renderCollectionSummary();
         }
 
         destroy() {
@@ -169,8 +174,29 @@
                         <div class="translation-english-text hidden p-2 rounded-lg bg-emerald-950/10 border border-emerald-500/20 text-xs text-brand-text/70 whitespace-pre-wrap max-h-24 overflow-auto"></div>
                     </div>
 
-                    <!-- Step 2: Prompt Designer (optional) -->
-                    <div>
+                    <!-- Collection (Set Generation) toggle — sits under Step 1 (SPEC §18.2).
+                         Checking it locks the mode (disabled thereafter; Reset/refresh to exit),
+                         repurposes Step 2 → Art Direction and Step 3 → Collection Designer. -->
+                    <label class="collection-toggle-row flex items-center gap-2 p-2 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/25 cursor-pointer select-none" title="${typeof t !== 'undefined' ? t('artsmoker.ui.collection.toggle_hint') : 'Design a whole set from one prompt'}">
+                        <input type="checkbox" class="collection-checkbox rounded border-brand-border" />
+                        <span class="text-sm font-medium">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.toggle') : 'Collection'}</span>
+                        <span class="text-[10px] text-brand-text-muted">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.toggle_hint') : 'Design a whole set from one prompt'}</span>
+                    </label>
+                    <!-- Example prompts (tap to fill Step 1) — teach the "one prompt → a coherent
+                         set of DISTINCT pieces sharing one art direction" pattern. -->
+                    <div class="collection-examples mt-1 flex flex-wrap items-center gap-1">
+                        <span class="text-[10px] text-brand-text-muted/60 mr-0.5">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.examples_label') : 'Try:'}</span>
+                        ${[1, 2, 3, 4].map((n) => {
+                            const ex = typeof t !== 'undefined' ? t('artsmoker.ui.collection.example' + n) : '';
+                            // Hide a chip if its i18n key is missing (t() returns the raw key).
+                            if (!ex || ex.indexOf('collection.example') !== -1) return '';
+                            return html`<button type="button" class="collection-example text-[10px] px-2 py-0.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-300/90 hover:bg-fuchsia-500/20 hover:border-fuchsia-500/40 transition-all" data-example="${ex}" title="${ex}">${ex}</button>`;
+                        })}
+                    </div>
+                    <p class="collection-asset-note text-[10px] text-brand-text-muted/50 mt-0.5">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.asset_type_note') : 'Collections generate Character or Game Asset only.'}</p>
+
+                    <!-- Step 2 (single-asset): Prompt Designer (optional) -->
+                    <div class="step2-single">
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="text-[10px] font-bold text-amber-400 bg-amber-400/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step') : 'STEP'} 2</span>
                             <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step2_refine') : 'Decompose & refine'}</span>
@@ -190,8 +216,23 @@
                         </div>
                     </div>
 
-                    <!-- Step 3: Enhanced Prompt Preview -->
-                    <div>
+                    <!-- Step 2 (Collection): overarching Art Direction. ON-DEMAND (SPEC
+                         §18.2): entering Collection mode no longer auto-generates this
+                         (that raced the user's own typing) — they click Generate, or
+                         write their own. Hidden until Collection mode. -->
+                    <div class="step2-collection hidden">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="text-[10px] font-bold text-fuchsia-400 bg-fuchsia-400/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step') : 'STEP'} 2</span>
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_label') : 'Art direction (shared across the set)'}</span>
+                            <button type="button" class="btn-generate-art-direction ml-auto text-[10px] px-2 py-0.5 rounded-full bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 hover:bg-fuchsia-500/25 hover:border-fuchsia-500/50 transition-all font-medium">✨ ${typeof t !== 'undefined' ? t('artsmoker.ui.collection.generate_art_direction') : 'Generate'}</button>
+                        </div>
+                        <textarea class="collection-art-direction input w-full min-h-[120px] text-xs text-brand-text/80 bg-fuchsia-950/10 border-fuchsia-500/20" rows="6"
+                            placeholder="${typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_placeholder') : 'Write the shared art direction, or click Generate to draft it from your prompt.'}"></textarea>
+                        <p class="text-[10px] text-brand-text-muted/60 mt-1">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_hint') : 'Editing this recomposes every batch in the set.'}</p>
+                    </div>
+
+                    <!-- Step 3 (single-asset): Enhanced Prompt Preview -->
+                    <div class="step3-single">
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="text-[10px] font-bold text-emerald-400/50 bg-emerald-400/5 rounded px-1.5 py-0.5 step3-badge">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step') : 'STEP'} 3</span>
                             <span class="text-[10px] text-brand-text-muted/50 uppercase tracking-wide step3-label">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step3_review') : 'Enhanced prompt preview'}</span>
@@ -215,6 +256,19 @@
                             <p class="text-[10px] text-brand-text-muted/30 mt-1 italic">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step3_hint') : 'Optional — click to preview the enhanced prompt before generating. Or just click Generate below to auto-enhance and create.'}</p>
                         </div>
                     </div>
+
+                    <!-- Step 3 (Collection): open the Collection Designer, then a decided-summary. Hidden until Collection mode. -->
+                    <div class="step3-collection hidden">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="text-[10px] font-bold text-fuchsia-400 bg-fuchsia-400/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step') : 'STEP'} 3</span>
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.designer_title') : 'Collection Designer'}</span>
+                        </div>
+                        <button type="button" class="btn-collection-designer text-xs py-2.5 w-full rounded-lg flex items-center justify-center gap-2 bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 hover:bg-fuchsia-500/25 hover:border-fuchsia-500/50 transition-all font-medium">
+                            <span>🗂️</span> ${typeof t !== 'undefined' ? t('artsmoker.ui.collection.designer_title') : 'Collection Designer'}
+                        </button>
+                        <div class="collection-summary hidden mt-2 p-2 rounded-lg bg-fuchsia-950/10 border border-fuchsia-500/20 text-[11px] text-brand-text/80"></div>
+                        <p class="collection-step3-hint text-[10px] text-brand-text-muted/60 mt-1">${typeof t !== 'undefined' ? t('artsmoker.ui.collection.generate_disabled_hint') : 'Design the collection first'}</p>
+                    </div>
                 </div>
             `;
 
@@ -227,6 +281,17 @@
             this._composedPanel = this.container.querySelector('.composed-panel');
             this._composedTextarea = this.container.querySelector('.composed-textarea');
             this._btnClearComposed = this.container.querySelector('.btn-clear-composed');
+            // Collection (Set Generation) refs — SPEC §18.2
+            this._collectionCheckbox = this.container.querySelector('.collection-checkbox');
+            this._step2Single = this.container.querySelector('.step2-single');
+            this._step2Collection = this.container.querySelector('.step2-collection');
+            this._artDirectionEl = this.container.querySelector('.collection-art-direction');
+            this._btnGenerateArtDirection = this.container.querySelector('.btn-generate-art-direction');
+            this._step3Single = this.container.querySelector('.step3-single');
+            this._step3Collection = this.container.querySelector('.step3-collection');
+            this._btnCollectionDesigner = this.container.querySelector('.btn-collection-designer');
+            this._collectionSummaryEl = this.container.querySelector('.collection-summary');
+            this._collectionStep3Hint = this.container.querySelector('.collection-step3-hint');
 
             // Initialize VoiceInput
             const voiceContainer = this.container.querySelector('.voice-container');
@@ -260,6 +325,7 @@
                 if (this._composedText || this._recomposedPrompt || this._decomposedData) this._clearComposed();
                 this._assetTypeConfirmed = false;  // New text = re-check asset type
                 this._galleryReload = false;       // User is writing fresh — not a reload
+                this._updateCollectionCheckboxState();  // enable Collection once a prompt exists
                 if (this._changeCb) this._changeCb(this._textareaEl.value);
                 // Debounced translation preview (500ms after user stops typing)
                 clearTimeout(this._translationTimer);
@@ -371,6 +437,333 @@
             this._composedTextarea.addEventListener('input', () => {
                 this._composedText = this._composedTextarea.value;
             });
+
+            // ── Collection (Set Generation) — SPEC §18.2 ──────────────────
+            // Check → LOCK the mode + reveal Step 2/3. Art Direction is ON-DEMAND
+            // (a button), NOT auto-generated on check — auto-generating raced a
+            // user who started typing their own into the empty box.
+            this._collectionCheckbox?.addEventListener('change', (ev) => {
+                if (ev.target.checked) this._enterCollectionMode();
+                else ev.target.checked = true;  // cannot un-check; only Reset/refresh exits
+            });
+            // Step 2 button: generate the Art Direction on demand (from the Step-1 ask).
+            this._btnGenerateArtDirection?.addEventListener('click', () => this._generateArtDirection());
+            // Example chips → fill Step 1 (teach good collection prompts). Disabled
+            // once the mode is locked (checkbox checked) so an accepted design's ask
+            // can't be silently swapped.
+            this.container.querySelectorAll('.collection-example').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    if (this._collectionMode) return;   // locked — Reset to change the ask
+                    const ex = btn.dataset.example || btn.textContent.trim();
+                    this._textareaEl.value = ex;
+                    this._updateCharCount();
+                    this._clearComposed();
+                    this._updateCollectionCheckboxState();  // programmatic set won't fire 'input'
+                    if (this._changeCb) this._changeCb(ex);
+                    this._textareaEl.focus();
+                });
+            });
+            // Step 3 button opens the (design-only) Collection Designer.
+            this._btnCollectionDesigner?.addEventListener('click', () => this._openCollectionDesigner());
+            // Editing the Art Direction invalidates the accepted design (must re-run the Designer).
+            this._artDirectionEl?.addEventListener('input', () => {
+                if (this._collectionDesign) {
+                    this._collectionDesign = null;
+                    this._collectionSummaryEl?.classList.add('hidden');
+                    this._collectionStep3Hint?.classList.remove('hidden');
+                    this._notifyCollectionState();
+                }
+            });
+            // Initial state: an empty Step-1 prompt keeps the Collection checkbox disabled.
+            this._updateCollectionCheckboxState();
+        }
+
+        // ── Collection mode (SPEC §18.2) ──────────────────────────────────
+        isCollectionMode() { return !!this._collectionMode; }
+        getCollectionDesign() { return this._collectionDesign || null; }
+        getArtDirectionText() { return this._artDirectionEl ? this._artDirectionEl.value : ''; }
+        /** The blank guided scaffold from the recommended fields ("World: \nEra: …").
+         *  Fields are recommended dynamically per prompt (not a fixed template). */
+        _adScaffold() { return (this._adFields || []).map(f => f + ': ').join('\n'); }
+        /** Whether Step 2 holds REAL art direction vs just the empty guided scaffold.
+         *  Strips the recommended field labels; any remaining text = user content
+         *  (typed values or free-form). A bare scaffold → false. */
+        _artDirectionHasContent() {
+            let s = this.getArtDirectionText();
+            if (!s.trim()) return false;
+            (this._adFields || []).forEach(f => {
+                const esc = f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');   // labels may hold & [ ] etc.
+                s = s.replace(new RegExp('^\\s*' + esc + '\\s*:', 'gmi'), '');
+            });
+            return s.replace(/[\s:]/g, '').length > 0;
+        }
+        /** Generate is allowed only once a design is accepted (§18.2) — which itself
+         *  requires real art direction, so Generate can never run without it. */
+        collectionReadyToGenerate() { return !!(this._collectionMode && this._collectionDesign); }
+
+        /** Guard the Collection checkbox: disabled until Step 1 has a prompt (so the
+         *  user can't lock the mode with an empty ask), and disabled once locked. */
+        _updateCollectionCheckboxState() {
+            if (!this._collectionCheckbox) return;
+            const empty = !this.getUserText().trim();
+            this._collectionCheckbox.disabled = this._collectionMode || empty;
+            const row = this._collectionCheckbox.closest('.collection-toggle-row');
+            if (row) {
+                row.classList.toggle('opacity-50', empty && !this._collectionMode);
+                row.classList.toggle('cursor-not-allowed', empty && !this._collectionMode);
+                if (!this._collectionMode) {
+                    row.title = empty
+                        ? (typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.enter_prompt') : 'Type a prompt first')
+                        : (typeof t !== 'undefined' ? t('artsmoker.ui.collection.toggle_hint') : 'Design a whole set from one prompt');
+                }
+            }
+        }
+
+        _notifyCollectionState() {
+            // Let Image Studio re-evaluate the Generate gate.
+            if (this.opts.onCollectionStateChange) {
+                this.opts.onCollectionStateChange({
+                    active: !!this._collectionMode,
+                    ready: this.collectionReadyToGenerate(),
+                });
+            }
+        }
+
+        _collectionContext() {
+            // Live model/asset/style context from Image Studio (falls back to opts).
+            const ctx = (this.opts.getCollectionContext && this.opts.getCollectionContext()) || {};
+            return {
+                image_model: ctx.image_model || this.opts.imageModel || 'sd35_large',
+                model_name: ctx.model_name ?? null,
+                models_selected_count: ctx.models_selected_count ?? 1,
+                asset_type: ctx.asset_type || this.opts.assetType || 'game_asset',
+                style_id: ctx.style_id ?? this.opts.styleId ?? null,
+                style_name: ctx.style_name ?? null,
+                // Seed the Collection Designer's O × V (+ remove-bg) from the sidebar.
+                options: ctx.options,
+                variations: ctx.variations,
+                removeBg: ctx.removeBg,
+            };
+        }
+
+        /** Restore an already-accepted TEXT collection design (Gallery → reload into
+         *  Image Studio), bypassing the Designer + the field recommender. Mirrors
+         *  _enterCollectionMode's surface swap and _onCollectionAccepted's state, but
+         *  seeds everything from the persisted record so Generate is immediately
+         *  enabled (a re-run) and the user can still open the Designer to tweak.
+         *  opts = {collectionId, name, rawAsk, artDirectionText, roster, knobs, designCost, ledger}. */
+        restoreCollectionDesign(opts = {}) {
+            this.setText(opts.rawAsk || '');
+            this._collectionMode = true;
+            this._collectionId = opts.collectionId || null;
+            this._collectionName = opts.name || 'Collection';
+            this._collectionDesignCost = opts.designCost || 0;
+            this._collectionLedger = opts.ledger || [];
+            this._adFields = [];
+            if (this._collectionCheckbox) { this._collectionCheckbox.checked = true; this._collectionCheckbox.disabled = true; }
+            this._step2Single?.classList.add('hidden');
+            this._step3Single?.classList.add('hidden');
+            this._step2Collection?.classList.remove('hidden');
+            this._step3Collection?.classList.remove('hidden');
+            this._collectionStep3Hint?.classList.add('hidden');
+            if (this._artDirectionEl) this._artDirectionEl.value = opts.artDirectionText || '';
+            this._collectionDesign = {
+                collectionId: this._collectionId, name: this._collectionName,
+                artDirectionText: opts.artDirectionText || '',
+                roster: opts.roster || [], knobs: opts.knobs || {},
+                designCost: this._collectionDesignCost, ledger: this._collectionLedger,
+            };
+            this._renderCollectionSummary();   // decided-summary + reveal
+            this._notifyCollectionState();      // ready → Generate enabled
+        }
+
+        async _enterCollectionMode() {
+            const prompt = this.getUserText().trim();
+            if (!prompt) {
+                window.showToast?.(typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.enter_prompt') : 'Enter a prompt first', 'warning');
+                if (this._collectionCheckbox) this._collectionCheckbox.checked = false;
+                return;
+            }
+            this._collectionMode = true;
+            this._collectionDesign = null;
+            this._collectionId = null;
+            this._collectionName = null;
+            this._collectionDesignCost = 0;
+            this._collectionLedger = [];
+            this._adFields = [];
+            // Lock the checkbox (only Reset/refresh exits) + swap Step 2/3 surfaces.
+            if (this._collectionCheckbox) this._collectionCheckbox.disabled = true;
+            this._step2Single?.classList.add('hidden');
+            this._step3Single?.classList.add('hidden');
+            this._step2Collection?.classList.remove('hidden');
+            this._step3Collection?.classList.remove('hidden');
+            this._collectionSummaryEl?.classList.add('hidden');
+            this._collectionStep3Hint?.classList.remove('hidden');
+            window.Telemetry?.track?.('collection_mode_enabled', {});
+            this._notifyCollectionState();   // disables Generate until a design is accepted
+            // Recommend the genre-appropriate guiding fields for THIS prompt and seed
+            // Step 2 with a blank guided scaffold ("World: ", "Era: ", "Palette: ",
+            // "Negative: "). The SAME fields are passed to Generate so the AI fills
+            // exactly this structure. Labels only → fast + cheap; no content to race.
+            const el = this._artDirectionEl;
+            if (el) { el.value = ''; el.placeholder = (typeof t !== 'undefined' ? t('artsmoker.ui.collection.recommending_fields') : 'Recommending fields…'); }
+            try {
+                const ctx = this._collectionContext();
+                const r = await API.collections.artDirectionFields({ prompt, style_id: ctx.style_id });
+                this._adFields = (r.fields || []).filter(Boolean);
+            } catch (e) {
+                this._adFields = ['Medium', 'Palette', 'Mood', 'Negative'];   // core fallback
+            }
+            if (el) {
+                el.placeholder = (typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_placeholder') : 'Write the shared art direction, or click Generate.');
+                // Seed the scaffold only if the user hasn't typed anything meanwhile.
+                if (!el.value.trim() && this._adFields.length) el.value = this._adScaffold();
+            }
+        }
+
+        /** Step 2, on demand: draft the overarching Art Direction from the Step-1
+         *  ask. Confirms before overwriting text the user has already put there. */
+        async _generateArtDirection() {
+            if (this._artDirBusy) return;
+            const prompt = this.getUserText().trim();
+            if (!prompt) return;
+            const el = this._artDirectionEl;
+            // Only confirm if the user actually filled the scaffold in (a bare
+            // template is replaced silently).
+            if (this._artDirectionHasContent()) {
+                const ok = window.confirm(typeof t !== 'undefined'
+                    ? t('artsmoker.ui.collection.regenerate_art_direction_confirm')
+                    : 'Replace the current art direction with a freshly generated one?');
+                if (!ok) return;
+            }
+            this._artDirBusy = true;
+            const btn = this._btnGenerateArtDirection;
+            const origLabel = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = typeof t !== 'undefined' ? t('artsmoker.ui.collection.decomposing') : 'Designing…'; }
+            if (el) el.placeholder = typeof t !== 'undefined' ? t('artsmoker.ui.collection.decomposing') : 'Designing your set…';
+            const ctx = this._collectionContext();
+            try {
+                // Fill EXACTLY the recommended guiding fields the scaffold showed.
+                const r = await API.collections.artDirection({ prompt, fields: this._adFields, ...ctx });
+                this._collectionId = r.collection_id;
+                this._collectionName = r.name;
+                this._collectionDesignCost += (r.cost || 0);
+                this._collectionLedger.push(...(r.llm_cost_ledger || []));
+                if (el) el.value = (r.art_direction && r.art_direction.text) || '';
+                // A freshly generated art direction invalidates any accepted design.
+                if (this._collectionDesign) {
+                    this._collectionDesign = null;
+                    this._collectionSummaryEl?.classList.add('hidden');
+                    this._collectionStep3Hint?.classList.remove('hidden');
+                    this._notifyCollectionState();
+                }
+            } catch (e) {
+                window.showToast?.(e.message || (typeof t !== 'undefined' ? t('artsmoker.ui.collection.error') : 'Something went wrong'), 'error');
+            } finally {
+                this._artDirBusy = false;
+                if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+            }
+        }
+
+        async _openCollectionDesigner() {
+            // Require REAL art direction — a bare scaffold isn't enough to fan a roster.
+            if (!this._artDirectionHasContent()) {
+                window.showToast?.(typeof t !== 'undefined' ? t('artsmoker.ui.collection.art_direction_required') : 'Add an art direction first (write one or click Generate).', 'warning');
+                return;
+            }
+            const artText = this.getArtDirectionText().trim();
+            const ctx = this._collectionContext();
+            // The collection_id is normally minted when Art Direction is generated.
+            // If the user wrote their OWN art direction and skipped Generate, mint it
+            // now (server echoes the text verbatim — no LLM call, no cost) so the
+            // final /generate has the id it requires.
+            if (!this._collectionId) {
+                try {
+                    const r = await API.collections.artDirection({ prompt: this.getUserText().trim(), art_direction: artText, ...ctx });
+                    this._collectionId = r.collection_id;
+                    this._collectionName = r.name;
+                } catch (e) {
+                    window.showToast?.(e.message || (typeof t !== 'undefined' ? t('artsmoker.ui.collection.error') : 'Something went wrong'), 'error');
+                    return;
+                }
+            }
+            window.CollectionDesigner?.open({
+                collectionId: this._collectionId,
+                name: this._collectionName,
+                prompt: this.getUserText().trim(),
+                artDirectionText: artText,
+                priorDesignCost: this._collectionDesignCost,
+                priorLedger: this._collectionLedger,
+                ...ctx,
+                onAccept: (design) => this._onCollectionAccepted(design),
+            });
+        }
+
+        _onCollectionAccepted(design) {
+            // design = { collectionId, name, artDirectionText, roster, knobs, designCost, ledger }
+            this._collectionDesign = design;
+            this._collectionId = design.collectionId || this._collectionId;
+            this._collectionDesignCost = design.designCost ?? this._collectionDesignCost;
+            this._collectionLedger = design.ledger || this._collectionLedger;
+            // Keep Step-2 art-direction in sync with any edit made inside the Designer.
+            if (design.artDirectionText && this._artDirectionEl) this._artDirectionEl.value = design.artDirectionText;
+            this._renderCollectionSummary();   // Step-3 decided-summary (model count read LIVE)
+            this._collectionStep3Hint?.classList.add('hidden');
+            this._notifyCollectionState();   // enables Generate
+        }
+
+        /** Render the Step-3 "decided" summary from the accepted design + the LIVE
+         *  model selection. Kept separate from _onCollectionAccepted so a model
+         *  add/remove AFTER accept (which does NOT invalidate the design) re-renders
+         *  the count instead of showing a stale one — generation reads the same live
+         *  selection, so the text now always matches what will be produced. */
+        _renderCollectionSummary() {
+            const design = this._collectionDesign;
+            if (!design || !this._collectionSummaryEl) return;
+            const n = (design.roster || []).length;
+            const k = design.knobs || {};
+            const T = (key, p) => (typeof t !== 'undefined' ? t('artsmoker.ui.collection.' + key, p) : key);
+            const ctx = this._collectionContext();
+            const M = Math.max(1, ctx.models_selected_count || 1);   // each subject renders on every chosen model
+            const O = k.options || 3, V = k.variations || 2, total = n * O * V * M;
+            const cohesionLabel = (k.cohesion === 'hero') ? T('cohesion_hero') : T('cohesion_prompt');
+            const modelName = ctx.model_name || ctx.image_model;   // friendly name, not the raw key
+            const modelsLabel = M > 1
+                ? `${M} ${(typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.models_count') : 'models')}`
+                : modelName;
+            const _aw = T('card_assets_' + (ctx.asset_type || 'game_asset'));
+            const subjects = (_aw && _aw.indexOf('.') === -1) ? `${n} ${_aw}` : T('card_count', { count: n });
+            const line = `${subjects} · ${O}×${V} · ${T('images_count', { count: total })} · ${modelsLabel} · ${cohesionLabel}`;
+            // Multiple models → every subject renders on each (a cross-model set); say so.
+            const multiNote = M > 1
+                ? html`<div class="text-[10px] text-sky-300/70 mt-0.5">${T('model_multi_note', { count: M })}</div>`
+                : '';
+            // nosemgrep
+            this._collectionSummaryEl.innerHTML = html`
+                <div>${line}</div>
+                ${multiNote}
+                <div class="text-[11px] font-semibold text-emerald-400 mt-1">✓ ${T('ready_to_generate')}</div>`;
+            this._collectionSummaryEl.classList.remove('hidden');
+        }
+
+        /** Full clean slate for collection mode. Public API for an in-place exit;
+         *  note Image Studio's Reset instead rebuilds the whole PromptEditor
+         *  (fresh single-asset mode), so it doesn't need to call this. */
+        exitCollectionMode() {
+            this._collectionMode = false;
+            this._collectionDesign = null;
+            this._collectionId = null;
+            this._collectionName = null;
+            this._collectionDesignCost = 0;
+            this._collectionLedger = [];
+            if (this._collectionCheckbox) { this._collectionCheckbox.checked = false; this._collectionCheckbox.disabled = false; }
+            if (this._artDirectionEl) this._artDirectionEl.value = '';
+            this._step2Collection?.classList.add('hidden');
+            this._step3Collection?.classList.add('hidden');
+            this._collectionSummaryEl?.classList.add('hidden');
+            this._step2Single?.classList.remove('hidden');
+            this._step3Single?.classList.remove('hidden');
+            this._notifyCollectionState();
         }
 
         _updateCharCount() {

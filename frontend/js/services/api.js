@@ -252,6 +252,62 @@
             });
         },
 
+        /** Collections (Set Generation) — SPEC §18 */
+        collections: {
+            artDirection(data) { return request('/api/collections/art-direction', { method: 'POST', body: data }); },
+            artDirectionFields(data) { return request('/api/collections/art-direction-fields', { method: 'POST', body: data }); },
+            decompose(data) { return request('/api/collections/decompose', { method: 'POST', body: data }); },
+            recomposeBatch(data) { return request('/api/collections/recompose-batch', { method: 'POST', body: data }); },
+            regenerateRoster(data) { return request('/api/collections/regenerate-roster', { method: 'POST', body: data }); },
+            recomposeAll(data) { return request('/api/collections/recompose-all', { method: 'POST', body: data }); },
+            liftArtDirection(data) { return request('/api/collections/lift-art-direction', { method: 'POST', body: data }); },
+            list() { return request('/api/collections', { method: 'GET' }); },
+            get(id) { return request(`/api/collections/${id}`, { method: 'GET' }); },
+            estimate(data) { return request('/api/collections/estimate', { method: 'POST', body: data }); },
+            generate3d(id, data) { return request(`/api/collections/${id}/generate-3d`, { method: 'POST', body: data || {} }); },
+            generateBatch(id, data) { return request(`/api/collections/${id}/generate-batch`, { method: 'POST', body: data }); },
+            selectVersion(id, data) { return request(`/api/collections/${id}/select-version`, { method: 'POST', body: data }); },
+            exportUrl(id, target, fmt) { return `/api/collections/${id}/export?target=${encodeURIComponent(target)}&fmt=${encodeURIComponent(fmt)}`; },
+            del(id) { return request(`/api/collections/${id}?delete_assets=true`, { method: 'DELETE' }); },
+            /** Stream a whole-collection generation (SSE). onEvent(evt) per event. */
+            generateStream(data, onEvent) {
+                return new Promise((resolve, reject) => {
+                    fetch('/api/collections/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data),
+                    }).then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => reject(new Error(err.detail || `HTTP ${response.status}`)));
+                        }
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let buffer = '';
+                        let done_evt = null;
+                        function read() {
+                            reader.read().then(({ done, value }) => {
+                                if (done) { resolve(done_evt); return; }
+                                buffer += decoder.decode(value, { stream: true });
+                                const lines = buffer.split('\n');
+                                buffer = lines.pop() || '';
+                                for (const line of lines) {
+                                    if (!line.startsWith('data: ')) continue;
+                                    try {
+                                        const evt = JSON.parse(line.slice(6));
+                                        if (onEvent) onEvent(evt);
+                                        if (evt.type === 'collection_complete') done_evt = evt;
+                                        if (evt.type === 'error') { reject(new Error(evt.detail || 'Generation failed')); return; }
+                                    } catch (_) {}
+                                }
+                                read();
+                            }).catch(reject);
+                        }
+                        read();
+                    }).catch(reject);
+                });
+            },
+        },
+
         /** Transcribe an audio blob to text. Converts the recording to the
          *  16 kHz mono PCM WAV Nova Sonic needs — done HERE (the single choke
          *  point) so every recorder (VoiceInput, Type Studio inline mics)

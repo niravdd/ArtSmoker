@@ -181,6 +181,10 @@ def _list_gallery_impl(style_id, asset_type, limit, offset):
                 continue
             if asset_type and meta.get("asset_type") != asset_type:
                 continue
+            # Collection member Jobs are surfaced as ONE collection card (SPEC §18.8),
+            # not as loose assets — hide them from the flat gallery grid.
+            if meta.get("collection_id"):
+                continue
 
             svg_url: str | None = None
             svg_file = store.get_generated_file_path(aid, "asset.svg")
@@ -309,6 +313,20 @@ async def get_batch(batch_id: str):
             "model_used": meta.get("image_model"),
             "model_label": meta.get("model_label"),
             "seed": meta.get("seed"),
+            # Reference-guided provenance (set by _persist_reference_inputs only when
+            # the render actually used a reference image) — lets a client/viewer/test
+            # confirm an image-inspired anchor truly ran, not just that it was requested.
+            "reference_mode": meta.get("reference_mode"),
+            "reference_guided": bool(meta.get("reference_guided")),
+            "current_version": current_ver,   # the version 3D/download targets should use
+            # Live (non-tombstone) version numbers — lets the collection batch-detail
+            # offer per-VERSION selection for 3D/download (SPEC §18 Phase N/M).
+            "versions": (sorted(v.get("version") for v in (meta.get("versions") or [])
+                                if v.get("version") and v.get("type") != "deleted")
+                         or [current_ver]),
+            # Per-Job 3D indicator (SPEC §18 Phase N) — any mesh in the Job dir so the
+            # collection batch-detail can tag exactly which jobs have a 3D model.
+            "has_3d": any(store.generated_asset_dir(meta["id"]).glob("*.glb")),
         }
         # Carry async job info so frontend shows proper status
         if async_status and async_status != "complete":
@@ -435,12 +453,16 @@ async def delete_assets(body: DeleteRequest):
 
     # Group deletions by batch_id so we can update siblings efficiently
     batch_deletions: dict[str, list[str]] = {}
+    # Collections owning any deleted Job → refresh their Gallery index afterward.
+    affected_collections: set[str] = set()
 
     for asset_id in body.ids:
         meta = _get_meta(asset_id)
         if meta and meta.get("batch_id"):
             bid = meta["batch_id"]
             batch_deletions.setdefault(bid, []).append(asset_id)
+        if meta and meta.get("collection_id"):
+            affected_collections.add(meta["collection_id"])
 
         if store.delete_generated_asset(asset_id):
             _meta_cache.pop(asset_id, None)
@@ -470,6 +492,16 @@ async def delete_assets(body: DeleteRequest):
                 sibling_meta["original_num_variations"] = orig_variations
                 store.save_generation_metadata(aid, sibling_meta)
                 _meta_cache.pop(aid, None)  # Invalidate cache
+
+    # Refresh the Gallery index of any Collection that lost a Job (guarded — this
+    # loop only runs when a deleted asset carried a collection_id).
+    if affected_collections:
+        try:
+            from backend.services import collection_store as cstore
+            for _cid in affected_collections:
+                cstore.refresh_collection_summary(_cid)
+        except Exception:
+            pass
 
     return {"deleted": deleted, "not_found": not_found}
 
