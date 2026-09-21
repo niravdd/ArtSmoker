@@ -1787,16 +1787,12 @@ async def set_default_3d_variant(body: SetDefaultVariantRequest):
             raise HTTPException(404, detail=f"Variant '{body.variant_id}' not found.")
 
         asset_dir = store.generated_asset_dir(body.asset_id)
-        # Ensure every variant has a PRIVATE file first, so reading the chosen
-        # variant's bytes can never read from (or be clobbered by) the canonical file.
+        # Ensure every variant has its PRIVATE file, then just repoint the default in
+        # metadata — the resolvers serve the default variant's private file, so there
+        # are no canonical byte-copies to rewrite here.
         _ensure_variant_files(asset_dir, body.asset_id, vbucket, body.version)
-        src = asset_dir / chosen["glb_filename"]
-        if not src.exists():
+        if not (asset_dir / chosen["glb_filename"]).exists():
             raise HTTPException(404, detail="Variant GLB file is missing on disk.")
-        data = src.read_bytes()
-        (asset_dir / f"asset_3d_v{body.version}.glb").write_bytes(data)
-        if body.version == 1:
-            (asset_dir / "asset_3d.glb").write_bytes(data)
 
         vbucket["default_variant"] = body.variant_id
         meta["three_d_versions"] = _flatten_three_d_versions(nested)
@@ -2115,23 +2111,13 @@ def _finalize_3d_job(job: dict, s3) -> dict:
             if make_default:
                 vbucket["default_variant"] = vid
 
-            # Give EVERY variant a private GLB file before any canonical write. A
-            # migrated legacy variant points at asset_3d.glb (the same file we
-            # materialize the default into) — without this, switching the default to
-            # a different variant would overwrite the legacy variant's only copy.
+            # Give EVERY variant its own private GLB file (asset_3d_v{N}__{vid}.glb) —
+            # the single source of truth. The serve/export/collection resolvers locate
+            # the version's DEFAULT via metadata (three_d[v{N}].default_variant →
+            # glb_filename), so we no longer write redundant byte-copies at
+            # asset_3d_v{N}.glb / asset_3d.glb (those names remain only as a legacy
+            # fallback for pre-variant assets, and are never created for new jobs).
             _ensure_variant_files(asset_dir, asset_id, vbucket, version)
-
-            # Materialize the DEFAULT variant as the version's canonical file(s) so
-            # the legacy gallery route (asset_3d.glb / asset_3d_v{N}.glb) serves it.
-            # Reads from the default variant's now-PRIVATE file (never the canonical
-            # file itself), so the copy is always from a stable, distinct source.
-            default_id = vbucket["default_variant"]
-            default_variant = next((v for v in vbucket["variants"] if v.get("variant_id") == default_id), variant)
-            default_bytes = glb_bytes if default_variant is variant else \
-                (asset_dir / default_variant["glb_filename"]).read_bytes()
-            (asset_dir / f"asset_3d_v{version}.glb").write_bytes(default_bytes)
-            if version == 1:
-                (asset_dir / "asset_3d.glb").write_bytes(default_bytes)
 
             # Keep the legacy flat list in sync (default variant per version) so any
             # un-migrated reader still works.

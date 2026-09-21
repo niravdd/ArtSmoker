@@ -1078,11 +1078,19 @@ async def generate_collection_3d(collection_id: str, body: Collection3DRequest |
 
 
 def _batch_default_glb(asset_id: str, version: int):
-    """The representative GLB for a Batch's selected version — the canonical
-    default file the 3D pipeline writes (asset_3d.glb / asset_3d_v{N}.glb), else
-    any .glb in the Job dir. None if this Batch has no 3D model yet."""
+    """The representative GLB for a Batch's selected version. Resolves the DEFAULT
+    variant's PRIVATE file from metadata (the single source of truth — same resolver
+    the gallery serve/export use), then falls back to the legacy canonical names
+    (asset_3d_v{N}.glb / asset_3d.glb) for legacy assets, then any .glb in the Job
+    dir. None if this Batch has no 3D model yet."""
+    from backend.routers.gallery import default_3d_glb_filename
     d = store.generated_asset_dir(asset_id)
-    for name in (f"asset_3d_v{version}.glb", "asset_3d.glb"):
+    names = []
+    dflt = default_3d_glb_filename(store.load_generation_metadata(asset_id) or {}, version)
+    if dflt:
+        names.append(dflt)
+    names += [f"asset_3d_v{version}.glb", "asset_3d.glb"]
+    for name in names:
         p = d / name
         if p.exists():
             return p

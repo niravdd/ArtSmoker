@@ -1084,18 +1084,47 @@ async def get_cutout_svg(asset_id: str, version: int):
 
 
 @router.get("/{asset_id}/3d/{version}")
+def default_3d_glb_filename(meta: dict, version: int) -> str | None:
+    """The DEFAULT variant's PRIVATE GLB filename for a 2D version, resolved from the
+    nested three_d metadata (``three_d[v{N}].default_variant`` → that variant's
+    ``glb_filename``), falling back to the flat ``three_d_versions`` mirror. This is
+    the single source of truth — the per-variant file (``asset_3d_v{N}__{vid}.glb``).
+    Returns None for legacy assets with no variant metadata, so the caller falls back
+    to the on-disk canonical name (``asset_3d_v{N}.glb`` / ``asset_3d.glb``). Shared by
+    the serve, export, and Collection-batch resolvers so no redundant copies are needed."""
+    bucket = (meta.get("three_d") or {}).get(f"v{version}") or {}
+    variants = bucket.get("variants") or []
+    did = bucket.get("default_variant")
+    if did:
+        v = next((x for x in variants if x.get("variant_id") == did), None)
+        if v and v.get("glb_filename"):
+            return v["glb_filename"]
+    if variants and variants[0].get("glb_filename"):
+        return variants[0]["glb_filename"]
+    for v in (meta.get("three_d_versions") or []):
+        if v.get("version") == version and v.get("glb_filename"):
+            return v["glb_filename"]
+    return None
+
+
 async def get_asset_3d(asset_id: str, version: int, variant: str | None = None):
     """Serve a GLB (3D model) file for a generated asset.
 
     3D sub-versioning: a version can hold multiple 3D variants. ``?variant=<id>``
     serves that specific variant file (asset_3d_v{N}__{id}.glb). Without it, the
-    version's DEFAULT file is served — asset_3d_v{N}.glb, with asset_3d.glb as the
-    v1 fallback for legacy assets that predate per-version files.
+    version's DEFAULT variant is resolved from metadata and its PRIVATE file served
+    (the single source of truth — no redundant copies). asset_3d_v{N}.glb /
+    asset_3d.glb remain only as fallbacks for LEGACY assets that predate per-variant files.
     """
     candidates = []
     if variant:
         candidates.append(f"asset_3d_v{version}__{variant}.glb")
-    # The version's default file, then legacy fallbacks.
+    else:
+        # DEFAULT: resolve the default variant's private filename from metadata.
+        dflt = default_3d_glb_filename(store.load_generation_metadata(asset_id) or {}, version)
+        if dflt:
+            candidates.append(dflt)
+    # Legacy on-disk fallbacks (assets that never got a private variant file).
     candidates.append(f"asset_3d_v{version}.glb")
     if version == 1:
         candidates.append("asset_3d.glb")
@@ -1146,10 +1175,15 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
         ops["pack"] = "none"
     token = mesh_export.ops_cache_token(ops)
 
-    # Locate the source GLB using the SAME candidate order as the GLB endpoint.
+    # Locate the source GLB using the SAME candidate order as the GLB endpoint:
+    # explicit variant → metadata-resolved default (private file) → legacy fallbacks.
     glb_candidates = []
     if variant:
         glb_candidates.append(f"asset_3d_v{version}__{variant}.glb")
+    else:
+        dflt = default_3d_glb_filename(store.load_generation_metadata(asset_id) or {}, version)
+        if dflt:
+            glb_candidates.append(dflt)
     glb_candidates.append(f"asset_3d_v{version}.glb")
     if version == 1:
         glb_candidates.append("asset_3d.glb")
