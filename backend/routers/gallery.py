@@ -1083,7 +1083,6 @@ async def get_cutout_svg(asset_id: str, version: int):
     return FileResponse(path, media_type="image/svg+xml", filename=f"{asset_id}_v{version}_nobg.svg")
 
 
-@router.get("/{asset_id}/3d/{version}")
 def default_3d_glb_filename(meta: dict, version: int) -> str | None:
     """The DEFAULT variant's PRIVATE GLB filename for a 2D version, resolved from the
     nested three_d metadata (``three_d[v{N}].default_variant`` → that variant's
@@ -1107,6 +1106,7 @@ def default_3d_glb_filename(meta: dict, version: int) -> str | None:
     return None
 
 
+@router.get("/{asset_id}/3d/{version}")
 async def get_asset_3d(asset_id: str, version: int, variant: str | None = None):
     """Serve a GLB (3D model) file for a generated asset.
 
