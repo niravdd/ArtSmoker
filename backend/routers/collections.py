@@ -1292,6 +1292,23 @@ async def list_collections():
     return {"collections": out}
 
 
+@router.get("/{collection_id}/reference/{ref_file}")
+async def get_collection_reference(collection_id: str, ref_file: str):
+    """Serve a persisted image-inspired reference (ref_N.png) so the Reference Studio
+    can be repopulated when a Collection is reloaded into Image Studio. Restricted to
+    the ref_N.png naming convention (basename only) → no path traversal."""
+    import os as _os
+    import re as _re
+    from backend.services import collection_store as cstore
+    safe = _os.path.basename(ref_file)
+    if not _re.fullmatch(r"ref_\d+\.png", safe):
+        raise HTTPException(400, detail="Not a reference file.")
+    path = cstore.collection_dir(collection_id) / safe
+    if not path.exists():
+        raise HTTPException(404, detail="Reference image not found.")
+    return FileResponse(path, media_type="image/png", filename=safe)
+
+
 @router.get("/{collection_id}")
 async def get_collection(collection_id: str):
     """Full Collection Asset Viewer view: master record + per-Batch reconstruction."""

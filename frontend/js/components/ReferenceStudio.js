@@ -678,6 +678,30 @@
             else this._invalidatePreview();
         }
 
+        /** Reload an image-inspired COLLECTION into the Reference Studio (Gallery →
+         *  Image Studio): restore the instruction + reference images and force
+         *  inspired mode with the collection toggle ON. The accepted design lives in
+         *  ImageStudio (_refCollectionDesign, set by the caller AFTER this); this only
+         *  repopulates the visible inputs. Assigns _images directly (not via _addFiles)
+         *  so it does NOT fire _invalidatePreview → onCollectionChange (which would
+         *  null the design the caller is about to set). */
+        async loadCollection({ prompt = '', imageUrls = [] } = {}) {
+            if (this._promptEl) this._promptEl.value = prompt || '';
+            this._mode = 'inspired';
+            const imgs = [];
+            for (const url of (imageUrls || []).slice(0, MAX_IMAGES)) {
+                try { const { dataUrl, b64 } = await this._downscale(url); imgs.push({ dataUrl, b64 }); }
+                catch { /* skip a missing/bad reference */ }
+            }
+            this._images = imgs;
+            this._renderThumbs();
+            this._collectionMode = true;
+            if (this._collectionCb) this._collectionCb.checked = true;
+            this._collectionDesignBtn?.classList.remove('hidden');
+            this._loadedEnhanced = false;
+            this._reflectMode();   // shows the collection block, hides the enhanced-prompt preview
+        }
+
         clearDraft() {
             try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
             try { localStorage.removeItem(DRAFT_KEY); } catch {}   // legacy location

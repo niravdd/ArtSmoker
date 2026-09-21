@@ -618,6 +618,22 @@ def run_collection(base, model, region, extra_models=None):
                        for v in variants3):
                 return False, "image-inspired set did NOT anchor to the reference (no job reference_mode=inspired)", cid
             steps.append("image-inspired-generate")
+
+            # 6c-reload) The persisted reference must be SERVABLE for reloading the
+            # collection into Image Studio — GET /{cid}/reference/ref_0.png returns the
+            # PNG; a non-conforming name is rejected (no path traversal). Without this
+            # the image-inspired reload can't repopulate the Reference Studio.
+            ref_fn = (rec3.get("reference_images") or ["ref_0.png"])[0]
+            with urllib.request.urlopen(_req(f"{base}/api/collections/{cid3}/reference/{ref_fn}", timeout=30), timeout=30) as _rr:
+                if _rr.status != 200 or not _rr.read(8).startswith(b"\x89PNG"):
+                    return False, "collection reference route did not serve the persisted PNG", cid
+            try:
+                urllib.request.urlopen(_req(f"{base}/api/collections/{cid3}/reference/asset.png", timeout=15), timeout=15)
+                return False, "collection reference route accepted a non-ref filename (should 400)", cid
+            except urllib.error.HTTPError as e:
+                if e.code != 400:
+                    return False, f"collection reference route bad-name status {e.code} (want 400)", cid
+            steps.append("collection-reference-route")
         finally:
             if cid3:
                 try:

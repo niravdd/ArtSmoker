@@ -14,6 +14,7 @@
 
         async open(collectionId) {
             this._sel = new Map();   // asset_id -> version, selection for 3D + downloads
+            this._collectionId = collectionId;
             this._mount(t('collection.viewer_title'));
             try {
                 const data = await API.collections.get(collectionId);
@@ -41,6 +42,7 @@
                             <button id="cv-3d" class="btn btn-xs bg-violet-700/70 hover:bg-violet-600 text-white">${t('collection.convert_3d')}</button>
                             <button id="cv-dl-images" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.download_images')}</button>
                             <button id="cv-dl-3d" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.download_3d')}</button>
+                            <button id="cv-reload" class="btn btn-xs bg-cyan-700/70 hover:bg-cyan-600 text-white">${t('collection.reload_studio')}</button>
                             <button id="cv-delete" class="btn btn-xs bg-red-700/70 hover:bg-red-600 text-white">${t('collection.delete')}</button>
                             <button id="cv-close" class="text-brand-text-muted hover:text-brand-text text-2xl leading-none ml-2">&times;</button>
                         </div>
@@ -49,6 +51,13 @@
                 </div>`;
             document.body.appendChild(overlay);
             document.getElementById('cv-close').addEventListener('click', () => this.close());
+            // Reload the whole collection into Image Studio (review / regenerate / tweak),
+            // mirroring the single-asset "reload" in AssetViewer.
+            document.getElementById('cv-reload')?.addEventListener('click', () => {
+                const id = this._collectionId;
+                this.close();
+                window.ImageStudio?.loadCollection?.(id);
+            });
             overlay.addEventListener('click', (e) => { if (e.target === overlay) this.close(); });
         },
 

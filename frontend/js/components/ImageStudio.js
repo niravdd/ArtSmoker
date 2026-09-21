@@ -2964,6 +2964,84 @@
             }
         },
 
+        /** Reload a whole COLLECTION from the Gallery back into Image Studio for
+         *  review / regeneration (SPEC §18). Mirrors loadBatch: navigate, wait for the
+         *  view, restore the sidebar (models/asset/O·V/seed/remove-bg) from the record's
+         *  knobs, then restore the ACCEPTED design into the right tab — Text
+         *  (PromptEditor.restoreCollectionDesign) or Image-Inspired (Reference tab +
+         *  _refCollectionDesign). Generate is enabled (a re-run); the Designer stays
+         *  available to tweak. The record's knobs {O,V,cohesion_mode,remove_background}
+         *  are mapped to the Designer shape {options,variations,cohesion,removeBg}. */
+        async loadCollection(collectionId) {
+            window.location.hash = '#image-studio';
+            this._result = null;
+            await new Promise(r => setTimeout(r, 0));
+            const start = Date.now();
+            while (!document.getElementById('gen-preview') && (Date.now() - start) < 10000) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            await new Promise(r => setTimeout(r, 200));
+            let data;
+            try {
+                data = await API.collections.get(collectionId);
+            } catch (e) {
+                window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
+                return;
+            }
+            const rec = (data && data.record) || {};
+            const k = rec.knobs || {};
+            const knobs = {
+                options: Math.max(1, Math.min(5, parseInt(k.O, 10) || 3)),
+                variations: Math.max(1, Math.min(5, parseInt(k.V, 10) || 2)),
+                cohesion: k.cohesion_mode || 'prompt',
+                removeBg: k.remove_background !== false,
+            };
+            const roster = rec.roster || [];
+            const artText = rec.overarching_art_direction || (rec.art_direction_structured || {}).text || '';
+            const rawAsk = rec.raw_ask || '';
+            // Restore the sidebar (only models that still exist, like loadBatch).
+            const avail = new Set(MODELS.filter(m => m.value !== 'all_models').map(m => m.value));
+            const models = (k.models || []).filter(v => avail.has(v));
+            if (models.length) { this._selectedModels = models; this._syncModelCheckboxes(); }
+            const typeSel = document.getElementById('gen-asset-type');
+            if (typeSel && k.asset_type) typeSel.value = k.asset_type;
+            const optsSel = document.getElementById('gen-num-options'); if (optsSel) optsSel.value = String(knobs.options);
+            const varsSel = document.getElementById('gen-num-variations'); if (varsSel) varsSel.value = String(knobs.variations);
+            const rbg = document.getElementById('gen-remove-bg'); if (rbg) rbg.checked = knobs.removeBg;
+            if (k.seed != null) this._setSeed(k.seed);
+
+            const imageInspired = !!(k.image_inspired || (rec.reference_images || []).length);
+            if (imageInspired) {
+                // Image-Inspired → Reference tab, repopulate images + instruction, restore
+                // the accepted design. Reference bytes come from the new collection
+                // /reference/{ref_N.png} route; we read them back off ReferenceStudio.
+                this._switchTab('reference');
+                this._ensureReferenceStudio();
+                const refUrls = (rec.reference_images || []).map(fn => `/api/collections/${collectionId}/reference/${fn}`);
+                try { await this._referenceStudio?.loadCollection?.({ prompt: rawAsk, imageUrls: refUrls }); }
+                catch (e) { /* non-fatal — tab switch already happened */ }
+                const refB64 = this._referenceStudio?.getReferenceImagesB64?.() || [];
+                const useModels = models.length ? models : this._referenceCollectionModels();
+                this._refCollectionDesign = {
+                    collectionId, name: rec.name || 'Collection', artDirectionText: artText,
+                    roster, knobs, designCost: 0, ledger: rec.llm_cost_ledger || [],
+                    reference_images: refB64, models: useModels, prompt: rawAsk,
+                };
+                this._referenceStudio?.setCollectionReady(this._referenceCollectionSummary(this._refCollectionDesign, useModels));
+                this._syncGenerateGate();
+            } else {
+                // Text-Inspired → Text tab, restore the accepted design into PromptEditor.
+                this._switchTab('prompt');
+                this._ensurePromptEditor();
+                this._promptEditor?.restoreCollectionDesign({
+                    collectionId, name: rec.name || 'Collection', rawAsk,
+                    artDirectionText: artText, roster, knobs,
+                    designCost: 0, ledger: rec.llm_cost_ledger || [],
+                });
+            }
+            window.showToast?.(t('artsmoker.ui.collection.reloaded') || 'Collection loaded — review or Generate', 'success');
+        },
+
         // ── Helpers ─────────────────────────────────────────────────
 
         _getStyleId() {

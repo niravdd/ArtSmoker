@@ -542,6 +542,37 @@
             };
         }
 
+        /** Restore an already-accepted TEXT collection design (Gallery → reload into
+         *  Image Studio), bypassing the Designer + the field recommender. Mirrors
+         *  _enterCollectionMode's surface swap and _onCollectionAccepted's state, but
+         *  seeds everything from the persisted record so Generate is immediately
+         *  enabled (a re-run) and the user can still open the Designer to tweak.
+         *  opts = {collectionId, name, rawAsk, artDirectionText, roster, knobs, designCost, ledger}. */
+        restoreCollectionDesign(opts = {}) {
+            this.setText(opts.rawAsk || '');
+            this._collectionMode = true;
+            this._collectionId = opts.collectionId || null;
+            this._collectionName = opts.name || 'Collection';
+            this._collectionDesignCost = opts.designCost || 0;
+            this._collectionLedger = opts.ledger || [];
+            this._adFields = [];
+            if (this._collectionCheckbox) { this._collectionCheckbox.checked = true; this._collectionCheckbox.disabled = true; }
+            this._step2Single?.classList.add('hidden');
+            this._step3Single?.classList.add('hidden');
+            this._step2Collection?.classList.remove('hidden');
+            this._step3Collection?.classList.remove('hidden');
+            this._collectionStep3Hint?.classList.add('hidden');
+            if (this._artDirectionEl) this._artDirectionEl.value = opts.artDirectionText || '';
+            this._collectionDesign = {
+                collectionId: this._collectionId, name: this._collectionName,
+                artDirectionText: opts.artDirectionText || '',
+                roster: opts.roster || [], knobs: opts.knobs || {},
+                designCost: this._collectionDesignCost, ledger: this._collectionLedger,
+            };
+            this._renderCollectionSummary();   // decided-summary + reveal
+            this._notifyCollectionState();      // ready → Generate enabled
+        }
+
         async _enterCollectionMode() {
             const prompt = this.getUserText().trim();
             if (!prompt) {
