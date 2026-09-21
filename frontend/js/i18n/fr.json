@@ -838,7 +838,6 @@
     "remix_dims_note": "La taille de sortie suit l'image de référence — le réglage Dimensions ne s'applique pas au Remix.",
     "remix_num_strengths": "Forces",
     "remix_strengths_caption": "Une force par option",
-    "reference_draft_note": "Vos images, votre prompt et vos choix sont enregistrés automatiquement — vous les retrouverez à votre retour.",
     "reference_draft_restored": "Brouillon guidé par référence restauré.",
     "tab_text_inspiration": "Inspiration texte",
     "selected_model_required": "{{model}} sélectionné — au moins un modèle est requis",

@@ -184,17 +184,16 @@
                          the reference LOOK art-directs a whole set of distinct assets.
                          Match/Remix are single-image transforms and don't map to a set. -->
                     <div class="rs-collection hidden p-2.5 rounded-lg bg-sky-950/20 border border-sky-500/25">
-                        <label class="flex items-center gap-2 text-[11px] cursor-pointer select-none">
-                            <input type="checkbox" class="rs-collection-cb accent-sky-500">
-                            <span class="font-semibold text-sky-200/90">${_t('image_studio.reference_collection_toggle')}</span>
+                        <label class="rs-collection-row flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" class="rs-collection-cb rounded border-brand-border">
+                            <span class="text-sm font-medium">${_t('image_studio.reference_collection_toggle')}</span>
                         </label>
-                        <p class="text-[10px] text-brand-text-muted/70 mt-1">${_t('image_studio.reference_collection_hint')}</p>
+                        <p class="text-[10px] text-brand-text-muted mt-1">${_t('image_studio.reference_collection_hint')}</p>
                         <button type="button" class="rs-collection-design hidden btn btn-sm text-xs mt-2 w-full bg-sky-600 hover:bg-sky-500 text-white">
                             🗂️ ${_t('collection.designer_title')}
                         </button>
                         <p class="rs-collection-ready hidden text-[11px] font-semibold text-emerald-400 mt-1.5"></p>
                     </div>
-                    <p class="text-[10px] text-brand-text-muted/40">${_t('image_studio.reference_draft_note')}</p>
                 </div>`;
 
             // Cache elements
@@ -333,6 +332,7 @@
         _renderThumbs() {
             const n = this._images.length;
             this._countEl.textContent = `${n} / ${MAX_IMAGES}`;
+            this._updateCollectionCheckboxState();   // enable the Collection toggle only once ≥1 image exists
             if (n === 0) {
                 this._thumbs.classList.add('hidden');
                 this._empty.classList.remove('hidden');
@@ -411,9 +411,33 @@
                 this._setCollectionReady('');
                 this.opts.onCollectionChange?.(false);
             }
+            if (inspired) this._updateCollectionCheckboxState();   // reflect the ≥1-image gate when shown
         }
 
         // ── Image-Inspired collection (SPEC §18) ────────────────────────
+        /** Gate the Collection toggle: enabled only once ≥1 reference image exists
+         *  (mirrors the Text flow, which needs a prompt before Collection can be
+         *  chosen) — so opening the Collection Designer never fires art-direction
+         *  work with no user input. If all images are removed while collection mode
+         *  was on, turn it off + reset (and notify ImageStudio to drop the design). */
+        _updateCollectionCheckboxState() {
+            if (!this._collectionCb) return;
+            const noImages = this._images.length === 0;
+            if (noImages && this._collectionMode) {
+                this._collectionMode = false;
+                this._collectionCb.checked = false;
+                this._collectionDesignBtn?.classList.add('hidden');
+                this._setCollectionReady('');
+                this.opts.onCollectionChange?.(false);
+            }
+            this._collectionCb.disabled = noImages;
+            const row = this._collectionCb.closest('.rs-collection-row');
+            if (row) {
+                row.classList.toggle('opacity-50', noImages);
+                row.classList.toggle('cursor-not-allowed', noImages);
+            }
+        }
+
         /** True when the reference should art-direct a whole set (inspired mode only). */
         isCollectionMode() { return this._mode === 'inspired' && this._collectionMode; }
         /** The uploaded reference images as raw b64 (what the collection art-direction

@@ -327,7 +327,6 @@
     "remix_dims_note": "Output size follows your reference image — the Dimensions setting doesn't apply in Remix.",
     "remix_num_strengths": "Strengths",
     "remix_strengths_caption": "One strength per option",
-    "reference_draft_note": "Your images, prompt, and choices are saved automatically — they’ll be here when you return.",
     "reference_draft_restored": "Restored your reference-guided draft.",
     "tab_text_inspiration": "Text Inspiration",
     "selected_model_required": "Selected {{model}} — at least one model is required",

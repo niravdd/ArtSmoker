@@ -838,7 +838,6 @@
     "remix_dims_note": "出力サイズはリファレンス画像に従います — リミックスではサイズ設定は適用されません。",
     "remix_num_strengths": "強度",
     "remix_strengths_caption": "オプションごとに1つの強度",
-    "reference_draft_note": "画像・プロンプト・選択内容は自動的に保存されます — 戻ってきたときにそのまま残っています。",
     "reference_draft_restored": "参照画像ガイドの下書きを復元しました。",
     "tab_text_inspiration": "テキストから",
     "selected_model_required": "{{model}} を選択しました — 少なくとも1つのモデルが必要です",

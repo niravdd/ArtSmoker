@@ -838,7 +838,6 @@
     "remix_dims_note": "输出尺寸跟随参考图 —— 重绘模式下尺寸设置不生效。",
     "remix_num_strengths": "强度",
     "remix_strengths_caption": "每个选项一个强度",
-    "reference_draft_note": "你的图片、提示词和选择都会自动保存 — 返回时它们仍在这里。",
     "reference_draft_restored": "已恢复你的参考图引导草稿。",
     "tab_text_inspiration": "文本灵感",
     "selected_model_required": "已选择 {{model}} — 至少需要一个模型",
