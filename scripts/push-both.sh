@@ -36,7 +36,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 MAIN=main
-FEATURE_BRANCHES="feature-Collections"    # space-separated; branches also mirrored to both remotes
+FEATURE_BRANCHES=""    # space-separated feature branches to ALSO mirror to both remotes (empty = main only)
 MARK=refs/mirror/gitlab-synced            # last main commit already mirrored to GitLab
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
