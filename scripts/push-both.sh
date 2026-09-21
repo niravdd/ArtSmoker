@@ -14,15 +14,17 @@
 # the cherry-picks never conflict), then push those to GitLab. GitLab thus receives
 # the SAME content + commit messages as GitHub, on its own linear history.
 #
-#   • main             → append-only onto `gitlab-main`, tracked by a marker ref.
-#   • <feature branch> → a derived `gitlab-<branch>` line ROOTED at the GitLab mirror
-#                        of the branch's merge-base with main, with the branch's own
-#                        commits cherry-picked on top, then force-pushed (it's a
-#                        recomputed mirror of a moving branch). Rooting at the
-#                        merge-base mirror — not gitlab-main's tip — keeps the trees
-#                        identical to what each commit was authored against, so the
-#                        cherry-picks stay conflict-free even when main has advanced
-#                        past the branch point.
+#   • main             → append-only onto `gitlab-main`, cherry-picked per commit
+#                        (linear, curated history), tracked by a marker ref — GitLab
+#                        gets the SAME content AND commit messages as GitHub.
+#   • <feature branch> → a CONTENT SNAPSHOT: one `gitlab-<branch>` commit whose tree
+#                        == the branch tip's tree, parented on gitlab-main, force-pushed
+#                        each run. A feature branch may contain merges (e.g. `main`
+#                        merged in), which makes a per-commit replay onto the orphan
+#                        line fragile/conflict-prone; snapshotting the tip tree is
+#                        DAG-proof and never conflicts. The branch's full per-commit
+#                        history stays on GitHub (the source of truth); GitLab holds
+#                        byte-identical current content for backup/visibility.
 #
 # Runs from ANY branch (saves + restores your current branch). Requires a clean tree.
 #
@@ -81,7 +83,14 @@ git push aws gitlab-main:"$MAIN"
 git update-ref "$MARK" "$MAIN"
 echo "push-both: main in sync at $(git rev-parse --short "$MAIN")."
 
-# ── 2) feature branches — GitHub, then a derived gitlab-<branch> mirror line ────
+# ── 2) feature branches — GitHub, then a CONTENT-SNAPSHOT mirror on GitLab ──────
+# A feature branch can contain merges (e.g. `main` merged in to pick up a rename),
+# so a per-commit cherry-pick replay onto the orphan line is fragile / conflict-prone.
+# Instead we mirror the TIP CONTENT: one `gitlab-<branch>` commit whose tree == the
+# branch tip's tree, parented on gitlab-main. GitLab thus holds byte-identical content
+# to GitHub; the full per-commit history stays on GitHub (the source of truth). This
+# is DAG-proof (any merges/rebases) and never conflicts. The line is recomputed +
+# force-pushed each run, so it always reflects the branch's current tip.
 for B in $FEATURE_BRANCHES; do
   if ! git rev-parse --verify -q "$B" >/dev/null; then
     echo "push-both: no local '$B' branch — skipping."
@@ -90,35 +99,16 @@ for B in $FEATURE_BRANCHES; do
   echo "push-both: $B → origin (GitHub)…"
   git push origin "$B"
 
-  mb=$(git merge-base "$MAIN" "$B")
-  mbtree=$(git rev-parse "${mb}^{tree}")
-  # The GitLab mirror of the merge-base is the gitlab-main-line commit whose TREE
-  # equals the merge-base's tree (mirror points are tree-identical by construction).
-  root=""
-  for c in $(git rev-list gitlab-main); do
-    if [ "$(git rev-parse "${c}^{tree}")" = "$mbtree" ]; then root=$c; break; fi
-  done
-  if [ -z "$root" ]; then
-    echo "push-both: couldn't locate the GitLab mirror of $B's merge-base ($(git rev-parse --short "$mb")) on gitlab-main." >&2
-    echo "  Sync main first (this script does), or the branch predates the snapshot base — skipping $B." >&2
-    continue
-  fi
-
   gl="gitlab-$B"
-  n=$(git rev-list --count "${mb}..${B}")
-  echo "push-both: building $gl at merge-base mirror $(git rev-parse --short "$root") + $n commit(s)…"
-  git switch -q -C "$gl" "$root"
-  if [ "$n" -gt 0 ]; then
-    if ! git cherry-pick -x "${mb}..${B}"; then
-      echo "push-both: $B cherry-pick hit a conflict — aborting just this branch." >&2
-      git cherry-pick --abort || true
-      git switch -q "$MAIN"
-      continue
-    fi
-  fi
-  git switch -q "$MAIN"
+  tip=$(git rev-parse --short "$B")
+  n=$(git rev-list --count "${MAIN}..${B}")
+  tree=$(git rev-parse "${B}^{tree}")
+  msg="Mirror of $B @ $tip — GitLab content snapshot ($n commits; full history on GitHub origin/$B)"
+  newc=$(git commit-tree "$tree" -p gitlab-main -m "$msg")
+  git update-ref "refs/heads/$gl" "$newc"
+  echo "push-both: built $gl ($tip content, $n commits) on the GitLab line…"
 
-  # Force (the mirror line is recomputed each run); create on first push.
+  # Force (recomputed each run); create on first push.
   if git ls-remote --exit-code --heads aws "$B" >/dev/null 2>&1; then
     echo "push-both: $gl → aws ($B, force)…"
     git push --force aws "$gl:$B"
@@ -126,7 +116,7 @@ for B in $FEATURE_BRANCHES; do
     echo "push-both: $gl → aws ($B, create)…"
     git push aws "$gl:$B"
   fi
-  echo "push-both: $B in sync at $(git rev-parse --short "$B")."
+  echo "push-both: $B mirrored to GitLab at $tip."
 done
 
 echo "push-both: done — GitHub and GitLab synced for main + [$FEATURE_BRANCHES]."
