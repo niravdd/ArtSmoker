@@ -1681,7 +1681,7 @@
     "retry_edit": "콘텐츠 필터가 이 조각의 프롬프트를 차단했습니다. 수정 후 다시 시도하세요:",
     "retrying": "재시도 중…",
     "reference_reading": "참조 이미지 분석 중…",
-    "reload_studio": "스튜디오에서 다시 열기",
+    "reload_studio": "Image Studio에서 열기",
     "reloaded": "컬렉션을 불러왔습니다 — 검토하거나 생성하세요"
   }
 }

@@ -1681,7 +1681,7 @@
     "retry_edit": "内容过滤器拦截了该角色的提示词。请编辑后重试：",
     "retrying": "重试中…",
     "reference_reading": "正在解析参考图…",
-    "reload_studio": "在工作室中重载",
+    "reload_studio": "载入 Image Studio",
     "reloaded": "合集已载入 — 请检查或生成"
   }
 }

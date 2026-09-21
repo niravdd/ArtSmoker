@@ -1681,7 +1681,7 @@
     "retry_edit": "Le filtre de contenu a bloqué le prompt de cette pièce. Modifiez-le et réessayez :",
     "retrying": "Nouvel essai…",
     "reference_reading": "Analyse de la référence…",
-    "reload_studio": "Rouvrir dans le Studio",
+    "reload_studio": "Charger dans Image Studio",
     "reloaded": "Collection chargée — vérifiez ou générez"
   }
 }

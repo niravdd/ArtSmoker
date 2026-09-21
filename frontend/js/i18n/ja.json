@@ -1681,7 +1681,7 @@
     "retry_edit": "このピースのプロンプトはコンテンツフィルターにブロックされました。編集して再試行してください:",
     "retrying": "再試行中…",
     "reference_reading": "参照画像を解析中…",
-    "reload_studio": "スタジオで再編集",
+    "reload_studio": "Image Studio に読み込む",
     "reloaded": "コレクションを読み込みました — 確認または生成してください"
   }
 }
