@@ -404,7 +404,13 @@
     "alt_generated_svg": "生成的 SVG",
     "three_d_created": "创建于",
     "meta_src_user": "用户指定",
-    "meta_src_inferred": "推断"
+    "meta_src_inferred": "推断",
+    "meta_collection_section": "合集",
+    "meta_collection_name_label": "名称",
+    "meta_collection_subject": "主体",
+    "meta_open_collection": "打开合集",
+    "meta_collection_prompt": "合集提示词",
+    "meta_collection_prompt_note": "基于合集共享美术方向、面向该主体的通用（模型无关）提示词"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",

@@ -585,11 +585,13 @@ class GenerateCollectionRequest(BaseModel):
     design_cost: float = 0.0           # total accrued LLM design cost
 
 
-def _stamp_collection_lineage(batch_id: str, collection_id: str, entry: dict) -> None:
+def _stamp_collection_lineage(batch_id: str, collection_id: str, entry: dict,
+                              collection_name: str = "") -> None:
     """After a Batch generates, stamp collection lineage onto each of its Jobs'
-    metadata (SPEC §18.7(c)). Post-hoc so the single-asset generation path stays
-    byte-identical. RMW under asset_write_lock (its own metadata write already
-    committed + released by _run_generation, so no nested collection lock)."""
+    metadata (SPEC §18.7(c)) — so the Asset Viewer can show which Collection + subject
+    a Job belongs to and offer to open the set. Post-hoc so the single-asset
+    generation path stays byte-identical. RMW under asset_write_lock (its own metadata
+    write already committed + released by _run_generation, so no nested collection lock)."""
     from backend.services.asset_locks import asset_write_lock
     for aid in store.list_generated_ids():
         if not aid.startswith(batch_id + "_"):
@@ -599,6 +601,7 @@ def _stamp_collection_lineage(batch_id: str, collection_id: str, entry: dict) ->
             if not meta or meta.get("batch_id") != batch_id:
                 continue
             meta["collection_id"] = collection_id
+            meta["collection_name"] = collection_name or ""
             meta["batch_name"] = entry.get("name", "")
             meta["batch_slug"] = entry.get("slug", "")
             meta["model_agnostic_prompt"] = entry.get("model_agnostic_prompt", "")
@@ -826,7 +829,7 @@ async def generate_collection(body: GenerateCollectionRequest):
                     # Best-effort: stamp lineage + record the batch_id + refresh the index.
                     # A failure here must NOT drop the Batch (images already exist).
                     try:
-                        _stamp_collection_lineage(bid, cid, entry)
+                        _stamp_collection_lineage(bid, cid, entry, body.name)
                         def _set_bid(rec, _i=idx, _b=bid):
                             if _i < len(rec.get("roster", [])):
                                 rec["roster"][_i]["batch_id"] = _b
@@ -976,7 +979,7 @@ async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
         _mark_failed("Content filter blocked the prompt", True)
         raise HTTPException(400, detail="The content filter blocked this prompt. Edit it and retry.")
 
-    _stamp_collection_lineage(bid, collection_id, entry)
+    _stamp_collection_lineage(bid, collection_id, entry, rec.get("name", ""))
     def _ok(r):
         if idx < len(r.get("roster", [])):
             r["roster"][idx]["batch_id"] = bid

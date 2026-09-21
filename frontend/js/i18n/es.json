@@ -404,7 +404,13 @@
     "alt_generated_svg": "SVG generado",
     "three_d_created": "Creado",
     "meta_src_user": "indicado",
-    "meta_src_inferred": "inferido"
+    "meta_src_inferred": "inferido",
+    "meta_collection_section": "Colección",
+    "meta_collection_name_label": "Nombre",
+    "meta_collection_subject": "Sujeto",
+    "meta_open_collection": "Abrir colección",
+    "meta_collection_prompt": "Prompt de la colección",
+    "meta_collection_prompt_note": "Prompt independiente del modelo para este sujeto, a partir de la dirección de arte compartida del conjunto"
   },
   "chat_studio": {
     "attach_image": "Adjuntar imagen (para modelos con vision)",

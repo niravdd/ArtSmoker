@@ -404,7 +404,13 @@
     "alt_generated_svg": "생성된 SVG",
     "three_d_created": "생성됨",
     "meta_src_user": "사용자 지정",
-    "meta_src_inferred": "추론됨"
+    "meta_src_inferred": "추론됨",
+    "meta_collection_section": "컬렉션",
+    "meta_collection_name_label": "이름",
+    "meta_collection_subject": "대상",
+    "meta_open_collection": "컬렉션 열기",
+    "meta_collection_prompt": "컬렉션 프롬프트",
+    "meta_collection_prompt_note": "세트 공통 아트 디렉션에서 도출된, 이 대상의 모델 비의존 프롬프트"
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",

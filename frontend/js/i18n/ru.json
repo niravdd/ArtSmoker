@@ -1112,7 +1112,13 @@
     "alt_generated_svg": "Созданный SVG",
     "three_d_created": "Создано",
     "meta_src_user": "указано",
-    "meta_src_inferred": "выведено"
+    "meta_src_inferred": "выведено",
+    "meta_collection_section": "Коллекция",
+    "meta_collection_name_label": "Название",
+    "meta_collection_subject": "Объект",
+    "meta_open_collection": "Открыть коллекцию",
+    "meta_collection_prompt": "Промпт коллекции",
+    "meta_collection_prompt_note": "Модель-независимый промпт для этого объекта из общего арт-дирекшна набора"
   },
   "model_settings": {
     "title": "Настройки моделей",

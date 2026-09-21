@@ -683,6 +683,21 @@ def run_collection(base, model, region, extra_models=None):
             return False, f"could not fetch Job PNG for bg-removal check ({e.code})", cid
         steps.append("bg-removed(alpha)")
 
+        # 8c) COLLECTION LINEAGE stamped on Jobs (SPEC §18.7c) — the Asset Viewer's
+        # Collection panel reads these off the Job's metadata. Fetch a member Job's
+        # full metadata and assert the lineage (collection id + NAME + subject +
+        # model-agnostic prompt) is actually stamped — not just that a Job exists.
+        job_id = next((v.get("id") for b in full.get("batches", [])
+                       for o in ((b.get("batch") or {}).get("options") or [])
+                       for v in o.get("variants", []) if v.get("id")), None)
+        if not job_id:
+            return False, "no member Job to check collection lineage", cid
+        jm = get_json(base, f"/api/gallery/{job_id}", timeout=30)
+        _lin = {k: (jm.get(k) or "") for k in ("collection_id", "collection_name", "batch_name", "model_agnostic_prompt")}
+        if _lin["collection_id"] != cid or not all(str(_lin[k]).strip() for k in _lin):
+            return False, f"Job metadata missing collection lineage: {_lin}", cid
+        steps.append("collection-lineage")
+
         # 9) select-version pointer + design_history provenance
         sv = post_json(base, f"/api/collections/{cid}/select-version",
                        {"batch_id": b0, "version": 1}, timeout=30)

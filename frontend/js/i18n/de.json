@@ -1112,7 +1112,13 @@
     "alt_generated_png": "Generiertes PNG",
     "alt_generated_svg": "Generiertes SVG",
     "meta_src_user": "angegeben",
-    "meta_src_inferred": "abgeleitet"
+    "meta_src_inferred": "abgeleitet",
+    "meta_collection_section": "Sammlung",
+    "meta_collection_name_label": "Name",
+    "meta_collection_subject": "Motiv",
+    "meta_open_collection": "Sammlung öffnen",
+    "meta_collection_prompt": "Sammlungs-Prompt",
+    "meta_collection_prompt_note": "Modellunabhängiger Prompt für dieses Motiv, aus der gemeinsamen Art-Direction des Sets"
   },
   "model_settings": {
     "title": "Modelleinstellungen",

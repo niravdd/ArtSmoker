@@ -404,7 +404,13 @@
     "alt_generated_svg": "生成されたSVG",
     "three_d_created": "作成日",
     "meta_src_user": "ユーザー指定",
-    "meta_src_inferred": "推定"
+    "meta_src_inferred": "推定",
+    "meta_collection_section": "コレクション",
+    "meta_collection_name_label": "名称",
+    "meta_collection_subject": "サブジェクト",
+    "meta_open_collection": "コレクションを開く",
+    "meta_collection_prompt": "コレクションのプロンプト",
+    "meta_collection_prompt_note": "セット共通のアートディレクションに基づく、このサブジェクトのモデル非依存プロンプト"
   },
   "chat_studio": {
     "attach_image": "画像を添付（ビジョンモデル用）",

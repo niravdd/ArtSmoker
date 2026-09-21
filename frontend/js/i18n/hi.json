@@ -1112,7 +1112,13 @@
     "alt_generated_svg": "जनित SVG",
     "three_d_created": "बनाया गया",
     "meta_src_user": "उपयोगकर्ता-निर्दिष्ट",
-    "meta_src_inferred": "अनुमानित"
+    "meta_src_inferred": "अनुमानित",
+    "meta_collection_section": "कलेक्शन",
+    "meta_collection_name_label": "नाम",
+    "meta_collection_subject": "विषय",
+    "meta_open_collection": "कलेक्शन खोलें",
+    "meta_collection_prompt": "कलेक्शन प्रॉम्प्ट",
+    "meta_collection_prompt_note": "सेट की साझा आर्ट-डायरेक्शन से, इस विषय के लिए मॉडल-निरपेक्ष प्रॉम्प्ट"
   },
   "model_settings": {
     "title": "मॉडल सेटिंग्स",

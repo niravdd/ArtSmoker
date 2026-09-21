@@ -1112,7 +1112,13 @@
     "alt_generated_png": "Generated PNG",
     "alt_generated_svg": "Generated SVG",
     "meta_src_user": "user-stated",
-    "meta_src_inferred": "inferred"
+    "meta_src_inferred": "inferred",
+    "meta_collection_section": "Collection",
+    "meta_collection_name_label": "Name",
+    "meta_collection_subject": "Subject",
+    "meta_open_collection": "Open collection",
+    "meta_collection_prompt": "Collection prompt",
+    "meta_collection_prompt_note": "Model-agnostic prompt for this subject, from the set's shared art direction"
   },
   "model_settings": {
     "title": "Model Settings",
