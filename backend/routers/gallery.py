@@ -1119,11 +1119,12 @@ async def get_asset_3d(asset_id: str, version: int, variant: str | None = None):
     candidates = []
     if variant:
         candidates.append(f"asset_3d_v{version}__{variant}.glb")
-    else:
-        # DEFAULT: resolve the default variant's private filename from metadata.
-        dflt = default_3d_glb_filename(store.load_generation_metadata(asset_id) or {}, version)
-        if dflt:
-            candidates.append(dflt)
+    # ALWAYS include the metadata-resolved default private file — both as the no-variant
+    # default AND as a safety net when an explicit `variant` is malformed/unknown (falls
+    # back to the real default, not just the legacy canonical names).
+    dflt = default_3d_glb_filename(store.load_generation_metadata(asset_id) or {}, version)
+    if dflt and dflt not in candidates:
+        candidates.append(dflt)
     # Legacy on-disk fallbacks (assets that never got a private variant file).
     candidates.append(f"asset_3d_v{version}.glb")
     if version == 1:
@@ -1180,10 +1181,9 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
     glb_candidates = []
     if variant:
         glb_candidates.append(f"asset_3d_v{version}__{variant}.glb")
-    else:
-        dflt = default_3d_glb_filename(store.load_generation_metadata(asset_id) or {}, version)
-        if dflt:
-            glb_candidates.append(dflt)
+    dflt = default_3d_glb_filename(store.load_generation_metadata(asset_id) or {}, version)
+    if dflt and dflt not in glb_candidates:
+        glb_candidates.append(dflt)
     glb_candidates.append(f"asset_3d_v{version}.glb")
     if version == 1:
         glb_candidates.append("asset_3d.glb")

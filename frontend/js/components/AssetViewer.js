@@ -4159,7 +4159,7 @@
                     <div id="av-3d-variants" class="hidden"></div>
                     <div class="relative rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 460px;">
                         <model-viewer id="av-3d-viewer"
-                            src="${glbUrl}?t=${Date.now()}"
+                            src="${glbUrl}${glbUrl.includes('?') ? '&' : '?'}t=${Date.now()}"
                             alt="3D Model"
                             camera-controls
                             touch-action="pan-y"
