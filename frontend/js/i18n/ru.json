@@ -342,8 +342,7 @@
     "generating_with": "Генерация с {{model}}...",
     "custom_model_fallback": "пользовательская модель",
     "reference_collection_toggle": "Создать единый набор (коллекцию)",
-    "reference_collection_hint": "Задайте арт-дирекшн целого набора разных ассетов по стилю этого референса.",
-    "reference_collection_design": "Спроектировать набор…"
+    "reference_collection_hint": "Задайте арт-дирекшн целого набора разных ассетов по стилю этого референса."
   },
   "video_studio": {
     "title": "Видеостудия",

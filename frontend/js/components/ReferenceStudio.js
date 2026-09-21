@@ -190,7 +190,7 @@
                         </label>
                         <p class="text-[10px] text-brand-text-muted/70 mt-1">${_t('image_studio.reference_collection_hint')}</p>
                         <button type="button" class="rs-collection-design hidden btn btn-sm text-xs mt-2 w-full bg-sky-600 hover:bg-sky-500 text-white">
-                            ${_t('image_studio.reference_collection_design')}
+                            🗂️ ${_t('collection.designer_title')}
                         </button>
                         <p class="rs-collection-ready hidden text-[11px] font-semibold text-emerald-400 mt-1.5"></p>
                     </div>
@@ -272,6 +272,7 @@
                 this._collectionMode = !!this._collectionCb.checked;
                 this._setCollectionReady('');            // toggling invalidates a prior design
                 this._collectionDesignBtn?.classList.toggle('hidden', !this._collectionMode);
+                this._reflectMode();                     // hide/show the single-asset Enhanced-Prompt preview
                 this.opts.onCollectionChange?.(this._collectionMode);
             });
             this._collectionDesignBtn?.addEventListener('click', () => this.opts.onDesignCollection?.());
@@ -393,7 +394,11 @@
             }
             // Inspired-by preview only meaningful in "inspired" mode — except a
             // reloaded job's read-only enhanced prompt, which shows for both modes.
-            this._previewWrap.classList.toggle('hidden', this._mode !== 'inspired' && !this._loadedEnhanced);
+            // The single-asset Enhanced-Prompt preview is meaningless for a collection
+            // (the shared art direction comes from the image + prompt via the Collection
+            // Designer), so hide it whenever collection mode is on.
+            this._previewWrap.classList.toggle('hidden',
+                this._collectionMode || (this._mode !== 'inspired' && !this._loadedEnhanced));
             // Image-Inspired collections are inspired-only (Match/Remix are single-image
             // transforms — they don't map to a multi-subject set). Leaving inspired mode
             // turns the collection option off + clears any accepted design.

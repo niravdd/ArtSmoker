@@ -847,8 +847,7 @@
     "generating_with": "{{model}} で生成中...",
     "custom_model_fallback": "カスタムモデル",
     "reference_collection_toggle": "統一感のあるセットを生成（コレクション）",
-    "reference_collection_hint": "この参照画像の見た目を使って、異なるアセット一式のアートディレクションを行います。",
-    "reference_collection_design": "セットをデザイン…"
+    "reference_collection_hint": "この参照画像の見た目を使って、異なるアセット一式のアートディレクションを行います。"
   },
   "lang": {
     "en": "英語",

@@ -847,8 +847,7 @@
     "generating_with": "正在使用 {{model}} 生成...",
     "custom_model_fallback": "自定义模型",
     "reference_collection_toggle": "生成成套的匹配资产（合集）",
-    "reference_collection_hint": "以此参考图的风格为整套不同资产设定美术方向。",
-    "reference_collection_design": "设计成套…"
+    "reference_collection_hint": "以此参考图的风格为整套不同资产设定美术方向。"
   },
   "lang": {
     "en": "英语",

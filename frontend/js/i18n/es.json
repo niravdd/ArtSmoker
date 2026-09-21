@@ -847,8 +847,7 @@
     "generating_with": "Generando con {{model}}...",
     "custom_model_fallback": "modelo personalizado",
     "reference_collection_toggle": "Generar un conjunto a juego (Colección)",
-    "reference_collection_hint": "Usa el estilo de esta referencia para dirigir artísticamente todo un conjunto de recursos distintos.",
-    "reference_collection_design": "Diseñar el conjunto…"
+    "reference_collection_hint": "Usa el estilo de esta referencia para dirigir artísticamente todo un conjunto de recursos distintos."
   },
   "lang": {
     "en": "English",

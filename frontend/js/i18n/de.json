@@ -342,8 +342,7 @@
     "generating_with": "Generierung mit {{model}}...",
     "custom_model_fallback": "benutzerdefiniertes Modell",
     "reference_collection_toggle": "Passendes Set erzeugen (Sammlung)",
-    "reference_collection_hint": "Nutze den Look dieser Referenz als Art-Direction für ein ganzes Set unterschiedlicher Assets.",
-    "reference_collection_design": "Set entwerfen…"
+    "reference_collection_hint": "Nutze den Look dieser Referenz als Art-Direction für ein ganzes Set unterschiedlicher Assets."
   },
   "video_studio": {
     "title": "Video-Studio",

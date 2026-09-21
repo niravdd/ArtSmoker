@@ -562,6 +562,9 @@
             // Sidebar adjustments follow the ACTIVE surface: entering the
             // reference tab applies its current mode; leaving restores defaults.
             this._applyReferenceMode(isRef ? this._referenceStudio?._mode : null);
+            // Re-evaluate the collection Generate-gate for the now-active tab (a
+            // reference collection mid-design must keep Generate disabled here too).
+            this._syncGenerateGate();
         },
 
         /** Reflect the active reference mode on the sidebar. Remix repurposes two
@@ -1166,10 +1169,14 @@
             // Image-Inspired collection (SPEC §18): the reference look art-directs a set.
             // Generate first DESIGNS the set (art direction from the image → Designer),
             // then — once accepted — runs the whole collection.
+            // A reference collection runs ONLY once its Collection Designer is accepted
+            // (Generate is gated/disabled until then — the "🗂️ Collection Designer" button
+            // is the sole design trigger, mirroring the Text flow). The not-ready branch
+            // is defensive; the button should be disabled in that state.
             if (this._activeTab === 'reference' && this._referenceStudio?.isCollectionMode?.()) {
-                return this._referenceStudio.isCollectionReady()
-                    ? this._generateReferenceCollection()
-                    : this._designReferenceCollection();
+                if (this._refCollectionDesign) return this._generateReferenceCollection();
+                window.showToast?.(t('artsmoker.ui.collection.generate_disabled_hint'), 'warning');
+                return;
             }
 
             // Reference-guided tab has its own prompt + validation + payload patch.
@@ -3154,11 +3161,27 @@
         _onCollectionStateChange(st) {
             this._collectionActive = !!(st && st.active);
             this._collectionReady = !!(st && st.ready);
+            this._syncGenerateGate();
+        },
+
+        /** Single source of truth for the collection Generate-gate, shared by BOTH the
+         *  Text (PromptEditor) and Image-Inspired (Reference) flows so the UX is
+         *  identical: while a collection is being designed, Generate is DISABLED until
+         *  the Collection Designer has been accepted. Never fights the in-flight
+         *  disable (this._generating). */
+        _syncGenerateGate() {
             const btn = document.getElementById('btn-generate');
-            if (btn) {
-                btn.disabled = this._collectionActive && !this._collectionReady;
-                btn.title = btn.disabled ? t('artsmoker.ui.collection.generate_disabled_hint') : '';
+            if (!btn || this._generating) return;
+            let active = false, ready = false;
+            if (this._activeTab === 'reference') {
+                active = !!this._referenceStudio?.isCollectionMode?.();
+                ready = !!this._refCollectionDesign;
+            } else {
+                active = !!this._collectionActive;
+                ready = !!this._collectionReady;
             }
+            btn.disabled = active && !ready;
+            btn.title = btn.disabled ? t('artsmoker.ui.collection.generate_disabled_hint') : '';
         },
 
         /** Run the whole-collection generation from the accepted design (SPEC §18.4).
@@ -3241,10 +3264,13 @@
             return MODELS[0] ? [MODELS[0].value] : ['sd35_large'];
         },
 
-        /** Toggling collection mode discards any prior accepted design (a new one is
-         *  required); the design button itself lives in ReferenceStudio. */
+        /** Toggling collection mode (or editing the reference/instruction) discards any
+         *  prior accepted design (a new one is required) and re-syncs the Generate gate:
+         *  in collection mode Generate stays DISABLED until the Collection Designer is
+         *  accepted — identical to the Text flow. The design button lives in ReferenceStudio. */
         _onReferenceCollectionChange(_on) {
             this._refCollectionDesign = null;
+            this._syncGenerateGate();
         },
 
         /** Step 1 of the reference-collection flow: the reference image(s) inspire the
@@ -3278,15 +3304,28 @@
                     model_name: ((MODELS.find(m => m.value === models[0]) || {}).label) || models[0],
                     onAccept: (design) => {
                         this._refCollectionDesign = { ...design, reference_images: refImgs, models, prompt };
-                        rs.setCollectionReady('✓ ' + (t('artsmoker.ui.collection.ready_to_generate') || 'Ready — click GENERATE'));
+                        rs.setCollectionReady(this._referenceCollectionSummary(design, models));
+                        this._syncGenerateGate();   // design accepted → Generate enables
                         window.showToast?.(t('artsmoker.ui.collection.ready_to_generate') || 'Ready to generate', 'success');
                     },
                 });
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
             } finally {
-                if (btn) btn.disabled = false;
+                this._syncGenerateGate();   // reassert the gate (disabled until a design is accepted)
             }
+        },
+
+        /** The Step-3 "decided" summary line for a reference collection — mirrors the
+         *  Text flow's read-only breakdown (subjects · O×V · images · models · ready). */
+        _referenceCollectionSummary(design, models) {
+            const n = (design.roster || []).length;
+            const k = design.knobs || {};
+            const O = k.options || 3, V = k.variations || 2, M = Math.max(1, (models || []).length);
+            const T = (key, p) => t('artsmoker.ui.collection.' + key, p);
+            const subjects = T('card_count', { count: n });
+            const modelsLabel = M > 1 ? `${M} ${t('artsmoker.ui.image_studio.models_count')}` : (models[0] || '');
+            return `✓ ${subjects} · ${O}×${V} · ${T('images_count', { count: n * O * V * M })} · ${modelsLabel} — ${T('ready_to_generate')}`;
         },
 
         /** Step 2: run the designed reference-collection. Single model → anchor every
@@ -3341,6 +3380,7 @@
                     { options: knobs.options || 3, variations: knobs.variations || 2 }, models.length);
                 rs?.setCollectionReady('');          // consumed → require a fresh design next time
                 this._refCollectionDesign = null;
+                this._syncGenerateGate();            // re-disable Generate until re-designed
                 setTimeout(() => window.Gallery?.refresh?.(), 200);
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');

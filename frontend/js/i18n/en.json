@@ -342,8 +342,7 @@
     "generating_with": "Generating with {{model}}...",
     "custom_model_fallback": "custom model",
     "reference_collection_toggle": "Generate a matching set (Collection)",
-    "reference_collection_hint": "Use this reference's look to art-direct a whole set of distinct assets.",
-    "reference_collection_design": "Design the set…"
+    "reference_collection_hint": "Use this reference's look to art-direct a whole set of distinct assets."
   },
   "video_studio": {
     "title": "Video Studio",

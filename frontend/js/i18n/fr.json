@@ -847,8 +847,7 @@
     "generating_with": "Génération avec {{model}}...",
     "custom_model_fallback": "modèle personnalisé",
     "reference_collection_toggle": "Générer un ensemble assorti (Collection)",
-    "reference_collection_hint": "Utilisez le style de cette référence pour diriger artistiquement tout un ensemble d'assets distincts.",
-    "reference_collection_design": "Concevoir l'ensemble…"
+    "reference_collection_hint": "Utilisez le style de cette référence pour diriger artistiquement tout un ensemble d'assets distincts."
   },
   "lang": {
     "en": "Anglais",

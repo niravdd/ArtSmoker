@@ -342,8 +342,7 @@
     "generating_with": "{{model}} से जनन हो रहा है...",
     "custom_model_fallback": "कस्टम मॉडल",
     "reference_collection_toggle": "मिलती-जुलती सीरीज़ बनाएँ (कलेक्शन)",
-    "reference_collection_hint": "इस संदर्भ के लुक से अलग-अलग एसेट के पूरे सेट का आर्ट-डायरेक्शन तय करें।",
-    "reference_collection_design": "सेट डिज़ाइन करें…"
+    "reference_collection_hint": "इस संदर्भ के लुक से अलग-अलग एसेट के पूरे सेट का आर्ट-डायरेक्शन तय करें।"
   },
   "video_studio": {
     "title": "वीडियो स्टूडियो",
