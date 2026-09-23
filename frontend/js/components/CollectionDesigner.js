@@ -248,6 +248,17 @@
                 designCost: s.designCost,
                 ledger: s.ledger,
             };
+            // The sidebar is the single source of truth for Options × Variations
+            // (+ remove-bg): write the Designer's choice back so the sidebar, its
+            // cost estimate, the Step-3 summary and Generate all agree.
+            const _setSel = (id, v) => {
+                const el = document.getElementById(id);
+                if (el && String(el.value) !== String(v)) { el.value = String(v); el.dispatchEvent(new Event('change')); }
+            };
+            _setSel('gen-num-options', s.knobs.options);
+            _setSel('gen-num-variations', s.knobs.variations);
+            const rbg = document.getElementById('gen-remove-bg');
+            if (rbg && rbg.checked !== !!s.knobs.removeBg) { rbg.checked = !!s.knobs.removeBg; rbg.dispatchEvent(new Event('change')); }
             if (this._onAccept) this._onAccept(design);
             this.close();
         },

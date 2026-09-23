@@ -760,8 +760,13 @@
                 this._updateMultiModelCostEstimate();
                 // Remix: the strength-ladder readout mirrors the Options count.
                 this._referenceStudio?._updateRemixLadder?.();
+                this._syncCollectionCounts();
             });
-            document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
+            document.getElementById('gen-num-variations')?.addEventListener('change', () => {
+                this._updateMultiModelCostEstimate();
+                this._syncCollectionCounts();
+            });
+            document.getElementById('gen-remove-bg')?.addEventListener('change', () => this._syncCollectionCounts());
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             // Collection mode (SPEC §18.2) is driven by the checkbox UNDER STEP 1 in
             // PromptEditor; ImageStudio only re-gates Generate + runs the collection
@@ -3407,6 +3412,27 @@
                 this._designingRefCollection = false;
                 rs.setDesigning(false);     // restore the button
                 this._syncGenerateGate();   // reassert the gate (disabled until a design is accepted)
+            }
+        },
+
+        /** The sidebar is the single source of truth for a collection's Options ×
+         *  Variations (+ remove-bg). The Designer seeds from it and writes back on
+         *  accept; a sidebar change AFTER accept updates the accepted design (Text or
+         *  Image-Inspired) so its summary and Generate never use a stale snapshot. */
+        _syncCollectionCounts() {
+            const O = parseInt(document.getElementById('gen-num-options')?.value, 10);
+            const V = parseInt(document.getElementById('gen-num-variations')?.value, 10);
+            const rbg = document.getElementById('gen-remove-bg');
+            const counts = {};
+            if (O > 0) counts.options = O;
+            if (V > 0) counts.variations = V;
+            if (rbg) counts.removeBg = rbg.checked;
+            this._promptEditor?.syncCollectionCounts?.(counts);
+            const rd = this._refCollectionDesign;
+            if (rd) {
+                rd.knobs = { ...(rd.knobs || {}), ...counts };
+                this._referenceStudio?.setCollectionReady(
+                    this._referenceCollectionSummary(rd, rd.models || this._referenceCollectionModels()));
             }
         },
 

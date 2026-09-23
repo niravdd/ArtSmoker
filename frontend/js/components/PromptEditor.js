@@ -481,6 +481,16 @@
         // ── Collection mode (SPEC §18.2) ──────────────────────────────────
         isCollectionMode() { return !!this._collectionMode; }
         getCollectionDesign() { return this._collectionDesign || null; }
+
+        /** Sidebar Options × Variations (+ remove-bg) changed after the design was
+         *  accepted: adopt the new counts (they don't invalidate the roster) and
+         *  re-render the Step-3 summary so it — and Generate — match the sidebar. */
+        syncCollectionCounts(counts = {}) {
+            const d = this._collectionDesign;
+            if (!d) return;
+            d.knobs = { ...(d.knobs || {}), ...counts };
+            this._renderCollectionSummary();
+        }
         getArtDirectionText() { return this._artDirectionEl ? this._artDirectionEl.value : ''; }
         /** The blank guided scaffold from the recommended fields ("World: \nEra: …").
          *  Fields are recommended dynamically per prompt (not a fixed template). */
