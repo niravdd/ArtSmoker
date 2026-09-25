@@ -31,7 +31,104 @@
         type_studio_composite: 'Type Studio',
     };
 
+    // 3D quality presets — the single source for BOTH the per-asset 3D form and
+    // the Collection bulk "Convert to 3D" pane (AssetViewer.threeD* helpers).
+    // Specs are REAL (face/vertex targets + octree depth); 0 faces = no
+    // decimation cap (full mesh, ~1M after the safety cap).
+    const THREE_D_QUALITY_PRESETS = {
+        fast: { steps: 30, guidance: 5, faces: 100000, depth: 256, vtx: 50000 },
+        standard: { steps: 50, guidance: 7.5, faces: 300000, depth: 256, vtx: 150000 },
+        // High: full detail (octree 9, no decimation cap → ~1M faces /
+        // ~500K verts after the texture-safe ceiling). Matches Hunyuan-class.
+        high: { steps: 80, guidance: 12, faces: 0, depth: 512, vtx: 500000 },
+    };
+
     const AssetViewer = {
+        THREE_D_QUALITY_PRESETS,
+
+        // ── Shared 3D-settings helpers (per-asset form + Collection bulk pane) ──
+
+        /** Chooser label for a deployed 3D instance: pipeline · instance · warming. */
+        threeDInstanceLabel(inst) {
+            const ptype = inst.pipeline_type === 'trellis2_full'
+                ? t('artsmoker.ui.asset_viewer.three_d_pipe_trellis2_full')
+                : t('artsmoker.ui.asset_viewer.three_d_pipe_triposg');
+            const instT = inst.instance_type ? ' · ' + inst.instance_type.replace('ml.', '') : '';
+            const warming = inst.model_ready ? '' : ' · ' + t('artsmoker.ui.asset_viewer.three_d_model_warming');
+            return `${ptype}${instT}${warming}`;
+        },
+
+        /** Per-job time/cost estimate from registry-backed instance fields. Runtime
+         *  scales ~with the step count relative to the 'standard' preset that the
+         *  registry's typical_latency_seconds represents (clamped 0.4×–2×).
+         *  Returns {lat (s, 0 = unknown), cost (USD or null)}. */
+        threeDEstimate(inst, steps) {
+            if (!inst) return { lat: 0, cost: null };
+            const STD_STEPS = THREE_D_QUALITY_PRESETS.standard.steps;
+            const qMult = Math.max(0.4, Math.min(2.0, (steps || STD_STEPS) / STD_STEPS));
+            const lat = inst.typical_latency_seconds ? Math.round(inst.typical_latency_seconds * qMult) : 0;
+            const cost = (lat && inst.cost_per_hour_usd) ? (inst.cost_per_hour_usd * lat / 3600) : null;
+            return { lat, cost };
+        },
+
+        threeDFmtTime(s) {
+            if (!s) return '~?';
+            const m = Math.round(s / 60);
+            return m >= 1 ? `~${m} min` : `~${s}s`;
+        },
+
+        threeDFacesText(facesVal) {
+            return facesVal === 0
+                ? t('artsmoker.ui.asset_viewer.three_d_est_fullmesh')
+                : `~${facesVal.toLocaleString()} ${t('artsmoker.ui.asset_viewer.three_d_est_faces')}`;
+        },
+
+        /** License / consent panel body for a 3D instance (license, commercial
+         *  status, deploy-time acceptance on record). Returns SafeHtml. */
+        threeDLicenseHTML(inst) {
+            const commercialBadge = inst.commercially_usable_outputs === true
+                ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.asset_viewer.three_d_lic_commercial')}</span>`
+                : (inst.commercially_usable_outputs === false
+                    ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.asset_viewer.three_d_lic_noncommercial')}</span>`
+                    : '');
+            const acceptedLine = inst.license_accepted
+                ? html`<p class="text-emerald-400/90">✓ ${t('artsmoker.ui.asset_viewer.three_d_lic_accepted')}${inst.license_accepted_at ? ' · ' + window.formatTimestamp(inst.license_accepted_at) : ''}</p>`
+                : html`<p class="text-amber-400/90">⚠ ${t('artsmoker.ui.asset_viewer.three_d_lic_not_recorded')}</p>`;
+            const link = inst.license_url
+                ? html` <a href="${inst.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline">${t('artsmoker.ui.asset_viewer.three_d_lic_view')}</a>`
+                : '';
+            return html`
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-brand-text-muted">${t('artsmoker.ui.asset_viewer.three_d_lic_label')}</span>
+                    <span class="text-brand-text font-medium">${inst.license_name}</span>
+                    ${commercialBadge}
+                </div>
+                ${acceptedLine}
+                <p class="text-brand-text-dim">${t('artsmoker.ui.asset_viewer.three_d_lic_note')}${link}</p>`;
+        },
+
+        /** S3-bucket preflight for 3D (custom endpoints need the deployment bucket).
+         *  Returns true when OK / unknown; false after pointing the user to settings. */
+        async threeDBucketPreflight() {
+            try {
+                const st = await (await fetch('/api/custom-models/s3-bucket-status')).json();
+                if (!st.ok) {
+                    const go = await window.showConfirm?.(
+                        st.message || t('artsmoker.ui.custom_models.bucket_required_desc'),
+                        {
+                            title: t('artsmoker.ui.custom_models.bucket_required_title'),
+                            detail: t('artsmoker.ui.custom_models.s3_set_in_settings'),
+                            confirmLabel: t('artsmoker.ui.custom_models.open_model_settings'),
+                            cancelLabel: t('artsmoker.ui.common.cancel'),
+                        },
+                    );
+                    if (go) window.ModelSettings?.open?.('custom-models');
+                    return false;
+                }
+            } catch { /* status endpoint unreachable — let backend guard handle it */ }
+            return true;
+        },
+
         _overlay: null,
         _item: null,
         _meta: null,
@@ -2627,14 +2724,7 @@
                     <div>
                         <label class="text-xs text-brand-text-muted mb-1 block">${t('artsmoker.ui.asset_viewer.three_d_model')}</label>
                         <select id="av-3d-model" class="input text-sm w-full max-w-xs">
-                            ${instances.map((inst, i) => {
-                                const ptype = inst.pipeline_type === 'trellis2_full'
-                                    ? t('artsmoker.ui.asset_viewer.three_d_pipe_trellis2_full')
-                                    : t('artsmoker.ui.asset_viewer.three_d_pipe_triposg');
-                                const inst_t = inst.instance_type ? ' · ' + inst.instance_type.replace('ml.', '') : '';
-                                const warming = inst.model_ready ? '' : ' · ' + t('artsmoker.ui.asset_viewer.three_d_model_warming');
-                                return html`<option value="${inst.model_key}" ${i === 0 ? 'selected' : ''}>${ptype}${inst_t}${warming}</option>`;
-                            })}
+                            ${instances.map((inst, i) => html`<option value="${inst.model_key}" ${i === 0 ? 'selected' : ''}>${this.threeDInstanceLabel(inst)}</option>`)}
                         </select>
                         <p class="text-[9px] text-brand-text-dim mt-1 max-w-xs">${t('artsmoker.ui.asset_viewer.three_d_model_hint')}</p>
                     </div>
@@ -2790,17 +2880,7 @@
                 </div>
             `;
 
-            // Quality preset auto-fills advanced fields. Specs are REAL (face/
-            // vertex targets + octree depth); the live estimate line below shows
-            // accurate time + cost derived from the deployed backend/instance.
-            // 0 faces = no decimation cap (full mesh, ~1M after the safety cap).
-            const qualityPresets = {
-                fast: { steps: 30, guidance: 5, faces: 100000, depth: 256, vtx: 50000 },
-                standard: { steps: 50, guidance: 7.5, faces: 300000, depth: 256, vtx: 150000 },
-                // High: full detail (octree 9, no decimation cap → ~1M faces /
-                // ~500K verts after the texture-safe ceiling). Matches Hunyuan-class.
-                high: { steps: 80, guidance: 12, faces: 0, depth: 512, vtx: 500000 },
-            };
+            const qualityPresets = THREE_D_QUALITY_PRESETS;
 
             const qualitySelect = container.querySelector('#av-3d-quality');
             const stepsInput = container.querySelector('#av-3d-steps');
@@ -2819,41 +2899,18 @@
                 const key = modelSelect?.value;
                 return (key && instances.find(i => i.model_key === key)) || instances[0];
             };
-            const _fmtTime = (s) => {
-                if (!s) return '~?';
-                const m = Math.round(s / 60);
-                return m >= 1 ? `~${m} min` : `~${s}s`;
-            };
             const updateEstimate = () => {
                 if (!estimateEl) return;
                 const inst = _selectedInstance();
                 const facesVal = facesSelect ? parseInt(facesSelect.value || '0') : 0;
-                const facesTxt = facesVal === 0
-                    ? t('artsmoker.ui.asset_viewer.three_d_est_fullmesh')
-                    : `~${facesVal.toLocaleString()} ${t('artsmoker.ui.asset_viewer.three_d_est_faces')}`;
                 let tail = '';
                 if (inst) {
-                    // Scale runtime (and thus cost) with the chosen quality — steps
-                    // drive most of the diffusion time, so latency scales ~with the
-                    // step count relative to the 'standard' preset the registry's
-                    // typical_latency_seconds represents. Without this, fast and high
-                    // showed the same estimate despite very different runtimes.
-                    const STD_STEPS = qualityPresets.standard.steps;  // 50
-                    const stepsVal = parseInt(stepsInput?.value, 10) || STD_STEPS;
-                    const qMult = Math.max(0.4, Math.min(2.0, stepsVal / STD_STEPS));
-                    const lat = inst.typical_latency_seconds
-                        ? Math.round(inst.typical_latency_seconds * qMult) : 0;
-                    const cost = inst.cost_per_hour_usd;
-                    const timeTxt = _fmtTime(lat);
-                    let costTxt = '';
-                    if (lat && cost) {
-                        const jobCost = (cost * lat / 3600);
-                        costTxt = ` · ~$${jobCost.toFixed(2)}`;
-                    }
+                    const est = this.threeDEstimate(inst, parseInt(stepsInput?.value, 10));
+                    const costTxt = est.cost != null ? ` · ~$${est.cost.toFixed(2)}` : '';
                     const backend = inst.texture_backend ? ` · ${inst.texture_backend}` : '';
-                    tail = ` · ${timeTxt}${costTxt}${backend}`;
+                    tail = ` · ${this.threeDFmtTime(est.lat)}${costTxt}${backend}`;
                 }
-                estimateEl.textContent = `${facesTxt}${tail}`;
+                estimateEl.textContent = `${this.threeDFacesText(facesVal)}${tail}`;
             };
 
             const applyPreset = () => {
@@ -2873,26 +2930,8 @@
                 if (!licenseEl) return;
                 const inst = _selectedInstance();
                 if (!inst || !inst.license_name) { licenseEl.classList.add('hidden'); return; }
-                const commercialBadge = inst.commercially_usable_outputs === true
-                    ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.asset_viewer.three_d_lic_commercial')}</span>`
-                    : (inst.commercially_usable_outputs === false
-                        ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.asset_viewer.three_d_lic_noncommercial')}</span>`
-                        : '');
-                const acceptedLine = inst.license_accepted
-                    ? html`<p class="text-emerald-400/90">✓ ${t('artsmoker.ui.asset_viewer.three_d_lic_accepted')}${inst.license_accepted_at ? ' · ' + window.formatTimestamp(inst.license_accepted_at) : ''}</p>`
-                    : html`<p class="text-amber-400/90">⚠ ${t('artsmoker.ui.asset_viewer.three_d_lic_not_recorded')}</p>`;
-                const link = inst.license_url
-                    ? html` <a href="${inst.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline">${t('artsmoker.ui.asset_viewer.three_d_lic_view')}</a>`
-                    : '';
                 // nosemgrep
-                licenseEl.innerHTML = html`
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-brand-text-muted">${t('artsmoker.ui.asset_viewer.three_d_lic_label')}</span>
-                        <span class="text-brand-text font-medium">${inst.license_name}</span>
-                        ${commercialBadge}
-                    </div>
-                    ${acceptedLine}
-                    <p class="text-brand-text-dim">${t('artsmoker.ui.asset_viewer.three_d_lic_note')}${link}</p>`;
+                licenseEl.innerHTML = this.threeDLicenseHTML(inst);
                 licenseEl.classList.remove('hidden');
             };
 
@@ -3087,23 +3126,7 @@
             // Catch a missing bucket here with a clear pointer instead of a failed
             // job. (A deployed 3D endpoint usually implies a bucket was set, but the
             // bucket can be cleared later — so we still guard.)
-            try {
-                const st = await (await fetch('/api/custom-models/s3-bucket-status')).json();
-                if (!st.ok) {
-                    this._reset3DGenerateBtn(btn);
-                    const go = await window.showConfirm?.(
-                        st.message || t('artsmoker.ui.custom_models.bucket_required_desc'),
-                        {
-                            title: t('artsmoker.ui.custom_models.bucket_required_title'),
-                            detail: t('artsmoker.ui.custom_models.s3_set_in_settings'),
-                            confirmLabel: t('artsmoker.ui.custom_models.open_model_settings'),
-                            cancelLabel: t('artsmoker.ui.common.cancel'),
-                        },
-                    );
-                    if (go) window.ModelSettings?.open?.('custom-models');
-                    return;
-                }
-            } catch { /* status endpoint unreachable — let backend guard handle it */ }
+            if (!(await this.threeDBucketPreflight())) { this._reset3DGenerateBtn(btn); return; }
 
             // Re-sync to the TRUE current version before generating. The backend's
             // current_version is the single source of truth — it advances on every

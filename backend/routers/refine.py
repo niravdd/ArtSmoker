@@ -15,12 +15,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/refine-prompt", tags=["refine"])
 
 
+class AssetTypeClassifyRequest(PromptRefineRequest):
+    # Collection mode (SPEC §18): a set is Character or Game Asset only, so the
+    # classifier is constrained to those two and any other selection is reported
+    # as `unsupported` (the frontend must resolve it before any spend).
+    collection: bool = False
+
+
+# The only asset types a Collection supports (mirrors routers/collections._asset_enum).
+_COLLECTION_ASSET_TYPES = ("character", "game_asset")
+
+
 @router.post("/classify-asset-type")
-async def classify_asset_type(body: PromptRefineRequest):
+async def classify_asset_type(body: AssetTypeClassifyRequest):
     """Use an LLM to classify the ideal asset type for a prompt.
 
     Returns the recommended type and reason. If it differs from the
     user's current selection, the frontend shows a dialog to switch.
+    With ``collection=true`` the choice is limited to character/game_asset and
+    ``unsupported`` flags a current selection a Collection can't use.
     """
     from backend.services.bedrock_client import invoke_llm
     from backend.services.prompt_templates import get_template, get_system_prompt
@@ -28,12 +41,15 @@ async def classify_asset_type(body: PromptRefineRequest):
     from backend.services.telemetry import track_aux_llm_cost
     import json as _json, re as _re
 
+    current = body.asset_type.value if hasattr(body.asset_type, 'value') else str(body.asset_type)
+    unsupported = body.collection and current not in _COLLECTION_ASSET_TYPES
+    tmpl = 'collection_asset_type_classify' if body.collection else 'asset_type_classify'
     reset_costs()  # scope LLM cost to THIS request (worker threads are reused)
     try:
-        prompt_text = get_template('asset_type_classify').format(user_prompt=body.prompt)
+        prompt_text = get_template(tmpl).format(user_prompt=body.prompt)
         raw = invoke_llm(
             prompt_text,
-            system=get_system_prompt('asset_type_classify'),
+            system=get_system_prompt(tmpl),
             max_tokens=200,
             temperature=0.1,
             complexity="fast",
@@ -45,25 +61,37 @@ async def classify_asset_type(body: PromptRefineRequest):
         recommended = result.get("recommended", "game_asset")
         reason = result.get("reason", "")
         confidence = result.get("confidence", "medium")
+        if body.collection and recommended not in _COLLECTION_ASSET_TYPES:
+            recommended = "game_asset"   # same coercion the collection backend applies
 
-        # Only suggest a change if the recommended type differs from current
-        current = body.asset_type.value if hasattr(body.asset_type, 'value') else str(body.asset_type)
-        if recommended != current and confidence in ("high", "medium"):
-            return {
+        # An unsupported collection type ALWAYS needs resolving (any confidence);
+        # otherwise only suggest a change the classifier is reasonably sure of.
+        if unsupported or (recommended != current and confidence in ("high", "medium")):
+            out = {
                 "current": current,
                 "suggested": recommended,
                 "reason": reason,
                 "confidence": confidence,
                 "mismatch": True,
+                "unsupported": unsupported,
             }
-        return {"current": current, "suggested": current, "mismatch": False}
+        else:
+            out = {"current": current, "suggested": current, "mismatch": False, "unsupported": False}
 
     except Exception as exc:
         logger.warning("Asset type classification failed: %s", exc)
-        return {"current": str(body.asset_type), "suggested": str(body.asset_type), "mismatch": False}
+        # Still flag an unsupported collection type so the UI coerces it honestly.
+        fallback = "game_asset" if unsupported else current
+        out = {"current": current, "suggested": fallback, "mismatch": unsupported,
+               "unsupported": unsupported, "reason": ""}
     finally:
         # Report the LLM cost even if post-call parsing failed — no missed spend.
         track_aux_llm_cost("classify_asset_type", get_total_cost())
+    if body.collection:
+        from backend.services.telemetry import track_collection_asset_type_checked
+        track_collection_asset_type_checked(current=current, suggested=out["suggested"],
+                                            mismatch=out["mismatch"], unsupported=unsupported)
+    return out
 
 
 def _detect_asset_type_mismatch(prompt: str, asset_type) -> dict | None:

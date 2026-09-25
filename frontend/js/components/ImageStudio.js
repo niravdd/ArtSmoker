@@ -48,6 +48,9 @@
     // portrait/square. A NUDGE only — an explicit user choice is respected.
     const FULL_BODY_ASSET_TYPES = ['character', 'game_asset'];
 
+    // The only asset types a Collection supports (SPEC §18; backend _asset_enum).
+    const COLLECTION_ASSET_TYPES = ['character', 'game_asset'];
+
     window.ImageStudio = {
         _styles: [],
         _promptEditor: null,
@@ -387,7 +390,7 @@
                                         <div class="text-5xl mb-3">🗂️</div>
                                         <p id="gen-collection-summary-title" class="text-sm font-semibold text-brand-text mb-1"></p>
                                         <p id="gen-collection-summary-sub" class="text-xs text-brand-text-muted mb-4"></p>
-                                        <button id="gen-collection-view" class="btn btn-primary btn-sm">${t('artsmoker.ui.collection.view_in_gallery')}</button>
+                                        <button id="gen-collection-view" class="btn btn-primary btn-sm">${t('artsmoker.ui.collection.open_collection')}</button>
                                     </div>
                                     <!-- Hint that the big preview opens the AssetViewer on click. -->
                                     <div id="gen-click-hint" class="hidden absolute bottom-3 right-3 bg-black/70 text-white text-[10px] font-medium px-2.5 py-1 rounded-full pointer-events-none flex items-center gap-1.5">
@@ -417,6 +420,19 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Your Collections (SPEC §18.8) — same cards as the Gallery;
+                                 a click opens the Collection Viewer right here. -->
+                            <div id="gen-collections-panel" class="card-static p-4 hidden">
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <h3 class="text-sm font-semibold text-brand-text">
+                                        ${t('artsmoker.ui.collection.studio_panel_title')}
+                                        <span id="gen-collections-count" class="text-xs font-normal text-brand-text-muted ml-1"></span>
+                                    </h3>
+                                    <button id="gen-collections-toggle" class="btn btn-sm btn-secondary hidden"></button>
+                                </div>
+                                <div id="gen-collections-grid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -443,6 +459,50 @@
             }
             // One-time check — if active jobs found, polling resumes. If not, stops.
             this._checkAsyncJobs();
+            this.refreshCollections();
+        },
+
+        // ── Your Collections panel (SPEC §18.8) ───────────────────────────
+        // The Gallery's collection cards, shown in Image Studio too; a click opens
+        // the Collection Viewer in place (no trip to the Gallery). Newest first,
+        // the latest few by default with a Show-all toggle. Hidden when empty.
+        _COLLECTIONS_PREVIEW: 4,
+
+        async refreshCollections() {
+            const panel = document.getElementById('gen-collections-panel');
+            if (!panel) return;
+            let list = [];
+            try { list = ((await API.collections.list()) || {}).collections || []; }
+            catch { /* endpoint optional — keep whatever is shown */ return; }
+            list.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+            this._studioCollections = list;
+            this._renderCollectionsPanel();
+        },
+
+        _renderCollectionsPanel() {
+            const panel = document.getElementById('gen-collections-panel');
+            const grid = document.getElementById('gen-collections-grid');
+            const toggle = document.getElementById('gen-collections-toggle');
+            const countEl = document.getElementById('gen-collections-count');
+            if (!panel || !grid) return;
+            const list = this._studioCollections || [];
+            panel.classList.toggle('hidden', !list.length || !window.Gallery?.collectionCardHTML);
+            if (!list.length || !window.Gallery?.collectionCardHTML) return;
+            const limit = this._COLLECTIONS_PREVIEW;
+            const shown = this._collectionsShowAll ? list : list.slice(0, limit);
+            if (countEl) countEl.textContent = `(${list.length})`;
+            // nosemgrep
+            grid.innerHTML = shown.map(c => window.Gallery.collectionCardHTML(c)).join('');
+            grid.querySelectorAll('[data-collection]').forEach(card => {
+                card.addEventListener('click', () => window.CollectionAssetViewer?.open(card.dataset.collection));
+            });
+            if (toggle) {
+                toggle.classList.toggle('hidden', list.length <= limit);
+                toggle.textContent = this._collectionsShowAll
+                    ? t('artsmoker.ui.collection.studio_show_less')
+                    : t('artsmoker.ui.collection.studio_show_all', { count: list.length });
+                toggle.onclick = () => { this._collectionsShowAll = !this._collectionsShowAll; this._renderCollectionsPanel(); };
+            }
         },
 
         _ensurePromptEditor() {
@@ -459,7 +519,8 @@
                         imageModel: (this._selectedModels?.[0] || ''),
                         onAssetTypeChange: (newType) => {
                             const sel = document.getElementById('gen-asset-type');
-                            if (sel) {
+                            // Honor the collection lock — never land on a disabled type.
+                            if (sel && ![...sel.options].some(o => o.value === newType && o.disabled)) {
                                 sel.value = newType;
                                 sel.dispatchEvent(new Event('change'));
                             }
@@ -501,6 +562,7 @@
                             };
                         },
                         onCollectionStateChange: (st) => this._onCollectionStateChange(st),
+                        confirmCollectionAssetType: (p) => this._confirmCollectionAssetType(p),
                     });
                 } catch (err) {
                     console.error('Failed to create PromptEditor:', err);
@@ -675,6 +737,7 @@
             await this._loadStyles();
             this._ensurePromptEditor();
             this._initSeed();
+            this.refreshCollections();
 
             // Refresh models when Model Settings closes (enable/disable, deploy/teardown)
             window.addEventListener('model-settings-closed', () => this._loadModels());
@@ -856,6 +919,7 @@
                 // single-asset mode, so Generate must be re-enabled (SPEC §18.2 Reset).
                 this._collectionActive = false;
                 this._collectionReady = false;
+                this._collectionTypeCheckedFor = null;
                 this._stopAsyncPolling();
                 this._notifiedJobIds = new Set();
                 window.PromptDesigner?.reset();
@@ -3015,6 +3079,8 @@
             if (models.length) { this._selectedModels = models; this._syncModelCheckboxes(); }
             const typeSel = document.getElementById('gen-asset-type');
             if (typeSel && k.asset_type) typeSel.value = k.asset_type;
+            // A reloaded collection's Asset Type was already decided — don't re-ask.
+            if (COLLECTION_ASSET_TYPES.includes(k.asset_type)) this._collectionTypeCheckedFor = rawAsk.trim();
             const optsSel = document.getElementById('gen-num-options'); if (optsSel) optsSel.value = String(knobs.options);
             const varsSel = document.getElementById('gen-num-variations'); if (varsSel) varsSel.value = String(knobs.variations);
             const rbg = document.getElementById('gen-remove-bg'); if (rbg) rbg.checked = knobs.removeBg;
@@ -3059,6 +3125,76 @@
         },
         _getAssetType() {
             return document.getElementById('gen-asset-type')?.value || 'photorealistic';
+        },
+
+        _assetTypeLabel(value) {
+            const at = ASSET_TYPES.find(a => a.value === value);
+            return at ? t(at.labelKey) : String(value || '').replace(/_/g, ' ');
+        },
+
+        _setAssetType(value) {
+            const sel = document.getElementById('gen-asset-type');
+            if (sel && sel.value !== value) { sel.value = value; sel.dispatchEvent(new Event('change')); }
+        },
+
+        /** Collections are Character or Game Asset only (SPEC §18). BEFORE any
+         *  collection spend (entering collection mode / designing an Image-Inspired
+         *  set), classify the ask against the sidebar Asset Type and let the user
+         *  resolve a mismatch — an unsupported type (e.g. Photorealistic) must be
+         *  resolved to one of the two, so the sidebar never shows a type the set
+         *  won't use. Cached per prompt, so re-checks are free. Never throws. */
+        async _confirmCollectionAssetType(prompt) {
+            const text = (prompt || '').trim();
+            const cur = this._getAssetType();
+            const supported = COLLECTION_ASSET_TYPES.includes(cur);
+            if (!text || (supported && this._collectionTypeCheckedFor === text)) return cur;
+            let check = null;
+            window.showLoading?.(t('artsmoker.ui.image_studio.checking'));
+            try {
+                const resp = await fetch('/api/refine-prompt/classify-asset-type', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: text, asset_type: cur, collection: true }),
+                });
+                if (resp.ok) check = await resp.json();
+            } catch { /* offline → fall through to the local coercion below */ }
+            finally { window.hideLoading?.(); }
+            let chosen = cur;
+            if (check && check.mismatch && window.showConfirm) {
+                const sug = COLLECTION_ASSET_TYPES.includes(check.suggested) ? check.suggested : 'game_asset';
+                const alt = sug === 'character' ? 'game_asset' : 'character';
+                const unsupported = !supported;
+                const T = (k, p) => t('artsmoker.ui.collection.' + k, p);
+                const msg = unsupported
+                    ? `${T('asset_type_unsupported', { cur: this._assetTypeLabel(cur) })} ${check.reason || ''}`.trim()
+                    : (check.reason || T('asset_type_mismatch', { sug: this._assetTypeLabel(sug) }));
+                const useSug = await window.showConfirm(msg, {
+                    title: T('asset_type_title'),
+                    detail: T('asset_type_detail', { cur: this._assetTypeLabel(cur), sug: this._assetTypeLabel(sug) }),
+                    confirmLabel: T('asset_type_use', { type: this._assetTypeLabel(sug) }),
+                    cancelLabel: unsupported
+                        ? T('asset_type_use', { type: this._assetTypeLabel(alt) })
+                        : t('artsmoker.ui.image_studio.keep').replace('{{cur}}', this._assetTypeLabel(cur)),
+                    // Dismissing an unsupported type still has to land on a valid one.
+                    dismissResult: unsupported,
+                });
+                chosen = useSug ? sug : (unsupported ? alt : cur);
+            } else if (!supported) {
+                chosen = 'game_asset';   // classifier unavailable — the backend's coercion, made visible
+                window.showToast?.(t('artsmoker.ui.collection.asset_type_coerced', { type: this._assetTypeLabel(chosen) }), 'info');
+            }
+            this._setAssetType(chosen);
+            this._collectionTypeCheckedFor = text;
+            return chosen;
+        },
+
+        /** While a collection is active (either tab), only Character / Game Asset
+         *  are selectable in the sidebar — the other types can't apply to a set. */
+        _syncAssetTypeLock(active) {
+            const sel = document.getElementById('gen-asset-type');
+            if (!sel) return;
+            [...sel.options].forEach(o => { o.disabled = !!active && !COLLECTION_ASSET_TYPES.includes(o.value); });
+            sel.title = active ? t('artsmoker.ui.collection.asset_type_locked') : '';
         },
 
         _checkAssetTypeMismatch(prompt, assetType) {
@@ -3258,8 +3394,6 @@
          *  the Collection Designer has been accepted. Never fights the in-flight
          *  disable (this._generating). */
         _syncGenerateGate() {
-            const btn = document.getElementById('btn-generate');
-            if (!btn || this._generating) return;
             let active = false, ready = false;
             if (this._activeTab === 'reference') {
                 active = !!this._referenceStudio?.isCollectionMode?.();
@@ -3268,6 +3402,9 @@
                 active = !!this._collectionActive;
                 ready = !!this._collectionReady;
             }
+            this._syncAssetTypeLock(active);
+            const btn = document.getElementById('btn-generate');
+            if (!btn || this._generating) return;
             btn.disabled = active && !ready;
             btn.title = btn.disabled ? t('artsmoker.ui.collection.generate_disabled_hint') : '';
         },
@@ -3282,7 +3419,10 @@
             const selModels = (this._selectedModels || []).slice();
             const ctx = { image_model: (selModels[0] || 'sd35_large'),
                           selected_models: selModels,
-                          asset_type: this._getAssetType(), style_id: this._getStyleId() || null };
+                          // Character or Game Asset only (SPEC §18) — the pre-spend check
+                          // already resolved it; coerce anyway so the wire value is valid.
+                          asset_type: (this._getAssetType() === 'character' ? 'character' : 'game_asset'),
+                          style_id: this._getStyleId() || null };
             const knobs = design.knobs || {};
             if (btn) btn.disabled = true;
             this._generating = true;
@@ -3325,7 +3465,7 @@
                 // Show a completion summary here (with a way in) instead of silently
                 // leaving the preview empty or yanking the user to the Gallery.
                 this._showCollectionSummary(this._lastCollection, knobs);
-                setTimeout(() => window.Gallery?.refresh?.(), 200);
+                setTimeout(() => { window.Gallery?.refresh?.(); this.refreshCollections(); }, 200);
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
                 document.getElementById('gen-loading')?.classList.add('hidden');
@@ -3374,7 +3514,13 @@
             const refImgs = rs.getReferenceImagesB64();
             const prompt = rs.getPrompt();
             const models = this._referenceCollectionModels();
-            const assetType = (this._getAssetType() === 'character' ? 'character' : 'game_asset');
+            // Resolve the Asset Type BEFORE the (paid) vision call — never spend on a
+            // set the user didn't mean (e.g. Photorealistic left selected).
+            this._designingRefCollection = true;
+            let checkedType;
+            try { checkedType = await this._confirmCollectionAssetType(prompt); }
+            finally { this._designingRefCollection = false; }
+            const assetType = (checkedType === 'character' ? 'character' : 'game_asset');
             const styleId = this._getStyleId() || null;
             // Seed the Designer's Options × Variations (+ remove-bg) from the sidebar so
             // the user's chosen counts carry through instead of the 3×2 default.
@@ -3501,7 +3647,7 @@
                 rs?.setCollectionReady('');          // consumed → require a fresh design next time
                 this._refCollectionDesign = null;
                 this._syncGenerateGate();            // re-disable Generate until re-designed
-                setTimeout(() => window.Gallery?.refresh?.(), 200);
+                setTimeout(() => { window.Gallery?.refresh?.(); this.refreshCollections(); }, 200);
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
                 document.getElementById('gen-loading')?.classList.add('hidden');

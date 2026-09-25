@@ -25,7 +25,11 @@
             }
         },
 
-        close() { document.getElementById('collection-viewer-overlay')?.remove(); this._data = null; },
+        close() {
+            document.getElementById('collection-viewer-overlay')?.remove(); this._data = null;
+            // A version pin / Batch retry / 3D run inside the viewer changes covers + badges.
+            window.ImageStudio?.refreshCollections?.();
+        },
 
         _mount(title) {
             document.getElementById('collection-viewer-overlay')?.remove();
@@ -39,10 +43,11 @@
                         <h2 id="cv-title" class="text-lg font-semibold truncate">${title}</h2>
                         <div class="flex items-center gap-2">
                             <span id="cv-selinfo" class="text-[11px] text-cyan-300"></span>
+                            <!-- Primary + default action (first, focused → Enter): reload the set into Image Studio. -->
+                            <button id="cv-reload" class="btn btn-xs btn-primary">${t('collection.reload_studio')}</button>
                             <button id="cv-3d" class="btn btn-xs bg-violet-700/70 hover:bg-violet-600 text-white">${t('collection.convert_3d')}</button>
                             <button id="cv-dl-images" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.download_images')}</button>
                             <button id="cv-dl-3d" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.download_3d')}</button>
-                            <button id="cv-reload" class="btn btn-xs bg-cyan-700/70 hover:bg-cyan-600 text-white">${t('collection.reload_studio')}</button>
                             <button id="cv-delete" class="btn btn-xs bg-red-700/70 hover:bg-red-600 text-white">${t('collection.delete')}</button>
                             <button id="cv-close" class="text-brand-text-muted hover:text-brand-text text-2xl leading-none ml-2">&times;</button>
                         </div>
@@ -50,15 +55,23 @@
                     <div id="cv-body" class="flex-1 overflow-y-auto p-4"></div>
                 </div>`;
             document.body.appendChild(overlay);
+            // Header actions are bound ONCE here (not in _render, which re-runs on
+            // every Back-from-Batch and would stack duplicate handlers).
             document.getElementById('cv-close').addEventListener('click', () => this.close());
             // Reload the whole collection into Image Studio (review / regenerate / tweak),
             // mirroring the single-asset "reload" in AssetViewer.
-            document.getElementById('cv-reload')?.addEventListener('click', () => {
+            document.getElementById('cv-reload').addEventListener('click', () => {
                 const id = this._collectionId;
                 this.close();
                 window.ImageStudio?.loadCollection?.(id);
             });
+            document.getElementById('cv-delete').addEventListener('click', () => this._delete(this._collectionId));
+            document.getElementById('cv-3d').addEventListener('click', () => this._open3dPane(this._collectionId));
+            document.getElementById('cv-dl-images').addEventListener('click', () => this._downloadImages(this._collectionId));
+            document.getElementById('cv-dl-3d').addEventListener('click', () => this._download3d(this._collectionId));
+            document.getElementById('cv-reload').focus();
             overlay.addEventListener('click', (e) => { if (e.target === overlay) this.close(); });
+            overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.getElementById('cv-3d-pane')) this.close(); });
         },
 
         _renderError(msg) {
@@ -192,10 +205,6 @@
                     this._retryBatch(rec.collection_id, btn.dataset.slug, btn.dataset.blocked === '1', btn);
                 });
             });
-            document.getElementById('cv-delete').addEventListener('click', () => this._delete(rec.collection_id));
-            document.getElementById('cv-3d').addEventListener('click', () => this._open3dPane(rec.collection_id));
-            document.getElementById('cv-dl-images').addEventListener('click', () => this._downloadImages(rec.collection_id));
-            document.getElementById('cv-dl-3d').addEventListener('click', () => this._download3d(rec.collection_id));
             this._updateSelInfo();
         },
 
@@ -241,55 +250,231 @@
             this._updateSelInfo();
         },
 
+        /** How many 3D jobs a Convert would submit: the explicit selection, else one
+         *  per generated Batch (its representative image — the backend's fallback). */
+        _3dTargetCount() {
+            const n = this._selCount();
+            if (n) return n;
+            return (this._data?.batches || []).filter(e =>
+                ((e.batch && e.batch.options) || []).some(o => (o.variants || []).length)).length;
+        },
+
+        /** Bulk duration — minutes, or hours once it runs long. */
+        _fmtDuration(s) {
+            if (!s) return '~?';
+            const m = Math.round(s / 60);
+            return m >= 90 ? `~${(m / 60).toFixed(1)} h` : (m >= 1 ? `~${m} min` : `~${s}s`);
+        },
+
         // ── Convert to 3D: one settings pane, applied uniformly ────────────
+        // Parity with the per-asset 3D form (AssetViewer): same pipeline chooser,
+        // license panel, quality presets → steps/guidance/faces/octree, advanced
+        // fields, save-as, S3 preflight — plus a per-job × N total estimate and a
+        // confirm of the total before anything is spent. Presets/estimate/license
+        // come from the shared AssetViewer.threeD* helpers (single source).
         async _open3dPane(collectionId) {
-            const count = this._selCount();
-            let instances = [], defaults = {};
-            try { const r = await API.threeD.instances(); instances = (r.instances || []).filter(i => i.available); } catch (_) {}
-            try { defaults = (await API.threeD.defaults()) || {}; } catch (_) {}
+            if (document.getElementById('cv-3d-pane')) return;
+            const AV = window.AssetViewer;
+            const count = this._3dTargetCount();
+            if (!count) { window.showToast?.(t('collection.pane_nothing'), 'warning'); return; }
+            let available = true, instances = [];
+            try { available = !!(await API.threeD.check())?.available; } catch (_) { available = false; }
+            if (available) {
+                try { instances = ((await API.threeD.instances())?.instances || []).filter(i => i.available); } catch (_) {}
+            }
             const pane = document.createElement('div');
             pane.id = 'cv-3d-pane';
             pane.className = 'fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4';
+            const header = html`
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold">${t('collection.convert_3d')}</h3>
+                    <button id="cv3p-close" class="text-brand-text-muted hover:text-brand-text text-xl leading-none">&times;</button>
+                </div>`;
+            if (!available || !AV) {
+                // nosemgrep
+                pane.innerHTML = html`
+                    <div class="card w-full max-w-md p-4 space-y-3">
+                        ${header}
+                        <p class="text-sm text-brand-text-muted text-center py-4">${t('asset_viewer.three_d_not_deployed')}</p>
+                        <div class="flex justify-center"><button id="cv3p-settings" class="btn btn-sm btn-secondary">${t('asset_viewer.three_d_open_settings')}</button></div>
+                    </div>`;
+                document.body.appendChild(pane);
+                const close = () => pane.remove();
+                document.getElementById('cv3p-close').addEventListener('click', close);
+                pane.addEventListener('click', (e) => { if (e.target === pane) close(); });
+                document.getElementById('cv3p-settings').addEventListener('click', () => {
+                    close(); this.close(); window.ModelSettings?.open?.('custom-models');
+                });
+                return;
+            }
+            const A = (k) => t('asset_viewer.' + k);
             // nosemgrep
             pane.innerHTML = html`
-                <div class="card w-full max-w-md p-4 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-semibold">${t('collection.convert_3d')}</h3>
-                        <button id="cv3p-close" class="text-brand-text-muted hover:text-brand-text text-xl leading-none">&times;</button>
-                    </div>
-                    <p class="text-[11px] text-brand-text-muted">${count > 0 ? t('collection.pane_applies_sel', { count }) : t('collection.pane_applies_all')}</p>
+                <div class="card w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 space-y-3">
+                    ${header}
+                    <p class="text-[11px] text-brand-text-muted">${this._selCount() > 0 ? t('collection.pane_applies_sel', { count }) : t('collection.pane_applies_all_n', { count })}</p>
                     <div>
-                        <label class="block text-[11px] mb-1">${t('collection.pane_pipeline')}</label>
+                        <label class="block text-[11px] text-brand-text-muted mb-1">${t('collection.pane_pipeline')}</label>
                         <select id="cv3p-model" class="input text-sm w-full">
                             ${instances.length
-                                ? instances.map(i => html`<option value="${i.key}">${i.label || i.key}</option>`)
+                                ? instances.map((inst, i) => html`<option value="${inst.model_key}" ${i === 0 ? 'selected' : ''}>${AV.threeDInstanceLabel(inst)}</option>`)
                                 : html`<option value="">${t('collection.pane_default_pipeline')}</option>`}
                         </select>
                     </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div><label class="block text-[11px] mb-1">${t('collection.pane_quality')}</label>
-                            <select id="cv3p-quality" class="input text-sm w-full">
-                                <option value="standard">standard</option><option value="premium">premium</option>
-                            </select></div>
-                        <div><label class="block text-[11px] mb-1">${t('collection.pane_seed')}</label>
-                            <input id="cv3p-seed" type="number" class="input text-sm w-full" placeholder="${t('collection.count_auto')}" /></div>
+                    <div id="cv3p-license" class="rounded-lg border border-brand-border bg-brand-bg/40 p-3 text-[11px] space-y-1 hidden"></div>
+                    <div>
+                        <label class="block text-[11px] text-brand-text-muted mb-1">${A('three_d_quality')}</label>
+                        <select id="cv3p-quality" class="input text-sm w-full">
+                            <option value="fast">${A('three_d_quality_fast')}</option>
+                            <option value="standard">${A('three_d_quality_standard')}</option>
+                            <option value="high" selected>${A('three_d_quality_high')}</option>
+                        </select>
+                        <p id="cv3p-est" class="text-[10px] text-brand-text-dim mt-1.5"></p>
+                        <p id="cv3p-total" class="text-[11px] text-emerald-400/90 font-mono mt-0.5"></p>
+                        <p class="text-[9px] text-brand-text-dim">${t('collection.pane_queue_note')}</p>
                     </div>
+                    <details class="border border-brand-border rounded-lg">
+                        <summary class="px-3 py-2 text-xs text-brand-text-muted cursor-pointer hover:text-brand-text">${A('three_d_advanced')}</summary>
+                        <div class="px-3 pb-3 pt-2 grid grid-cols-2 gap-x-4 gap-y-3">
+                            <div>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${A('three_d_steps')}</label>
+                                <div class="flex items-center gap-2">
+                                    <input id="cv3p-steps" type="range" min="20" max="100" value="50" class="flex-1 min-w-0" />
+                                    <span id="cv3p-steps-label" class="text-[10px] text-brand-text-muted w-6 text-right">50</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${A('three_d_guidance')}</label>
+                                <div class="flex items-center gap-2">
+                                    <input id="cv3p-guidance" type="range" min="1" max="20" step="0.5" value="7.5" class="flex-1 min-w-0" />
+                                    <span id="cv3p-guidance-label" class="text-[10px] text-brand-text-muted w-6 text-right">7.5</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${A('three_d_faces')}</label>
+                                <select id="cv3p-faces" class="input text-xs w-full">
+                                    <option value="0">${A('three_d_faces_unlimited')}</option>
+                                    <option value="50000">50,000</option>
+                                    <option value="100000" selected>100,000</option>
+                                    <option value="200000">200,000</option>
+                                    <option value="300000">300,000</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${A('three_d_depth')}</label>
+                                <select id="cv3p-depth" class="input text-xs w-full">
+                                    <option value="128">${A('three_d_depth_low')}</option>
+                                    <option value="256" selected>${A('three_d_depth_medium')}</option>
+                                    <option value="512">${A('three_d_depth_high')}</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${A('three_d_seed')}</label>
+                                <input id="cv3p-seed" type="number" class="input text-xs w-full max-w-xs" placeholder="${A('three_d_seed_placeholder')}" />
+                                <p class="text-[9px] text-brand-text-dim mt-1">${t('collection.pane_seed_hint')}</p>
+                            </div>
+                        </div>
+                    </details>
+                    <div class="rounded-lg border border-brand-border bg-brand-bg/40 p-3">
+                        <label class="text-xs text-brand-text-muted mb-2 block">${t('collection.pane_saveas_title')}</label>
+                        <label class="flex items-start gap-2 mb-1.5 cursor-pointer">
+                            <input type="radio" name="cv3p-saveas" value="default" checked class="mt-0.5" />
+                            <span class="text-[11px]"><span class="font-medium">${A('three_d_saveas_replace')}</span><br><span class="text-brand-text-dim">${A('three_d_saveas_replace_hint')}</span></span>
+                        </label>
+                        <label class="flex items-start gap-2 cursor-pointer">
+                            <input type="radio" name="cv3p-saveas" value="variant" class="mt-0.5" />
+                            <span class="text-[11px]"><span class="font-medium">${A('three_d_saveas_variant')}</span><br><span class="text-brand-text-dim">${A('three_d_saveas_variant_hint')}</span></span>
+                        </label>
+                    </div>
+                    <p class="text-[10px] text-brand-text-dim">${t('collection.pane_source_note')}</p>
                     <div class="flex justify-end pt-1">
-                        <button id="cv3p-go" class="btn btn-primary btn-sm">${t('collection.pane_convert')}</button>
+                        <button id="cv3p-go" class="btn btn-primary btn-sm">${t('collection.pane_convert_n', { count })}</button>
                     </div>
                 </div>`;
             document.body.appendChild(pane);
+            const $ = (id) => document.getElementById(id);
             const close = () => pane.remove();
-            document.getElementById('cv3p-close').addEventListener('click', close);
+            $('cv3p-close').addEventListener('click', close);
             pane.addEventListener('click', (e) => { if (e.target === pane) close(); });
-            if (defaults.quality) document.getElementById('cv3p-quality').value = defaults.quality;
-            document.getElementById('cv3p-go').addEventListener('click', async () => {
-                const settings = { quality: document.getElementById('cv3p-quality').value || 'standard' };
-                const mk = document.getElementById('cv3p-model').value;
+            pane.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+
+            const selInst = () => {
+                const key = $('cv3p-model')?.value;
+                return (key && instances.find(i => i.model_key === key)) || instances[0] || null;
+            };
+            // Per-job estimate + the N-job total (jobs queue on the endpoint, so the
+            // total time is sequential on one instance).
+            const estimate = () => {
+                const inst = selInst();
+                const e = AV.threeDEstimate(inst, parseInt($('cv3p-steps').value, 10));
+                return { inst, per: e, totalLat: e.lat * count, totalCost: e.cost != null ? e.cost * count : null };
+            };
+            const updateEstimate = () => {
+                const { inst, per, totalLat, totalCost } = estimate();
+                const faces = AV.threeDFacesText(parseInt($('cv3p-faces').value || '0', 10));
+                const perCost = per.cost != null ? ` · ~$${per.cost.toFixed(2)}` : '';
+                const backend = inst?.texture_backend ? ` · ${inst.texture_backend}` : '';
+                $('cv3p-est').textContent = `${faces}${inst ? ` · ${AV.threeDFmtTime(per.lat)}${perCost}${backend}` : ''} ${t('collection.pane_per_job')}`;
+                $('cv3p-total').textContent = t('collection.pane_total', {
+                    count, time: this._fmtDuration(totalLat),
+                    cost: totalCost != null ? '~$' + totalCost.toFixed(2) : t('collection.pane_cost_unknown'),
+                });
+            };
+            const updateLicense = () => {
+                const el = $('cv3p-license');
+                const inst = selInst();
+                if (!inst || !inst.license_name) { el.classList.add('hidden'); return; }
+                // nosemgrep
+                el.innerHTML = AV.threeDLicenseHTML(inst);
+                el.classList.remove('hidden');
+            };
+            const applyPreset = () => {
+                const p = AV.THREE_D_QUALITY_PRESETS[$('cv3p-quality').value];
+                if (!p) return;
+                $('cv3p-steps').value = p.steps; $('cv3p-steps-label').textContent = p.steps;
+                $('cv3p-guidance').value = p.guidance; $('cv3p-guidance-label').textContent = p.guidance;
+                $('cv3p-faces').value = String(p.faces);
+                $('cv3p-depth').value = String(p.depth);
+                updateEstimate();
+            };
+            $('cv3p-quality').addEventListener('change', applyPreset);
+            $('cv3p-faces').addEventListener('change', updateEstimate);
+            $('cv3p-model').addEventListener('change', () => { updateEstimate(); updateLicense(); });
+            $('cv3p-steps').addEventListener('input', () => { $('cv3p-steps-label').textContent = $('cv3p-steps').value; updateEstimate(); });
+            $('cv3p-guidance').addEventListener('input', () => { $('cv3p-guidance-label').textContent = $('cv3p-guidance').value; });
+            updateLicense();
+            applyPreset();   // sync advanced fields + estimate to the default (High)
+
+            $('cv3p-go').addEventListener('click', async () => {
+                const go = $('cv3p-go');
+                if (go.disabled) return;
+                // Confirm the TOTAL before spending — a whole set is N GPU jobs.
+                const { per, totalLat, totalCost } = estimate();
+                const ok = window.showConfirm
+                    ? await window.showConfirm(
+                        t('collection.pane_confirm_body', {
+                            count, time: this._fmtDuration(totalLat),
+                            cost: totalCost != null ? '~$' + totalCost.toFixed(2) : t('collection.pane_cost_unknown'),
+                            per: AV.threeDFmtTime(per.lat),
+                        }),
+                        { title: t('collection.pane_confirm_title', { count }),
+                          confirmLabel: t('collection.pane_convert_n', { count }),
+                          cancelLabel: t('common.cancel') })
+                    : window.confirm(t('collection.pane_confirm_title', { count }));
+                if (!ok) return;
+                if (!(await AV.threeDBucketPreflight())) return;
+                const settings = {
+                    quality: $('cv3p-quality').value || 'standard',
+                    steps: parseInt($('cv3p-steps').value, 10) || 50,
+                    guidance: parseFloat($('cv3p-guidance').value) || 7.5,
+                    max_faces: parseInt($('cv3p-faces').value, 10) || 0,
+                    mesh_resolution: parseInt($('cv3p-depth').value, 10) || 256,
+                    save_as: pane.querySelector('input[name="cv3p-saveas"]:checked')?.value || 'default',
+                };
+                const mk = $('cv3p-model').value;
                 if (mk) settings.model_key = mk;
-                const seedV = parseInt(document.getElementById('cv3p-seed').value, 10);
+                const seedV = parseInt($('cv3p-seed').value, 10);
                 if (Number.isFinite(seedV)) settings.seed = seedV;
-                const go = document.getElementById('cv3p-go');
                 go.disabled = true; go.textContent = '…';
                 try {
                     const r = await API.collections.generate3d(collectionId, { targets: this._selTargets(), settings });
@@ -299,7 +484,7 @@
                     setTimeout(() => this.open(collectionId), 800);   // reflect submitted status
                 } catch (e) {
                     window.showToast?.(e.message || t('collection.error'), 'error');
-                    go.disabled = false; go.textContent = t('collection.pane_convert');
+                    go.disabled = false; go.textContent = t('collection.pane_convert_n', { count });
                 }
             });
         },
@@ -452,7 +637,7 @@
             if (!collectionId || !confirm(t('collection.delete_confirm'))) return;
             try {
                 await API.collections.del(collectionId);
-                this.close();
+                this.close();   // also refreshes Studio's "Your Collections" panel
                 window.Gallery?.refresh?.();
             } catch (e) { alert(e.message || t('collection.error')); }
         },

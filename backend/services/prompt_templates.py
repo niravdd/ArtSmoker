@@ -931,6 +931,29 @@ Respond with ONLY this JSON (no markdown fences):
 }}""",
     },
 
+    "collection_asset_type_classify": {
+        "label": "Collection Asset Type Classification",
+        "description": "Classifies a Collection ask as a set of Characters or a set of Game Assets (the only two collection asset types) before any design/generation spend.",
+        "used_by": "Image Studio — Collections, on entering collection mode / designing an Image-Inspired set",
+        "variables": ["{user_prompt}"],
+        "model": "fast LLM (Sonnet)",
+        "system_prompt": "You classify image-set generation requests. Reply with ONLY a JSON object, no explanation.",
+        "text": """This request asks for a COLLECTION — a coherent SET of distinct subjects sharing one art direction, each rendered as an isolated figure/object (cut-out, no scene). Decide which of the TWO collection asset types fits the set's members best.
+
+Request: "{user_prompt}"
+
+Collection asset types:
+- character: the members are PEOPLE or CREATURES whose anatomy, outfit, pose and face matter — e.g. a party of RPG heroes, a roster of fighters, a set of monster species, animal mascots.
+- game_asset: the members are OBJECTS, items, props, pieces or tiles — e.g. a weapon set, potion bottles, furniture, card-game tokens, board-game or CHESS PIECES (even when a piece is shaped like a king, knight or warrior, it is a sculpted game piece, not a character).
+
+Respond with ONLY this JSON (no markdown fences):
+{{
+  "recommended": "character" | "game_asset",
+  "reason": "One sentence explaining why",
+  "confidence": "high" | "medium" | "low"
+}}""",
+    },
+
     # ── Admin Templates ────────────────────────────────────────────────
 
     "admin_template_enhance": {

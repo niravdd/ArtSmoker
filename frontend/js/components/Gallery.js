@@ -656,66 +656,74 @@
         },
 
         _cardHTML(item) {
-            // Collection card (SPEC §18.8) — one card for the whole set.
-            if (item._collection) {
-                const cover = item.cover && item.cover.thumb_path
-                    ? item.cover.thumb_path + `?t=${item.updated_at || ''}` : null;
-                const count = item.batch_count || (item.batches ? item.batches.length : 0);
-                // Content-shape label (SPEC §18.8): "16 characters · 3×2 · 96 images".
-                // asset word from a small i18n map (collections are character/game_asset
-                // only); breakdown + total when options×variations are known.
-                const O = item.num_options, V = item.num_variations;
-                // Multi-model set: every subject renders on each chosen model, so the
-                // image total is count · models · O · V (not count · O · V).
-                const M = Math.max(1, (item.models && item.models.length) || 1);
-                let _asset = '';
-                if (item.asset_type) {
-                    const w = t('artsmoker.ui.collection.card_assets_' + item.asset_type);
-                    if (w && w.indexOf('.') === -1) _asset = ' ' + w;   // skip a missing-key echo
-                }
-                const _modelsSeg = M > 1 ? `${M} ${t('artsmoker.ui.image_studio.models_count')} × ` : '';
-                const colSummary = (O && V)
-                    ? `${count}${_asset} · ${_modelsSeg}${O}×${V} · ${t('artsmoker.ui.collection.images_count', { count: count * O * V * M })}`
-                    : t('artsmoker.ui.collection.card_count', { count });
-                const colSummaryHint = (O && V)
-                    ? t('artsmoker.ui.collection.card_summary_hint', { count, o: O, v: V })
-                    : '';
-                // A collection reads as a collection: a 2×2 collage of the first four
-                // batch covers (the summary carries every batch's thumb). Falls back
-                // to a single cover, then a placeholder icon.
-                const _cb = item.updated_at || '';
-                const colThumbs = (item.batches || [])
-                    .map(b => b && b.thumb_path).filter(Boolean).slice(0, 5)
-                    .map(tp => tp + `?t=${_cb}`);
-                // Symmetric graduated fan of framed CARDS (like a spread hand): the
-                // center cover is tallest + front; a pair of mid cards flank it, a bit
-                // shorter + behind; a pair of outer cards sit further out, shorter still.
-                // Each is a bordered card; all vertically centered; wider on hover.
-                const _cc = 'absolute w-[40%] rounded-md bg-brand-surface border border-brand-border overflow-hidden shadow-lg transition-transform duration-300 ease-out';
-                const _ccCard = (src, cls, alt) =>
-                    html`<div class="${_cc} ${cls}"><img src="${src}" class="w-full h-full object-cover" alt="${alt || ''}" loading="lazy" /></div>`;
-                return html`
-                    <div class="gallery-card card cursor-pointer overflow-hidden group" data-id="${item.id}" data-media="collection">
-                        <div class="aspect-[4/3] bg-brand-bg overflow-hidden relative">
-                            ${colThumbs.length >= 2
-                                ? html`<div class="relative w-full h-full">
-                                        ${colThumbs[3] ? _ccCard(colThumbs[3], 'left-[0%] top-7 bottom-7 z-10 group-hover:-translate-x-1.5') : ''}
-                                        ${colThumbs[4] ? _ccCard(colThumbs[4], 'left-[60%] top-7 bottom-7 z-10 group-hover:translate-x-1.5') : ''}
-                                        ${colThumbs[1] ? _ccCard(colThumbs[1], 'left-[14%] top-4 bottom-4 z-20 group-hover:-translate-x-1.5') : ''}
-                                        ${colThumbs[2] ? _ccCard(colThumbs[2], 'left-[46%] top-4 bottom-4 z-20 group-hover:translate-x-1.5') : ''}
-                                        ${_ccCard(colThumbs[0], 'left-[30%] top-1 bottom-1 z-30 shadow-2xl ring-1 ring-black/20', item.name)}
-                                    </div>`
-                                : (cover
-                                    ? html`<img src="${cover}" class="w-full h-full object-cover" alt="${item.name}" />`
-                                    : html`<div class="w-full h-full flex items-center justify-center"><svg class="w-10 h-10 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg></div>`)}
-                            <span class="absolute top-1.5 left-1.5 z-40 text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-600/80 text-white font-semibold">${t('artsmoker.ui.collection.card_badge')}</span>
-                        </div>
-                        <div class="p-2">
-                            <p class="text-xs font-medium truncate">${item.name || 'Collection'}</p>
-                            <p class="text-[10px] text-brand-text-muted truncate" title="${colSummaryHint}">${colSummary}</p>
-                        </div>
-                    </div>`;
+            if (item._collection) return this.collectionCardHTML(item);
+            return this._assetCardHTML(item);
+        },
+
+        /** Collection card (SPEC §18.8) — one card for the whole set. Shared with
+         *  Image Studio's "Your Collections" panel; accepts a raw summary from
+         *  API.collections.list() too (id derived, data-collection carries the id). */
+        collectionCardHTML(item) {
+            const cover = item.cover && item.cover.thumb_path
+                ? item.cover.thumb_path + `?t=${item.updated_at || ''}` : null;
+            const count = item.batch_count || (item.batches ? item.batches.length : 0);
+            // Content-shape label (SPEC §18.8): "16 characters · 3×2 · 96 images".
+            // asset word from a small i18n map (collections are character/game_asset
+            // only); breakdown + total when options×variations are known.
+            const O = item.num_options, V = item.num_variations;
+            // Multi-model set: every subject renders on each chosen model, so the
+            // image total is count · models · O · V (not count · O · V).
+            const M = Math.max(1, (item.models && item.models.length) || 1);
+            let _asset = '';
+            if (item.asset_type) {
+                const w = t('artsmoker.ui.collection.card_assets_' + item.asset_type);
+                if (w && w.indexOf('.') === -1) _asset = ' ' + w;   // skip a missing-key echo
             }
+            const _modelsSeg = M > 1 ? `${M} ${t('artsmoker.ui.image_studio.models_count')} × ` : '';
+            const colSummary = (O && V)
+                ? `${count}${_asset} · ${_modelsSeg}${O}×${V} · ${t('artsmoker.ui.collection.images_count', { count: count * O * V * M })}`
+                : t('artsmoker.ui.collection.card_count', { count });
+            const colSummaryHint = (O && V)
+                ? t('artsmoker.ui.collection.card_summary_hint', { count, o: O, v: V })
+                : '';
+            // A collection reads as a collection: a 2×2 collage of the first four
+            // batch covers (the summary carries every batch's thumb). Falls back
+            // to a single cover, then a placeholder icon.
+            const _cb = item.updated_at || '';
+            const colThumbs = (item.batches || [])
+                .map(b => b && b.thumb_path).filter(Boolean).slice(0, 5)
+                .map(tp => tp + `?t=${_cb}`);
+            // Symmetric graduated fan of framed CARDS (like a spread hand): the
+            // center cover is tallest + front; a pair of mid cards flank it, a bit
+            // shorter + behind; a pair of outer cards sit further out, shorter still.
+            // Each is a bordered card; all vertically centered; wider on hover.
+            const _cc = 'absolute w-[40%] rounded-md bg-brand-surface border border-brand-border overflow-hidden shadow-lg transition-transform duration-300 ease-out';
+            const _ccCard = (src, cls, alt) =>
+                html`<div class="${_cc} ${cls}"><img src="${src}" class="w-full h-full object-cover" alt="${alt || ''}" loading="lazy" /></div>`;
+            return html`
+                <div class="gallery-card card cursor-pointer overflow-hidden group" data-id="${item.id || ('col:' + item.collection_id)}" data-media="collection" data-collection="${item.collection_id}">
+                    <div class="aspect-[4/3] bg-brand-bg overflow-hidden relative">
+                        ${colThumbs.length >= 2
+                            ? html`<div class="relative w-full h-full">
+                                    ${colThumbs[3] ? _ccCard(colThumbs[3], 'left-[0%] top-7 bottom-7 z-10 group-hover:-translate-x-1.5') : ''}
+                                    ${colThumbs[4] ? _ccCard(colThumbs[4], 'left-[60%] top-7 bottom-7 z-10 group-hover:translate-x-1.5') : ''}
+                                    ${colThumbs[1] ? _ccCard(colThumbs[1], 'left-[14%] top-4 bottom-4 z-20 group-hover:-translate-x-1.5') : ''}
+                                    ${colThumbs[2] ? _ccCard(colThumbs[2], 'left-[46%] top-4 bottom-4 z-20 group-hover:translate-x-1.5') : ''}
+                                    ${_ccCard(colThumbs[0], 'left-[30%] top-1 bottom-1 z-30 shadow-2xl ring-1 ring-black/20', item.name)}
+                                </div>`
+                            : (cover
+                                ? html`<img src="${cover}" class="w-full h-full object-cover" alt="${item.name}" />`
+                                : html`<div class="w-full h-full flex items-center justify-center"><svg class="w-10 h-10 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg></div>`)}
+                        <span class="absolute top-1.5 left-1.5 z-40 text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-600/80 text-white font-semibold">${t('artsmoker.ui.collection.card_badge')}</span>
+                    </div>
+                    <div class="p-2">
+                        <p class="text-xs font-medium truncate">${item.name || 'Collection'}</p>
+                        <p class="text-[10px] text-brand-text-muted truncate" title="${colSummaryHint}">${colSummary}</p>
+                    </div>
+                </div>`;
+        },
+
+        _assetCardHTML(item) {
             const isVideo = item._media === 'video';
             const thumbUrl = isVideo
                 ? API.video.thumbnailUrl(item.id) + `?t=${this._cacheKey || '0'}`

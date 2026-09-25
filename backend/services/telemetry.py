@@ -192,6 +192,12 @@ def track_collection_export(engine: str = "", batch_count: int = 0):
 def track_collection_version_selected(version: int = 0):
     _track("collection_studio.version_selected", cost_usd=0, version=version)
 
+def track_collection_asset_type_checked(current: str = "", suggested: str = "",
+                                        mismatch: bool = False, unsupported: bool = False):
+    # Pre-spend Asset-Type check; its LLM cost rides classify_asset_type's aux .cost event.
+    _track("collection_studio.asset_type_checked", cost_usd=0, current=current,
+           suggested=suggested, mismatch=mismatch, unsupported=unsupported)
+
 
 # ── Video Studio Events ─────────────────────────────────────────────
 

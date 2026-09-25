@@ -594,6 +594,13 @@
                 if (this._collectionCheckbox) this._collectionCheckbox.checked = false;
                 return;
             }
+            // Resolve the Asset Type BEFORE any collection spend (a set is Character or
+            // Game Asset only; the ask may not match the sidebar). Checkbox stays
+            // disabled while the check runs so it can't be re-toggled mid-dialog.
+            if (this.opts.confirmCollectionAssetType) {
+                if (this._collectionCheckbox) this._collectionCheckbox.disabled = true;
+                try { await this.opts.confirmCollectionAssetType(prompt); } catch { /* never blocks entry */ }
+            }
             this._collectionMode = true;
             this._collectionDesign = null;
             this._collectionId = null;
@@ -682,6 +689,11 @@
                 return;
             }
             const artText = this.getArtDirectionText().trim();
+            // Re-confirm the Asset Type before the (paid) roster design — free when
+            // this prompt was already checked on entering collection mode.
+            if (this.opts.confirmCollectionAssetType) {
+                try { await this.opts.confirmCollectionAssetType(this.getUserText().trim()); } catch { /* non-blocking */ }
+            }
             const ctx = this._collectionContext();
             // The collection_id is normally minted when Art Direction is generated.
             // If the user wrote their OWN art direction and skipped Generate, mint it

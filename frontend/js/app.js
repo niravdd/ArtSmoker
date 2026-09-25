@@ -260,6 +260,7 @@
      *   confirmLabel — confirm button text (default: 'Continue')
      *   cancelLabel  — cancel button text (default: 'Cancel')
      *   danger    — if true, confirm button is red instead of accent
+     *   dismissResult — what Escape / backdrop-click resolve to (default false)
      */
     window.showConfirm = function (message, opts = {}) {
         return new Promise((resolve) => {
@@ -286,18 +287,24 @@
                     </div>
                 </div>`;
 
+            // Escape / backdrop-click resolve to dismissResult (default false = cancel).
+            const dismissResult = opts.dismissResult ?? false;
+            const onKey = (e) => {
+                if (e.key === 'Escape') cleanup(dismissResult);
+                if (e.key === 'Enter') cleanup(true);
+            };
+            // Always detach the key handler — a click-close used to leave it on the
+            // document, so a later Enter/Escape fired a stale dialog's handler.
             const cleanup = (result) => {
+                document.removeEventListener('keydown', onKey);
                 backdrop.remove();
                 resolve(result);
             };
 
             backdrop.querySelector('.cs-confirm-cancel')?.addEventListener('click', () => cleanup(false));
             backdrop.querySelector('.cs-confirm-ok')?.addEventListener('click', () => cleanup(true));
-            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(false); });
-            document.addEventListener('keydown', function handler(e) {
-                if (e.key === 'Escape') { document.removeEventListener('keydown', handler); cleanup(false); }
-                if (e.key === 'Enter') { document.removeEventListener('keydown', handler); cleanup(true); }
-            });
+            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(dismissResult); });
+            document.addEventListener('keydown', onKey);
 
             document.body.appendChild(backdrop);
             backdrop.querySelector('.cs-confirm-ok').focus();
