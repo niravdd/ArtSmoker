@@ -22,6 +22,16 @@ class AssetTypeClassifyRequest(PromptRefineRequest):
     collection: bool = False
 
 
+def _parse_llm_json(raw: str) -> dict:
+    """Parse an LLM's JSON-object reply. LLMs intermittently emit near-JSON
+    (trailing commas, // comments, prose around the object, unescaped quotes) —
+    a strict json.loads turned those into a random 502. Reuses the shared
+    tolerant repair parser; raises json.JSONDecodeError only if nothing parses."""
+    from backend.routers.generate_3d import _loads_tolerant_json_object
+    start = raw.find("{")
+    return _loads_tolerant_json_object(raw[start:] if start >= 0 else raw)
+
+
 # The only asset types a Collection supports (mirrors routers/collections._asset_enum).
 _COLLECTION_ASSET_TYPES = ("character", "game_asset")
 
@@ -39,7 +49,6 @@ async def classify_asset_type(body: AssetTypeClassifyRequest):
     from backend.services.prompt_templates import get_template, get_system_prompt
     from backend.services.cost_tracker import reset_costs, get_total_cost
     from backend.services.telemetry import track_aux_llm_cost
-    import json as _json, re as _re
 
     current = body.asset_type.value if hasattr(body.asset_type, 'value') else str(body.asset_type)
     unsupported = body.collection and current not in _COLLECTION_ASSET_TYPES
@@ -54,9 +63,7 @@ async def classify_asset_type(body: AssetTypeClassifyRequest):
             temperature=0.1,
             complexity="fast",
         ).strip()
-        cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", raw)
-        cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
-        result = _json.loads(cleaned.strip())
+        result = _parse_llm_json(raw)
 
         recommended = result.get("recommended", "game_asset")
         reason = result.get("reason", "")
@@ -270,7 +277,6 @@ async def decompose_prompt(body: DecomposeRequest):
     from backend.models.generation_request import AssetType
     from backend.services.cost_tracker import reset_costs, get_total_cost
     from backend.services.telemetry import track_aux_llm_cost
-    import json as _json, re as _re
 
     reset_costs()  # scope LLM cost (translation + decomposition) to THIS request
     # Translate non-English prompts to English for consistent decomposition
@@ -323,9 +329,7 @@ async def decompose_prompt(body: DecomposeRequest):
             temperature=0.3,
             complexity="fast",
         ).strip()
-        cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", raw)
-        cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
-        result = _json.loads(cleaned.strip())
+        result = _parse_llm_json(raw)
 
         # Include translation metadata so frontend can show both versions
         result["_meta"] = {
@@ -358,7 +362,7 @@ async def recompose_prompt(body: RecomposeRequest):
     from backend.services.prompt_engineer import get_prompt_limit, get_optimal_length, get_model_guidance, _get_model_label, _build_style_section, _DEFAULT_MODEL_INSTRUCTIONS
     from backend.services.cost_tracker import reset_costs, get_total_cost
     from backend.services.telemetry import track_aux_llm_cost
-    import json as _json, re as _re
+    import json as _json
 
     reset_costs()  # scope LLM cost to THIS request
     max_chars = get_prompt_limit(body.image_model)

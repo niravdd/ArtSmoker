@@ -44,7 +44,22 @@ class _ColorFormatter(logging.Formatter):
             f"{color}{self.BOLD}{label}{self.RESET}  "
             f"{self.NAME_COLOR}{name}{self.RESET}  "
             f"{msg}"
-        )
+        ) + _exc_suffix(self, record)
+
+
+def _exc_suffix(fmt: logging.Formatter, record: logging.LogRecord) -> str:
+    """Traceback / stack text for a record (logger.exception, exc_info=True,
+    stack_info=True). The custom formatters build the line themselves, so without
+    this every traceback was silently dropped from console AND log file."""
+    out = ""
+    if record.exc_info:
+        if not record.exc_text:
+            record.exc_text = fmt.formatException(record.exc_info)
+    if record.exc_text:
+        out += "\n" + record.exc_text
+    if record.stack_info:
+        out += "\n" + fmt.formatStack(record.stack_info)
+    return out
 
 _log_datefmt = "%Y-%m-%d %H:%M:%S"
 _color_handler = logging.StreamHandler()
@@ -91,7 +106,7 @@ class _PlainFormatter(logging.Formatter):
     def format(self, record):
         ts = self.formatTime(record, _log_datefmt)
         name = _ColorFormatter.NAME_MAP.get(record.name, record.name)
-        return f"{ts}  {record.levelname.ljust(8)}  {name}  {record.getMessage()}"
+        return f"{ts}  {record.levelname.ljust(8)}  {name}  {record.getMessage()}" + _exc_suffix(self, record)
 
 
 def _setup_file_logging():
