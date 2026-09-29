@@ -263,7 +263,8 @@
         _fmtDuration(s) {
             if (!s) return '~?';
             const m = Math.round(s / 60);
-            return m >= 90 ? `~${(m / 60).toFixed(1)} h` : (m >= 1 ? `~${m} min` : `~${s}s`);
+            return '~' + (m >= 90 ? t('common.dur_hr', { n: (m / 60).toFixed(1) })
+                : (m >= 1 ? t('common.dur_min', { n: m }) : t('common.dur_sec', { n: s })));
         },
 
         // ── Convert to 3D: one settings pane, applied uniformly ────────────
@@ -511,7 +512,7 @@
         _download3d(collectionId) {
             const fmt = (window.prompt(t('collection.download_3d_fmt'), 'glb') || '').trim().toLowerCase();
             if (!fmt) return;
-            if (!['glb', 'fbx', 'usd'].includes(fmt)) { window.showToast?.('fmt must be glb, fbx, or usd', 'warning'); return; }
+            if (!['glb', 'fbx', 'usd'].includes(fmt)) { window.showToast?.(t('collection.download_3d_fmt_invalid'), 'warning'); return; }
             this._zipDownload(`/api/collections/${collectionId}/download-3d`, { targets: this._selTargets(), fmt }, `collection_3d_${fmt}.zip`);
         },
 

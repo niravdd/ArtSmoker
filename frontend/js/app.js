@@ -528,9 +528,9 @@
                     const countsEl = _syncModal?.querySelector('.sync-counts');
                     if (countsEl && d.models) {
                         const parts = [];
-                        if (d.models.image) parts.push(`🖼 ${d.models.image} image`);
-                        if (d.models.chat) parts.push(`💬 ${d.models.chat} chat`);
-                        if (d.models.video) parts.push(`🎬 ${d.models.video} video`);
+                        if (d.models.image) parts.push(`🖼 ${t('artsmoker.ui.onboarding.count_image', { count: d.models.image })}`);
+                        if (d.models.chat) parts.push(`💬 ${t('artsmoker.ui.onboarding.count_chat', { count: d.models.chat })}`);
+                        if (d.models.video) parts.push(`🎬 ${t('artsmoker.ui.onboarding.count_video', { count: d.models.video })}`);
                         const regionMatch = d.message?.match(/(\d+)\/(\d+)/);
                         const regionInfo = regionMatch ? t('artsmoker.ui.onboarding.across_regions').replace('{{done}}', regionMatch[1]).replace('{{total}}', regionMatch[2]) : t('artsmoker.ui.onboarding.in_bedrock');
                         if (parts.length) countsEl.textContent = t('artsmoker.ui.onboarding.models_discovered').replace('{{region}}', regionInfo).replace('{{parts}}', parts.join('  ·  '));
@@ -760,7 +760,7 @@
                 ${status.restart_capable
                     ? html`<button class="pb-restart underline font-semibold hover:text-white/80">${t('artsmoker.ui.onboarding.restart_now')}</button>`
                     : ''}
-                <button class="pb-dismiss text-white/60 hover:text-white ml-2" aria-label="Dismiss">✕</button>`;
+                <button class="pb-dismiss text-white/60 hover:text-white ml-2" aria-label="${t('artsmoker.ui.common.dismiss')}">✕</button>`;
             const restartBtn = pendingBanner.querySelector('.pb-restart');
             if (restartBtn) restartBtn.addEventListener('click', () => triggerRestart(false));
             pendingBanner.querySelector('.pb-dismiss').addEventListener('click', _removePendingBanner);

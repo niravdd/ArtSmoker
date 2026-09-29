@@ -74,7 +74,7 @@
         threeDFmtTime(s) {
             if (!s) return '~?';
             const m = Math.round(s / 60);
-            return m >= 1 ? `~${m} min` : `~${s}s`;
+            return '~' + (m >= 1 ? t('artsmoker.ui.common.dur_min', { n: m }) : t('artsmoker.ui.common.dur_sec', { n: s }));
         },
 
         threeDFacesText(facesVal) {
@@ -639,7 +639,7 @@
             }
             if (v.size_bytes || v.vertices || v.faces)
                 // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
-                g += wide('asset_viewer.meta_3d_file', `<span class="text-xs">${v.size_bytes ? this._formatBytes(v.size_bytes) : ''}${v.vertices ? ` / ${v.vertices.toLocaleString()} vertices` : ''}${v.faces ? ` / ${v.faces.toLocaleString()} faces` : ''}</span>`);
+                g += wide('asset_viewer.meta_3d_file', `<span class="text-xs">${v.size_bytes ? this._formatBytes(v.size_bytes) : ''}${v.vertices ? ` / ${this._esc(t('artsmoker.ui.asset_viewer.file_vertices', { count: v.vertices.toLocaleString() }))}` : ''}${v.faces ? ` / ${this._esc(t('artsmoker.ui.asset_viewer.file_faces', { count: v.faces.toLocaleString() }))}` : ''}</span>`);
             if (pl.license_name)
                 // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
                 g += wide('asset_viewer.meta_3d_license', `<span class="text-xs">${this._esc(pl.license_name)}${pl.commercially_usable_outputs === true ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.asset_viewer.meta_3d_commercial')}</span>` : ''}${pl.license_accepted_at ? ` <span class="text-brand-text-muted">— ${window.formatTimestamp(pl.license_accepted_at)}</span>` : ''}</span>`);
@@ -2766,7 +2766,7 @@
                 <div class="w-full lg:w-64 lg:flex-shrink-0 space-y-2">
                     <p class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('artsmoker.ui.asset_viewer.three_d_preview_title')}</p>
                     <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-border flex items-center justify-center" style="height: 220px;">
-                        <img id="av-3d-preview-img" src="${previewUrl}" class="w-full h-full object-contain" alt="3D source" />
+                        <img id="av-3d-preview-img" src="${previewUrl}" class="w-full h-full object-contain" alt="${t('artsmoker.ui.asset_viewer.alt_3d_source')}" />
                     </div>
                     <p class="text-[9px] text-brand-text-dim">${t('artsmoker.ui.asset_viewer.three_d_preview_note')}</p>
                     <!-- Background-removal method for the 3D cutout. Local (free,
@@ -3207,7 +3207,7 @@
                             <p class="text-[11px] text-brand-text-dim mt-1">${t('artsmoker.ui.asset_viewer.three_d_src_pv_confirm_sub')} ${t('artsmoker.ui.asset_viewer.three_d_src_pv_confirm_sub2')}</p>
                         </div>
                         <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40 flex items-center justify-center relative" style="height: 360px;">
-                            <img id="av-sr-img" src="${srcUrlFor()}" class="w-full h-full object-contain" alt="3D source" crossorigin="anonymous" />
+                            <img id="av-sr-img" src="${srcUrlFor()}" class="w-full h-full object-contain" alt="${t('artsmoker.ui.asset_viewer.alt_3d_source')}" crossorigin="anonymous" />
                             <canvas id="av-sr-mask" class="cursor-crosshair hidden" style="max-width:100%; max-height:360px;"></canvas>
                             <canvas id="av-sr-measure" class="absolute inset-0 w-full h-full pointer-events-none hidden"></canvas>
                         </div>
@@ -4183,7 +4183,7 @@
                     <div class="relative rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 460px;">
                         <model-viewer id="av-3d-viewer"
                             src="${glbUrl}${glbUrl.includes('?') ? '&' : '?'}t=${Date.now()}"
-                            alt="3D Model"
+                            alt="${t('artsmoker.ui.asset_viewer.alt_3d_model')}"
                             camera-controls
                             touch-action="pan-y"
                             auto-rotate

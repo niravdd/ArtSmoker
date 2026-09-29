@@ -213,7 +213,7 @@
                 if (body) body.innerHTML = html`
                     <div class="text-center py-8">
                         <p class="text-red-400 text-sm">${_t('prompt_designer.failed')}: ${err.message}</p>
-                        <button class="btn btn-sm mt-4 px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted" onclick="PromptDesigner.close()">Close</button>
+                        <button class="btn btn-sm mt-4 px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted" onclick="PromptDesigner.close()">${_t('common.close')}</button>
                     </div>`;
             }
         },
@@ -586,7 +586,7 @@
             if (statsEl) {
                 const chars = text.length;
                 const words = text.trim().split(/\s+/).filter(Boolean).length;
-                statsEl.textContent = `${chars} chars · ${words} words`;
+                statsEl.textContent = t('artsmoker.ui.prompt_designer.stats', { chars, words });
             }
         },
     };

@@ -148,7 +148,7 @@
     "three_d_opt_collision": "Collision",
     "three_d_opt_uv2": "UV2 lightmap",
     "three_d_optval_none": "Aucun",
-    "three_d_optval_orm": "Pack ORM (Unreal)",
+    "three_d_optval_orm": "Regrouper ORM (Unreal)",
     "three_d_optval_unity_mask": "Métallique + lissage",
     "three_d_optval_hdrp_mask": "Mask Map HDRP",
     "three_d_optval_lod3": "Chaîne LOD0–3",
@@ -410,7 +410,11 @@
     "meta_collection_subject": "Sujet",
     "meta_open_collection": "Ouvrir la collection",
     "meta_collection_prompt": "Prompt de la collection",
-    "meta_collection_prompt_note": "Prompt indépendant du modèle pour ce sujet, issu de la direction artistique partagée de l'ensemble"
+    "meta_collection_prompt_note": "Prompt indépendant du modèle pour ce sujet, issu de la direction artistique partagée de l'ensemble",
+    "alt_3d_source": "Image source 3D",
+    "alt_3d_model": "Modèle 3D",
+    "file_vertices": "{{count}} sommets",
+    "file_faces": "{{count}} faces"
   },
   "chat_studio": {
     "attach_image": "Joindre une image (pour les modèles de vision)",
@@ -465,7 +469,19 @@
     "template_technical": "Rédacteur technique",
     "templates": "Modèles...",
     "title": "Studio de Chat",
-    "tokens": "Tokens"
+    "tokens": "Tokens",
+    "regions_tag": "{{count}} régions",
+    "price_per_1k_in": "{{price}} $/1K entrée",
+    "price_input_1k": "{{price}}/1K entrée",
+    "price_output_1k": "{{price}}/1K sortie",
+    "est_10k": "~${{cost}}/10K jetons",
+    "est_100k": "~${{cost}}/100K jetons",
+    "est_10k_hint": "Coût estimé pour ~10K jetons (70 % entrée, 30 % sortie)",
+    "est_100k_hint": "Coût estimé pour ~100K jetons (70 % entrée, 30 % sortie)",
+    "tokens_in_out": "{{in}} entrée / {{out}} sortie",
+    "fork_title": "{{title}} (dérivé)",
+    "search_matches_one": "{{count}} résultat",
+    "search_matches_other": "{{count}} résultats"
   },
   "common": {
     "apply": "Appliquer",
@@ -501,7 +517,11 @@
     "warning": "Avertissement",
     "optional": "facultatif",
     "dismiss": "Fermer",
-    "source": "Source"
+    "source": "Source",
+    "dur_min": "{{n}} min",
+    "dur_sec": "{{n}} s",
+    "dur_hr": "{{n}} h",
+    "dur_min_sec": "{{m}} min {{s}} s"
   },
   "confirm": {
     "cancel": "Annuler",
@@ -577,7 +597,11 @@
     "import_pick_type": "Veuillez d’abord choisir un type d’asset.",
     "import_pick_file": "Veuillez choisir un fichier image.",
     "filter_photorealistic": "Photoréaliste",
-    "imported_badge": "Importée"
+    "imported_badge": "Importée",
+    "legacy_migrate_confirm": "Ressources trouvées dans l'ancien emplacement de stockage ({{legacy}}) : {{count}}. Les déplacer vers le nouvel emplacement ({{current}}) ?",
+    "legacy_migrated": "Ressources migrées : {{count}}",
+    "legacy_skipped": "ignorées (déjà présentes) : {{count}}",
+    "alt_preview": "Aperçu"
   },
   "image_studio": {
     "advanced_collapse": "Avancé",
@@ -852,7 +876,24 @@
     "generating_with": "Génération avec {{model}}...",
     "custom_model_fallback": "modèle personnalisé",
     "reference_collection_toggle": "Générer un ensemble assorti (Collection)",
-    "reference_collection_hint": "Utilisez le style de cette référence pour diriger artistiquement tout un ensemble d'assets distincts."
+    "reference_collection_hint": "Utilisez le style de cette référence pour diriger artistiquement tout un ensemble d'assets distincts.",
+    "dim_unsupported_one": "{{models}} ne prend pas en charge {{size}}. La taille prise en charge la plus proche sera utilisée pour ce modèle.",
+    "dim_unsupported_many": "{{models}} ne prennent pas en charge {{size}}. La taille prise en charge la plus proche sera utilisée pour ces modèles.",
+    "images_across_models": "{{images}} images sur {{models}} modèles",
+    "all_models_math": "{{models}} modèles × {{options}} options × {{variations}} variations = {{images}} images",
+    "large_batch_note": "lot volumineux, cela prendra plusieurs minutes",
+    "all_models_cost": "Est. ~{{cost}} $ ({{images}} images × {{models}} modèles)",
+    "alt_generated": "Image générée",
+    "async_generated": "Générée",
+    "async_took": "en {{time}}",
+    "async_queued": "En file — n°{{pos}} sur {{total}}",
+    "async_waiting": "en attente",
+    "async_active": "ACTIF",
+    "llm_backup_model": "modèle d’IA de secours",
+    "stream_ended": "La connexion s’est terminée avant l’arrivée du résultat",
+    "type_hint_char_scene": "Votre prompt décrit un personnage dans un décor. « Personnage » garde la figure au centre tout en conservant le contexte de la scène. « Ressource de jeu » impose un sprite isolé sur fond transparent.",
+    "type_hint_char": "Votre prompt décrit un personnage. « Personnage » optimise les proportions, la pose et la lisibilité de la silhouette.",
+    "type_hint_scene": "Votre prompt décrit une scène ou un environnement. « Environnement » préserve toute la composition. « Ressource de jeu » impose un objet isolé sur fond transparent."
   },
   "lang": {
     "en": "Anglais",
@@ -1043,7 +1084,54 @@
     "lifecycle_unavailable_hint": "Ce modèle obsolète n'est plus accessible pour votre compte (inactif) et a été retiré des sélecteurs.",
     "cost_hourly": "~{{cost}} $/h en fonctionnement",
     "cost_per_gen_time": "~{{min}} min/génération",
-    "pricing_unavailable": "Tarif indisponible"
+    "pricing_unavailable": "Tarif indisponible",
+    "hf_token_btn": "Jeton HF",
+    "badge_custom": "Personnalisé",
+    "badge_img2vid": "image→vidéo",
+    "price_per_image": "{{price}} $/image",
+    "price_per_second": "{{price}} $/s",
+    "prompt_limit_chars": "{{n}} caractères",
+    "moderation_moderate": "modérée",
+    "moderation_strict": "stricte",
+    "moderation_very_strict": "très stricte",
+    "region_count_one": "{{n}} région",
+    "regions_count": "{{n}} régions",
+    "current_suffix": "(actuel)",
+    "field_architecture": "Architecture",
+    "field_type": "Type",
+    "ms_hide_all": "Tout masquer",
+    "ms_collapse_editors": "Réduire les éditeurs",
+    "tmpl_group_image_editing": "Retouche d'image et référence",
+    "tmpl_group_3d_video": "3D et vidéo",
+    "tmpl_group_system": "Système et utilitaires",
+    "tmpl_label_image_refine_single": "Affinage du prompt — comment votre texte devient un prompt d'image détaillé",
+    "tmpl_label_image_concepts_multi": "Options créatives — comment plusieurs concepts distincts sont générés à partir d'une seule idée",
+    "tmpl_label_image_refine_marketing": "Bannières marketing — prompt spécialisé pour les compositions de bannières",
+    "tmpl_label_image_asset_type_context": "Intention par type d'asset — la direction créative selon le type d'asset (asset de jeu, personnage, etc.)",
+    "tmpl_label_image_style_section": "Intégration des indices de style — comment un style de la Bibliothèque de styles est intégré au prompt",
+    "tmpl_label_asset_type_classify": "Suggestion de type d'asset — suggère le type d'asset le plus adapté à votre prompt",
+    "tmpl_label_prompt_decompose": "Prompt Designer — décompose votre idée en composants visuels modifiables",
+    "tmpl_label_prompt_recompose": "Prompt Designer — recompose les composants modifiés en un prompt final",
+    "tmpl_label_edit_prompt_suggestion": "Générer le prompt (onglet Retouche) — lit l'image et l'intention, puis suggère un prompt de retouche par mode",
+    "tmpl_label_reference_intent_extraction": "Inspiré de — combine la ou les images de référence et votre instruction en un prompt amélioré",
+    "tmpl_label_reference_edit_instruction": "Conforme à la référence — adapte votre instruction au modèle de retouche par référence",
+    "tmpl_label_inpaint_removal_transform": "Suppression par inpainting — transforme une demande « supprimer X » en description de remplissage",
+    "tmpl_label_style_analysis_full": "Analyse de style — comment les attributs visuels des images de référence sont analysés",
+    "tmpl_label_style_hints_generation": "Indices de style — comment le style analysé est condensé en directives de génération",
+    "tmpl_label_style_cohesion_check": "Vérification de cohérence — contrôle rapide pour savoir si les références sont homogènes ou variées",
+    "tmpl_label_three_d_source_analysis": "Vérification de la source — détecte si une image 2D est recadrée/incomplète avant la conversion image-vers-3D",
+    "tmpl_label_video_enhance_prompt": "Amélioration du prompt vidéo — ajoute mouvements de caméra, éclairage et repères temporels",
+    "tmpl_label_moderation_prescreen": "Pré-filtrage — prédit si un prompt sera bloqué avant la génération",
+    "tmpl_label_moderation_rewrite": "Réécriture — réécrit les prompts bloqués pour qu'ils passent la modération",
+    "tmpl_label_translate_detect_language": "Détection de la langue — détecte la langue lorsque les heuristiques sont ambiguës",
+    "tmpl_label_translate_to_english": "Traduction en anglais — traduit les prompts non anglais avant la génération",
+    "tmpl_label_chat_context_compact": "Chat : compaction du contexte — résume les anciens messages pour libérer de l'espace de contexte",
+    "tmpl_label_chat_title_generate": "Chat : titre de session — génère automatiquement un titre à partir du premier échange",
+    "tmpl_label_typestudio_layout": "Studio de Texte : mise en page du texte — définit positions, polices, tailles et effets du texte",
+    "tmpl_label_typestudio_layout_output_multi": "Studio de Texte : sortie de mise en page (multiple) — format de sortie pour plusieurs options de mise en page",
+    "tmpl_label_typestudio_layout_output_single": "Studio de Texte : sortie de mise en page (unique) — format de sortie pour une seule mise en page",
+    "tmpl_label_admin_template_enhance": "Éditeur de modèles : amélioration par AI — le prompt derrière le bouton « Améliorer avec l'AI » ici",
+    "tmpl_label_admin_template_fix_variables": "Éditeur de modèles : correction des variables — le prompt derrière « Corriger et enregistrer » pour réinsérer les variables manquantes"
   },
   "nav": {
     "chat_studio": "Studio de Chat",
@@ -1071,8 +1159,12 @@
     "step3_desc": "Ceci est ce que le modèle d'image recevra. Vous pouvez le modifier avant de générer.",
     "step3_hint": "Optionnel — cliquez pour prévisualiser le prompt amélioré, ou cliquez directement sur Générer.",
     "generate_enhanced": "Générer le Prompt Amélioré",
-    "prompt_designer": "Prompt Designer",
-    "asset_type_wrong_detail": "Vous avez choisi « {{cur}} » mais votre prompt ressemble à « {{sug}} »."
+    "prompt_designer": "Concepteur de prompts",
+    "asset_type_wrong_detail": "Vous avez choisi « {{cur}} » mais votre prompt ressemble à « {{sug}} ».",
+    "english_tab": "Anglais",
+    "recomposed_placeholder": "Le prompt recomposé apparaîtra ici après la génération...",
+    "recomposed_note": "Recomposé à partir de votre prompt. Cliquez sur Concepteur de prompts ci-dessus pour modifier les composants.",
+    "translated_to_english": "{{lang}} → anglais"
   },
   "style_library": {
     "analysis_complete": "Analyse de style terminée",
@@ -1137,7 +1229,14 @@
     "upload_hint": "Glissez-déposez vos images de référence ici",
     "upload_hint_sub": "ou cliquez pour parcourir",
     "uploaded": "{{count}} image(s) importée(s)",
-    "uploading": "Téléchargement des références..."
+    "uploading": "Téléchargement des références...",
+    "ref_badge_one": "{{count}} réf.",
+    "ref_badge_other": "{{count}} réf.",
+    "alt_reference": "Image de référence",
+    "browse_images_one": "{{count}} image",
+    "browse_images_other": "{{count}} images",
+    "browse_buckets_one": "{{count}} compartiment",
+    "browse_buckets_other": "{{count}} compartiments"
   },
   "toast": {
     "dismiss": "Fermer"
@@ -1216,7 +1315,12 @@
     "title": "Studio de Texte",
     "upscale": "Agrandir",
     "view_raw": "Voir la spécification brute de mise en page",
-    "voice_input": "Saisie vocale"
+    "voice_input": "Saisie vocale",
+    "layout_count_one": "{{count}} mise en page",
+    "layout_count_other": "{{count}} mises en page",
+    "llm_info": "Complexe : {{complex}} | Rapide : {{fast}}",
+    "line_size": "Taille : {{size}}",
+    "line_anchor": "Ancrage : {{anchor}}"
   },
   "video_studio": {
     "active_jobs": "Tâches en cours",
@@ -1318,7 +1422,11 @@
     "title": "Studio Vidéo",
     "video_failed": "Échec de la vidéo : {{msg}}",
     "video_settings": "Paramètres vidéo (stockage S3)",
-    "your_s3_buckets": "Vos buckets S3"
+    "your_s3_buckets": "Vos buckets S3",
+    "price_per_sec": "{{price}} $/s",
+    "regions_available": "{{count}} régions disponibles",
+    "s3_validation_failed": "Échec de la validation S3",
+    "time_ago": "il y a {{time}}"
   },
   "voice_input": {
     "mic_denied": "Accès au microphone refusé",
@@ -1372,8 +1480,8 @@
     "add_to_catalog": "Ajouter au Catalogue",
     "loading": "Chargement du catalogue de modèles personnalisés...",
     "no_models": "Aucun modèle personnalisé dans le catalogue.",
-    "image_studio": "Image Studio",
-    "video_studio": "Video Studio",
+    "image_studio": "Studio Image",
+    "video_studio": "Studio Vidéo",
     "other": "Autre",
     "cat_image_generation": "Génération d'images",
     "cat_3d_generation": "Génération 3D",
@@ -1475,10 +1583,38 @@
     "alwayson_desc": "Le modèle reste chargé. Facturé en continu même au repos.",
     "alwayson_cost": "Le modèle reste chargé. ~{{cost}} $/h en continu, même au repos.",
     "cached_faster": "En cache — démarrage plus rapide",
-    "cold_start_activation": "Démarrage à froid à l'activation"
+    "cold_start_activation": "Démarrage à froid à l'activation",
+    "price_per_hour_short": "{{cost}} $/h",
+    "quota_tag_in_use": "⚠ EN COURS D'UTILISATION",
+    "quota_tag_no_quota": "⚠ AUCUN QUOTA",
+    "quota_avail": "({{available}}/{{quota}} dispo.)",
+    "est_cost_running": "Est. ~{{cost}} $/h en fonctionnement",
+    "gated_accept_hf": "accès restreint · accepter sur HF",
+    "license_restrictions": "Restrictions et avertissements",
+    "open_model_page": "Ouvrir la page du modèle",
+    "status_idle": "Inactif — s'active à la prochaine requête ({{hint}})",
+    "status_starting_instance": "Démarrage de l'instance...",
+    "badge_user": "Utilisateur",
+    "deployed_instances_one": "{{n}} instance déployée :",
+    "deployed_instances_many": "{{n}} instances déployées :",
+    "load_timeout": "La requête a expiré — la vérification du statut Amazon SageMaker peut être lente. Essayez « Actualiser le statut ».",
+    "load_failed": "Échec du chargement des modèles personnalisés",
+    "deploying_model": "Déploiement du modèle...",
+    "redeploying_model": "Redéploiement du modèle...",
+    "repo_placeholder": "ex. runwayml/stable-diffusion-v1-5 ou https://huggingface.co/...",
+    "detection_failed": "Échec de la détection",
+    "model_detected": "Modèle détecté",
+    "detected_library": "Bibliothèque",
+    "detected_category": "Catégorie",
+    "detected_license": "Licence",
+    "detected_auth": "Authentification",
+    "auth_yes_gated": "Oui (accès restreint)",
+    "auth_no": "Non",
+    "add_model_failed": "Échec de l'ajout du modèle",
+    "token_save_failed": "Échec de l'enregistrement du jeton"
   },
   "prompt_designer": {
-    "title": "Prompt Designer",
+    "title": "Concepteur de prompts",
     "analyzing": "Analyse de votre prompt...",
     "analyzing_sub": "Décomposition en composants visuels",
     "save_continue": "Générer le Prompt Amélioré",
@@ -1524,7 +1660,8 @@
     "footer_randomise_desc": "chaque option générée reçoit une interprétation créative différente de cet élément.",
     "footer_fixed": "📌 Fixe",
     "footer_fixed_desc": "cet élément reste identique dans toutes les options. Les éléments spécifiés dans votre prompt sont automatiquement fixés.",
-    "footer_edit_hint": "Modifiez librement les champs et choisissez aléatoire ou fixe. Avec une seule option (1×1), tous les champs sont utilisés tels quels."
+    "footer_edit_hint": "Modifiez librement les champs et choisissez aléatoire ou fixe. Avec une seule option (1×1), tous les champs sont utilisés tels quels.",
+    "stats": "{{chars}} caractères · {{words}} mots"
   },
   "onboarding": {
     "setup_title": "Configuration d'ArtSmoker",
@@ -1550,7 +1687,10 @@
     "restart_busy": "Le serveur est actuellement occupé.",
     "restart_anyway": "Redémarrer quand même",
     "page_not_found": "Page introuvable.",
-    "network_error": "Erreur réseau"
+    "network_error": "Erreur réseau",
+    "count_image": "{{count}} modèles d’image",
+    "count_chat": "{{count}} modèles de chat",
+    "count_video": "{{count}} modèles vidéo"
   },
   "misc": {
     "pe_failed_enhance": "Échec de la génération du prompt amélioré",
@@ -1695,9 +1835,6 @@
     "pane_convert_n": "Convertir {{count}} en 3D",
     "pane_confirm_title": "Convertir {{count}} images en 3D ?",
     "pane_confirm_body": "Cela met en file {{count}} jobs 3D ({{per}} chacun). Total estimé : {{time}} · Est. {{cost}}. Le temps GPU est facturé tant que l'endpoint tourne.",
-    "studio_panel_title": "Vos collections",
-    "studio_show_all": "Tout afficher ({{count}})",
-    "studio_show_less": "Afficher moins",
     "open_collection": "Ouvrir la collection",
     "asset_type_title": "Vérifiez le type d'asset de cet ensemble",
     "asset_type_unsupported": "Les collections se composent de Personnages ou d'Assets de jeu — « {{cur}} » n'est pas disponible pour un ensemble.",
@@ -1705,6 +1842,7 @@
     "asset_type_detail": "Sélectionné : {{cur}} · Suggéré : {{sug}}. Choisir maintenant évite de payer tout un ensemble dans le mauvais style.",
     "asset_type_use": "Utiliser « {{type}} »",
     "asset_type_coerced": "Les collections utilisent des Personnages ou des Assets de jeu — passé à « {{type}} ».",
-    "asset_type_locked": "Les collections ne prennent en charge que Personnage ou Asset de jeu."
+    "asset_type_locked": "Les collections ne prennent en charge que Personnage ou Asset de jeu.",
+    "download_3d_fmt_invalid": "Le format doit être glb, fbx ou usd"
   }
 }

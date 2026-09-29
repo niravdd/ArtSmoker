@@ -410,7 +410,11 @@
     "meta_collection_subject": "サブジェクト",
     "meta_open_collection": "コレクションを開く",
     "meta_collection_prompt": "コレクションのプロンプト",
-    "meta_collection_prompt_note": "セット共通のアートディレクションに基づく、このサブジェクトのモデル非依存プロンプト"
+    "meta_collection_prompt_note": "セット共通のアートディレクションに基づく、このサブジェクトのモデル非依存プロンプト",
+    "alt_3d_source": "3Dソース画像",
+    "alt_3d_model": "3Dモデル",
+    "file_vertices": "頂点 {{count}}",
+    "file_faces": "面 {{count}}"
   },
   "chat_studio": {
     "attach_image": "画像を添付（ビジョンモデル用）",
@@ -465,7 +469,19 @@
     "template_technical": "テクニカルライター",
     "templates": "テンプレート...",
     "title": "チャットスタジオ",
-    "tokens": "トークン"
+    "tokens": "トークン",
+    "regions_tag": "{{count}} リージョン",
+    "price_per_1k_in": "${{price}}/1K 入力",
+    "price_input_1k": "{{price}}/1K 入力",
+    "price_output_1k": "{{price}}/1K 出力",
+    "est_10k": "~${{cost}}/10K トークン",
+    "est_100k": "~${{cost}}/100K トークン",
+    "est_10k_hint": "約1万トークンの推定コスト(入力70%、出力30%)",
+    "est_100k_hint": "約10万トークンの推定コスト(入力70%、出力30%)",
+    "tokens_in_out": "入力 {{in}} / 出力 {{out}}",
+    "fork_title": "{{title}}(分岐)",
+    "search_matches_one": "{{count}} 件一致",
+    "search_matches_other": "{{count}} 件一致"
   },
   "common": {
     "apply": "適用",
@@ -501,7 +517,11 @@
     "warning": "警告",
     "optional": "任意",
     "dismiss": "閉じる",
-    "source": "ソース"
+    "source": "ソース",
+    "dur_min": "{{n}}分",
+    "dur_sec": "{{n}}秒",
+    "dur_hr": "{{n}}時間",
+    "dur_min_sec": "{{m}}分{{s}}秒"
   },
   "confirm": {
     "cancel": "キャンセル",
@@ -577,7 +597,11 @@
     "import_pick_type": "先にアセットタイプを選択してください。",
     "import_pick_file": "画像ファイルを選択してください。",
     "filter_photorealistic": "フォトリアル",
-    "imported_badge": "インポート"
+    "imported_badge": "インポート",
+    "legacy_migrate_confirm": "旧ストレージの場所({{legacy}})にアセットが見つかりました: {{count}} 件。新しい場所({{current}})に移動しますか?",
+    "legacy_migrated": "移行したアセット: {{count}} 件",
+    "legacy_skipped": "スキップ(既に存在): {{count}} 件",
+    "alt_preview": "プレビュー"
   },
   "image_studio": {
     "advanced_collapse": "詳細設定",
@@ -852,7 +876,24 @@
     "generating_with": "{{model}} で生成中...",
     "custom_model_fallback": "カスタムモデル",
     "reference_collection_toggle": "統一感のあるセットを生成（コレクション）",
-    "reference_collection_hint": "この参照画像の見た目を使って、異なるアセット一式のアートディレクションを行います。"
+    "reference_collection_hint": "この参照画像の見た目を使って、異なるアセット一式のアートディレクションを行います。",
+    "dim_unsupported_one": "{{models}} は {{size}} に対応していません。このモデルには最も近い対応サイズが使用されます。",
+    "dim_unsupported_many": "{{models}} は {{size}} に対応していません。これらのモデルには最も近い対応サイズが使用されます。",
+    "images_across_models": "{{models}} モデルで {{images}} 枚",
+    "all_models_math": "{{models}} モデル × {{options}} オプション × {{variations}} バリエーション = {{images}} 枚",
+    "large_batch_note": "大きなバッチのため数分かかります",
+    "all_models_cost": "推定 ~${{cost}}（{{images}} 枚 × {{models}} モデル）",
+    "alt_generated": "生成された画像",
+    "async_generated": "生成完了",
+    "async_took": "（{{time}}）",
+    "async_queued": "待機中 — {{total}} 件中 {{pos}} 番目",
+    "async_waiting": "待機中",
+    "async_active": "実行中",
+    "llm_backup_model": "バックアップAIモデル",
+    "stream_ended": "結果を受信する前に接続が終了しました",
+    "type_hint_char_scene": "プロンプトは背景の中のキャラクターを描写しています。「キャラクター」は情景を保ちつつ人物を主役にします。「ゲームアセット」は透明背景の単独スプライトになります。",
+    "type_hint_char": "プロンプトはキャラクターを描写しています。「キャラクター」は体の比率、ポーズ、シルエットの見やすさを最適化します。",
+    "type_hint_scene": "プロンプトはシーンや環境を描写しています。「背景・環境」は構図全体を保ちます。「ゲームアセット」は透明背景の単独オブジェクトになります。"
   },
   "lang": {
     "en": "英語",
@@ -1043,7 +1084,54 @@
     "lifecycle_unavailable_hint": "このレガシーモデルは、お使いのアカウントでは（非アクティブのため）アクセスできなくなり、選択肢から削除されました。",
     "cost_hourly": "~${{cost}}/時 稼働中",
     "cost_per_gen_time": "~{{min}}分/生成",
-    "pricing_unavailable": "料金は利用できません"
+    "pricing_unavailable": "料金は利用できません",
+    "hf_token_btn": "HF トークン",
+    "badge_custom": "カスタム",
+    "badge_img2vid": "画像→動画",
+    "price_per_image": "${{price}}/枚",
+    "price_per_second": "${{price}}/秒",
+    "prompt_limit_chars": "{{n}} 文字",
+    "moderation_moderate": "標準",
+    "moderation_strict": "厳格",
+    "moderation_very_strict": "非常に厳格",
+    "region_count_one": "{{n}} リージョン",
+    "regions_count": "{{n}} リージョン",
+    "current_suffix": "(現在)",
+    "field_architecture": "アーキテクチャ",
+    "field_type": "タイプ",
+    "ms_hide_all": "すべて非表示",
+    "ms_collapse_editors": "エディターを折りたたむ",
+    "tmpl_group_image_editing": "画像編集とリファレンス",
+    "tmpl_group_3d_video": "3D と動画",
+    "tmpl_group_system": "システムとユーティリティ",
+    "tmpl_label_image_refine_single": "プロンプト改良 — 入力テキストを詳細な画像プロンプトに変換する方法",
+    "tmpl_label_image_concepts_multi": "クリエイティブオプション — 1つのアイデアから複数の異なるコンセプトを生成する方法",
+    "tmpl_label_image_refine_marketing": "マーケティングバナー — バナー構成向けの専用プロンプト",
+    "tmpl_label_image_asset_type_context": "アセットタイプの意図 — アセットタイプ別のクリエイティブ方針(ゲームアセット、キャラクターなど)",
+    "tmpl_label_image_style_section": "スタイルヒントの組み込み — スタイルライブラリのスタイルをプロンプトに織り込む方法",
+    "tmpl_label_asset_type_classify": "アセットタイプの提案 — プロンプトに最適なアセットタイプを提案",
+    "tmpl_label_prompt_decompose": "Prompt Designer — アイデアを編集可能なビジュアル要素に分解",
+    "tmpl_label_prompt_recompose": "Prompt Designer — 編集した要素を最終プロンプトに再構成",
+    "tmpl_label_edit_prompt_suggestion": "プロンプト生成(編集タブ) — 画像と意図を読み取り、モードごとに編集プロンプトを提案",
+    "tmpl_label_reference_intent_extraction": "インスピレーション — 参照画像と指示を読み取り、強化プロンプトに変換",
+    "tmpl_label_reference_edit_instruction": "リファレンスに合わせる — 参照編集モデル向けに指示を整形",
+    "tmpl_label_inpaint_removal_transform": "インペイント除去 — 「X を削除」のリクエストを塗りつぶし内容の説明に変換",
+    "tmpl_label_style_analysis_full": "スタイル分析 — 参照画像の視覚的特徴を分析する方法",
+    "tmpl_label_style_hints_generation": "スタイルヒント — 分析したスタイルを生成指示に凝縮する方法",
+    "tmpl_label_style_cohesion_check": "統一性チェック — 参照画像が統一されているか多様かを素早く確認",
+    "tmpl_label_three_d_source_analysis": "ソースチェック — 画像から3Dへの変換前に、2D画像が切り取られていないか/不完全でないかを検出",
+    "tmpl_label_video_enhance_prompt": "動画プロンプト強化 — カメラワーク、ライティング、時間的な演出を追加",
+    "tmpl_label_moderation_prescreen": "事前スクリーニング — 生成前にプロンプトがブロックされるかを予測",
+    "tmpl_label_moderation_rewrite": "書き換え — ブロックされたプロンプトをモデレーションを通過するよう書き換え",
+    "tmpl_label_translate_detect_language": "言語検出 — ヒューリスティックで判断できない場合に言語を検出",
+    "tmpl_label_translate_to_english": "英語への翻訳 — 生成前に英語以外のプロンプトを翻訳",
+    "tmpl_label_chat_context_compact": "チャット: コンテキスト圧縮 — 古いメッセージを要約してコンテキストの空きを確保",
+    "tmpl_label_chat_title_generate": "チャット: セッションタイトル — 最初のやり取りからタイトルを自動生成",
+    "tmpl_label_typestudio_layout": "タイプスタジオ: テキストレイアウト — テキストの位置、フォント、サイズ、エフェクトを設計",
+    "tmpl_label_typestudio_layout_output_multi": "タイプスタジオ: レイアウト出力(複数) — 複数のレイアウト案の出力形式",
+    "tmpl_label_typestudio_layout_output_single": "タイプスタジオ: レイアウト出力(単一) — 1つのレイアウトの出力形式",
+    "tmpl_label_admin_template_enhance": "テンプレートエディター: AI で強化 — ここにある「AI で強化」ボタンの裏側のプロンプト",
+    "tmpl_label_admin_template_fix_variables": "テンプレートエディター: 変数の修正 — 欠落した変数を再挿入する「修正して保存」の裏側のプロンプト"
   },
   "nav": {
     "chat_studio": "チャットスタジオ",
@@ -1071,8 +1159,12 @@
     "step3_desc": "これが画像モデルに送信される内容です。生成前に編集できます。",
     "step3_hint": "オプション — 生成前にプレビューするか、Generateをクリックして自動強化して作成。",
     "generate_enhanced": "強化プロンプトを生成",
-    "prompt_designer": "Prompt Designer",
-    "asset_type_wrong_detail": "「{{cur}}」を選択しましたが、プロンプトは「{{sug}}」のようです。"
+    "prompt_designer": "プロンプトデザイナー",
+    "asset_type_wrong_detail": "「{{cur}}」を選択しましたが、プロンプトは「{{sug}}」のようです。",
+    "english_tab": "英語",
+    "recomposed_placeholder": "再構成されたプロンプトは生成後にここに表示されます…",
+    "recomposed_note": "プロンプトから再構成されました。要素を編集するには上の「プロンプトデザイナー」をクリックしてください。",
+    "translated_to_english": "{{lang}} → 英語"
   },
   "style_library": {
     "analysis_complete": "スタイル分析が完了しました",
@@ -1137,7 +1229,14 @@
     "upload_hint": "参照画像をここにドラッグ＆ドロップ",
     "upload_hint_sub": "またはクリックして参照",
     "uploaded": "{{count}} 枚の画像をアップロードしました",
-    "uploading": "参照画像をアップロード中..."
+    "uploading": "参照画像をアップロード中...",
+    "ref_badge_one": "参照 {{count}}",
+    "ref_badge_other": "参照 {{count}}",
+    "alt_reference": "参照画像",
+    "browse_images_one": "画像 {{count}} 枚",
+    "browse_images_other": "画像 {{count}} 枚",
+    "browse_buckets_one": "バケット {{count}} 個",
+    "browse_buckets_other": "バケット {{count}} 個"
   },
   "toast": {
     "dismiss": "閉じる"
@@ -1216,7 +1315,12 @@
     "title": "タイプスタジオ",
     "upscale": "アップスケール",
     "view_raw": "レイアウト仕様の生データを表示",
-    "voice_input": "音声入力"
+    "voice_input": "音声入力",
+    "layout_count_one": "{{count}} レイアウト",
+    "layout_count_other": "{{count}} レイアウト",
+    "llm_info": "高度: {{complex}} | 高速: {{fast}}",
+    "line_size": "サイズ: {{size}}",
+    "line_anchor": "アンカー: {{anchor}}"
   },
   "video_studio": {
     "active_jobs": "実行中のジョブ",
@@ -1318,7 +1422,11 @@
     "title": "ビデオスタジオ",
     "video_failed": "動画の生成に失敗しました：{{msg}}",
     "video_settings": "動画設定（S3ストレージ）",
-    "your_s3_buckets": "S3バケット一覧"
+    "your_s3_buckets": "S3バケット一覧",
+    "price_per_sec": "${{price}}/秒",
+    "regions_available": "{{count}} リージョンで利用可能",
+    "s3_validation_failed": "S3 の検証に失敗しました",
+    "time_ago": "{{time}} 前"
   },
   "voice_input": {
     "mic_denied": "マイクへのアクセスが拒否されました",
@@ -1372,8 +1480,8 @@
     "add_to_catalog": "カタログに追加",
     "loading": "カスタムモデルカタログを読み込み中...",
     "no_models": "カタログにカスタムモデルがありません。",
-    "image_studio": "Image Studio",
-    "video_studio": "Video Studio",
+    "image_studio": "画像スタジオ",
+    "video_studio": "ビデオスタジオ",
     "other": "その他",
     "cat_image_generation": "画像生成",
     "cat_3d_generation": "3Dジェネレーション",
@@ -1475,10 +1583,38 @@
     "alwayson_desc": "モデルは読み込まれたまま。アイドル時も継続課金。",
     "alwayson_cost": "モデルは読み込まれたまま。アイドル時も継続的に約${{cost}}/時。",
     "cached_faster": "キャッシュ済み — 起動が高速",
-    "cold_start_activation": "起動時にコールドスタート"
+    "cold_start_activation": "起動時にコールドスタート",
+    "price_per_hour_short": "${{cost}}/時",
+    "quota_tag_in_use": "⚠ 使用中",
+    "quota_tag_no_quota": "⚠ クォータなし",
+    "quota_avail": "({{available}}/{{quota}} 利用可)",
+    "est_cost_running": "推定 ~${{cost}}/時(稼働中)",
+    "gated_accept_hf": "アクセス制限 · HF で同意が必要",
+    "license_restrictions": "制限事項と警告",
+    "open_model_page": "モデルページを開く",
+    "status_idle": "非アクティブ — 次のリクエストで起動 ({{hint}})",
+    "status_starting_instance": "インスタンスを起動中...",
+    "badge_user": "ユーザー",
+    "deployed_instances_one": "デプロイ済みインスタンス {{n}} 件:",
+    "deployed_instances_many": "デプロイ済みインスタンス {{n}} 件:",
+    "load_timeout": "リクエストがタイムアウトしました — Amazon SageMaker のステータス確認に時間がかかっている可能性があります。「ステータスを更新」をお試しください。",
+    "load_failed": "カスタムモデルの読み込みに失敗しました",
+    "deploying_model": "モデルをデプロイ中...",
+    "redeploying_model": "モデルを再デプロイ中...",
+    "repo_placeholder": "例: runwayml/stable-diffusion-v1-5 または https://huggingface.co/...",
+    "detection_failed": "検出に失敗しました",
+    "model_detected": "モデルを検出しました",
+    "detected_library": "ライブラリ",
+    "detected_category": "カテゴリ",
+    "detected_license": "ライセンス",
+    "detected_auth": "認証",
+    "auth_yes_gated": "必要(アクセス制限あり)",
+    "auth_no": "不要",
+    "add_model_failed": "モデルの追加に失敗しました",
+    "token_save_failed": "トークンの保存に失敗しました"
   },
   "prompt_designer": {
-    "title": "Prompt Designer",
+    "title": "プロンプトデザイナー",
     "analyzing": "プロンプトを分析中...",
     "analyzing_sub": "ビジュアルコンポーネントに分解中",
     "save_continue": "強化プロンプトを生成",
@@ -1524,7 +1660,8 @@
     "footer_randomise_desc": "各オプションでこの要素に異なるクリエイティブな表現が適用されます。",
     "footer_fixed": "📌 固定",
     "footer_fixed_desc": "この要素はすべてのオプションで同一に保たれます。プロンプトで指定した項目は自動的に固定されます。",
-    "footer_edit_hint": "フィールドを自由に編集し、ランダムまたは固定を選択できます。単一オプション（1×1）の場合、すべてのフィールドがそのまま使用されます。"
+    "footer_edit_hint": "フィールドを自由に編集し、ランダムまたは固定を選択できます。単一オプション（1×1）の場合、すべてのフィールドがそのまま使用されます。",
+    "stats": "{{chars}} 文字 · {{words}} 語"
   },
   "onboarding": {
     "setup_title": "ArtSmokerをセットアップ中",
@@ -1550,7 +1687,10 @@
     "restart_busy": "サーバーは現在処理中です。",
     "restart_anyway": "強制的に再起動",
     "page_not_found": "ページが見つかりません。",
-    "network_error": "ネットワークエラー"
+    "network_error": "ネットワークエラー",
+    "count_image": "画像モデル {{count}}",
+    "count_chat": "チャットモデル {{count}}",
+    "count_video": "動画モデル {{count}}"
   },
   "misc": {
     "pe_failed_enhance": "強化プロンプトの生成に失敗しました",
@@ -1695,9 +1835,6 @@
     "pane_convert_n": "{{count}} 件を 3D に変換",
     "pane_confirm_title": "{{count}} 枚の画像を 3D に変換しますか?",
     "pane_confirm_body": "{{count}} 件の 3D ジョブ(各 {{per}})をキューに追加します。推定合計: {{time}} · 推定 {{cost}}。エンドポイント稼働中は GPU 時間が課金されます。",
-    "studio_panel_title": "あなたのコレクション",
-    "studio_show_all": "すべて表示 ({{count}})",
-    "studio_show_less": "折りたたむ",
     "open_collection": "コレクションを開く",
     "asset_type_title": "このセットのアセットタイプを確認",
     "asset_type_unsupported": "コレクションはキャラクターまたはゲームアセットで構成されます — 「{{cur}}」はセットでは使用できません。",
@@ -1705,6 +1842,7 @@
     "asset_type_detail": "選択中: {{cur}} · 推奨: {{sug}}。今選ぶことで、セット全体を意図しないスタイルで生成して費用を無駄にするのを防げます。",
     "asset_type_use": "{{type}} を使用",
     "asset_type_coerced": "コレクションはキャラクターまたはゲームアセットを使用します — {{type}} に切り替えました。",
-    "asset_type_locked": "コレクションはキャラクターまたはゲームアセットのみ対応しています。"
+    "asset_type_locked": "コレクションはキャラクターまたはゲームアセットのみ対応しています。",
+    "download_3d_fmt_invalid": "形式は glb、fbx、usd のいずれかを指定してください"
   }
 }

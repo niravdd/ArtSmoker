@@ -353,11 +353,11 @@
             rows.push(html`<div class="px-3 pt-2 pb-1 text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider">${provider}</div>`);
             for (const m of models) {
                 const ctx = m.max_context_tokens >= 1000000 ? `${Math.round(m.max_context_tokens / 1000000)}M` : `${Math.round(m.max_context_tokens / 1000)}K`;
-                const vision = m.has_vision ? ' [vision]' : '';
+                const vision = m.has_vision ? ` [${t('artsmoker.ui.model_settings.vision_badge')}]` : '';
                 const source = m.model_source !== 'foundation' ? ` (${m.model_source})` : '';
                 const regions = (m.usable_regions || m.available_regions || []).length;
-                const regionHint = regions > 1 ? ` [${regions} regions]` : '';
-                const price = m.pricing?.input_per_1k ? ` · $${m.pricing.input_per_1k}/1K in` : '';
+                const regionHint = regions > 1 ? ` [${t('artsmoker.ui.chat_studio.regions_tag', { count: regions })}]` : '';
+                const price = m.pricing?.input_per_1k ? ` · ${t('artsmoker.ui.chat_studio.price_per_1k_in', { price: m.pricing.input_per_1k })}` : '';
                 const label = `${m.label} — ${ctx}${price}${vision}${source}${regionHint}`;
                 const active = m.model_id === _selectedModelId ? ' bg-brand-accent/15' : '';
                 rows.push(html`<div class="cs-model-item flex items-center gap-2 text-xs font-mono cursor-pointer py-1.5 px-3 hover:bg-brand-bg/60 whitespace-nowrap${active}" data-model-id="${m.model_id}" data-label="${label}">${label}</div>`);
@@ -430,7 +430,7 @@
             // Calculate what 100K tokens would cost (long conversation)
             const est100k = ((p.input_per_1k * 70) + (p.output_per_1k * 30)).toFixed(2);
             // nosemgrep
-            el.innerHTML = html`${t('artsmoker.ui.chat_studio.pricing_label')}: <span class="text-brand-text/70">${input1k}/1K input</span> · <span class="text-brand-text/70">${output1k}/1K output</span> · <span class="text-brand-accent/70" title="Estimated cost for ~10K tokens (70% input, 30% output)">~$${est10k}/10K tokens</span> · <span class="text-amber-400/70" title="Estimated cost for ~100K tokens (70% input, 30% output)">~$${est100k}/100K tokens</span>`;
+            el.innerHTML = html`${t('artsmoker.ui.chat_studio.pricing_label')}: <span class="text-brand-text/70">${t('artsmoker.ui.chat_studio.price_input_1k', { price: input1k })}</span> · <span class="text-brand-text/70">${t('artsmoker.ui.chat_studio.price_output_1k', { price: output1k })}</span> · <span class="text-brand-accent/70" title="${t('artsmoker.ui.chat_studio.est_10k_hint')}">${t('artsmoker.ui.chat_studio.est_10k', { cost: est10k })}</span> · <span class="text-amber-400/70" title="${t('artsmoker.ui.chat_studio.est_100k_hint')}">${t('artsmoker.ui.chat_studio.est_100k', { cost: est100k })}</span>`;
         } else {
             // nosemgrep
             el.innerHTML = html`<span class="text-brand-text-muted/50">${t('artsmoker.ui.chat_studio.pricing_not_available')}</span>`;
@@ -689,7 +689,7 @@
             const modelLabel = msg.model_id ? msg.model_id.split('.').pop().split(':')[0] : '';
             meta = html`<div class="flex items-center gap-3 mt-2 text-[10px] text-brand-text-muted/60">
                 ${latency ? html`<span>${latency}</span>` : ''}
-                <span>${(msg.input_tokens || 0).toLocaleString()} in / ${(msg.output_tokens || 0).toLocaleString()} out</span>
+                <span>${t('artsmoker.ui.chat_studio.tokens_in_out', { in: (msg.input_tokens || 0).toLocaleString(), out: (msg.output_tokens || 0).toLocaleString() })}</span>
                 ${cost ? html`<span class="text-brand-accent/60" title="${t('artsmoker.ui.misc.cost_tooltip')}">${cost}</span>` : ''}
                 ${modelLabel ? html`<span class="font-mono">${modelLabel}</span>` : ''}
             </div>`;
@@ -850,7 +850,7 @@
                         _scrollToBottom();
                     } else if (event.type === 'metadata') {
                         metadata = event;
-                        if (tokensEl) tokensEl.textContent = `${event.input_tokens.toLocaleString()} in / ${event.output_tokens.toLocaleString()} out · $${event.cost_usd.toFixed(4)}`;
+                        if (tokensEl) tokensEl.textContent = `${t('artsmoker.ui.chat_studio.tokens_in_out', { in: event.input_tokens.toLocaleString(), out: event.output_tokens.toLocaleString() })} · $${event.cost_usd.toFixed(4)}`;
                     } else if (event.type === 'content_blocked') {
                         // Content safety block — show styled warning with guidance
                         contentBlocked = event.message;
@@ -994,7 +994,7 @@
 
         // Truncate the new session to the fork point
         newSession.messages = _currentSession.messages.slice(0, index + 1);
-        newSession.title = `${_currentSession.title} (fork)`;
+        newSession.title = t('artsmoker.ui.chat_studio.fork_title', { title: _currentSession.title });
         await fetch(`/api/chat/sessions/${newSession.session_id}`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newSession),
@@ -1085,7 +1085,7 @@
             }
         });
 
-        if (resultEl) resultEl.textContent = `${count} match${count !== 1 ? 'es' : ''}`;
+        if (resultEl) resultEl.textContent = t(count === 1 ? 'artsmoker.ui.chat_studio.search_matches_one' : 'artsmoker.ui.chat_studio.search_matches_other', { count });
     }
 
     // ── Markdown rendering ───────────────────────────────────────────
@@ -1107,10 +1107,13 @@
                                 : hljs.highlightAuto(decoded).value;
                         } catch { /* use unhighlighted */ }
                     }
+                    // i18n labels, HTML-escaped incl. quotes (they land in attributes too)
+                    const copyLbl = _esc(t('artsmoker.ui.asset_viewer.meta_copy')).replace(/"/g, '&quot;');
+                    const copiedLbl = _esc(t('artsmoker.ui.asset_viewer.meta_copied')).replace(/"/g, '&quot;');
                     // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
                     const langBadge = lang ? `<span class="absolute top-2 left-3 text-[9px] text-brand-text-muted/40 font-mono">${_esc(lang)}</span>` : '';
                     // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
-                    return `<pre class="cs-code-block relative group">${langBadge}<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"><button class="cs-copy-btn text-[9px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-brand-text-muted" onclick="navigator.clipboard.writeText(this.closest('pre').querySelector('code').textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></div><code class="language-${lang}">${highlighted}</code></pre>`;
+                    return `<pre class="cs-code-block relative group">${langBadge}<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"><button class="cs-copy-btn text-[9px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-brand-text-muted" data-copy="${copyLbl}" data-copied="${copiedLbl}" onclick="navigator.clipboard.writeText(this.closest('pre').querySelector('code').textContent);this.textContent=this.dataset.copied;setTimeout(()=>this.textContent=this.dataset.copy,1500)">${copyLbl}</button></div><code class="language-${lang}">${highlighted}</code></pre>`;
                 });
             } catch { /* fallback */ }
         }

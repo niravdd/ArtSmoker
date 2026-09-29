@@ -212,7 +212,7 @@
                                 <p class="text-xs text-brand-text-muted">${t('artsmoker.ui.custom_models.subtitle')}</p>
                                 <div class="flex gap-2">
                                     <button id="ms-cm-hf-token" class="btn btn-sm text-xs flex items-center gap-1 border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 rounded-lg px-3 py-1.5" title="${t('artsmoker.ui.model_settings.ms_manage_hf')}">
-                                        🔑 HF Token
+                                        🔑 ${t('artsmoker.ui.model_settings.hf_token_btn')}
                                     </button>
                                     <button id="ms-cm-add" class="btn btn-sm text-xs flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5" title="${t('artsmoker.ui.custom_models.add_model_advanced_hint')}">
                                         + ${t('artsmoker.ui.custom_models.add_model')} <span class="text-[8px] opacity-50">(${t('artsmoker.ui.custom_models.advanced')})</span>
@@ -252,7 +252,7 @@
 
                     <!-- Footer -->
                     <div class="flex-shrink-0 flex items-center justify-end px-6 py-3 border-t border-brand-border bg-black/10">
-                        <button class="ms-close btn btn-sm text-xs px-6 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Close</button>
+                        <button class="ms-close btn btn-sm text-xs px-6 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('artsmoker.ui.common.close')}</button>
                     </div>
                 </div>
             `;
@@ -276,8 +276,8 @@
 
         _sourceBadge(model) {
             const source = model.model_source || 'foundation';
-            if (source === 'custom') return raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">Custom</span>');
-            if (source === 'imported') return raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">Imported</span>');
+            if (source === 'custom') return html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">${t('artsmoker.ui.model_settings.badge_custom')}</span>`;
+            if (source === 'imported') return html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">${t('artsmoker.ui.gallery.imported_badge')}</span>`;
             return '';
         },
 
@@ -430,7 +430,7 @@
                 }
                 return t('artsmoker.ui.model_settings.pricing_unavailable');
             }
-            return m.base_price_usd != null ? `$${m.base_price_usd.toFixed(2)}/img` : t('artsmoker.ui.common.unknown');
+            return m.base_price_usd != null ? t('artsmoker.ui.model_settings.price_per_image', { price: m.base_price_usd.toFixed(2) }) : t('artsmoker.ui.common.unknown');
         },
 
         // Cost label for a CUSTOM-MODEL CATALOG entry (not yet deployed): per-hour of
@@ -462,6 +462,12 @@
             const price = this._costLabel(m);
             const strictColor = m.moderation_strictness === 'very_strict' ? 'text-red-400' : m.moderation_strictness === 'strict' ? 'text-amber-400' : 'text-emerald-400';
             const sourceBadge = this._sourceBadge(m);
+            // Display labels for the moderation_strictness enum (option values stay the raw API values).
+            const _moderationLabels = {
+                moderate: t('artsmoker.ui.model_settings.moderation_moderate'),
+                strict: t('artsmoker.ui.model_settings.moderation_strict'),
+                very_strict: t('artsmoker.ui.model_settings.moderation_very_strict'),
+            };
 
             // A single instruction-editor (e.g. Qwen-Image-Edit) can serve MANY
             // edit modes. It's listed once here (one endpoint, one enable toggle),
@@ -503,13 +509,13 @@
                                 ${sourceBadge}
                                 ${this._lifecycleBadge(m)}
                             </div>
-                            <span class="${strictColor} text-[10px]">${m.moderation_strictness || ''}</span>
+                            <span class="${strictColor} text-[10px]">${m.moderation_strictness ? (_moderationLabels[m.moderation_strictness] || m.moderation_strictness) : ''}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted mb-2">
                             <span>${t('artsmoker.ui.model_settings.field_model_id')}: <span class="font-mono text-brand-text/70">${m.model_id || ''}</span></span>
                             <span>${t('artsmoker.ui.model_settings.field_format')}: <span class="text-brand-text/70">${m.format_family || ''}</span></span>
                             <span>${t('artsmoker.ui.model_settings.field_regions')}: <span class="text-brand-text/70">${regions || t('artsmoker.ui.common.none').toLowerCase()}</span></span>
-                            <span>${t('artsmoker.ui.model_settings.field_prompt_limit_short')}: <span class="text-brand-text/70">${m.prompt_limit || '?'} chars</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_prompt_limit_short')}: <span class="text-brand-text/70">${t('artsmoker.ui.model_settings.prompt_limit_chars', { n: m.prompt_limit || '?' })}</span></span>
                             <span>${t('artsmoker.ui.model_settings.field_quality')}: <span class="text-brand-text/70">${quality}</span></span>
                             <span>${t('artsmoker.ui.model_settings.field_price')}: <span class="text-emerald-400/70">${price}</span></span>
                         </div>
@@ -540,7 +546,7 @@
                                     <div>
                                         <label class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.field_moderation')}</label>
                                         <select class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="moderation_strictness">
-                                            ${['moderate', 'strict', 'very_strict'].map(s => html`<option value="${s}" ${s === m.moderation_strictness ? 'selected' : ''}>${s}</option>`)}
+                                            ${['moderate', 'strict', 'very_strict'].map(s => html`<option value="${s}" ${s === m.moderation_strictness ? 'selected' : ''}>${_moderationLabels[s]}</option>`)}
                                         </select>
                                     </div>
                                     <div>
@@ -564,7 +570,7 @@
             // Group by provider
             const groups = {};
             for (const [key, m] of Object.entries(models)) {
-                const provider = m.provider || 'Other';
+                const provider = m.provider || t('artsmoker.ui.custom_models.other');
                 if (!groups[provider]) groups[provider] = [];
                 groups[provider].push([key, m]);
             }
@@ -603,7 +609,7 @@
                                             <div class="text-[10px] text-brand-text-muted font-mono truncate mt-0.5">${m.model_id || ''}</div>
                                         </div>
                                         <div class="flex-shrink-0 text-right">
-                                            <span class="text-[10px] text-brand-accent">${regions} ${t('artsmoker.ui.common.region').toLowerCase()}${regions !== 1 ? 's' : ''}</span>
+                                            <span class="text-[10px] text-brand-accent">${t(regions === 1 ? 'artsmoker.ui.model_settings.region_count_one' : 'artsmoker.ui.model_settings.regions_count', { n: regions })}</span>
                                             <div class="flex flex-wrap gap-0.5 mt-0.5 justify-end max-w-[200px]">
                                                 ${(m.available_regions || []).map(r => html`<span class="text-[8px] px-1 py-0 rounded bg-brand-bg text-brand-text-muted/60">${r}</span>`)}
                                             </div>
@@ -626,7 +632,7 @@
                 // Custom-hosted video → per-hour + time; Bedrock video → per-second.
                 const price = this._isCustomHosted(m)
                     ? this._costLabel(m)
-                    : (m.base_price_per_second_usd ? `$${m.base_price_per_second_usd}/sec` : '');
+                    : (m.base_price_per_second_usd ? t('artsmoker.ui.model_settings.price_per_second', { price: m.base_price_per_second_usd }) : '');
                 const sourceBadge = this._sourceBadge(m);
                 return html`
                     <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${!enabled ? 'opacity-50' : ''}" data-video-key="${key}">
@@ -643,13 +649,13 @@
                             </div>
                             <div class="flex items-center gap-1.5">
                                 ${price ? html`<span class="badge badge-indigo">${price}</span>` : ''}
-                                ${m.supports_image_input ? raw('<span class="badge badge-indigo">img\u2192vid</span>') : ''}
+                                ${m.supports_image_input ? html`<span class="badge badge-indigo">${t('artsmoker.ui.model_settings.badge_img2vid')}</span>` : ''}
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted mb-2">
                             <span>${t('artsmoker.ui.model_settings.field_model_id')}: <span class="font-mono text-brand-text/70">${m.model_id || ''}</span></span>
                             <span>${t('artsmoker.ui.model_settings.field_format')}: <span class="text-brand-text/70">${m.format_family || ''}</span></span>
-                            <span>${t('artsmoker.ui.model_settings.field_prompt_limit_short')}: <span class="text-brand-text/70">${m.prompt_limit || '?'} chars</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_prompt_limit_short')}: <span class="text-brand-text/70">${t('artsmoker.ui.model_settings.prompt_limit_chars', { n: m.prompt_limit || '?' })}</span></span>
                             <span>${t('artsmoker.ui.model_settings.field_default_region')}: <span class="text-brand-text/70">${m.region || ''}</span></span>
                         </div>
                         <div class="flex flex-wrap gap-1 mb-1">
@@ -678,7 +684,7 @@
             Object.entries(chatModels)
                 .filter(([, m]) => m.enabled !== false)
                 .forEach(([, m]) => {
-                    const provider = m.provider || 'Other';
+                    const provider = m.provider || t('artsmoker.ui.custom_models.other');
                     if (!groups[provider]) groups[provider] = [];
                     const mid = m.model_id || '';
                     const selected = isExact(mid);
@@ -692,7 +698,7 @@
                 optionsHtml += `<optgroup label="${this._esc(provider)}">`;
                 models.sort((a, b) => a.label.localeCompare(b.label)).forEach(m => {
                     // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
-                    optionsHtml += `<option value="${this._esc(m.mid)}" data-region="${this._esc(m.region)}" ${m.selected ? 'selected' : ''}>${this._esc(m.label)}${m.regions > 1 ? ` (${m.regions} regions)` : ''}</option>`;
+                    optionsHtml += `<option value="${this._esc(m.mid)}" data-region="${this._esc(m.region)}" ${m.selected ? 'selected' : ''}>${this._esc(m.label)}${m.regions > 1 ? ` (${this._esc(t('artsmoker.ui.model_settings.regions_count', { n: m.regions }))})` : ''}</option>`;
                 });
                 optionsHtml += '</optgroup>';
             }
@@ -704,7 +710,7 @@
                 if (isExact(m.model_id || '')) { currentLabel = m.label || m.model_id; hasMatch = true; break; }
             }
             // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
-            const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(currentId)} (current)</option>` : '';
+            const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(currentId)} ${this._esc(t('artsmoker.ui.model_settings.current_suffix'))}</option>` : '';
 
             return html`
                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-category="${name}">
@@ -743,8 +749,8 @@
                         ${Object.entries(models).map(([key, m]) => {
                             const source = m.model_source || 'custom';
                             const badge = source === 'imported'
-                                ? raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">Imported</span>')
-                                : raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">Custom</span>');
+                                ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">${t('artsmoker.ui.gallery.imported_badge')}</span>`
+                                : html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">${t('artsmoker.ui.model_settings.badge_custom')}</span>`;
                             // enabled is default-TRUE when the key is absent (the
                             // registry doesn't persist the default).
                             const enabledBadge = m.enabled !== false
@@ -760,8 +766,8 @@
                                     <div class="grid grid-cols-2 gap-x-4 text-[10px] text-brand-text-muted">
                                         <span>${t('artsmoker.ui.model_settings.field_model_id')}: <span class="font-mono text-brand-text/70 break-all">${(m.model_id || '').slice(-40)}</span></span>
                                         <span>${t('artsmoker.ui.common.region')}: <span class="text-brand-text/70">${m.region || ''}</span></span>
-                                        ${m.architecture ? html`<span>Architecture: <span class="text-brand-text/70">${m.architecture}</span></span>` : ''}
-                                        ${m.customization_type ? html`<span>Type: <span class="text-brand-text/70">${m.customization_type}</span></span>` : ''}
+                                        ${m.architecture ? html`<span>${t('artsmoker.ui.model_settings.field_architecture')}: <span class="text-brand-text/70">${m.architecture}</span></span>` : ''}
+                                        ${m.customization_type ? html`<span>${t('artsmoker.ui.model_settings.field_type')}: <span class="text-brand-text/70">${m.customization_type}</span></span>` : ''}
                                     </div>
                                 </div>
                             `;
@@ -937,7 +943,7 @@
                     if (container) {
                         container.querySelectorAll('details.ms-collapsible').forEach(d => { d.open = expanded; });
                     }
-                    btn.textContent = expanded ? 'Hide All' : 'Show All';
+                    btn.textContent = expanded ? t('artsmoker.ui.model_settings.ms_hide_all') : t('artsmoker.ui.model_settings.ms_show_all');
                 });
             });
 
@@ -950,7 +956,7 @@
                 modal.querySelectorAll('#ms-templates-list > details.ms-collapsible').forEach(d => {
                     d.open = _tmplGroupsExpanded;
                 });
-                if (btn) btn.textContent = _tmplGroupsExpanded ? 'Hide All' : 'View All';
+                if (btn) btn.textContent = _tmplGroupsExpanded ? t('artsmoker.ui.model_settings.ms_hide_all') : t('artsmoker.ui.model_settings.ms_view_all');
             });
 
             // Reset ALL templates to defaults
@@ -1336,7 +1342,7 @@
                 this._renderTemplates(modal);
             } catch (err) {
                 // nosemgrep
-                container.innerHTML = html`<p class="text-xs text-red-400 py-4">Failed to load templates: ${err.message}</p>`;
+                container.innerHTML = html`<p class="text-xs text-red-400 py-4">${t('artsmoker.ui.model_settings.templates_load_failed')}: ${err.message}</p>`;
             }
         },
 
@@ -1354,46 +1360,48 @@
             // Six workflow sections — every template placed once, nothing hidden.
             // Any registry template NOT listed here still self-heals into a
             // catch-all "Other" group below (so newly added prompts always appear).
+            // friendlyLabel i18n key = model_settings.tmpl_label_<template name>.
+            const _fl = (n) => t(`artsmoker.ui.model_settings.tmpl_label_${n}`);
             const GROUPS = [
-                { key: 'image_generation', label: 'Image Generation', color: 'text-brand-accent', templates: [
-                    { name: 'image_refine_single', friendlyLabel: 'Prompt Refinement — how your text is turned into a detailed image prompt' },
-                    { name: 'image_concepts_multi', friendlyLabel: 'Creative Options — how multiple distinct concepts are generated from one idea' },
-                    { name: 'image_refine_marketing', friendlyLabel: 'Marketing Banners — specialized prompt for banner compositions' },
-                    { name: 'image_asset_type_context', friendlyLabel: 'Asset-Type Intent — the creative direction per asset type (game asset, character, etc.)' },
-                    { name: 'image_style_section', friendlyLabel: 'Style-Hints Framing — how a Style Library style is woven into the prompt' },
-                    { name: 'asset_type_classify', friendlyLabel: 'Asset-Type Suggestion — suggests the best asset type for your prompt' },
-                    { name: 'prompt_decompose', friendlyLabel: 'Prompt Designer — breaks your idea into editable visual components' },
-                    { name: 'prompt_recompose', friendlyLabel: 'Prompt Designer — recomposes edited components into a final prompt' },
+                { key: 'image_generation', label: t('artsmoker.ui.model_settings.section_generation'), color: 'text-brand-accent', templates: [
+                    { name: 'image_refine_single', friendlyLabel: _fl('image_refine_single') },
+                    { name: 'image_concepts_multi', friendlyLabel: _fl('image_concepts_multi') },
+                    { name: 'image_refine_marketing', friendlyLabel: _fl('image_refine_marketing') },
+                    { name: 'image_asset_type_context', friendlyLabel: _fl('image_asset_type_context') },
+                    { name: 'image_style_section', friendlyLabel: _fl('image_style_section') },
+                    { name: 'asset_type_classify', friendlyLabel: _fl('asset_type_classify') },
+                    { name: 'prompt_decompose', friendlyLabel: _fl('prompt_decompose') },
+                    { name: 'prompt_recompose', friendlyLabel: _fl('prompt_recompose') },
                 ]},
-                { key: 'image_editing', label: 'Image Editing & Reference', color: 'text-cyan-400', templates: [
-                    { name: 'edit_prompt_suggestion', friendlyLabel: 'Generate Prompt (Edit tab) — reads the image + intent and suggests an edit prompt per mode' },
-                    { name: 'reference_intent_extraction', friendlyLabel: 'Inspired-By — reads reference image(s) + your instruction into an enhanced prompt' },
-                    { name: 'reference_edit_instruction', friendlyLabel: 'Match-the-Reference — shapes your instruction for the reference edit model' },
-                    { name: 'inpaint_removal_transform', friendlyLabel: 'Inpaint Removal — turns a "remove X" request into a fill description' },
+                { key: 'image_editing', label: t('artsmoker.ui.model_settings.tmpl_group_image_editing'), color: 'text-cyan-400', templates: [
+                    { name: 'edit_prompt_suggestion', friendlyLabel: _fl('edit_prompt_suggestion') },
+                    { name: 'reference_intent_extraction', friendlyLabel: _fl('reference_intent_extraction') },
+                    { name: 'reference_edit_instruction', friendlyLabel: _fl('reference_edit_instruction') },
+                    { name: 'inpaint_removal_transform', friendlyLabel: _fl('inpaint_removal_transform') },
                 ]},
                 { key: 'style_library', label: t('artsmoker.ui.nav.style_library'), color: 'text-purple-400', templates: [
-                    { name: 'style_analysis_full', friendlyLabel: 'Style Analysis — how reference images are analyzed for visual attributes' },
-                    { name: 'style_hints_generation', friendlyLabel: 'Style Hints — how analyzed style is distilled into generation directives' },
-                    { name: 'style_cohesion_check', friendlyLabel: 'Cohesion Check — quick check if references are unified or diverse' },
+                    { name: 'style_analysis_full', friendlyLabel: _fl('style_analysis_full') },
+                    { name: 'style_hints_generation', friendlyLabel: _fl('style_hints_generation') },
+                    { name: 'style_cohesion_check', friendlyLabel: _fl('style_cohesion_check') },
                 ]},
-                { key: 'three_d_video', label: '3D & Video', color: 'text-pink-400', templates: [
-                    { name: 'three_d_source_analysis', friendlyLabel: 'Source Check — detects if a 2D image is cropped/incomplete before image-to-3D' },
-                    { name: 'video_enhance_prompt', friendlyLabel: 'Video Prompt Enhancement — adds camera movements, lighting, and temporal cues' },
+                { key: 'three_d_video', label: t('artsmoker.ui.model_settings.tmpl_group_3d_video'), color: 'text-pink-400', templates: [
+                    { name: 'three_d_source_analysis', friendlyLabel: _fl('three_d_source_analysis') },
+                    { name: 'video_enhance_prompt', friendlyLabel: _fl('video_enhance_prompt') },
                 ]},
-                { key: 'moderation', label: 'Content Safety', color: 'text-amber-400', templates: [
-                    { name: 'moderation_prescreen', friendlyLabel: 'Pre-Screen — predicts if a prompt will be blocked before generating' },
-                    { name: 'moderation_rewrite', friendlyLabel: 'Rewrite — rewrites blocked prompts to pass moderation' },
+                { key: 'moderation', label: t('artsmoker.ui.chat_studio.content_safety'), color: 'text-amber-400', templates: [
+                    { name: 'moderation_prescreen', friendlyLabel: _fl('moderation_prescreen') },
+                    { name: 'moderation_rewrite', friendlyLabel: _fl('moderation_rewrite') },
                 ]},
-                { key: 'system_utilities', label: 'System & Utilities', color: 'text-teal-400', templates: [
-                    { name: 'translate_detect_language', friendlyLabel: 'Language Detection — detects language when heuristics are ambiguous' },
-                    { name: 'translate_to_english', friendlyLabel: 'Translation to English — translates non-English prompts before generation' },
-                    { name: 'chat_context_compact', friendlyLabel: 'Chat: Context Compaction — summarizes older messages to free context space' },
-                    { name: 'chat_title_generate', friendlyLabel: 'Chat: Session Title — auto-generates a title from the first exchange' },
-                    { name: 'typestudio_layout', friendlyLabel: 'Type Studio: Text Layout — designs text positions, fonts, sizes, and effects' },
-                    { name: 'typestudio_layout_output_multi', friendlyLabel: 'Type Studio: Layout Output (multiple) — output format for multiple layout options' },
-                    { name: 'typestudio_layout_output_single', friendlyLabel: 'Type Studio: Layout Output (single) — output format for one layout' },
-                    { name: 'admin_template_enhance', friendlyLabel: 'Template Editor: Enhance-with-AI — the prompt behind the "Enhance with AI" button here' },
-                    { name: 'admin_template_fix_variables', friendlyLabel: 'Template Editor: Fix Variables — the prompt behind "Fix & Save" to reinsert missing variables' },
+                { key: 'system_utilities', label: t('artsmoker.ui.model_settings.tmpl_group_system'), color: 'text-teal-400', templates: [
+                    { name: 'translate_detect_language', friendlyLabel: _fl('translate_detect_language') },
+                    { name: 'translate_to_english', friendlyLabel: _fl('translate_to_english') },
+                    { name: 'chat_context_compact', friendlyLabel: _fl('chat_context_compact') },
+                    { name: 'chat_title_generate', friendlyLabel: _fl('chat_title_generate') },
+                    { name: 'typestudio_layout', friendlyLabel: _fl('typestudio_layout') },
+                    { name: 'typestudio_layout_output_multi', friendlyLabel: _fl('typestudio_layout_output_multi') },
+                    { name: 'typestudio_layout_output_single', friendlyLabel: _fl('typestudio_layout_output_single') },
+                    { name: 'admin_template_enhance', friendlyLabel: _fl('admin_template_enhance') },
+                    { name: 'admin_template_fix_variables', friendlyLabel: _fl('admin_template_fix_variables') },
                 ]},
             ];
 
@@ -1401,7 +1409,7 @@
             const _grouped = new Set(GROUPS.flatMap(g => g.templates.map(t => t.name)));
             const _ungrouped = Object.keys(templates).filter(n => !_grouped.has(n));
             if (_ungrouped.length) {
-                GROUPS.push({ key: 'other', label: 'Other', color: 'text-brand-text-muted',
+                GROUPS.push({ key: 'other', label: t('artsmoker.ui.custom_models.other'), color: 'text-brand-text-muted',
                     templates: _ungrouped.map(n => ({ name: n, friendlyLabel: '' })) });
             }
 
@@ -1458,7 +1466,7 @@
                     </div>
                     ${desc}
                     ${usedBy}
-                    <p class="text-[10px] text-brand-text-muted/60 mb-2">${t('artsmoker.ui.model_settings.templates_variables')}: ${raw(vars || 'none')}</p>
+                    <p class="text-[10px] text-brand-text-muted/60 mb-2">${t('artsmoker.ui.model_settings.templates_variables')}: ${vars ? raw(vars) : t('artsmoker.ui.common.none').toLowerCase()}</p>
                     <details class="group">
                         <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover">
                             <span class="group-open:hidden">${t('artsmoker.ui.model_settings.templates_edit')}</span>
@@ -1500,7 +1508,7 @@
                     if (groupEl) {
                         groupEl.querySelectorAll('details.group').forEach(d => { d.open = expanded; });
                     }
-                    btn.textContent = expanded ? 'Collapse editors' : 'Expand editors';
+                    btn.textContent = expanded ? t('artsmoker.ui.model_settings.ms_collapse_editors') : t('artsmoker.ui.model_settings.ms_expand_editors');
                 });
             });
 
@@ -1537,7 +1545,7 @@
                             const err = await result.json();
                             const detail = err.detail;
                             const missing = typeof detail === 'object' ? detail.missing_variables : [];
-                            const message = typeof detail === 'object' ? detail.message : (detail || 'Unknown error');
+                            const message = typeof detail === 'object' ? detail.message : (detail || t('artsmoker.ui.onboarding.unknown_error'));
 
                             if (missing?.length || (typeof message === 'string' && message.includes('missing'))) {
                                 const varList = missing?.join(', ') || message;
@@ -1825,13 +1833,13 @@
                 } else {
                     instanceHtml = html`${allOptions.map(opt => {
                         const isRec = opt.is_recommended && !opt.needs_quota;
-                        const costStr = `$${opt.cost_per_hour_usd.toFixed(2)}`;
+                        const costStr = t('artsmoker.ui.custom_models.price_per_hour_short', { cost: opt.cost_per_hour_usd.toFixed(2) });
                         const quotaTag = opt.needs_quota
-                            ? (opt.quota_reason === 'all_in_use' ? ' ⚠ IN USE' : ' ⚠ NO QUOTA')
+                            ? ' ' + (opt.quota_reason === 'all_in_use' ? t('artsmoker.ui.custom_models.quota_tag_in_use') : t('artsmoker.ui.custom_models.quota_tag_no_quota'))
                             : '';
-                        const usageNote = !opt.needs_quota && opt.quota > 1 ? ` (${opt.quota_available}/${opt.quota} avail)` : '';
+                        const usageNote = !opt.needs_quota && opt.quota > 1 ? ' ' + t('artsmoker.ui.custom_models.quota_avail', { available: opt.quota_available, quota: opt.quota }) : '';
                         return html`<option value="${opt.instance_type}" ${isRec ? 'selected' : ''} data-cost="${opt.cost_per_hour_usd}" data-needs-quota="${opt.needs_quota}" data-quota-code="${opt.quota_code || ''}" data-quota="${opt.quota || 0}">
-                            ${opt.instance_type} — ${opt.gpus}× ${opt.gpu_type} (${opt.total_vram_gb}GB) — ${costStr}/hr ${isRec ? '★' : ''}${opt.speed_note}${usageNote}${quotaTag}
+                            ${opt.instance_type} — ${opt.gpus}× ${opt.gpu_type} (${opt.total_vram_gb}GB) — ${costStr} ${isRec ? '★' : ''}${opt.speed_note}${usageNote}${quotaTag}
                         </option>`;
                     })}`;
                 }
@@ -1840,7 +1848,7 @@
                 quotaHtml = html`
                     <div class="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 hidden" id="deploy-quota-section">
                         <p class="text-[10px] text-amber-400 font-medium mb-1">${t('artsmoker.ui.custom_models.quota_needed_title')}</p>
-                        <p class="text-[9px] text-brand-text-muted mb-2">${t('artsmoker.ui.custom_models.quota_needed_desc').replace('{{region}}', deployRegion || 'unknown')}</p>
+                        <p class="text-[9px] text-brand-text-muted mb-2">${t('artsmoker.ui.custom_models.quota_needed_desc').replace('{{region}}', deployRegion || t('artsmoker.ui.common.unknown'))}</p>
                         <div id="deploy-quota-row" class="flex items-center justify-between py-1.5"></div>
                     </div>`;
 
@@ -1895,7 +1903,7 @@
                         </div>
 
                         <div class="flex gap-2 justify-end pt-2">
-                            <button class="deploy-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
+                            <button class="deploy-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('artsmoker.ui.common.cancel')}</button>
                             <button class="deploy-confirm btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium" ${allOptions.length === 0 ? 'disabled' : ''}>${t('artsmoker.ui.custom_models.deploy')}</button>
                         </div>
                     </div>`;
@@ -1923,7 +1931,7 @@
                     const qVal = parseInt(sel.dataset.quota || '0');
 
                     if (infoEl && cost > 0) {
-                        infoEl.textContent = `Est. ~$${cost.toFixed(2)}/hr when running`;
+                        infoEl.textContent = t('artsmoker.ui.custom_models.est_cost_running', { cost: cost.toFixed(2) });
                     }
                     if (alwaysOnCost && cost > 0) {
                         alwaysOnCost.textContent = t('artsmoker.ui.custom_models.alwayson_cost').replace('{{cost}}', cost.toFixed(2));
@@ -2024,7 +2032,7 @@
                                         ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.custom_models.license_commercial_ok')}</span>`
                                         : html`<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('artsmoker.ui.custom_models.license_commercial_no')}</span>`;
                                     const gated = d.gated
-                                        ? raw('<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">gated · accept on HF</span>')
+                                        ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.custom_models.gated_accept_hf')}</span>`
                                         : '';
                                     const nameEl = d.url
                                         ? html`<a href="${d.url}" target="_blank" rel="noopener" class="text-brand-accent underline">${d.name}</a>`
@@ -2218,7 +2226,7 @@
                                     ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.custom_models.license_commercial_ok')}</span>`
                                     : html`<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('artsmoker.ui.custom_models.license_commercial_no')}</span>`;
                                 const gated = d.gated
-                                    ? raw('<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">gated &middot; accept on HF</span>')
+                                    ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.custom_models.gated_accept_hf')}</span>`
                                     : '';
                                 const nameEl = d.url
                                     ? html`<a href="${d.url}" target="_blank" rel="noopener" class="text-brand-accent underline">${d.name}</a>`
@@ -2233,7 +2241,7 @@
                     : '';
                 const warningsHtml = (la.warnings || []).length > 0
                     ? html`<div class="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 space-y-1.5">
-                        <p class="text-[10px] font-semibold text-red-400 uppercase tracking-wider">Restrictions &amp; Warnings</p>
+                        <p class="text-[10px] font-semibold text-red-400 uppercase tracking-wider">${t('artsmoker.ui.custom_models.license_restrictions')}</p>
                         <ul class="space-y-1.5 text-xs text-red-300">
                             ${la.warnings.map(w => html`<li class="flex items-start gap-2"><span class="text-red-400 mt-0.5 flex-shrink-0">&#9888;</span><span>${w}</span></li>`)}
                         </ul>
@@ -2303,7 +2311,7 @@
         _askHfToken(licenseUrl) {
             return new Promise((resolve) => {
                 const licenseLink = licenseUrl
-                    ? html`<a href="${licenseUrl}" target="_blank" rel="noopener" class="text-brand-accent hover:underline">Open model page ↗</a>`
+                    ? html`<a href="${licenseUrl}" target="_blank" rel="noopener" class="text-brand-accent hover:underline">${t('artsmoker.ui.custom_models.open_model_page')} ↗</a>`
                     : '';
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
@@ -2322,8 +2330,8 @@
                         </div>
                         <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="${t('artsmoker.ui.custom_models.hf_placeholder')}" autocomplete="off" />
                         <div class="flex gap-2 justify-end">
-                            <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
-                            <button class="hf-submit btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Continue</button>
+                            <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('artsmoker.ui.common.cancel')}</button>
+                            <button class="hf-submit btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('artsmoker.ui.common.continue')}</button>
                         </div>
                     </div>`;
 
@@ -2382,9 +2390,9 @@
                 });
 
                 const studioLabels = {
-                    image: 'Image Studio',
-                    video: 'Video Studio',
-                    other: 'Other',
+                    image: t('artsmoker.ui.custom_models.image_studio'),
+                    video: t('artsmoker.ui.custom_models.video_studio'),
+                    other: t('artsmoker.ui.custom_models.other'),
                 };
                 const studioOrder = ['image', 'video', 'other'];
                 const categoryLabels = {
@@ -2536,10 +2544,10 @@
                         const failText = failReason
                             ? `${t('artsmoker.ui.custom_models.failed')}: ${failReason.split('.')[0]} — ${t('artsmoker.ui.custom_models.failed_autocleanup')}`
                             : `${t('artsmoker.ui.custom_models.failed')} — ${t('artsmoker.ui.custom_models.failed_autocleanup')}`;
-                        const statusText = active ? t('artsmoker.ui.custom_models.active') : idle ? `Inactive — activates on next request (${cacheHint})` : warmingUp ? (m.warmup_detail || t('artsmoker.ui.custom_models.warming_up')) : scalingUp ? 'Starting instance...' : deploying ? (m.deploy_progress || t('artsmoker.ui.custom_models.deploying')) : failed ? failText : t('artsmoker.ui.custom_models.not_deployed');
+                        const statusText = active ? t('artsmoker.ui.custom_models.active') : idle ? t('artsmoker.ui.custom_models.status_idle', { hint: cacheHint }) : warmingUp ? (m.warmup_detail || t('artsmoker.ui.custom_models.warming_up')) : scalingUp ? t('artsmoker.ui.custom_models.status_starting_instance') : deploying ? (m.deploy_progress || t('artsmoker.ui.custom_models.deploying')) : failed ? failText : t('artsmoker.ui.custom_models.not_deployed');
                         const authBadge = m.requires_hf_auth ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.custom_models.hf_auth')}</span>` : '';
                         const licenseBadge = html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30">${m.license?.split(' ')[0] || '?'}</span>`;
-                        const userBadge = m.user_added ? raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">User</span>') : '';
+                        const userBadge = m.user_added ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">${t('artsmoker.ui.custom_models.badge_user')}</span>` : '';
                         const statusDot = active ? 'bg-emerald-400' : idle ? 'bg-blue-400' : warmingUp ? 'bg-cyan-400 animate-pulse' : (deploying || scalingUp) ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
 
                         return html`
@@ -2574,7 +2582,7 @@
                                 </div>
                                 ${(m.deployed_instances || []).length > 0 ? html`
                                 <div class="px-3 pb-3 pt-0 space-y-1.5 border-t border-brand-border/20 mt-0 ml-4">
-                                    <div class="text-[9px] text-brand-text-muted/40 pt-2">${(m.deployed_instances || []).length} deployed instance${(m.deployed_instances || []).length > 1 ? 's' : ''}:</div>
+                                    <div class="text-[9px] text-brand-text-muted/40 pt-2">${t((m.deployed_instances || []).length > 1 ? 'artsmoker.ui.custom_models.deployed_instances_many' : 'artsmoker.ui.custom_models.deployed_instances_one', { n: (m.deployed_instances || []).length })}</div>
                                     ${(m.deployed_instances || []).map(inst => {
                                         const iActive = inst.status === 'InService' && !inst.warming_up && inst.instance_count > 0;
                                         const iIdle = inst.status === 'InService' && !inst.warming_up && !iActive;
@@ -2679,7 +2687,7 @@
                         this._customModelsLoaded = false;
                         this._loadCustomModels(modal, true);
                     } catch (e) {
-                        _s3msg(e.message || 'Save failed', false);
+                        _s3msg(e.message || t('artsmoker.ui.model_settings.templates_save_failed'), false);
                     } finally {
                         if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = t('artsmoker.ui.custom_models.s3_save'); }
                     }
@@ -2732,9 +2740,9 @@
                 });
 
             } catch (err) {
-                const msg = err.name === 'AbortError' ? 'Request timed out — Amazon SageMaker status check may be slow. Try Refresh Status.' : err.message;
+                const msg = err.name === 'AbortError' ? t('artsmoker.ui.custom_models.load_timeout') : err.message;
                 // nosemgrep
-                container.innerHTML = html`<p class="text-xs text-red-400">Failed to load custom models: ${msg}</p>`;
+                container.innerHTML = html`<p class="text-xs text-red-400">${t('artsmoker.ui.custom_models.load_failed')}: ${msg}</p>`;
             }
         },
 
@@ -2750,7 +2758,7 @@
                     const row = btn.closest('.flex');
                     if (row) {
                         row.querySelectorAll('.text-amber-400').forEach(el => {
-                            if (el !== btn && el.textContent.includes('Preparing') || el.textContent.includes('Starting')) {
+                            if (el !== btn && el.textContent.includes(t('artsmoker.ui.custom_models.preparing_deploy')) || el.textContent.includes(t('artsmoker.ui.custom_models.starting'))) {
                                 el.textContent = t('artsmoker.ui.custom_models.not_deployed');
                                 el.className = 'text-[10px] text-brand-text-muted/50';
                             }
@@ -2830,7 +2838,7 @@
 
             const { instanceType: selectedInstance, endpointType, textureBackend, textureLicenseAccepted } = deployConfig;
 
-            window.showLoading?.(`${isRedeploy ? 'Redeploying' : 'Deploying'} model...`);
+            window.showLoading?.(t(isRedeploy ? 'artsmoker.ui.custom_models.redeploying_model' : 'artsmoker.ui.custom_models.deploying_model'));
 
             try {
                 const url = isRedeploy ? `/api/custom-models/redeploy/${modelKey}` : '/api/custom-models/deploy';
@@ -2862,7 +2870,7 @@
                         const row = btn.closest('.flex');
                         if (row) {
                             row.querySelectorAll('.text-brand-text-muted\\/50').forEach(el => {
-                                if (el.textContent.includes(t('artsmoker.ui.custom_models.not_deployed')) || el.textContent.includes('Preparing')) {
+                                if (el.textContent.includes(t('artsmoker.ui.custom_models.not_deployed')) || el.textContent.includes(t('artsmoker.ui.custom_models.preparing_deploy'))) {
                                     el.textContent = t('artsmoker.ui.custom_models.deploying');
                                     el.className = 'text-[10px] font-medium text-amber-400 animate-pulse';
                                 }
@@ -2875,7 +2883,7 @@
                     setTimeout(() => this._loadCustomModels(modal), 5000);
                 } else {
                     const err = await resp.json();
-                    const detail = typeof err.detail === 'string' ? err.detail : err.detail?.message || 'Deployment failed';
+                    const detail = typeof err.detail === 'string' ? err.detail : err.detail?.message || t('artsmoker.ui.custom_models.deploy_failed');
 
                     // If auth failed (stored token was invalid), prompt for a new one
                     if (err.detail?.error === 'hf_auth_required') {
@@ -2910,7 +2918,7 @@
                         <span>+</span> ${t('artsmoker.ui.custom_models.add_model_title') || 'Add Custom Model'}
                     </h3>
                     <p class="text-xs text-brand-text-muted">${t('artsmoker.ui.custom_models.add_model_desc') || 'Enter a HuggingFace model URL or repo ID. The system will auto-detect the model type, library, and requirements.'}</p>
-                    <input type="text" class="cm-repo-input input w-full text-xs" placeholder="e.g. runwayml/stable-diffusion-v1-5 or https://huggingface.co/..." autocomplete="off" />
+                    <input type="text" class="cm-repo-input input w-full text-xs" placeholder="${t('artsmoker.ui.custom_models.repo_placeholder')}" autocomplete="off" />
                     <div class="cm-token-row hidden space-y-2">
                         <p class="text-[10px] text-amber-400">${t('artsmoker.ui.custom_models.add_model_gated') || 'This repo may be gated. Provide a token if needed (used once, not stored):'}</p>
                         <input type="password" class="cm-token-input input w-full text-xs font-mono" placeholder="${t('artsmoker.ui.custom_models.hf_placeholder')}" autocomplete="off" />
@@ -2946,7 +2954,7 @@
 
                     if (!resp.ok) {
                         const err = await resp.json();
-                        const detail = typeof err.detail === 'string' ? err.detail : 'Detection failed';
+                        const detail = typeof err.detail === 'string' ? err.detail : t('artsmoker.ui.custom_models.detection_failed');
                         if (detail.includes('authentication') || detail.includes('401') || detail.includes('403')) {
                             backdrop.querySelector('.cm-token-row').classList.remove('hidden');
                         }
@@ -2965,15 +2973,15 @@
                     // nosemgrep
                     backdrop.querySelector('.cm-result').innerHTML = html`
                         <div class="p-3 rounded-lg bg-black/20 border border-brand-border/30 space-y-2">
-                            <h4 class="text-xs font-semibold text-emerald-400">✓ Model Detected</h4>
+                            <h4 class="text-xs font-semibold text-emerald-400">✓ ${t('artsmoker.ui.custom_models.model_detected')}</h4>
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted">
-                                <span>Label:</span><span class="text-brand-text">${e.label}</span>
-                                <span>Library:</span><span class="text-brand-text">${e.invoke?.library || '?'}</span>
-                                <span>Type:</span><span class="text-brand-text">${e.invoke?.predictor_type || '?'}</span>
-                                <span>Category:</span><span class="text-brand-text">${e.category}</span>
-                                <span>License:</span><span class="text-brand-text">${e.license}</span>
-                                <span>VRAM:</span><span class="text-brand-text">${e.requirements?.min_vram_gb || '?'} GB</span>
-                                <span>Auth:</span><span class="text-brand-text">${e.requires_hf_auth ? 'Yes (gated)' : 'No'}</span>
+                                <span>${t('artsmoker.ui.model_settings.field_label')}:</span><span class="text-brand-text">${e.label}</span>
+                                <span>${t('artsmoker.ui.custom_models.detected_library')}:</span><span class="text-brand-text">${e.invoke?.library || '?'}</span>
+                                <span>${t('artsmoker.ui.model_settings.field_type')}:</span><span class="text-brand-text">${e.invoke?.predictor_type || '?'}</span>
+                                <span>${t('artsmoker.ui.custom_models.detected_category')}:</span><span class="text-brand-text">${e.category}</span>
+                                <span>${t('artsmoker.ui.custom_models.detected_license')}:</span><span class="text-brand-text">${e.license}</span>
+                                <span>${t('artsmoker.ui.custom_models.vram')}:</span><span class="text-brand-text">${e.requirements?.min_vram_gb || '?'} GB</span>
+                                <span>${t('artsmoker.ui.custom_models.detected_auth')}:</span><span class="text-brand-text">${e.requires_hf_auth ? t('artsmoker.ui.custom_models.auth_yes_gated') : t('artsmoker.ui.custom_models.auth_no')}</span>
                             </div>
                             ${warning}
                         </div>`;
@@ -3009,7 +3017,7 @@
                         this._loadCustomModels(modal);
                     } else {
                         const err = await resp.json();
-                        window.showToast?.(err.detail || 'Failed to add model', 'error');
+                        window.showToast?.(err.detail || t('artsmoker.ui.custom_models.add_model_failed'), 'error');
                     }
                 } catch (err) {
                     window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + err.message, 'error');
@@ -3142,7 +3150,7 @@
                         cleanup();
                     } else {
                         const err = await resp.json();
-                        window.showToast?.(err.detail || 'Failed to save token', 'error');
+                        window.showToast?.(err.detail || t('artsmoker.ui.custom_models.token_save_failed'), 'error');
                     }
                 } catch (err) {
                     window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + err.message, 'error');

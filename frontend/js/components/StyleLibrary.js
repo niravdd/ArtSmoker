@@ -210,7 +210,7 @@
                         <h3 class="font-semibold text-brand-text group-hover:text-brand-accent transition-colors truncate">${style.name}</h3>
                         <p class="text-sm text-brand-text-muted mt-1 line-clamp-2">${style.description || t('artsmoker.ui.style_library.no_description')}</p>
                         <div class="flex items-center gap-3 mt-3 text-xs text-brand-text-muted">
-                            <span class="badge badge-indigo">${refCount} ref${refCount !== 1 ? 's' : ''}</span>
+                            <span class="badge badge-indigo">${t(refCount === 1 ? 'artsmoker.ui.style_library.ref_badge_one' : 'artsmoker.ui.style_library.ref_badge_other', { count: refCount })}</span>
                             ${style.analyzed_style ? html`<span class="badge badge-green">${t('artsmoker.ui.style_library.analyzed')}</span>` : ''}
                         </div>
                     </div>
@@ -305,7 +305,7 @@
                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
                             ${refs.map((filename) => html`
                                 <div class="img-hover-zoom rounded-lg overflow-hidden aspect-square bg-brand-bg border border-brand-border">
-                                    <img src="${API.styles.referenceUrl(style.id, filename)}" alt="Reference" class="w-full h-full object-cover" loading="lazy"/>
+                                    <img src="${API.styles.referenceUrl(style.id, filename)}" alt="${t('artsmoker.ui.style_library.alt_reference')}" class="w-full h-full object-cover" loading="lazy"/>
                                 </div>
                             `)}
                         </div>
@@ -767,7 +767,7 @@
                             items.push({ name: '..', type: 'directory', path: data.parent });
                         }
                         items.push(...data.items);
-                        renderList(items, data.current, `${data.image_count} image(s)`, data.parent);
+                        renderList(items, data.current, t(data.image_count === 1 ? 'artsmoker.ui.style_library.browse_images_one' : 'artsmoker.ui.style_library.browse_images_other', { count: data.image_count }), data.parent);
                     } catch (err) {
                         // nosemgrep
                         list.innerHTML = html`<p class="text-center text-red-400 text-sm py-8">${err.message}</p>`;
@@ -787,7 +787,7 @@
                             const items = data.buckets.map(b => ({
                                 name: b.name, type: 'directory', path: b.name,
                             }));
-                            renderList(items, 's3://', `${items.length} bucket(s)`, null);
+                            renderList(items, 's3://', t(items.length === 1 ? 'artsmoker.ui.style_library.browse_buckets_one' : 'artsmoker.ui.style_library.browse_buckets_other', { count: items.length }), null);
                             // Override: clicking a bucket sets it and enters it
                             list.querySelectorAll('.browse-item').forEach(btn => {
                                 btn.replaceWith(btn.cloneNode(true));
@@ -812,7 +812,7 @@
                                 path: i.type === 'directory' ? (i.prefix || i.uri) : (i.uri || i.key),
                             })));
                             const s3Parent = data.parent === '' ? '__BUCKET_LIST__' : (data.parent || null);
-                            renderList(items, data.uri, `${data.image_count} image(s)`, s3Parent);
+                            renderList(items, data.uri, t(data.image_count === 1 ? 'artsmoker.ui.style_library.browse_images_one' : 'artsmoker.ui.style_library.browse_images_other', { count: data.image_count }), s3Parent);
                             // Handle ".." that points to bucket list
                             list.querySelectorAll('.browse-item').forEach(el => {
                                 if (el.dataset.path === '__BUCKET_LIST__') {

@@ -168,7 +168,7 @@
                             <span class="translation-lang-badge text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent font-medium"></span>
                             <div class="flex gap-0.5 ml-auto">
                                 <button type="button" class="translation-tab-original text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium">${typeof t !== 'undefined' ? t('artsmoker.ui.common.prompt') : 'Original'}</button>
-                                <button type="button" class="translation-tab-english text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent">English</button>
+                                <button type="button" class="translation-tab-english text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent">${t('artsmoker.ui.prompt_editor.english_tab')}</button>
                             </div>
                         </div>
                         <div class="translation-english-text hidden p-2 rounded-lg bg-emerald-950/10 border border-emerald-500/20 text-xs text-brand-text/70 whitespace-pre-wrap max-h-24 overflow-auto"></div>
@@ -210,9 +210,9 @@
                             <textarea
                                 class="decomposed-textarea input w-full min-h-[120px] text-xs text-brand-text/70 bg-amber-950/10 border-amber-500/20"
                                 rows="8" readonly
-                                placeholder="Recomposed prompt will appear here after generation..."
+                                placeholder="${t('artsmoker.ui.prompt_editor.recomposed_placeholder')}"
                             ></textarea>
-                            <p class="text-[10px] text-brand-text-muted/40 mt-0.5">Recomposed from your prompt. Click Prompt Designer above to edit components.</p>
+                            <p class="text-[10px] text-brand-text-muted/40 mt-0.5">${t('artsmoker.ui.prompt_editor.recomposed_note')}</p>
                         </div>
                     </div>
 
@@ -1009,7 +1009,7 @@
                     this._lastTranslation = result;
                     const langNames = { ja: '日本語', zh: '中文', ko: '한국어', hi: 'हिन्दी', ru: 'Русский', fr: 'Français', es: 'Español', de: 'Deutsch' };
                     // nosemgrep -- lookup by language code, not JSON-derived object keys
-                    langBadge.textContent = `${langNames[result.source_lang] || result.source_lang} → English`;
+                    langBadge.textContent = t('artsmoker.ui.prompt_editor.translated_to_english', { lang: langNames[result.source_lang] || result.source_lang });
                     englishText.textContent = result.translated;
                     preview.classList.remove('hidden');
                     // Reset to original tab

@@ -58,7 +58,11 @@
     "download": "Download",
     "optional": "optional",
     "dismiss": "Dismiss",
-    "source": "Source"
+    "source": "Source",
+    "dur_min": "{{n}} min",
+    "dur_sec": "{{n}}s",
+    "dur_hr": "{{n}} h",
+    "dur_min_sec": "{{m}}m {{s}}s"
   },
   "confirm": {
     "default_title": "Confirm",
@@ -341,7 +345,24 @@
     "generating_with": "Generating with {{model}}...",
     "custom_model_fallback": "custom model",
     "reference_collection_toggle": "Generate a matching set (Collection)",
-    "reference_collection_hint": "Use this reference's look to art-direct a whole set of distinct assets."
+    "reference_collection_hint": "Use this reference's look to art-direct a whole set of distinct assets.",
+    "dim_unsupported_one": "{{models}} does not support {{size}}. The closest supported size will be used for this model.",
+    "dim_unsupported_many": "{{models}} do not support {{size}}. The closest supported size will be used for these models.",
+    "images_across_models": "{{images}} images across {{models}} models",
+    "all_models_math": "{{models}} models × {{options}} options × {{variations}} variations = {{images}} images",
+    "large_batch_note": "large batch, will take several minutes",
+    "all_models_cost": "Est. ~${{cost}} ({{images}} images × {{models}} models)",
+    "alt_generated": "Generated image",
+    "async_generated": "Generated",
+    "async_took": "in {{time}}",
+    "async_queued": "Queued — #{{pos}} of {{total}}",
+    "async_waiting": "waiting",
+    "async_active": "ACTIVE",
+    "llm_backup_model": "backup AI model",
+    "stream_ended": "The connection ended before the result arrived",
+    "type_hint_char_scene": "Your prompt describes a character in a setting. 'Character' keeps the figure as the focal point while preserving scene context. 'Game Asset' forces an isolated sprite on a transparent background.",
+    "type_hint_char": "Your prompt describes a character. 'Character' optimizes for figure proportions, pose, and silhouette readability.",
+    "type_hint_scene": "Your prompt describes a scene or environment. 'Environment' preserves the full composition. 'Game Asset' forces an isolated object on a transparent background."
   },
   "video_studio": {
     "title": "Video Studio",
@@ -443,7 +464,11 @@
     "meta_model": "Model",
     "meta_duration": "Duration",
     "meta_region": "Region",
-    "browser_no_video": "Your browser does not support video playback."
+    "browser_no_video": "Your browser does not support video playback.",
+    "price_per_sec": "${{price}}/sec",
+    "regions_available": "{{count}} regions available",
+    "s3_validation_failed": "S3 validation failed",
+    "time_ago": "{{time}} ago"
   },
   "type_studio": {
     "title": "Type Studio",
@@ -519,7 +544,12 @@
     "pos_bottom_left": "Bottom Left",
     "pos_bottom_center": "Bottom Center",
     "pos_bottom_right": "Bottom Right",
-    "pos_below_previous": "Below Previous"
+    "pos_below_previous": "Below Previous",
+    "layout_count_one": "{{count}} layout",
+    "layout_count_other": "{{count}} layouts",
+    "llm_info": "Complex: {{complex}} | Fast: {{fast}}",
+    "line_size": "Size: {{size}}",
+    "line_anchor": "Anchor: {{anchor}}"
   },
   "chat_studio": {
     "title": "Chat Studio",
@@ -574,7 +604,19 @@
     "duplicate": "D",
     "export_failed": "Export failed",
     "pricing_not_available": "Pricing: not available — run Sync from AWS to fetch pricing data",
-    "pricing_label": "Pricing"
+    "pricing_label": "Pricing",
+    "regions_tag": "{{count}} regions",
+    "price_per_1k_in": "${{price}}/1K in",
+    "price_input_1k": "{{price}}/1K input",
+    "price_output_1k": "{{price}}/1K output",
+    "est_10k": "~${{cost}}/10K tokens",
+    "est_100k": "~${{cost}}/100K tokens",
+    "est_10k_hint": "Estimated cost for ~10K tokens (70% input, 30% output)",
+    "est_100k_hint": "Estimated cost for ~100K tokens (70% input, 30% output)",
+    "tokens_in_out": "{{in}} in / {{out}} out",
+    "fork_title": "{{title}} (fork)",
+    "search_matches_one": "{{count}} match",
+    "search_matches_other": "{{count}} matches"
   },
   "gallery": {
     "status_failed": "Failed",
@@ -645,7 +687,11 @@
     "import_pick_type": "Please select an asset type first.",
     "import_pick_file": "Please choose an image file.",
     "filter_photorealistic": "Photorealistic",
-    "imported_badge": "Imported"
+    "imported_badge": "Imported",
+    "legacy_migrate_confirm": "Assets found in the old storage location ({{legacy}}): {{count}}. Move them into the new location ({{current}})?",
+    "legacy_migrated": "Assets migrated: {{count}}",
+    "legacy_skipped": "skipped (already present): {{count}}",
+    "alt_preview": "Preview"
   },
   "style_library": {
     "title": "Style Library",
@@ -710,7 +756,14 @@
     "images_uploaded_analyzed": "{{count}} images uploaded and analyzed",
     "generation_hints_label": "Generation Hints",
     "analyzed_style_label": "Analyzed Style",
-    "ref_images_count": "Reference Images ({{count}})"
+    "ref_images_count": "Reference Images ({{count}})",
+    "ref_badge_one": "{{count}} ref",
+    "ref_badge_other": "{{count}} refs",
+    "alt_reference": "Reference image",
+    "browse_images_one": "{{count}} image",
+    "browse_images_other": "{{count}} images",
+    "browse_buckets_one": "{{count}} bucket",
+    "browse_buckets_other": "{{count}} buckets"
   },
   "asset_viewer": {
     "png_tab": "PNG",
@@ -1117,7 +1170,11 @@
     "meta_collection_subject": "Subject",
     "meta_open_collection": "Open collection",
     "meta_collection_prompt": "Collection prompt",
-    "meta_collection_prompt_note": "Model-agnostic prompt for this subject, from the set's shared art direction"
+    "meta_collection_prompt_note": "Model-agnostic prompt for this subject, from the set's shared art direction",
+    "alt_3d_source": "3D source image",
+    "alt_3d_model": "3D model",
+    "file_vertices": "{{count}} vertices",
+    "file_faces": "{{count}} faces"
   },
   "model_settings": {
     "title": "Model Settings",
@@ -1297,7 +1354,54 @@
     "lifecycle_unavailable_hint": "This Legacy model is no longer accessible for your account (inactive) and has been removed from the pickers.",
     "cost_hourly": "~${{cost}}/hr while running",
     "cost_per_gen_time": "~{{min}} min/generation",
-    "pricing_unavailable": "Pricing unavailable"
+    "pricing_unavailable": "Pricing unavailable",
+    "hf_token_btn": "HF Token",
+    "badge_custom": "Custom",
+    "badge_img2vid": "img→vid",
+    "price_per_image": "${{price}}/img",
+    "price_per_second": "${{price}}/sec",
+    "prompt_limit_chars": "{{n}} chars",
+    "moderation_moderate": "moderate",
+    "moderation_strict": "strict",
+    "moderation_very_strict": "very strict",
+    "region_count_one": "{{n}} region",
+    "regions_count": "{{n}} regions",
+    "current_suffix": "(current)",
+    "field_architecture": "Architecture",
+    "field_type": "Type",
+    "ms_hide_all": "Hide All",
+    "ms_collapse_editors": "Collapse editors",
+    "tmpl_group_image_editing": "Image Editing & Reference",
+    "tmpl_group_3d_video": "3D & Video",
+    "tmpl_group_system": "System & Utilities",
+    "tmpl_label_image_refine_single": "Prompt Refinement — how your text is turned into a detailed image prompt",
+    "tmpl_label_image_concepts_multi": "Creative Options — how multiple distinct concepts are generated from one idea",
+    "tmpl_label_image_refine_marketing": "Marketing Banners — specialized prompt for banner compositions",
+    "tmpl_label_image_asset_type_context": "Asset-Type Intent — the creative direction per asset type (game asset, character, etc.)",
+    "tmpl_label_image_style_section": "Style-Hints Framing — how a Style Library style is woven into the prompt",
+    "tmpl_label_asset_type_classify": "Asset-Type Suggestion — suggests the best asset type for your prompt",
+    "tmpl_label_prompt_decompose": "Prompt Designer — breaks your idea into editable visual components",
+    "tmpl_label_prompt_recompose": "Prompt Designer — recomposes edited components into a final prompt",
+    "tmpl_label_edit_prompt_suggestion": "Generate Prompt (Edit tab) — reads the image + intent and suggests an edit prompt per mode",
+    "tmpl_label_reference_intent_extraction": "Inspired-By — reads reference image(s) + your instruction into an enhanced prompt",
+    "tmpl_label_reference_edit_instruction": "Match-the-Reference — shapes your instruction for the reference edit model",
+    "tmpl_label_inpaint_removal_transform": "Inpaint Removal — turns a \"remove X\" request into a fill description",
+    "tmpl_label_style_analysis_full": "Style Analysis — how reference images are analyzed for visual attributes",
+    "tmpl_label_style_hints_generation": "Style Hints — how analyzed style is distilled into generation directives",
+    "tmpl_label_style_cohesion_check": "Cohesion Check — quick check if references are unified or diverse",
+    "tmpl_label_three_d_source_analysis": "Source Check — detects if a 2D image is cropped/incomplete before image-to-3D",
+    "tmpl_label_video_enhance_prompt": "Video Prompt Enhancement — adds camera movements, lighting, and temporal cues",
+    "tmpl_label_moderation_prescreen": "Pre-Screen — predicts if a prompt will be blocked before generating",
+    "tmpl_label_moderation_rewrite": "Rewrite — rewrites blocked prompts to pass moderation",
+    "tmpl_label_translate_detect_language": "Language Detection — detects language when heuristics are ambiguous",
+    "tmpl_label_translate_to_english": "Translation to English — translates non-English prompts before generation",
+    "tmpl_label_chat_context_compact": "Chat: Context Compaction — summarizes older messages to free context space",
+    "tmpl_label_chat_title_generate": "Chat: Session Title — auto-generates a title from the first exchange",
+    "tmpl_label_typestudio_layout": "Type Studio: Text Layout — designs text positions, fonts, sizes, and effects",
+    "tmpl_label_typestudio_layout_output_multi": "Type Studio: Layout Output (multiple) — output format for multiple layout options",
+    "tmpl_label_typestudio_layout_output_single": "Type Studio: Layout Output (single) — output format for one layout",
+    "tmpl_label_admin_template_enhance": "Template Editor: Enhance-with-AI — the prompt behind the \"Enhance with AI\" button here",
+    "tmpl_label_admin_template_fix_variables": "Template Editor: Fix Variables — the prompt behind \"Fix & Save\" to reinsert missing variables"
   },
   "prompt_editor": {
     "placeholder": "Describe what you want to generate...",
@@ -1318,7 +1422,11 @@
     "composing": "Composing...",
     "compose_failed": "Failed to compose prompt",
     "compose_error": "Enter a prompt first",
-    "asset_type_wrong_detail": "You selected \"{{cur}}\" but your prompt looks like a \"{{sug}}\"."
+    "asset_type_wrong_detail": "You selected \"{{cur}}\" but your prompt looks like a \"{{sug}}\".",
+    "english_tab": "English",
+    "recomposed_placeholder": "Recomposed prompt will appear here after generation...",
+    "recomposed_note": "Recomposed from your prompt. Click Prompt Designer above to edit components.",
+    "translated_to_english": "{{lang}} → English"
   },
   "prompt_designer": {
     "title": "Prompt Designer",
@@ -1367,7 +1475,8 @@
     "footer_randomise_desc": "each generated option gets a different creative take on this element.",
     "footer_fixed": "📌 Fixed",
     "footer_fixed_desc": "this element stays identical across all options. Items you specified in your prompt are auto-pinned as Fixed.",
-    "footer_edit_hint": "Edit any field freely and choose whether it should be randomised or fixed. With a single option (1×1), all fields are used as-is."
+    "footer_edit_hint": "Edit any field freely and choose whether it should be randomised or fixed. With a single option (1×1), all fields are used as-is.",
+    "stats": "{{chars}} chars · {{words}} words"
   },
   "custom_models": {
     "tab_title": "Custom Models",
@@ -1516,7 +1625,35 @@
     "alwayson_desc": "Model stays loaded. Billed continuously even when idle.",
     "alwayson_cost": "Model stays loaded. Costs ~${{cost}}/hr continuously, even when idle.",
     "cached_faster": "Cached — faster startup",
-    "cold_start_activation": "Cold start on activation"
+    "cold_start_activation": "Cold start on activation",
+    "price_per_hour_short": "${{cost}}/hr",
+    "quota_tag_in_use": "⚠ IN USE",
+    "quota_tag_no_quota": "⚠ NO QUOTA",
+    "quota_avail": "({{available}}/{{quota}} avail)",
+    "est_cost_running": "Est. ~${{cost}}/hr when running",
+    "gated_accept_hf": "gated · accept on HF",
+    "license_restrictions": "Restrictions & Warnings",
+    "open_model_page": "Open model page",
+    "status_idle": "Inactive — activates on next request ({{hint}})",
+    "status_starting_instance": "Starting instance...",
+    "badge_user": "User",
+    "deployed_instances_one": "{{n}} deployed instance:",
+    "deployed_instances_many": "{{n}} deployed instances:",
+    "load_timeout": "Request timed out — Amazon SageMaker status check may be slow. Try Refresh Status.",
+    "load_failed": "Failed to load custom models",
+    "deploying_model": "Deploying model...",
+    "redeploying_model": "Redeploying model...",
+    "repo_placeholder": "e.g. runwayml/stable-diffusion-v1-5 or https://huggingface.co/...",
+    "detection_failed": "Detection failed",
+    "model_detected": "Model Detected",
+    "detected_library": "Library",
+    "detected_category": "Category",
+    "detected_license": "License",
+    "detected_auth": "Auth",
+    "auth_yes_gated": "Yes (gated)",
+    "auth_no": "No",
+    "add_model_failed": "Failed to add model",
+    "token_save_failed": "Failed to save token"
   },
   "voice_input": {
     "record": "Record voice input",
@@ -1550,7 +1687,10 @@
     "restart_busy": "The server is busy right now.",
     "restart_anyway": "Restart anyway",
     "page_not_found": "Page not found.",
-    "network_error": "Network error"
+    "network_error": "Network error",
+    "count_image": "{{count}} image models",
+    "count_chat": "{{count}} chat models",
+    "count_video": "{{count}} video models"
   },
   "misc": {
     "pe_failed_enhance": "Failed to generate enhanced prompt",
@@ -1695,9 +1835,6 @@
     "pane_convert_n": "Convert {{count}} to 3D",
     "pane_confirm_title": "Convert {{count}} images to 3D?",
     "pane_confirm_body": "This queues {{count}} 3D jobs ({{per}} each). Estimated total: {{time}} · Est. {{cost}}. GPU time is billed while the endpoint runs.",
-    "studio_panel_title": "Your Collections",
-    "studio_show_all": "Show all ({{count}})",
-    "studio_show_less": "Show less",
     "open_collection": "Open Collection",
     "asset_type_title": "Check the Asset Type for this set",
     "asset_type_unsupported": "Collections are made of Characters or Game Assets — \"{{cur}}\" isn't available for a set.",
@@ -1705,6 +1842,7 @@
     "asset_type_detail": "Selected: {{cur}} · Suggested: {{sug}}. Choosing now avoids paying for a whole set in the wrong style.",
     "asset_type_use": "Use {{type}}",
     "asset_type_coerced": "Collections use Characters or Game Assets — switched to {{type}}.",
-    "asset_type_locked": "Collections support only Character or Game Asset."
+    "asset_type_locked": "Collections support only Character or Game Asset.",
+    "download_3d_fmt_invalid": "Format must be glb, fbx, or usd"
   }
 }

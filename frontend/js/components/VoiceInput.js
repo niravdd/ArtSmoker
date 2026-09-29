@@ -106,11 +106,11 @@
                     <span class="voice-timer text-xs text-brand-text-muted hidden">0:00</span>
                     <span class="voice-status hidden items-center gap-1.5">
                         <span class="recording-dot"></span>
-                        <span class="text-xs text-red-400 font-medium">Recording</span>
+                        <span class="text-xs text-red-400 font-medium">${t('artsmoker.ui.voice_input.recording')}</span>
                     </span>
                     <span class="voice-transcribing hidden items-center gap-1.5">
                         <span class="spinner-sm"></span>
-                        <span class="text-xs text-brand-text-muted">Transcribing...</span>
+                        <span class="text-xs text-brand-text-muted">${t('artsmoker.ui.voice_input.transcribing')}</span>
                     </span>
                 </div>
             `;

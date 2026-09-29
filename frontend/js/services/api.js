@@ -214,7 +214,7 @@
                         reader.read().then(({ done, value }) => {
                             if (done) {
                                 if (finalResult) resolve(finalResult);
-                                else reject(new Error('Stream ended without result'));
+                                else reject(new Error(t('artsmoker.ui.image_studio.stream_ended')));
                                 return;
                             }
                             buffer += decoder.decode(value, { stream: true });
@@ -230,7 +230,7 @@
                                             finalResult = evt.result;
                                         }
                                         if (evt.type === 'error') {
-                                            reject(new Error(evt.detail || 'Generation failed'));
+                                            reject(new Error(evt.detail || t('artsmoker.ui.image_studio.generation_failed')));
                                             return;
                                         }
                                     } catch (_) {}
@@ -296,7 +296,7 @@
                                         const evt = JSON.parse(line.slice(6));
                                         if (onEvent) onEvent(evt);
                                         if (evt.type === 'collection_complete') done_evt = evt;
-                                        if (evt.type === 'error') { reject(new Error(evt.detail || 'Generation failed')); return; }
+                                        if (evt.type === 'error') { reject(new Error(evt.detail || t('artsmoker.ui.image_studio.generation_failed'))); return; }
                                     } catch (_) {}
                                 }
                                 read();

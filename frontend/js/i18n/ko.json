@@ -410,7 +410,11 @@
     "meta_collection_subject": "대상",
     "meta_open_collection": "컬렉션 열기",
     "meta_collection_prompt": "컬렉션 프롬프트",
-    "meta_collection_prompt_note": "세트 공통 아트 디렉션에서 도출된, 이 대상의 모델 비의존 프롬프트"
+    "meta_collection_prompt_note": "세트 공통 아트 디렉션에서 도출된, 이 대상의 모델 비의존 프롬프트",
+    "alt_3d_source": "3D 소스 이미지",
+    "alt_3d_model": "3D 모델",
+    "file_vertices": "정점 {{count}}개",
+    "file_faces": "면 {{count}}개"
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",
@@ -465,7 +469,19 @@
     "template_technical": "기술 문서 작성자",
     "templates": "템플릿...",
     "title": "채팅 스튜디오",
-    "tokens": "토큰"
+    "tokens": "토큰",
+    "regions_tag": "{{count}}개 리전",
+    "price_per_1k_in": "${{price}}/1K 입력",
+    "price_input_1k": "{{price}}/1K 입력",
+    "price_output_1k": "{{price}}/1K 출력",
+    "est_10k": "~${{cost}}/10K 토큰",
+    "est_100k": "~${{cost}}/100K 토큰",
+    "est_10k_hint": "약 1만 토큰 예상 비용(입력 70%, 출력 30%)",
+    "est_100k_hint": "약 10만 토큰 예상 비용(입력 70%, 출력 30%)",
+    "tokens_in_out": "입력 {{in}} / 출력 {{out}}",
+    "fork_title": "{{title}} (분기)",
+    "search_matches_one": "{{count}}개 일치",
+    "search_matches_other": "{{count}}개 일치"
   },
   "common": {
     "apply": "적용",
@@ -501,7 +517,11 @@
     "warning": "경고",
     "optional": "선택 사항",
     "dismiss": "닫기",
-    "source": "소스"
+    "source": "소스",
+    "dur_min": "{{n}}분",
+    "dur_sec": "{{n}}초",
+    "dur_hr": "{{n}}시간",
+    "dur_min_sec": "{{m}}분 {{s}}초"
   },
   "confirm": {
     "cancel": "취소",
@@ -577,7 +597,11 @@
     "import_pick_type": "먼저 에셋 유형을 선택하세요.",
     "import_pick_file": "이미지 파일을 선택하세요.",
     "filter_photorealistic": "포토리얼",
-    "imported_badge": "가져옴"
+    "imported_badge": "가져옴",
+    "legacy_migrate_confirm": "이전 저장 위치({{legacy}})에서 에셋을 찾았습니다: {{count}}개. 새 위치({{current}})로 이동할까요?",
+    "legacy_migrated": "마이그레이션된 에셋: {{count}}개",
+    "legacy_skipped": "건너뜀(이미 있음): {{count}}개",
+    "alt_preview": "미리보기"
   },
   "image_studio": {
     "advanced_collapse": "고급",
@@ -852,7 +876,24 @@
     "generating_with": "{{model}}(으)로 생성 중...",
     "custom_model_fallback": "사용자 지정 모델",
     "reference_collection_toggle": "어울리는 세트 생성 (컬렉션)",
-    "reference_collection_hint": "이 참조 이미지의 룩으로 서로 다른 에셋 세트 전체의 아트 디렉션을 잡습니다."
+    "reference_collection_hint": "이 참조 이미지의 룩으로 서로 다른 에셋 세트 전체의 아트 디렉션을 잡습니다.",
+    "dim_unsupported_one": "{{models}}은(는) {{size}}을(를) 지원하지 않습니다. 이 모델에는 가장 가까운 지원 크기가 사용됩니다.",
+    "dim_unsupported_many": "{{models}}은(는) {{size}}을(를) 지원하지 않습니다. 이 모델들에는 가장 가까운 지원 크기가 사용됩니다.",
+    "images_across_models": "{{models}}개 모델에서 이미지 {{images}}장",
+    "all_models_math": "모델 {{models}}개 × 옵션 {{options}}개 × 변형 {{variations}}개 = 이미지 {{images}}장",
+    "large_batch_note": "큰 배치로 몇 분 정도 걸립니다",
+    "all_models_cost": "예상 ~${{cost}} (이미지 {{images}}장 × 모델 {{models}}개)",
+    "alt_generated": "생성된 이미지",
+    "async_generated": "생성됨",
+    "async_took": "({{time}} 소요)",
+    "async_queued": "대기 중 — {{total}}개 중 {{pos}}번째",
+    "async_waiting": "대기 중",
+    "async_active": "진행 중",
+    "llm_backup_model": "백업 AI 모델",
+    "stream_ended": "결과를 받기 전에 연결이 종료되었습니다",
+    "type_hint_char_scene": "프롬프트가 배경 속의 캐릭터를 묘사합니다. '캐릭터'는 장면 맥락을 유지하면서 인물을 초점에 둡니다. '게임 에셋'은 투명 배경의 단독 스프라이트로 만듭니다.",
+    "type_hint_char": "프롬프트가 캐릭터를 묘사합니다. '캐릭터'는 신체 비율, 포즈, 실루엣 가독성을 최적화합니다.",
+    "type_hint_scene": "프롬프트가 장면이나 환경을 묘사합니다. '환경'은 전체 구도를 유지합니다. '게임 에셋'은 투명 배경의 단독 오브젝트로 만듭니다."
   },
   "lang": {
     "en": "영어",
@@ -1043,7 +1084,54 @@
     "lifecycle_unavailable_hint": "이 레거시 모델은 계정에서 (비활성 상태로) 더 이상 액세스할 수 없어 선택 목록에서 제거되었습니다.",
     "cost_hourly": "~${{cost}}/시간 (실행 중)",
     "cost_per_gen_time": "~{{min}}분/생성",
-    "pricing_unavailable": "가격 정보 없음"
+    "pricing_unavailable": "가격 정보 없음",
+    "hf_token_btn": "HF 토큰",
+    "badge_custom": "사용자 지정",
+    "badge_img2vid": "이미지→동영상",
+    "price_per_image": "${{price}}/장",
+    "price_per_second": "${{price}}/초",
+    "prompt_limit_chars": "{{n}}자",
+    "moderation_moderate": "보통",
+    "moderation_strict": "엄격",
+    "moderation_very_strict": "매우 엄격",
+    "region_count_one": "리전 {{n}}개",
+    "regions_count": "리전 {{n}}개",
+    "current_suffix": "(현재)",
+    "field_architecture": "아키텍처",
+    "field_type": "유형",
+    "ms_hide_all": "모두 숨기기",
+    "ms_collapse_editors": "편집기 접기",
+    "tmpl_group_image_editing": "이미지 편집 및 레퍼런스",
+    "tmpl_group_3d_video": "3D 및 동영상",
+    "tmpl_group_system": "시스템 및 유틸리티",
+    "tmpl_label_image_refine_single": "프롬프트 개선 — 입력한 텍스트를 상세한 이미지 프롬프트로 변환하는 방식",
+    "tmpl_label_image_concepts_multi": "크리에이티브 옵션 — 하나의 아이디어에서 여러 개의 서로 다른 콘셉트를 생성하는 방식",
+    "tmpl_label_image_refine_marketing": "마케팅 배너 — 배너 구성을 위한 전용 프롬프트",
+    "tmpl_label_image_asset_type_context": "에셋 유형 의도 — 에셋 유형별 크리에이티브 방향(게임 에셋, 캐릭터 등)",
+    "tmpl_label_image_style_section": "스타일 힌트 구성 — 스타일 라이브러리의 스타일을 프롬프트에 녹여내는 방식",
+    "tmpl_label_asset_type_classify": "에셋 유형 제안 — 프롬프트에 가장 적합한 에셋 유형을 제안",
+    "tmpl_label_prompt_decompose": "Prompt Designer — 아이디어를 편집 가능한 시각 요소로 분해",
+    "tmpl_label_prompt_recompose": "Prompt Designer — 편집한 요소를 최종 프롬프트로 재구성",
+    "tmpl_label_edit_prompt_suggestion": "프롬프트 생성(편집 탭) — 이미지와 의도를 읽고 모드별 편집 프롬프트를 제안",
+    "tmpl_label_reference_intent_extraction": "영감 받기 — 레퍼런스 이미지와 지시 사항을 읽어 향상된 프롬프트로 변환",
+    "tmpl_label_reference_edit_instruction": "레퍼런스 맞추기 — 레퍼런스 편집 모델에 맞게 지시 사항을 다듬기",
+    "tmpl_label_inpaint_removal_transform": "인페인트 제거 — \"X 제거\" 요청을 채우기 설명으로 변환",
+    "tmpl_label_style_analysis_full": "스타일 분석 — 레퍼런스 이미지의 시각적 특성을 분석하는 방식",
+    "tmpl_label_style_hints_generation": "스타일 힌트 — 분석한 스타일을 생성 지시로 압축하는 방식",
+    "tmpl_label_style_cohesion_check": "일관성 검사 — 레퍼런스가 통일적인지 다양한지 빠르게 확인",
+    "tmpl_label_three_d_source_analysis": "소스 검사 — 이미지→3D 변환 전에 2D 이미지가 잘렸거나 불완전한지 감지",
+    "tmpl_label_video_enhance_prompt": "동영상 프롬프트 향상 — 카메라 움직임, 조명, 시간적 단서를 추가",
+    "tmpl_label_moderation_prescreen": "사전 검사 — 생성 전에 프롬프트가 차단될지 예측",
+    "tmpl_label_moderation_rewrite": "다시 쓰기 — 차단된 프롬프트를 검열을 통과하도록 다시 작성",
+    "tmpl_label_translate_detect_language": "언어 감지 — 휴리스틱으로 판단하기 어려울 때 언어를 감지",
+    "tmpl_label_translate_to_english": "영어로 번역 — 생성 전에 영어가 아닌 프롬프트를 번역",
+    "tmpl_label_chat_context_compact": "채팅: 컨텍스트 압축 — 이전 메시지를 요약해 컨텍스트 공간 확보",
+    "tmpl_label_chat_title_generate": "채팅: 세션 제목 — 첫 대화에서 제목을 자동 생성",
+    "tmpl_label_typestudio_layout": "타이프 스튜디오: 텍스트 레이아웃 — 텍스트 위치, 글꼴, 크기, 효과를 설계",
+    "tmpl_label_typestudio_layout_output_multi": "타이프 스튜디오: 레이아웃 출력(여러 개) — 여러 레이아웃 옵션의 출력 형식",
+    "tmpl_label_typestudio_layout_output_single": "타이프 스튜디오: 레이아웃 출력(단일) — 하나의 레이아웃 출력 형식",
+    "tmpl_label_admin_template_enhance": "템플릿 편집기: AI로 향상 — 이곳의 \"AI로 향상\" 버튼 뒤에서 동작하는 프롬프트",
+    "tmpl_label_admin_template_fix_variables": "템플릿 편집기: 변수 수정 — 누락된 변수를 다시 삽입하는 \"수정 후 저장\" 뒤의 프롬프트"
   },
   "nav": {
     "chat_studio": "채팅 스튜디오",
@@ -1071,8 +1159,12 @@
     "step3_desc": "이것이 이미지 모델에 전송될 내용입니다. 생성 전에 편집할 수 있습니다.",
     "step3_hint": "선택 사항 — 향상된 프롬프트를 미리보거나, Generate를 클릭하여 자동 향상 후 생성합니다.",
     "generate_enhanced": "향상된 프롬프트 생성",
-    "prompt_designer": "Prompt Designer",
-    "asset_type_wrong_detail": "\"{{cur}}\"을(를) 선택했지만 프롬프트는 \"{{sug}}\"처럼 보입니다."
+    "prompt_designer": "프롬프트 디자이너",
+    "asset_type_wrong_detail": "\"{{cur}}\"을(를) 선택했지만 프롬프트는 \"{{sug}}\"처럼 보입니다.",
+    "english_tab": "영어",
+    "recomposed_placeholder": "재구성된 프롬프트가 생성 후 여기에 표시됩니다...",
+    "recomposed_note": "프롬프트에서 재구성되었습니다. 구성 요소를 편집하려면 위의 프롬프트 디자이너를 클릭하세요.",
+    "translated_to_english": "{{lang}} → 영어"
   },
   "style_library": {
     "analysis_complete": "스타일 분석이 완료되었습니다",
@@ -1137,7 +1229,14 @@
     "upload_hint": "참조 이미지를 여기에 드래그 앤 드롭",
     "upload_hint_sub": "또는 클릭하여 찾아보기",
     "uploaded": "{{count}}개 이미지가 업로드되었습니다",
-    "uploading": "참조 이미지 업로드 중..."
+    "uploading": "참조 이미지 업로드 중...",
+    "ref_badge_one": "참조 {{count}}개",
+    "ref_badge_other": "참조 {{count}}개",
+    "alt_reference": "참조 이미지",
+    "browse_images_one": "이미지 {{count}}개",
+    "browse_images_other": "이미지 {{count}}개",
+    "browse_buckets_one": "버킷 {{count}}개",
+    "browse_buckets_other": "버킷 {{count}}개"
   },
   "toast": {
     "dismiss": "닫기"
@@ -1216,7 +1315,12 @@
     "title": "타이프 스튜디오",
     "upscale": "업스케일",
     "view_raw": "원본 레이아웃 사양 보기",
-    "voice_input": "음성 입력"
+    "voice_input": "음성 입력",
+    "layout_count_one": "레이아웃 {{count}}개",
+    "layout_count_other": "레이아웃 {{count}}개",
+    "llm_info": "고급: {{complex}} | 빠름: {{fast}}",
+    "line_size": "크기: {{size}}",
+    "line_anchor": "기준점: {{anchor}}"
   },
   "video_studio": {
     "active_jobs": "진행 중인 작업",
@@ -1318,7 +1422,11 @@
     "title": "비디오 스튜디오",
     "video_failed": "비디오 실패: {{msg}}",
     "video_settings": "비디오 설정 (S3 스토리지)",
-    "your_s3_buckets": "내 S3 버킷"
+    "your_s3_buckets": "내 S3 버킷",
+    "price_per_sec": "${{price}}/초",
+    "regions_available": "{{count}}개 리전에서 사용 가능",
+    "s3_validation_failed": "S3 검증에 실패했습니다",
+    "time_ago": "{{time}} 전"
   },
   "voice_input": {
     "mic_denied": "마이크 접근이 거부되었습니다",
@@ -1372,8 +1480,8 @@
     "add_to_catalog": "카탈로그에 추가",
     "loading": "커스텀 모델 카탈로그 로딩 중...",
     "no_models": "카탈로그에 커스텀 모델이 없습니다.",
-    "image_studio": "Image Studio",
-    "video_studio": "Video Studio",
+    "image_studio": "이미지 스튜디오",
+    "video_studio": "비디오 스튜디오",
     "other": "기타",
     "cat_image_generation": "이미지 생성",
     "cat_3d_generation": "3D 생성",
@@ -1475,10 +1583,38 @@
     "alwayson_desc": "모델이 로드된 상태 유지. 유휴 시에도 계속 과금.",
     "alwayson_cost": "모델이 로드된 상태 유지. 유휴 시에도 시간당 약 ${{cost}} 지속 과금.",
     "cached_faster": "캐시됨 — 빠른 시작",
-    "cold_start_activation": "활성화 시 콜드 스타트"
+    "cold_start_activation": "활성화 시 콜드 스타트",
+    "price_per_hour_short": "${{cost}}/시간",
+    "quota_tag_in_use": "⚠ 사용 중",
+    "quota_tag_no_quota": "⚠ 할당량 없음",
+    "quota_avail": "({{available}}/{{quota}} 사용 가능)",
+    "est_cost_running": "예상 ~${{cost}}/시간 (실행 중)",
+    "gated_accept_hf": "액세스 제한 · HF에서 동의 필요",
+    "license_restrictions": "제한 사항 및 경고",
+    "open_model_page": "모델 페이지 열기",
+    "status_idle": "비활성 — 다음 요청 시 활성화 ({{hint}})",
+    "status_starting_instance": "인스턴스 시작 중...",
+    "badge_user": "사용자",
+    "deployed_instances_one": "배포된 인스턴스 {{n}}개:",
+    "deployed_instances_many": "배포된 인스턴스 {{n}}개:",
+    "load_timeout": "요청 시간이 초과되었습니다 — Amazon SageMaker 상태 확인이 느릴 수 있습니다. \"상태 새로 고침\"을 시도해 보세요.",
+    "load_failed": "사용자 지정 모델을 불러오지 못했습니다",
+    "deploying_model": "모델 배포 중...",
+    "redeploying_model": "모델 재배포 중...",
+    "repo_placeholder": "예: runwayml/stable-diffusion-v1-5 또는 https://huggingface.co/...",
+    "detection_failed": "감지 실패",
+    "model_detected": "모델 감지됨",
+    "detected_library": "라이브러리",
+    "detected_category": "카테고리",
+    "detected_license": "라이선스",
+    "detected_auth": "인증",
+    "auth_yes_gated": "예 (액세스 제한)",
+    "auth_no": "아니요",
+    "add_model_failed": "모델을 추가하지 못했습니다",
+    "token_save_failed": "토큰을 저장하지 못했습니다"
   },
   "prompt_designer": {
-    "title": "Prompt Designer",
+    "title": "프롬프트 디자이너",
     "analyzing": "프롬프트 분석 중...",
     "analyzing_sub": "시각적 컴포넌트로 분해 중",
     "save_continue": "향상된 프롬프트 생성",
@@ -1524,7 +1660,8 @@
     "footer_randomise_desc": "각 생성 옵션에서 이 요소에 다른 창의적 표현이 적용됩니다.",
     "footer_fixed": "📌 고정",
     "footer_fixed_desc": "이 요소는 모든 옵션에서 동일하게 유지됩니다. 프롬프트에서 지정한 항목은 자동으로 고정됩니다.",
-    "footer_edit_hint": "필드를 자유롭게 편집하고 랜덤 또는 고정을 선택하세요. 단일 옵션(1×1)에서는 모든 필드가 그대로 사용됩니다."
+    "footer_edit_hint": "필드를 자유롭게 편집하고 랜덤 또는 고정을 선택하세요. 단일 옵션(1×1)에서는 모든 필드가 그대로 사용됩니다.",
+    "stats": "{{chars}}자 · {{words}}단어"
   },
   "onboarding": {
     "setup_title": "ArtSmoker 설정 중",
@@ -1550,7 +1687,10 @@
     "restart_busy": "서버가 현재 사용 중입니다.",
     "restart_anyway": "그래도 다시 시작",
     "page_not_found": "페이지를 찾을 수 없습니다.",
-    "network_error": "네트워크 오류"
+    "network_error": "네트워크 오류",
+    "count_image": "이미지 모델 {{count}}개",
+    "count_chat": "채팅 모델 {{count}}개",
+    "count_video": "비디오 모델 {{count}}개"
   },
   "misc": {
     "pe_failed_enhance": "향상된 프롬프트 생성 실패",
@@ -1695,9 +1835,6 @@
     "pane_convert_n": "{{count}}개를 3D로 변환",
     "pane_confirm_title": "이미지 {{count}}개를 3D로 변환할까요?",
     "pane_confirm_body": "3D 작업 {{count}}개(각 {{per}})를 대기열에 추가합니다. 예상 합계: {{time}} · 예상 {{cost}}. 엔드포인트가 실행되는 동안 GPU 시간이 과금됩니다.",
-    "studio_panel_title": "내 컬렉션",
-    "studio_show_all": "모두 보기 ({{count}})",
-    "studio_show_less": "접기",
     "open_collection": "컬렉션 열기",
     "asset_type_title": "이 세트의 에셋 유형 확인",
     "asset_type_unsupported": "컬렉션은 캐릭터 또는 게임 에셋으로 구성됩니다 — \"{{cur}}\"은(는) 세트에 사용할 수 없습니다.",
@@ -1705,6 +1842,7 @@
     "asset_type_detail": "선택: {{cur}} · 추천: {{sug}}. 지금 선택하면 잘못된 스타일로 세트 전체를 생성하는 비용을 피할 수 있습니다.",
     "asset_type_use": "{{type}} 사용",
     "asset_type_coerced": "컬렉션은 캐릭터 또는 게임 에셋을 사용합니다 — {{type}}(으)로 전환했습니다.",
-    "asset_type_locked": "컬렉션은 캐릭터 또는 게임 에셋만 지원합니다."
+    "asset_type_locked": "컬렉션은 캐릭터 또는 게임 에셋만 지원합니다.",
+    "download_3d_fmt_invalid": "형식은 glb, fbx, usd 중 하나여야 합니다"
   }
 }

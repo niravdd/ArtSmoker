@@ -58,7 +58,11 @@
     "download": "Скачать",
     "optional": "необязательно",
     "dismiss": "Закрыть",
-    "source": "Источник"
+    "source": "Источник",
+    "dur_min": "{{n}} мин",
+    "dur_sec": "{{n}} с",
+    "dur_hr": "{{n}} ч",
+    "dur_min_sec": "{{m}} мин {{s}} с"
   },
   "confirm": {
     "default_title": "Подтверждение",
@@ -341,7 +345,24 @@
     "generating_with": "Генерация с {{model}}...",
     "custom_model_fallback": "пользовательская модель",
     "reference_collection_toggle": "Создать единый набор (коллекцию)",
-    "reference_collection_hint": "Задайте арт-дирекшн целого набора разных ассетов по стилю этого референса."
+    "reference_collection_hint": "Задайте арт-дирекшн целого набора разных ассетов по стилю этого референса.",
+    "dim_unsupported_one": "{{models}} не поддерживает {{size}}. Для этой модели будет использован ближайший поддерживаемый размер.",
+    "dim_unsupported_many": "{{models}} не поддерживают {{size}}. Для этих моделей будет использован ближайший поддерживаемый размер.",
+    "images_across_models": "{{images}} изобр. в {{models}} моделях",
+    "all_models_math": "{{models}} моделей × {{options}} вариантов × {{variations}} вариаций = {{images}} изобр.",
+    "large_batch_note": "большой пакет, займёт несколько минут",
+    "all_models_cost": "Оценка ~${{cost}} ({{images}} изобр. × {{models}} моделей)",
+    "alt_generated": "Сгенерированное изображение",
+    "async_generated": "Готово",
+    "async_took": "за {{time}}",
+    "async_queued": "В очереди — №{{pos}} из {{total}}",
+    "async_waiting": "ожидание",
+    "async_active": "АКТИВНО",
+    "llm_backup_model": "резервная модель ИИ",
+    "stream_ended": "Соединение прервалось до получения результата",
+    "type_hint_char_scene": "Ваш промпт описывает персонажа в обстановке. «Персонаж» сохраняет фигуру в центре внимания вместе с контекстом сцены. «Игровой ассет» создаёт отдельный спрайт на прозрачном фоне.",
+    "type_hint_char": "Ваш промпт описывает персонажа. «Персонаж» оптимизирует пропорции фигуры, позу и читаемость силуэта.",
+    "type_hint_scene": "Ваш промпт описывает сцену или окружение. «Окружение» сохраняет всю композицию. «Игровой ассет» создаёт отдельный объект на прозрачном фоне."
   },
   "video_studio": {
     "title": "Видеостудия",
@@ -443,7 +464,11 @@
     "meta_model": "Модель",
     "meta_duration": "Длительность",
     "meta_region": "Регион",
-    "browser_no_video": "Ваш браузер не поддерживает воспроизведение видео."
+    "browser_no_video": "Ваш браузер не поддерживает воспроизведение видео.",
+    "price_per_sec": "${{price}}/сек",
+    "regions_available": "Доступно регионов: {{count}}",
+    "s3_validation_failed": "Не удалось проверить S3",
+    "time_ago": "{{time}} назад"
   },
   "type_studio": {
     "title": "Студия текста",
@@ -519,7 +544,12 @@
     "pos_bottom_left": "Снизу слева",
     "pos_bottom_center": "Снизу по центру",
     "pos_bottom_right": "Снизу справа",
-    "pos_below_previous": "Под предыдущим"
+    "pos_below_previous": "Под предыдущим",
+    "layout_count_one": "{{count}} макет",
+    "layout_count_other": "Макетов: {{count}}",
+    "llm_info": "Сложная: {{complex}} | Быстрая: {{fast}}",
+    "line_size": "Размер: {{size}}",
+    "line_anchor": "Привязка: {{anchor}}"
   },
   "chat_studio": {
     "title": "Чат-студия",
@@ -574,7 +604,19 @@
     "duplicate": "D",
     "export_failed": "Экспорт не удался",
     "pricing_not_available": "Цены: недоступно — выполните синхронизацию с AWS для получения данных о ценах",
-    "pricing_label": "Цены"
+    "pricing_label": "Цены",
+    "regions_tag": "регионов: {{count}}",
+    "price_per_1k_in": "${{price}}/1K вход",
+    "price_input_1k": "{{price}}/1K ввод",
+    "price_output_1k": "{{price}}/1K вывод",
+    "est_10k": "~${{cost}}/10K токенов",
+    "est_100k": "~${{cost}}/100K токенов",
+    "est_10k_hint": "Оценочная стоимость ~10K токенов (70% ввод, 30% вывод)",
+    "est_100k_hint": "Оценочная стоимость ~100K токенов (70% ввод, 30% вывод)",
+    "tokens_in_out": "{{in}} ввод / {{out}} вывод",
+    "fork_title": "{{title}} (ответвление)",
+    "search_matches_one": "Совпадений: {{count}}",
+    "search_matches_other": "Совпадений: {{count}}"
   },
   "gallery": {
     "status_failed": "Ошибка",
@@ -645,7 +687,11 @@
     "import_pick_type": "Сначала выберите тип ассета.",
     "import_pick_file": "Выберите файл изображения.",
     "filter_photorealistic": "Фотореализм",
-    "imported_badge": "Импортировано"
+    "imported_badge": "Импортировано",
+    "legacy_migrate_confirm": "Ресурсов в старом хранилище ({{legacy}}): {{count}}. Переместить их в новое расположение ({{current}})?",
+    "legacy_migrated": "Перенесено ресурсов: {{count}}",
+    "legacy_skipped": "пропущено (уже есть): {{count}}",
+    "alt_preview": "Предпросмотр"
   },
   "style_library": {
     "title": "Библиотека стилей",
@@ -710,7 +756,14 @@
     "images_uploaded_analyzed": "{{count}} изображений загружено и проанализировано",
     "generation_hints_label": "Подсказки для генерации",
     "analyzed_style_label": "Проанализированный стиль",
-    "ref_images_count": "Референсные изображения ({{count}})"
+    "ref_images_count": "Референсные изображения ({{count}})",
+    "ref_badge_one": "{{count}} образец",
+    "ref_badge_other": "Образцов: {{count}}",
+    "alt_reference": "Образец изображения",
+    "browse_images_one": "{{count}} изображение",
+    "browse_images_other": "Изображений: {{count}}",
+    "browse_buckets_one": "{{count}} бакет",
+    "browse_buckets_other": "Бакетов: {{count}}"
   },
   "asset_viewer": {
     "png_tab": "PNG",
@@ -915,7 +968,7 @@
     "three_d_opt_uv2": "Лайтмап UV2",
     "three_d_optval_none": "Нет",
     "three_d_optval_orm": "Упаковка ORM (Unreal)",
-    "three_d_optval_unity_mask": "Metallic + Smoothness",
+    "three_d_optval_unity_mask": "Металличность + гладкость",
     "three_d_optval_hdrp_mask": "Маска HDRP",
     "three_d_optval_lod3": "Цепочка LOD0–3",
     "three_d_optval_convex": "Выпуклая оболочка",
@@ -1117,7 +1170,11 @@
     "meta_collection_subject": "Объект",
     "meta_open_collection": "Открыть коллекцию",
     "meta_collection_prompt": "Промпт коллекции",
-    "meta_collection_prompt_note": "Модель-независимый промпт для этого объекта из общего арт-дирекшна набора"
+    "meta_collection_prompt_note": "Модель-независимый промпт для этого объекта из общего арт-дирекшна набора",
+    "alt_3d_source": "Исходное изображение для 3D",
+    "alt_3d_model": "3D-модель",
+    "file_vertices": "вершин: {{count}}",
+    "file_faces": "граней: {{count}}"
   },
   "model_settings": {
     "title": "Настройки моделей",
@@ -1297,7 +1354,54 @@
     "lifecycle_unavailable_hint": "Эта устаревшая модель больше недоступна для вашей учётной записи (неактивна) и удалена из списков выбора.",
     "cost_hourly": "~${{cost}}/час во время работы",
     "cost_per_gen_time": "~{{min}} мин/генерация",
-    "pricing_unavailable": "Цена недоступна"
+    "pricing_unavailable": "Цена недоступна",
+    "hf_token_btn": "Токен HF",
+    "badge_custom": "Пользовательская",
+    "badge_img2vid": "изобр.→видео",
+    "price_per_image": "${{price}}/изобр.",
+    "price_per_second": "${{price}}/сек",
+    "prompt_limit_chars": "{{n}} симв.",
+    "moderation_moderate": "умеренная",
+    "moderation_strict": "строгая",
+    "moderation_very_strict": "очень строгая",
+    "region_count_one": "Регионов: {{n}}",
+    "regions_count": "Регионов: {{n}}",
+    "current_suffix": "(текущая)",
+    "field_architecture": "Архитектура",
+    "field_type": "Тип",
+    "ms_hide_all": "Скрыть все",
+    "ms_collapse_editors": "Свернуть редакторы",
+    "tmpl_group_image_editing": "Редактирование изображений и референсы",
+    "tmpl_group_3d_video": "3D и видео",
+    "tmpl_group_system": "Система и утилиты",
+    "tmpl_label_image_refine_single": "Уточнение промпта — как ваш текст превращается в подробный промпт для изображения",
+    "tmpl_label_image_concepts_multi": "Творческие варианты — как из одной идеи создаются несколько разных концепций",
+    "tmpl_label_image_refine_marketing": "Маркетинговые баннеры — специальный промпт для композиций баннеров",
+    "tmpl_label_image_asset_type_context": "Назначение типа ассета — творческое направление для каждого типа ассета (игровой ассет, персонаж и т. д.)",
+    "tmpl_label_image_style_section": "Встраивание подсказок стиля — как стиль из Библиотеки стилей вплетается в промпт",
+    "tmpl_label_asset_type_classify": "Подбор типа ассета — предлагает наиболее подходящий тип ассета для вашего промпта",
+    "tmpl_label_prompt_decompose": "Дизайнер промптов — разбивает вашу идею на редактируемые визуальные компоненты",
+    "tmpl_label_prompt_recompose": "Дизайнер промптов — собирает отредактированные компоненты в итоговый промпт",
+    "tmpl_label_edit_prompt_suggestion": "Создать промпт (вкладка «Редактирование») — анализирует изображение и намерение и предлагает промпт для каждого режима",
+    "tmpl_label_reference_intent_extraction": "По мотивам — объединяет референсные изображения и вашу инструкцию в улучшенный промпт",
+    "tmpl_label_reference_edit_instruction": "Как на референсе — адаптирует вашу инструкцию для модели редактирования по референсу",
+    "tmpl_label_inpaint_removal_transform": "Удаление инпейнтингом — превращает запрос «удалить X» в описание заполнения",
+    "tmpl_label_style_analysis_full": "Анализ стиля — как анализируются визуальные характеристики референсных изображений",
+    "tmpl_label_style_hints_generation": "Подсказки стиля — как проанализированный стиль сводится к директивам генерации",
+    "tmpl_label_style_cohesion_check": "Проверка согласованности — быстрая проверка, едины референсы или разнородны",
+    "tmpl_label_three_d_source_analysis": "Проверка исходника — определяет, обрезано ли 2D-изображение или неполно перед преобразованием в 3D",
+    "tmpl_label_video_enhance_prompt": "Улучшение видеопромпта — добавляет движения камеры, освещение и временные ориентиры",
+    "tmpl_label_moderation_prescreen": "Предварительная проверка — предсказывает, будет ли промпт заблокирован до генерации",
+    "tmpl_label_moderation_rewrite": "Переписывание — переписывает заблокированные промпты, чтобы они прошли модерацию",
+    "tmpl_label_translate_detect_language": "Определение языка — определяет язык, когда эвристики неоднозначны",
+    "tmpl_label_translate_to_english": "Перевод на английский — переводит неанглоязычные промпты перед генерацией",
+    "tmpl_label_chat_context_compact": "Чат: сжатие контекста — кратко пересказывает старые сообщения, освобождая место в контексте",
+    "tmpl_label_chat_title_generate": "Чат: название сессии — автоматически создаёт название по первому обмену сообщениями",
+    "tmpl_label_typestudio_layout": "Студия текста: раскладка текста — задаёт позиции текста, шрифты, размеры и эффекты",
+    "tmpl_label_typestudio_layout_output_multi": "Студия текста: вывод раскладки (несколько) — формат вывода для нескольких вариантов раскладки",
+    "tmpl_label_typestudio_layout_output_single": "Студия текста: вывод раскладки (один) — формат вывода для одной раскладки",
+    "tmpl_label_admin_template_enhance": "Редактор шаблонов: улучшение с AI — промпт, стоящий за кнопкой «Улучшить с помощью AI»",
+    "tmpl_label_admin_template_fix_variables": "Редактор шаблонов: исправление переменных — промпт кнопки «Исправить и сохранить», восстанавливающий пропущенные переменные"
   },
   "prompt_editor": {
     "placeholder": "Опишите, что хотите сгенерировать...",
@@ -1318,7 +1422,11 @@
     "composing": "Компоновка...",
     "compose_failed": "Не удалось скомпоновать промпт",
     "compose_error": "Сначала введите промпт",
-    "asset_type_wrong_detail": "Вы выбрали «{{cur}}», но промпт похож на «{{sug}}»."
+    "asset_type_wrong_detail": "Вы выбрали «{{cur}}», но промпт похож на «{{sug}}».",
+    "english_tab": "Английский",
+    "recomposed_placeholder": "Пересобранный промпт появится здесь после генерации...",
+    "recomposed_note": "Пересобрано из вашего промпта. Нажмите «Дизайнер промптов» выше, чтобы изменить компоненты.",
+    "translated_to_english": "{{lang}} → английский"
   },
   "prompt_designer": {
     "title": "Дизайнер промптов",
@@ -1367,7 +1475,8 @@
     "footer_randomise_desc": "каждый сгенерированный вариант получает свою творческую интерпретацию этого элемента.",
     "footer_fixed": "📌 Фиксировано",
     "footer_fixed_desc": "этот элемент остаётся одинаковым во всех вариантах. Элементы, указанные в промпте, автоматически фиксируются.",
-    "footer_edit_hint": "Свободно редактируйте любое поле и выбирайте случайное или фиксированное. При одном варианте (1×1) все поля используются как есть."
+    "footer_edit_hint": "Свободно редактируйте любое поле и выбирайте случайное или фиксированное. При одном варианте (1×1) все поля используются как есть.",
+    "stats": "{{chars}} симв. · {{words}} слов"
   },
   "custom_models": {
     "tab_title": "Пользовательские модели",
@@ -1516,7 +1625,35 @@
     "alwayson_desc": "Модель загружена. Оплата постоянно, даже в простое.",
     "alwayson_cost": "Модель загружена. Постоянно ~${{cost}}/час, даже в простое.",
     "cached_faster": "В кэше — быстрый запуск",
-    "cold_start_activation": "Холодный старт при активации"
+    "cold_start_activation": "Холодный старт при активации",
+    "price_per_hour_short": "${{cost}}/час",
+    "quota_tag_in_use": "⚠ ЗАНЯТО",
+    "quota_tag_no_quota": "⚠ НЕТ КВОТЫ",
+    "quota_avail": "(доступно {{available}}/{{quota}})",
+    "est_cost_running": "Оценка ~${{cost}}/час во время работы",
+    "gated_accept_hf": "ограниченный доступ · примите условия на HF",
+    "license_restrictions": "Ограничения и предупреждения",
+    "open_model_page": "Открыть страницу модели",
+    "status_idle": "Неактивна — запустится при следующем запросе ({{hint}})",
+    "status_starting_instance": "Запуск инстанса...",
+    "badge_user": "Пользователь",
+    "deployed_instances_one": "Развёрнутых инстансов: {{n}}",
+    "deployed_instances_many": "Развёрнутых инстансов: {{n}}",
+    "load_timeout": "Время ожидания запроса истекло — проверка статуса Amazon SageMaker может быть медленной. Попробуйте «Обновить статус».",
+    "load_failed": "Не удалось загрузить пользовательские модели",
+    "deploying_model": "Развёртывание модели...",
+    "redeploying_model": "Повторное развёртывание модели...",
+    "repo_placeholder": "напр. runwayml/stable-diffusion-v1-5 или https://huggingface.co/...",
+    "detection_failed": "Не удалось определить модель",
+    "model_detected": "Модель определена",
+    "detected_library": "Библиотека",
+    "detected_category": "Категория",
+    "detected_license": "Лицензия",
+    "detected_auth": "Авторизация",
+    "auth_yes_gated": "Да (ограниченный доступ)",
+    "auth_no": "Нет",
+    "add_model_failed": "Не удалось добавить модель",
+    "token_save_failed": "Не удалось сохранить токен"
   },
   "voice_input": {
     "record": "Голосовой ввод",
@@ -1550,7 +1687,10 @@
     "restart_busy": "Сервер сейчас занят.",
     "restart_anyway": "Всё равно перезапустить",
     "page_not_found": "Страница не найдена.",
-    "network_error": "Ошибка сети"
+    "network_error": "Ошибка сети",
+    "count_image": "моделей изображений: {{count}}",
+    "count_chat": "чат-моделей: {{count}}",
+    "count_video": "видеомоделей: {{count}}"
   },
   "misc": {
     "pe_failed_enhance": "Не удалось создать улучшенный промпт",
@@ -1695,9 +1835,6 @@
     "pane_convert_n": "Конвертировать {{count}} в 3D",
     "pane_confirm_title": "Конвертировать {{count}} изображений в 3D?",
     "pane_confirm_body": "В очередь будет поставлено {{count}} 3D-заданий ({{per}} каждое). Ориентировочно итого: {{time}} · Ориент. {{cost}}. Время GPU оплачивается, пока работает эндпоинт.",
-    "studio_panel_title": "Ваши коллекции",
-    "studio_show_all": "Показать все ({{count}})",
-    "studio_show_less": "Свернуть",
     "open_collection": "Открыть коллекцию",
     "asset_type_title": "Проверьте тип ассета для набора",
     "asset_type_unsupported": "Коллекции состоят из персонажей или игровых ассетов — «{{cur}}» для набора недоступен.",
@@ -1705,6 +1842,7 @@
     "asset_type_detail": "Выбрано: {{cur}} · Рекомендуется: {{sug}}. Выбор сейчас избавит от оплаты целого набора в неверном стиле.",
     "asset_type_use": "Использовать «{{type}}»",
     "asset_type_coerced": "Коллекции используют персонажей или игровые ассеты — переключено на «{{type}}».",
-    "asset_type_locked": "Коллекции поддерживают только персонажей или игровые ассеты."
+    "asset_type_locked": "Коллекции поддерживают только персонажей или игровые ассеты.",
+    "download_3d_fmt_invalid": "Формат должен быть glb, fbx или usd"
   }
 }

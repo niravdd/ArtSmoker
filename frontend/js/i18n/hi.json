@@ -58,7 +58,11 @@
     "download": "डाउनलोड",
     "optional": "वैकल्पिक",
     "dismiss": "खारिज करें",
-    "source": "स्रोत"
+    "source": "स्रोत",
+    "dur_min": "{{n}} मिनट",
+    "dur_sec": "{{n}} से.",
+    "dur_hr": "{{n}} घंटे",
+    "dur_min_sec": "{{m}} मि. {{s}} से."
   },
   "confirm": {
     "default_title": "पुष्टि करें",
@@ -341,7 +345,24 @@
     "generating_with": "{{model}} से जनन हो रहा है...",
     "custom_model_fallback": "कस्टम मॉडल",
     "reference_collection_toggle": "मिलती-जुलती सीरीज़ बनाएँ (कलेक्शन)",
-    "reference_collection_hint": "इस संदर्भ के लुक से अलग-अलग एसेट के पूरे सेट का आर्ट-डायरेक्शन तय करें।"
+    "reference_collection_hint": "इस संदर्भ के लुक से अलग-अलग एसेट के पूरे सेट का आर्ट-डायरेक्शन तय करें।",
+    "dim_unsupported_one": "{{models}} {{size}} का समर्थन नहीं करता। इस मॉडल के लिए निकटतम समर्थित आकार उपयोग होगा।",
+    "dim_unsupported_many": "{{models}} {{size}} का समर्थन नहीं करते। इन मॉडलों के लिए निकटतम समर्थित आकार उपयोग होगा।",
+    "images_across_models": "{{models}} मॉडलों में {{images}} चित्र",
+    "all_models_math": "{{models}} मॉडल × {{options}} विकल्प × {{variations}} वेरिएशन = {{images}} चित्र",
+    "large_batch_note": "बड़ा बैच, कई मिनट लगेंगे",
+    "all_models_cost": "अनु. ~${{cost}} ({{images}} चित्र × {{models}} मॉडल)",
+    "alt_generated": "निर्मित चित्र",
+    "async_generated": "निर्मित",
+    "async_took": "{{time}} में",
+    "async_queued": "कतार में — {{total}} में से #{{pos}}",
+    "async_waiting": "प्रतीक्षा में",
+    "async_active": "सक्रिय",
+    "llm_backup_model": "बैकअप AI मॉडल",
+    "stream_ended": "परिणाम आने से पहले कनेक्शन समाप्त हो गया",
+    "type_hint_char_scene": "आपका प्रॉम्प्ट किसी परिवेश में एक पात्र का वर्णन करता है। 'पात्र' दृश्य का संदर्भ रखते हुए आकृति को केंद्र में रखता है। 'गेम एसेट' पारदर्शी पृष्ठभूमि पर एक अलग स्प्राइट बनाता है।",
+    "type_hint_char": "आपका प्रॉम्प्ट एक पात्र का वर्णन करता है। 'पात्र' आकृति के अनुपात, मुद्रा और सिल्हूट की स्पष्टता को अनुकूलित करता है।",
+    "type_hint_scene": "आपका प्रॉम्प्ट किसी दृश्य या परिवेश का वर्णन करता है। 'परिवेश' पूरी संरचना बनाए रखता है। 'गेम एसेट' पारदर्शी पृष्ठभूमि पर एक अलग वस्तु बनाता है।"
   },
   "video_studio": {
     "title": "वीडियो स्टूडियो",
@@ -443,7 +464,11 @@
     "meta_model": "मॉडल",
     "meta_duration": "अवधि",
     "meta_region": "क्षेत्र",
-    "browser_no_video": "आपका ब्राउज़र वीडियो प्लेबैक का समर्थन नहीं करता।"
+    "browser_no_video": "आपका ब्राउज़र वीडियो प्लेबैक का समर्थन नहीं करता।",
+    "price_per_sec": "${{price}}/सेकंड",
+    "regions_available": "{{count}} क्षेत्र उपलब्ध",
+    "s3_validation_failed": "S3 सत्यापन विफल रहा",
+    "time_ago": "{{time}} पहले"
   },
   "type_studio": {
     "title": "टाइप स्टूडियो",
@@ -519,7 +544,12 @@
     "pos_bottom_left": "नीचे बाएँ",
     "pos_bottom_center": "नीचे बीच में",
     "pos_bottom_right": "नीचे दाएँ",
-    "pos_below_previous": "पिछले के नीचे"
+    "pos_below_previous": "पिछले के नीचे",
+    "layout_count_one": "{{count}} लेआउट",
+    "layout_count_other": "{{count}} लेआउट",
+    "llm_info": "जटिल: {{complex}} | तेज़: {{fast}}",
+    "line_size": "आकार: {{size}}",
+    "line_anchor": "एंकर: {{anchor}}"
   },
   "chat_studio": {
     "title": "चैट स्टूडियो",
@@ -574,7 +604,19 @@
     "duplicate": "D",
     "export_failed": "निर्यात विफल",
     "pricing_not_available": "मूल्य: उपलब्ध नहीं — मूल्य डेटा लाने के लिए AWS से सिंक चलाएँ",
-    "pricing_label": "मूल्य"
+    "pricing_label": "मूल्य",
+    "regions_tag": "{{count}} क्षेत्र",
+    "price_per_1k_in": "${{price}}/1K इनपुट",
+    "price_input_1k": "{{price}}/1K इनपुट",
+    "price_output_1k": "{{price}}/1K आउटपुट",
+    "est_10k": "~${{cost}}/10K टोकन",
+    "est_100k": "~${{cost}}/100K टोकन",
+    "est_10k_hint": "~10K टोकन की अनुमानित लागत (70% इनपुट, 30% आउटपुट)",
+    "est_100k_hint": "~100K टोकन की अनुमानित लागत (70% इनपुट, 30% आउटपुट)",
+    "tokens_in_out": "{{in}} इनपुट / {{out}} आउटपुट",
+    "fork_title": "{{title}} (फ़ोर्क)",
+    "search_matches_one": "{{count}} मिलान",
+    "search_matches_other": "{{count}} मिलान"
   },
   "gallery": {
     "status_failed": "विफल",
@@ -645,7 +687,11 @@
     "import_pick_type": "कृपया पहले एसेट प्रकार चुनें।",
     "import_pick_file": "कृपया एक छवि फ़ाइल चुनें।",
     "filter_photorealistic": "फोटोरियलिस्टिक",
-    "imported_badge": "आयातित"
+    "imported_badge": "आयातित",
+    "legacy_migrate_confirm": "पुराने स्टोरेज स्थान ({{legacy}}) में एसेट मिले: {{count}}। क्या इन्हें नए स्थान ({{current}}) में ले जाएँ?",
+    "legacy_migrated": "माइग्रेट किए गए एसेट: {{count}}",
+    "legacy_skipped": "छोड़े गए (पहले से मौजूद): {{count}}",
+    "alt_preview": "पूर्वावलोकन"
   },
   "style_library": {
     "title": "शैली संग्रह",
@@ -710,7 +756,14 @@
     "images_uploaded_analyzed": "{{count}} चित्र अपलोड और विश्लेषित हुए",
     "generation_hints_label": "निर्माण संकेत",
     "analyzed_style_label": "विश्लेषित शैली",
-    "ref_images_count": "संदर्भ चित्र ({{count}})"
+    "ref_images_count": "संदर्भ चित्र ({{count}})",
+    "ref_badge_one": "{{count}} संदर्भ",
+    "ref_badge_other": "{{count}} संदर्भ",
+    "alt_reference": "संदर्भ छवि",
+    "browse_images_one": "{{count}} छवि",
+    "browse_images_other": "{{count}} छवियाँ",
+    "browse_buckets_one": "{{count}} बकेट",
+    "browse_buckets_other": "{{count}} बकेट"
   },
   "asset_viewer": {
     "png_tab": "PNG",
@@ -1117,7 +1170,11 @@
     "meta_collection_subject": "विषय",
     "meta_open_collection": "कलेक्शन खोलें",
     "meta_collection_prompt": "कलेक्शन प्रॉम्प्ट",
-    "meta_collection_prompt_note": "सेट की साझा आर्ट-डायरेक्शन से, इस विषय के लिए मॉडल-निरपेक्ष प्रॉम्प्ट"
+    "meta_collection_prompt_note": "सेट की साझा आर्ट-डायरेक्शन से, इस विषय के लिए मॉडल-निरपेक्ष प्रॉम्प्ट",
+    "alt_3d_source": "3D स्रोत चित्र",
+    "alt_3d_model": "3D मॉडल",
+    "file_vertices": "{{count}} वर्टेक्स",
+    "file_faces": "{{count}} फ़ेस"
   },
   "model_settings": {
     "title": "मॉडल सेटिंग्स",
@@ -1297,7 +1354,54 @@
     "lifecycle_unavailable_hint": "यह लीगेसी मॉडल आपके खाते के लिए (निष्क्रिय होने के कारण) अब सुलभ नहीं है और चयन सूची से हटा दिया गया है।",
     "cost_hourly": "~${{cost}}/घंटा (चलते समय)",
     "cost_per_gen_time": "~{{min}} मिनट/जनरेशन",
-    "pricing_unavailable": "मूल्य उपलब्ध नहीं"
+    "pricing_unavailable": "मूल्य उपलब्ध नहीं",
+    "hf_token_btn": "HF टोकन",
+    "badge_custom": "कस्टम",
+    "badge_img2vid": "चित्र→वीडियो",
+    "price_per_image": "${{price}}/चित्र",
+    "price_per_second": "${{price}}/सेकंड",
+    "prompt_limit_chars": "{{n}} अक्षर",
+    "moderation_moderate": "सामान्य",
+    "moderation_strict": "सख़्त",
+    "moderation_very_strict": "बहुत सख़्त",
+    "region_count_one": "{{n}} क्षेत्र",
+    "regions_count": "{{n}} क्षेत्र",
+    "current_suffix": "(वर्तमान)",
+    "field_architecture": "आर्किटेक्चर",
+    "field_type": "प्रकार",
+    "ms_hide_all": "सभी छिपाएँ",
+    "ms_collapse_editors": "एडिटर संक्षिप्त करें",
+    "tmpl_group_image_editing": "चित्र संपादन और संदर्भ",
+    "tmpl_group_3d_video": "3D और वीडियो",
+    "tmpl_group_system": "सिस्टम और उपयोगिताएँ",
+    "tmpl_label_image_refine_single": "प्रॉम्प्ट परिष्करण — आपका टेक्स्ट एक विस्तृत चित्र प्रॉम्प्ट में कैसे बदलता है",
+    "tmpl_label_image_concepts_multi": "रचनात्मक विकल्प — एक विचार से कई अलग-अलग कॉन्सेप्ट कैसे बनते हैं",
+    "tmpl_label_image_refine_marketing": "मार्केटिंग बैनर — बैनर संरचना के लिए विशेष प्रॉम्प्ट",
+    "tmpl_label_image_asset_type_context": "एसेट-प्रकार उद्देश्य — हर एसेट प्रकार के लिए रचनात्मक दिशा (गेम एसेट, कैरेक्टर आदि)",
+    "tmpl_label_image_style_section": "शैली-संकेत ढाँचा — शैली संग्रह की शैली को प्रॉम्प्ट में कैसे पिरोया जाता है",
+    "tmpl_label_asset_type_classify": "एसेट-प्रकार सुझाव — आपके प्रॉम्प्ट के लिए सबसे उपयुक्त एसेट प्रकार सुझाता है",
+    "tmpl_label_prompt_decompose": "प्रॉम्प्ट डिज़ाइनर — आपके विचार को संपादन-योग्य दृश्य घटकों में बाँटता है",
+    "tmpl_label_prompt_recompose": "प्रॉम्प्ट डिज़ाइनर — संपादित घटकों को मिलाकर अंतिम प्रॉम्प्ट बनाता है",
+    "tmpl_label_edit_prompt_suggestion": "प्रॉम्प्ट बनाएँ (संपादन टैब) — चित्र और उद्देश्य पढ़कर हर मोड के लिए संपादन प्रॉम्प्ट सुझाता है",
+    "tmpl_label_reference_intent_extraction": "प्रेरित-द्वारा — संदर्भ चित्र और आपके निर्देश पढ़कर एक उन्नत प्रॉम्प्ट बनाता है",
+    "tmpl_label_reference_edit_instruction": "संदर्भ से मिलाएँ — संदर्भ संपादन मॉडल के लिए आपके निर्देश को ढालता है",
+    "tmpl_label_inpaint_removal_transform": "इनपेंट हटाना — \"X हटाएँ\" अनुरोध को भराव विवरण में बदलता है",
+    "tmpl_label_style_analysis_full": "शैली विश्लेषण — संदर्भ चित्रों के दृश्य गुणों का विश्लेषण कैसे होता है",
+    "tmpl_label_style_hints_generation": "शैली संकेत — विश्लेषित शैली को निर्माण निर्देशों में कैसे समेटा जाता है",
+    "tmpl_label_style_cohesion_check": "सामंजस्य जाँच — त्वरित जाँच कि संदर्भ एकरूप हैं या विविध",
+    "tmpl_label_three_d_source_analysis": "स्रोत जाँच — चित्र-से-3D से पहले पता लगाती है कि 2D चित्र कटा हुआ/अधूरा तो नहीं",
+    "tmpl_label_video_enhance_prompt": "वीडियो प्रॉम्प्ट संवर्धन — कैमरा मूवमेंट, लाइटिंग और समय-संबंधी संकेत जोड़ता है",
+    "tmpl_label_moderation_prescreen": "पूर्व-जाँच — निर्माण से पहले अनुमान लगाती है कि प्रॉम्प्ट ब्लॉक होगा या नहीं",
+    "tmpl_label_moderation_rewrite": "पुनर्लेखन — ब्लॉक हुए प्रॉम्प्ट को मॉडरेशन पार करने लायक दोबारा लिखता है",
+    "tmpl_label_translate_detect_language": "भाषा पहचान — अनुमान-नियम अस्पष्ट होने पर भाषा पहचानता है",
+    "tmpl_label_translate_to_english": "अंग्रेज़ी में अनुवाद — निर्माण से पहले गैर-अंग्रेज़ी प्रॉम्प्ट का अनुवाद करता है",
+    "tmpl_label_chat_context_compact": "चैट: संदर्भ संक्षेपण — पुराने संदेशों का सारांश बनाकर संदर्भ स्थान खाली करता है",
+    "tmpl_label_chat_title_generate": "चैट: सत्र शीर्षक — पहली बातचीत से अपने आप शीर्षक बनाता है",
+    "tmpl_label_typestudio_layout": "टाइप स्टूडियो: टेक्स्ट लेआउट — टेक्स्ट की स्थिति, फ़ॉन्ट, आकार और इफ़ेक्ट डिज़ाइन करता है",
+    "tmpl_label_typestudio_layout_output_multi": "टाइप स्टूडियो: लेआउट आउटपुट (एकाधिक) — कई लेआउट विकल्पों का आउटपुट प्रारूप",
+    "tmpl_label_typestudio_layout_output_single": "टाइप स्टूडियो: लेआउट आउटपुट (एकल) — एक लेआउट का आउटपुट प्रारूप",
+    "tmpl_label_admin_template_enhance": "टेम्पलेट एडिटर: AI से संवर्धन — यहाँ के \"AI से संवर्धित करें\" बटन के पीछे का प्रॉम्प्ट",
+    "tmpl_label_admin_template_fix_variables": "टेम्पलेट एडिटर: वेरिएबल ठीक करें — छूटे वेरिएबल फिर से जोड़ने वाले \"ठीक करें और सहेजें\" के पीछे का प्रॉम्प्ट"
   },
   "prompt_editor": {
     "placeholder": "बताएँ कि आप क्या बनाना चाहते हैं...",
@@ -1318,7 +1422,11 @@
     "composing": "रचना हो रही है...",
     "compose_failed": "प्रॉम्प्ट रचना में विफल",
     "compose_error": "पहले एक प्रॉम्प्ट डालें",
-    "asset_type_wrong_detail": "आपने \"{{cur}}\" चुना पर आपका प्रॉम्प्ट \"{{sug}}\" जैसा लगता है।"
+    "asset_type_wrong_detail": "आपने \"{{cur}}\" चुना पर आपका प्रॉम्प्ट \"{{sug}}\" जैसा लगता है।",
+    "english_tab": "अंग्रेज़ी",
+    "recomposed_placeholder": "पुनर्रचित प्रॉम्प्ट निर्माण के बाद यहाँ दिखेगा...",
+    "recomposed_note": "आपके प्रॉम्प्ट से पुनर्रचित। घटक संपादित करने के लिए ऊपर प्रॉम्प्ट डिज़ाइनर पर क्लिक करें।",
+    "translated_to_english": "{{lang}} → अंग्रेज़ी"
   },
   "prompt_designer": {
     "title": "प्रॉम्प्ट डिज़ाइनर",
@@ -1367,7 +1475,8 @@
     "footer_randomise_desc": "प्रत्येक निर्मित विकल्प को इस तत्व पर एक अलग रचनात्मक अभिव्यक्ति मिलती है।",
     "footer_fixed": "📌 स्थिर",
     "footer_fixed_desc": "यह तत्व सभी विकल्पों में एक जैसा रहता है। प्रॉम्प्ट में आपके द्वारा निर्दिष्ट आइटम स्वचालित रूप से स्थिर किए जाते हैं।",
-    "footer_edit_hint": "किसी भी फ़ील्ड को स्वतंत्र रूप से संपादित करें और यादृच्छिक या स्थिर चुनें। एकल विकल्प (1×1) के साथ, सभी फ़ील्ड यथावत उपयोग होते हैं।"
+    "footer_edit_hint": "किसी भी फ़ील्ड को स्वतंत्र रूप से संपादित करें और यादृच्छिक या स्थिर चुनें। एकल विकल्प (1×1) के साथ, सभी फ़ील्ड यथावत उपयोग होते हैं।",
+    "stats": "{{chars}} अक्षर · {{words}} शब्द"
   },
   "custom_models": {
     "tab_title": "कस्टम मॉडल",
@@ -1516,7 +1625,35 @@
     "alwayson_desc": "मॉडल लोड रहता है। निष्क्रिय होने पर भी निरंतर शुल्क।",
     "alwayson_cost": "मॉडल लोड रहता है। निष्क्रिय होने पर भी ~${{cost}}/घंटा निरंतर।",
     "cached_faster": "कैश्ड — तेज़ स्टार्टअप",
-    "cold_start_activation": "सक्रियण पर कोल्ड स्टार्ट"
+    "cold_start_activation": "सक्रियण पर कोल्ड स्टार्ट",
+    "price_per_hour_short": "${{cost}}/घंटा",
+    "quota_tag_in_use": "⚠ उपयोग में",
+    "quota_tag_no_quota": "⚠ कोटा नहीं",
+    "quota_avail": "({{available}}/{{quota}} उपलब्ध)",
+    "est_cost_running": "अनुमानित ~${{cost}}/घंटा (चलते समय)",
+    "gated_accept_hf": "एक्सेस-प्रतिबंधित · HF पर स्वीकार करें",
+    "license_restrictions": "प्रतिबंध और चेतावनियाँ",
+    "open_model_page": "मॉडल पेज खोलें",
+    "status_idle": "निष्क्रिय — अगले अनुरोध पर सक्रिय होगा ({{hint}})",
+    "status_starting_instance": "इंस्टेंस शुरू हो रहा है...",
+    "badge_user": "उपयोगकर्ता",
+    "deployed_instances_one": "{{n}} तैनात इंस्टेंस:",
+    "deployed_instances_many": "{{n}} तैनात इंस्टेंस:",
+    "load_timeout": "अनुरोध का समय समाप्त — Amazon SageMaker स्थिति जाँच धीमी हो सकती है। \"स्थिति रीफ़्रेश करें\" आज़माएँ।",
+    "load_failed": "कस्टम मॉडल लोड नहीं हो सके",
+    "deploying_model": "मॉडल तैनात हो रहा है...",
+    "redeploying_model": "मॉडल फिर से तैनात हो रहा है...",
+    "repo_placeholder": "उदा. runwayml/stable-diffusion-v1-5 या https://huggingface.co/...",
+    "detection_failed": "पहचान विफल",
+    "model_detected": "मॉडल पहचाना गया",
+    "detected_library": "लाइब्रेरी",
+    "detected_category": "श्रेणी",
+    "detected_license": "लाइसेंस",
+    "detected_auth": "प्रमाणीकरण",
+    "auth_yes_gated": "हाँ (एक्सेस-प्रतिबंधित)",
+    "auth_no": "नहीं",
+    "add_model_failed": "मॉडल जोड़ा नहीं जा सका",
+    "token_save_failed": "टोकन सहेजा नहीं जा सका"
   },
   "voice_input": {
     "record": "ध्वनि इनपुट रिकॉर्ड करें",
@@ -1550,7 +1687,10 @@
     "restart_busy": "सर्वर अभी व्यस्त है।",
     "restart_anyway": "फिर भी पुनः आरंभ करें",
     "page_not_found": "पृष्ठ नहीं मिला।",
-    "network_error": "नेटवर्क त्रुटि"
+    "network_error": "नेटवर्क त्रुटि",
+    "count_image": "{{count}} चित्र मॉडल",
+    "count_chat": "{{count}} चैट मॉडल",
+    "count_video": "{{count}} वीडियो मॉडल"
   },
   "misc": {
     "pe_failed_enhance": "उन्नत प्रॉम्प्ट बनाने में विफल",
@@ -1695,9 +1835,6 @@
     "pane_convert_n": "{{count}} को 3D में बदलें",
     "pane_confirm_title": "{{count}} इमेज को 3D में बदलें?",
     "pane_confirm_body": "यह {{count}} 3D जॉब (प्रत्येक {{per}}) कतार में लगाएगा। अनुमानित कुल: {{time}} · अनु. {{cost}}। एंडपॉइंट चलने तक GPU समय का बिल लगता है।",
-    "studio_panel_title": "आपके कलेक्शन",
-    "studio_show_all": "सभी दिखाएँ ({{count}})",
-    "studio_show_less": "कम दिखाएँ",
     "open_collection": "कलेक्शन खोलें",
     "asset_type_title": "इस सेट का एसेट टाइप जाँचें",
     "asset_type_unsupported": "कलेक्शन कैरेक्टर या गेम एसेट से बनते हैं — \"{{cur}}\" सेट के लिए उपलब्ध नहीं है।",
@@ -1705,6 +1842,7 @@
     "asset_type_detail": "चुना गया: {{cur}} · सुझाया गया: {{sug}}। अभी चुनने से ग़लत स्टाइल में पूरे सेट पर ख़र्च होने से बचते हैं।",
     "asset_type_use": "{{type}} उपयोग करें",
     "asset_type_coerced": "कलेक्शन कैरेक्टर या गेम एसेट का उपयोग करते हैं — {{type}} पर बदल दिया गया।",
-    "asset_type_locked": "कलेक्शन केवल कैरेक्टर या गेम एसेट का समर्थन करते हैं।"
+    "asset_type_locked": "कलेक्शन केवल कैरेक्टर या गेम एसेट का समर्थन करते हैं।",
+    "download_3d_fmt_invalid": "फ़ॉर्मेट glb, fbx या usd होना चाहिए"
   }
 }

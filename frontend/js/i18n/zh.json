@@ -410,7 +410,11 @@
     "meta_collection_subject": "主体",
     "meta_open_collection": "打开合集",
     "meta_collection_prompt": "合集提示词",
-    "meta_collection_prompt_note": "基于合集共享美术方向、面向该主体的通用（模型无关）提示词"
+    "meta_collection_prompt_note": "基于合集共享美术方向、面向该主体的通用（模型无关）提示词",
+    "alt_3d_source": "3D 源图像",
+    "alt_3d_model": "3D 模型",
+    "file_vertices": "{{count}} 个顶点",
+    "file_faces": "{{count}} 个面"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",
@@ -465,7 +469,19 @@
     "template_technical": "技术文档",
     "templates": "模板...",
     "title": "对话工作室",
-    "tokens": "Token 数"
+    "tokens": "Token 数",
+    "regions_tag": "{{count}} 个区域",
+    "price_per_1k_in": "${{price}}/1K 输入",
+    "price_input_1k": "{{price}}/1K 输入",
+    "price_output_1k": "{{price}}/1K 输出",
+    "est_10k": "~${{cost}}/10K 令牌",
+    "est_100k": "~${{cost}}/100K 令牌",
+    "est_10k_hint": "约 1 万个令牌的预估费用(70% 输入,30% 输出)",
+    "est_100k_hint": "约 10 万个令牌的预估费用(70% 输入,30% 输出)",
+    "tokens_in_out": "输入 {{in}} / 输出 {{out}}",
+    "fork_title": "{{title}}(分支)",
+    "search_matches_one": "{{count}} 个匹配",
+    "search_matches_other": "{{count}} 个匹配"
   },
   "common": {
     "apply": "应用",
@@ -501,7 +517,11 @@
     "warning": "警告",
     "optional": "可选",
     "dismiss": "关闭",
-    "source": "来源"
+    "source": "来源",
+    "dur_min": "{{n}} 分钟",
+    "dur_sec": "{{n}} 秒",
+    "dur_hr": "{{n}} 小时",
+    "dur_min_sec": "{{m}} 分 {{s}} 秒"
   },
   "confirm": {
     "cancel": "取消",
@@ -577,7 +597,11 @@
     "import_pick_type": "请先选择素材类型。",
     "import_pick_file": "请选择图像文件。",
     "filter_photorealistic": "写实",
-    "imported_badge": "已导入"
+    "imported_badge": "已导入",
+    "legacy_migrate_confirm": "在旧存储位置({{legacy}})中发现资源:{{count}} 个。是否将它们移动到新位置({{current}})?",
+    "legacy_migrated": "已迁移资源:{{count}} 个",
+    "legacy_skipped": "已跳过(已存在):{{count}} 个",
+    "alt_preview": "预览"
   },
   "image_studio": {
     "advanced_collapse": "高级",
@@ -852,7 +876,24 @@
     "generating_with": "正在使用 {{model}} 生成...",
     "custom_model_fallback": "自定义模型",
     "reference_collection_toggle": "生成成套的匹配资产（合集）",
-    "reference_collection_hint": "以此参考图的风格为整套不同资产设定美术方向。"
+    "reference_collection_hint": "以此参考图的风格为整套不同资产设定美术方向。",
+    "dim_unsupported_one": "{{models}} 不支持 {{size}}。此模型将使用最接近的受支持尺寸。",
+    "dim_unsupported_many": "{{models}} 不支持 {{size}}。这些模型将使用最接近的受支持尺寸。",
+    "images_across_models": "{{models}} 个模型共 {{images}} 张图像",
+    "all_models_math": "{{models}} 个模型 × {{options}} 个选项 × {{variations}} 个变体 = {{images}} 张图像",
+    "large_batch_note": "批次较大，需要几分钟",
+    "all_models_cost": "预估 ~${{cost}}（{{images}} 张图像 × {{models}} 个模型）",
+    "alt_generated": "生成的图像",
+    "async_generated": "已生成",
+    "async_took": "（用时 {{time}}）",
+    "async_queued": "排队中 — 第 {{pos}} / {{total}}",
+    "async_waiting": "等待中",
+    "async_active": "进行中",
+    "llm_backup_model": "备用 AI 模型",
+    "stream_ended": "在收到结果之前连接已结束",
+    "type_hint_char_scene": "您的提示词描述的是某个场景中的角色。“角色”在保留场景氛围的同时以人物为焦点；“游戏素材”会生成透明背景上的独立精灵图。",
+    "type_hint_char": "您的提示词描述的是一个角色。“角色”会优化人物比例、姿势和轮廓辨识度。",
+    "type_hint_scene": "您的提示词描述的是场景或环境。“场景环境”会保留完整构图；“游戏素材”会生成透明背景上的独立物体。"
   },
   "lang": {
     "en": "英语",
@@ -1043,7 +1084,54 @@
     "lifecycle_unavailable_hint": "此旧版模型因您的账户（不活跃）已无法访问，并已从选择列表中移除。",
     "cost_hourly": "~${{cost}}/小时（运行时）",
     "cost_per_gen_time": "~{{min}}分钟/次生成",
-    "pricing_unavailable": "无法获取价格"
+    "pricing_unavailable": "无法获取价格",
+    "hf_token_btn": "HF 令牌",
+    "badge_custom": "自定义",
+    "badge_img2vid": "图生视频",
+    "price_per_image": "${{price}}/张",
+    "price_per_second": "${{price}}/秒",
+    "prompt_limit_chars": "{{n}} 字符",
+    "moderation_moderate": "适中",
+    "moderation_strict": "严格",
+    "moderation_very_strict": "非常严格",
+    "region_count_one": "{{n}} 个区域",
+    "regions_count": "{{n}} 个区域",
+    "current_suffix": "(当前)",
+    "field_architecture": "架构",
+    "field_type": "类型",
+    "ms_hide_all": "全部隐藏",
+    "ms_collapse_editors": "收起编辑器",
+    "tmpl_group_image_editing": "图像编辑与参考",
+    "tmpl_group_3d_video": "3D 与视频",
+    "tmpl_group_system": "系统与工具",
+    "tmpl_label_image_refine_single": "提示词优化 — 将你的文本转换为详细图像提示词的方式",
+    "tmpl_label_image_concepts_multi": "创意选项 — 从一个想法生成多个不同概念的方式",
+    "tmpl_label_image_refine_marketing": "营销横幅 — 适用于横幅构图的专用提示词",
+    "tmpl_label_image_asset_type_context": "资产类型意图 — 各资产类型的创意方向(游戏资产、角色等)",
+    "tmpl_label_image_style_section": "风格提示融合 — 将风格库中的风格融入提示词的方式",
+    "tmpl_label_asset_type_classify": "资产类型建议 — 为你的提示词推荐最合适的资产类型",
+    "tmpl_label_prompt_decompose": "Prompt Designer — 将你的想法拆解为可编辑的视觉组件",
+    "tmpl_label_prompt_recompose": "Prompt Designer — 将编辑后的组件重新组合成最终提示词",
+    "tmpl_label_edit_prompt_suggestion": "生成提示词(编辑标签页) — 读取图像和意图,并按模式推荐编辑提示词",
+    "tmpl_label_reference_intent_extraction": "灵感参考 — 读取参考图像和你的指令,生成增强提示词",
+    "tmpl_label_reference_edit_instruction": "匹配参考 — 为参考编辑模型调整你的指令",
+    "tmpl_label_inpaint_removal_transform": "局部重绘移除 — 将“移除 X”请求转换为填充描述",
+    "tmpl_label_style_analysis_full": "风格分析 — 分析参考图像视觉属性的方式",
+    "tmpl_label_style_hints_generation": "风格提示 — 将分析出的风格提炼为生成指令的方式",
+    "tmpl_label_style_cohesion_check": "一致性检查 — 快速检查参考图像是统一还是多样",
+    "tmpl_label_three_d_source_analysis": "源图检查 — 在图像转 3D 之前检测 2D 图像是否被裁剪或不完整",
+    "tmpl_label_video_enhance_prompt": "视频提示词增强 — 添加镜头运动、光照和时间线索",
+    "tmpl_label_moderation_prescreen": "预筛查 — 在生成前预测提示词是否会被拦截",
+    "tmpl_label_moderation_rewrite": "改写 — 改写被拦截的提示词以通过审核",
+    "tmpl_label_translate_detect_language": "语言检测 — 在启发式规则无法判断时检测语言",
+    "tmpl_label_translate_to_english": "翻译为英文 — 在生成前翻译非英文提示词",
+    "tmpl_label_chat_context_compact": "对话:上下文压缩 — 总结较早的消息以释放上下文空间",
+    "tmpl_label_chat_title_generate": "对话:会话标题 — 根据首轮对话自动生成标题",
+    "tmpl_label_typestudio_layout": "字体工作室:文本布局 — 设计文本位置、字体、字号和效果",
+    "tmpl_label_typestudio_layout_output_multi": "字体工作室:布局输出(多个) — 多个布局方案的输出格式",
+    "tmpl_label_typestudio_layout_output_single": "字体工作室:布局输出(单个) — 单个布局的输出格式",
+    "tmpl_label_admin_template_enhance": "模板编辑器:使用 AI 增强 — 此处“使用 AI 增强”按钮背后的提示词",
+    "tmpl_label_admin_template_fix_variables": "模板编辑器:修复变量 — “修复并保存”背后用于重新插入缺失变量的提示词"
   },
   "nav": {
     "chat_studio": "对话工作室",
@@ -1071,8 +1159,12 @@
     "step3_desc": "这是图像模型将接收的内容。可在生成前编辑。",
     "step3_hint": "可选——点击预览增强提示词，或直接点击 Generate 自动增强并创建。",
     "generate_enhanced": "生成增强提示词",
-    "prompt_designer": "Prompt Designer",
-    "asset_type_wrong_detail": "你选择了\"{{cur}}\"，但提示词看起来像\"{{sug}}\"。"
+    "prompt_designer": "提示词设计器",
+    "asset_type_wrong_detail": "你选择了\"{{cur}}\"，但提示词看起来像\"{{sug}}\"。",
+    "english_tab": "英文",
+    "recomposed_placeholder": "重组后的提示词将在生成后显示在此处…",
+    "recomposed_note": "由您的提示词重组而成。点击上方的“提示词设计器”可编辑各组成部分。",
+    "translated_to_english": "{{lang}} → 英文"
   },
   "style_library": {
     "analysis_complete": "风格分析完成",
@@ -1137,7 +1229,14 @@
     "upload_hint": "将参考图像拖放至此处",
     "upload_hint_sub": "或点击浏览",
     "uploaded": "已上传 {{count}} 张图像",
-    "uploading": "正在上传参考资源……"
+    "uploading": "正在上传参考资源……",
+    "ref_badge_one": "{{count}} 张参考",
+    "ref_badge_other": "{{count}} 张参考",
+    "alt_reference": "参考图像",
+    "browse_images_one": "{{count}} 张图像",
+    "browse_images_other": "{{count}} 张图像",
+    "browse_buckets_one": "{{count}} 个存储桶",
+    "browse_buckets_other": "{{count}} 个存储桶"
   },
   "toast": {
     "dismiss": "关闭"
@@ -1216,7 +1315,12 @@
     "title": "字体工作室",
     "upscale": "放大",
     "view_raw": "查看原始布局规格",
-    "voice_input": "语音输入"
+    "voice_input": "语音输入",
+    "layout_count_one": "{{count}} 个布局",
+    "layout_count_other": "{{count}} 个布局",
+    "llm_info": "复杂: {{complex}} | 快速: {{fast}}",
+    "line_size": "大小: {{size}}",
+    "line_anchor": "锚点: {{anchor}}"
   },
   "video_studio": {
     "active_jobs": "进行中的任务",
@@ -1318,7 +1422,11 @@
     "title": "视频工作室",
     "video_failed": "视频生成失败：{{msg}}",
     "video_settings": "视频设置（S3 存储）",
-    "your_s3_buckets": "您的 S3 存储桶"
+    "your_s3_buckets": "您的 S3 存储桶",
+    "price_per_sec": "${{price}}/秒",
+    "regions_available": "{{count}} 个区域可用",
+    "s3_validation_failed": "S3 验证失败",
+    "time_ago": "{{time}} 前"
   },
   "voice_input": {
     "mic_denied": "麦克风访问被拒绝",
@@ -1372,8 +1480,8 @@
     "add_to_catalog": "添加到目录",
     "loading": "正在加载自定义模型目录...",
     "no_models": "目录中没有自定义模型。",
-    "image_studio": "Image Studio",
-    "video_studio": "Video Studio",
+    "image_studio": "图像工作室",
+    "video_studio": "视频工作室",
     "other": "其他",
     "cat_image_generation": "图像生成",
     "cat_3d_generation": "3D生成",
@@ -1475,10 +1583,38 @@
     "alwayson_desc": "模型保持加载。即使空闲也持续计费。",
     "alwayson_cost": "模型保持加载。即使空闲也持续约 ${{cost}}/小时。",
     "cached_faster": "已缓存 — 启动更快",
-    "cold_start_activation": "激活时冷启动"
+    "cold_start_activation": "激活时冷启动",
+    "price_per_hour_short": "${{cost}}/小时",
+    "quota_tag_in_use": "⚠ 使用中",
+    "quota_tag_no_quota": "⚠ 无配额",
+    "quota_avail": "({{available}}/{{quota}} 可用)",
+    "est_cost_running": "预估 ~${{cost}}/小时(运行时)",
+    "gated_accept_hf": "受限 · 需在 HF 上同意",
+    "license_restrictions": "限制与警告",
+    "open_model_page": "打开模型页面",
+    "status_idle": "未激活 — 下次请求时激活({{hint}})",
+    "status_starting_instance": "正在启动实例...",
+    "badge_user": "用户",
+    "deployed_instances_one": "{{n}} 个已部署实例:",
+    "deployed_instances_many": "{{n}} 个已部署实例:",
+    "load_timeout": "请求超时 — Amazon SageMaker 状态检查可能较慢。请尝试“刷新状态”。",
+    "load_failed": "加载自定义模型失败",
+    "deploying_model": "正在部署模型...",
+    "redeploying_model": "正在重新部署模型...",
+    "repo_placeholder": "例如 runwayml/stable-diffusion-v1-5 或 https://huggingface.co/...",
+    "detection_failed": "检测失败",
+    "model_detected": "已检测到模型",
+    "detected_library": "库",
+    "detected_category": "类别",
+    "detected_license": "许可证",
+    "detected_auth": "认证",
+    "auth_yes_gated": "是(受限)",
+    "auth_no": "否",
+    "add_model_failed": "添加模型失败",
+    "token_save_failed": "保存令牌失败"
   },
   "prompt_designer": {
-    "title": "Prompt Designer",
+    "title": "提示词设计器",
     "analyzing": "正在分析您的提示词...",
     "analyzing_sub": "分解为视觉组件",
     "save_continue": "生成增强提示词",
@@ -1524,7 +1660,8 @@
     "footer_randomise_desc": "每个生成选项会对此元素进行不同的创意处理。",
     "footer_fixed": "📌 固定",
     "footer_fixed_desc": "此元素在所有选项中保持一致。您在提示词中指定的项目会自动固定。",
-    "footer_edit_hint": "自由编辑任何字段，选择随机或固定。单一选项（1×1）时，所有字段按原样使用。"
+    "footer_edit_hint": "自由编辑任何字段，选择随机或固定。单一选项（1×1）时，所有字段按原样使用。",
+    "stats": "{{chars}} 个字符 · {{words}} 个单词"
   },
   "onboarding": {
     "setup_title": "正在设置 ArtSmoker",
@@ -1550,7 +1687,10 @@
     "restart_busy": "服务器当前繁忙。",
     "restart_anyway": "仍然重启",
     "page_not_found": "页面未找到。",
-    "network_error": "网络错误"
+    "network_error": "网络错误",
+    "count_image": "{{count}} 个图像模型",
+    "count_chat": "{{count}} 个对话模型",
+    "count_video": "{{count}} 个视频模型"
   },
   "misc": {
     "pe_failed_enhance": "生成增强提示词失败",
@@ -1695,9 +1835,6 @@
     "pane_convert_n": "将 {{count}} 个转换为 3D",
     "pane_confirm_title": "将 {{count}} 张图像转换为 3D?",
     "pane_confirm_body": "这将排队 {{count}} 个 3D 作业(每个 {{per}})。预估合计:{{time}} · 预估 {{cost}}。端点运行期间按 GPU 时长计费。",
-    "studio_panel_title": "你的合集",
-    "studio_show_all": "显示全部({{count}})",
-    "studio_show_less": "收起",
     "open_collection": "打开合集",
     "asset_type_title": "检查此合集的资产类型",
     "asset_type_unsupported": "合集由角色或游戏资产组成——“{{cur}}”不适用于合集。",
@@ -1705,6 +1842,7 @@
     "asset_type_detail": "当前选择:{{cur}} · 建议:{{sug}}。现在选择可避免为风格错误的整套作品付费。",
     "asset_type_use": "使用 {{type}}",
     "asset_type_coerced": "合集使用角色或游戏资产——已切换为 {{type}}。",
-    "asset_type_locked": "合集仅支持角色或游戏资产。"
+    "asset_type_locked": "合集仅支持角色或游戏资产。",
+    "download_3d_fmt_invalid": "格式必须为 glb、fbx 或 usd"
   }
 }

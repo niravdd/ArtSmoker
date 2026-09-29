@@ -49,7 +49,9 @@
             // It's a header — check if next siblings until next header have any visible
             let next = el.nextElementSibling;
             let hasVisible = false;
-            while (next && !next.textContent.includes('Fonts')) {
+            // Stop at the next header (any non-option div) — not by matching the
+            // header's English text, which breaks once the headers are translated.
+            while (next && next.classList.contains('ts-font-option')) {
                 if (next.classList.contains('ts-font-option') && next.style.display !== 'none') {
                     hasVisible = true;
                     break;
@@ -285,11 +287,11 @@
                                 <div>
                                     <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.type_studio.layout_options')}</label>
                                     <select id="ts-num-options" class="input">
-                                        <option value="1">1 layout</option>
-                                        <option value="2">2 layouts</option>
-                                        <option value="3" selected>3 layouts</option>
-                                        <option value="4">4 layouts</option>
-                                        <option value="5">5 layouts</option>
+                                        <option value="1">${t('artsmoker.ui.type_studio.layout_count_one', { count: 1 })}</option>
+                                        <option value="2">${t('artsmoker.ui.type_studio.layout_count_other', { count: 2 })}</option>
+                                        <option value="3" selected>${t('artsmoker.ui.type_studio.layout_count_other', { count: 3 })}</option>
+                                        <option value="4">${t('artsmoker.ui.type_studio.layout_count_other', { count: 4 })}</option>
+                                        <option value="5">${t('artsmoker.ui.type_studio.layout_count_other', { count: 5 })}</option>
                                     </select>
                                     <p class="text-[10px] text-brand-text-muted mt-1">${t('artsmoker.ui.type_studio.layout_desc')}</p>
                                 </div>
@@ -474,7 +476,7 @@
                 if (infoEl && reg.categories) {
                     const complex = reg.categories.complex_llm;
                     const fast = reg.categories.fast_llm;
-                    infoEl.textContent = `Complex: ${complex?.label || complex?.current || '?'} | Fast: ${fast?.label || fast?.current || '?'}`;
+                    infoEl.textContent = t('artsmoker.ui.type_studio.llm_info', { complex: complex?.label || complex?.current || '?', fast: fast?.label || fast?.current || '?' });
                 }
             } catch { /* ignore */ }
 
@@ -929,11 +931,11 @@
                     lines.forEach((line, i) => {
                         const colorSwatch = line.color ? html`<span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:${line.color}"></span>` : '';
                         markup += html`<div class="p-2 bg-brand-bg rounded-lg border border-brand-border text-xs">
-                            <span class="font-semibold text-brand-text">Line ${i + 1}:</span>
+                            <span class="font-semibold text-brand-text">${t('artsmoker.ui.asset_viewer.meta_line', { num: i + 1 })}</span>
                             "${line.text || ''}"
-                            ${line.font_size ? html`<span class="text-brand-text-muted ml-2">Size: ${line.font_size}</span>` : ''}
+                            ${line.font_size ? html`<span class="text-brand-text-muted ml-2">${t('artsmoker.ui.type_studio.line_size', { size: line.font_size })}</span>` : ''}
                             ${line.color ? html`<span class="text-brand-text-muted ml-2">${colorSwatch}${line.color}</span>` : ''}
-                            ${line.anchor ? html`<span class="text-brand-text-muted ml-2">Anchor: ${line.anchor}</span>` : ''}
+                            ${line.anchor ? html`<span class="text-brand-text-muted ml-2">${t('artsmoker.ui.type_studio.line_anchor', { anchor: line.anchor })}</span>` : ''}
                         </div>`;
                     });
                     markup += '</div>';

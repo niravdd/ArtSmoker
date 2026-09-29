@@ -188,11 +188,11 @@
             try {
                 const st = await API.gallery.storageMigrationStatus();
                 if (!st || !st.legacy_present) return;
-                const msg = `Found ${st.legacy_count} asset(s) in the old storage location `
-                    + `(${st.legacy_path}). Move them into the new location (${st.current_path})?`;
+                const msg = t('artsmoker.ui.gallery.legacy_migrate_confirm', { count: st.legacy_count, legacy: st.legacy_path, current: st.current_path });
                 if (!confirm(msg)) return;
                 const r = await API.gallery.migrateStorage();
-                window.showToast?.(`Migrated ${r.moved} asset(s)` + (r.skipped ? `, ${r.skipped} skipped (already present)` : ''), 'success');
+                window.showToast?.(t('artsmoker.ui.gallery.legacy_migrated', { count: r.moved })
+                    + (r.skipped ? ' · ' + t('artsmoker.ui.gallery.legacy_skipped', { count: r.skipped }) : ''), 'success');
                 this.refresh();
             } catch (_) { /* non-critical safety check */ }
         },
@@ -221,7 +221,7 @@
                     </div>
                     <!-- Drop zone (click to browse or drag-drop) -->
                     <div id="gi-drop" class="rounded-lg border-2 border-dashed border-brand-border hover:border-brand-accent/60 cursor-pointer transition-colors flex items-center justify-center text-center p-4" style="min-height: 200px;">
-                        <img id="gi-preview" class="hidden max-h-64 w-auto rounded-lg object-contain" alt="preview" />
+                        <img id="gi-preview" class="hidden max-h-64 w-auto rounded-lg object-contain" alt="${t('artsmoker.ui.gallery.alt_preview')}" />
                         <p id="gi-drop-text" class="text-xs text-brand-text-muted px-6">${t('artsmoker.ui.gallery.import_drop')}</p>
                     </div>
                     <input id="gi-file" type="file" accept="image/*" class="hidden" />
@@ -717,7 +717,7 @@
                         <span class="absolute top-1.5 left-1.5 z-40 text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-600/80 text-white font-semibold">${t('artsmoker.ui.collection.card_badge')}</span>
                     </div>
                     <div class="p-2">
-                        <p class="text-xs font-medium truncate">${item.name || 'Collection'}</p>
+                        <p class="text-xs font-medium truncate">${item.name || t('artsmoker.ui.collection.viewer_title')}</p>
                         <p class="text-[10px] text-brand-text-muted truncate" title="${colSummaryHint}">${colSummary}</p>
                     </div>
                 </div>`;
@@ -747,7 +747,7 @@
                         ${item.async_status === 'pending' || item.async_status === 'generating'
                             ? html`<div class="w-full h-full flex flex-col items-center justify-center text-cyan-400/60 gap-2">
                                 <svg class="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                <span class="text-[10px]">Generating...</span>
+                                <span class="text-[10px]">${t('artsmoker.ui.image_studio.generating')}</span>
                                </div>`
                             : item.async_status === 'moderation_blocked'
                             ? html`<div class="w-full h-full flex flex-col items-center justify-center text-amber-400/70 gap-2 px-2 text-center">

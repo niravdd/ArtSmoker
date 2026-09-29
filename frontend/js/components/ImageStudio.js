@@ -421,18 +421,6 @@
                                 </div>
                             </div>
 
-                            <!-- Your Collections (SPEC §18.8) — same cards as the Gallery;
-                                 a click opens the Collection Viewer right here. -->
-                            <div id="gen-collections-panel" class="card-static p-4 hidden">
-                                <div class="flex items-center justify-between gap-2 mb-3">
-                                    <h3 class="text-sm font-semibold text-brand-text">
-                                        ${t('artsmoker.ui.collection.studio_panel_title')}
-                                        <span id="gen-collections-count" class="text-xs font-normal text-brand-text-muted ml-1"></span>
-                                    </h3>
-                                    <button id="gen-collections-toggle" class="btn btn-sm btn-secondary hidden"></button>
-                                </div>
-                                <div id="gen-collections-grid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3"></div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -459,50 +447,6 @@
             }
             // One-time check — if active jobs found, polling resumes. If not, stops.
             this._checkAsyncJobs();
-            this.refreshCollections();
-        },
-
-        // ── Your Collections panel (SPEC §18.8) ───────────────────────────
-        // The Gallery's collection cards, shown in Image Studio too; a click opens
-        // the Collection Viewer in place (no trip to the Gallery). Newest first,
-        // the latest few by default with a Show-all toggle. Hidden when empty.
-        _COLLECTIONS_PREVIEW: 4,
-
-        async refreshCollections() {
-            const panel = document.getElementById('gen-collections-panel');
-            if (!panel) return;
-            let list = [];
-            try { list = ((await API.collections.list()) || {}).collections || []; }
-            catch { /* endpoint optional — keep whatever is shown */ return; }
-            list.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
-            this._studioCollections = list;
-            this._renderCollectionsPanel();
-        },
-
-        _renderCollectionsPanel() {
-            const panel = document.getElementById('gen-collections-panel');
-            const grid = document.getElementById('gen-collections-grid');
-            const toggle = document.getElementById('gen-collections-toggle');
-            const countEl = document.getElementById('gen-collections-count');
-            if (!panel || !grid) return;
-            const list = this._studioCollections || [];
-            panel.classList.toggle('hidden', !list.length || !window.Gallery?.collectionCardHTML);
-            if (!list.length || !window.Gallery?.collectionCardHTML) return;
-            const limit = this._COLLECTIONS_PREVIEW;
-            const shown = this._collectionsShowAll ? list : list.slice(0, limit);
-            if (countEl) countEl.textContent = `(${list.length})`;
-            // nosemgrep
-            grid.innerHTML = shown.map(c => window.Gallery.collectionCardHTML(c)).join('');
-            grid.querySelectorAll('[data-collection]').forEach(card => {
-                card.addEventListener('click', () => window.CollectionAssetViewer?.open(card.dataset.collection));
-            });
-            if (toggle) {
-                toggle.classList.toggle('hidden', list.length <= limit);
-                toggle.textContent = this._collectionsShowAll
-                    ? t('artsmoker.ui.collection.studio_show_less')
-                    : t('artsmoker.ui.collection.studio_show_all', { count: list.length });
-                toggle.onclick = () => { this._collectionsShowAll = !this._collectionsShowAll; this._renderCollectionsPanel(); };
-            }
         },
 
         _ensurePromptEditor() {
@@ -737,7 +681,6 @@
             await this._loadStyles();
             this._ensurePromptEditor();
             this._initSeed();
-            this.refreshCollections();
 
             // Refresh models when Model Settings closes (enable/disable, deploy/teardown)
             window.addEventListener('model-settings-closed', () => this._loadModels());
@@ -1297,7 +1240,8 @@
             if (unsupportedModels.length > 0 && window.showConfirm) {
                 const modelNames = unsupportedModels.map(m => m.label).join(', ');
                 const shouldContinue = await window.showConfirm(
-                    `${modelNames} ${unsupportedModels.length === 1 ? 'does' : 'do'} not support ${size.label}. The closest supported size will be used for ${unsupportedModels.length === 1 ? 'this model' : 'these models'}.`,
+                    t(unsupportedModels.length === 1 ? 'artsmoker.ui.image_studio.dim_unsupported_one' : 'artsmoker.ui.image_studio.dim_unsupported_many',
+                      { models: modelNames, size: size.label }),
                     {
                         title: t('artsmoker.ui.image_studio.dim_unsupported_title'),
                         confirmLabel: t('artsmoker.ui.image_studio.continue_anyway'),
@@ -2369,7 +2313,7 @@
                         if (sub) sub.textContent = evt.message || '';
                     } else if (evt.state === 'switching') {
                         if (text) text.textContent = t('artsmoker.ui.image_studio.llm_switching')
-                            .replace('{{model}}', evt.fallback_model || 'backup AI model');
+                            .replace('{{model}}', evt.fallback_model || t('artsmoker.ui.image_studio.llm_backup_model'));
                         if (sub) sub.textContent = evt.message || '';
                     }
                     break;
@@ -2514,7 +2458,7 @@
             if (countEl) {
                 const totalImages = options.reduce((s, o) => s + (o.variants?.length || 0), 0);
                 countEl.textContent = isAllModels
-                    ? `${totalImages} images across ${new Set(options.map(o => o.image_model)).size} models`
+                    ? t('artsmoker.ui.image_studio.images_across_models', { images: totalImages, models: new Set(options.map(o => o.image_model)).size })
                     : `${options.length} ${t('artsmoker.ui.image_studio.num_options').toLowerCase()}`;
             }
 
@@ -2604,7 +2548,7 @@
                         ${thumb?.png_path
                             ? html`<img src="${thumb.png_path}" alt="${label}" class="option-main-img w-full h-auto object-contain block" loading="lazy" />`
                             : mainAsync
-                            ? html`<div class="async-placeholder aspect-square w-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Generating...</span></div>`
+                            ? html`<div class="async-placeholder aspect-square w-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${t('artsmoker.ui.image_studio.generating')}</span></div>`
                             : html`<div class="aspect-square w-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('artsmoker.ui.image_studio.no_image')}</div>`
                         }
                         <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
@@ -3214,15 +3158,15 @@
             const sceneHits = sceneWords.filter(w => lower.includes(w)).length;
             if (charHits >= 2 && sceneHits >= 1) {
                 return { current: 'game_asset', suggested: 'character',
-                    reason: "Your prompt describes a character in a setting. 'Character' type keeps the figure as the focal point while preserving scene context. 'Game Asset' forces an isolated sprite on a transparent background." };
+                    reason: t('artsmoker.ui.image_studio.type_hint_char_scene') };
             }
             if (charHits >= 2) {
                 return { current: 'game_asset', suggested: 'character',
-                    reason: "Your prompt describes a character. 'Character' type optimizes for figure proportions, pose, and silhouette readability." };
+                    reason: t('artsmoker.ui.image_studio.type_hint_char') };
             }
             if (sceneHits >= 2) {
                 return { current: 'game_asset', suggested: 'environment',
-                    reason: "Your prompt describes a scene or environment. 'Environment' type preserves the full composition. 'Game Asset' forces an isolated object on a transparent background." };
+                    reason: t('artsmoker.ui.image_studio.type_hint_scene') };
             }
             return null;
         },
@@ -3815,13 +3759,13 @@
             const anyMissing = perImage.some(p => p == null);
             const totalCost = anyMissing ? 0 : perImage.reduce((sum, p) => sum + p * nOpts * nVars, 0);
 
-            let msg = `${modelCount} models \u00d7 ${nOpts} option${nOpts > 1 ? 's' : ''} \u00d7 ${nVars} variation${nVars > 1 ? 's' : ''} = ${totalImages} images`;
+            let msg = t('artsmoker.ui.image_studio.all_models_math', { models: modelCount, options: nOpts, variations: nVars, images: totalImages });
             if (totalCost > 0) msg += ` (~$${totalCost.toFixed(2)})`;
 
             if (infoEl) {
                 if (totalImages > 100) {
                     infoEl.className = 'text-[10px] text-red-400';
-                    msg += ' \u2014 large batch, will take several minutes';
+                    msg += ` \u2014 ${t('artsmoker.ui.image_studio.large_batch_note')}`;
                 } else if (totalImages > 50) {
                     infoEl.className = 'text-[10px] text-amber-400';
                 } else {
@@ -3832,7 +3776,7 @@
 
             if (costEl) {
                 costEl.textContent = totalCost > 0
-                    ? `Est. ~$${totalCost.toFixed(2)} (${totalImages} images \u00d7 ${modelCount} models)`
+                    ? t('artsmoker.ui.image_studio.all_models_cost', { cost: totalCost.toFixed(2), images: totalImages, models: modelCount })
                     : '';
             }
         },
@@ -4001,13 +3945,13 @@
                         // Replace async placeholders in DOM
                         document.querySelectorAll(`[data-async-job="${j.job_id}"] .async-placeholder, [data-async-asset="${assetId}"] .async-placeholder`).forEach(ph => {
                             // nosemgrep
-                            ph.outerHTML = html`<img src="${imgSrc}" alt="Generated" class="w-full h-full object-cover" loading="lazy" />`;
+                            ph.outerHTML = html`<img src="${imgSrc}" alt="${t('artsmoker.ui.image_studio.alt_generated')}" class="w-full h-full object-cover" loading="lazy" />`;
                         });
 
                         // Also update variation thumbnails if this option is currently selected
                         document.querySelectorAll(`.variant-thumb[data-async-job="${j.job_id}"] .async-placeholder, .variant-thumb[data-async-asset="${assetId}"] .async-placeholder`).forEach(ph => {
                             // nosemgrep
-                            ph.outerHTML = html`<img src="${imgSrc}" alt="Generated" class="w-full h-full object-cover" loading="lazy" />`;
+                            ph.outerHTML = html`<img src="${imgSrc}" alt="${t('artsmoker.ui.image_studio.alt_generated')}" class="w-full h-full object-cover" loading="lazy" />`;
                         });
 
                         // Re-render the options row to update thumbnails that weren't in DOM
@@ -4068,24 +4012,29 @@
                             }
                         </div>`;
                     const elapsed = j.submitted_at ? Math.round((Date.now() - new Date(j.submitted_at).getTime()) / 1000) : 0;
-                    const elapsedStr = elapsed > 60 ? `${Math.floor(elapsed/60)}m ${elapsed%60}s` : `${elapsed}s`;
+                    const elapsedStr = elapsed > 60
+                        ? t('artsmoker.ui.common.dur_min_sec', { m: Math.floor(elapsed / 60), s: elapsed % 60 })
+                        : t('artsmoker.ui.common.dur_sec', { n: elapsed });
 
                     // Stage-based status with queue position
                     let statusText;
                     const isCurrentlyGenerating = isActive && j.queue_position === 1;
                     const isQueued = isActive && j.queue_position > 1;
                     if (j.status === 'complete') {
-                        statusText = `Generated${j.compute_cost_usd ? ` (~$${j.compute_cost_usd.toFixed(4)})` : ''}`;
+                        statusText = `${t('artsmoker.ui.image_studio.async_generated')}${j.compute_cost_usd ? ` (~$${j.compute_cost_usd.toFixed(4)})` : ''}`;
                         if (j.duration_seconds) {
                             const _d = j.duration_seconds;  // minutes for multi-minute custom jobs
-                            statusText += _d >= 60 ? ` in ${Math.floor(_d / 60)}m ${Math.round(_d % 60)}s` : ` in ${Math.round(_d)}s`;
+                            const _dur = _d >= 60
+                                ? t('artsmoker.ui.common.dur_min_sec', { m: Math.floor(_d / 60), s: Math.round(_d % 60) })
+                                : t('artsmoker.ui.common.dur_sec', { n: Math.round(_d) });
+                            statusText += ` ${t('artsmoker.ui.image_studio.async_took', { time: _dur })}`;
                         }
                     } else if (j.status === 'failed') {
-                        statusText = 'Failed';
+                        statusText = t('artsmoker.ui.image_studio.failed');
                     } else if (isQueued) {
-                        statusText = `Queued — #${j.queue_position} of ${j.queue_total}`;
+                        statusText = t('artsmoker.ui.image_studio.async_queued', { pos: j.queue_position, total: j.queue_total });
                     } else {
-                        statusText = j.stage_label || 'Generating...';
+                        statusText = j.stage_label || t('artsmoker.ui.image_studio.generating');
                     }
 
                     // Progress bar: active spinner for #1, static dim bar for queued
@@ -4093,7 +4042,7 @@
                     if (isCurrentlyGenerating) {
                         progressBar = html`<div class="flex items-center gap-2 mt-1"><div class="flex-1 h-1.5 rounded-full bg-brand-border/30 overflow-hidden"><div class="h-full rounded-full bg-cyan-400 animate-pulse" style="width:100%"></div></div><span class="text-[9px] text-cyan-400/70">${elapsedStr}</span></div>`;
                     } else if (isQueued) {
-                        progressBar = html`<div class="flex items-center gap-2 mt-1"><div class="flex-1 h-1 rounded-full bg-brand-border/20"></div><span class="text-[9px] text-brand-text-muted/40">waiting</span></div>`;
+                        progressBar = html`<div class="flex items-center gap-2 mt-1"><div class="flex-1 h-1 rounded-full bg-brand-border/20"></div><span class="text-[9px] text-brand-text-muted/40">${t('artsmoker.ui.image_studio.async_waiting')}</span></div>`;
                     }
 
                     return html`
@@ -4102,7 +4051,7 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-semibold text-brand-text">${j.model_label}</span>
-                                    ${isCurrentlyGenerating ? html`<span class="text-[9px] text-cyan-400 bg-cyan-400/10 rounded px-1">ACTIVE</span>` : ''}
+                                    ${isCurrentlyGenerating ? html`<span class="text-[9px] text-cyan-400 bg-cyan-400/10 rounded px-1">${t('artsmoker.ui.image_studio.async_active')}</span>` : ''}
                                     <span class="text-[10px] ${statusColor}">${statusText}</span>
                                 </div>
                                 <p class="text-[10px] text-brand-text-muted truncate">${j.prompt || ''}</p>

@@ -172,7 +172,7 @@
                                         <span id="vs-translation-badge" class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent font-medium"></span>
                                         <div class="flex gap-0.5 ml-auto">
                                             <button type="button" id="vs-tab-original" class="text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium">${t('artsmoker.ui.common.prompt') || 'Original'}</button>
-                                            <button type="button" id="vs-tab-english" class="text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent">English</button>
+                                            <button type="button" id="vs-tab-english" class="text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent">${t('artsmoker.ui.lang.en')}</button>
                                         </div>
                                     </div>
                                     <div id="vs-translation-text" class="hidden p-2 rounded-lg bg-emerald-950/10 border border-emerald-500/20 text-xs text-brand-text/70 whitespace-pre-wrap max-h-20 overflow-auto"></div>
@@ -559,7 +559,7 @@
                 const r = regions[0] || model.region || '';
                 const opt = document.createElement('option');
                 opt.value = r;
-                opt.textContent = price ? `${r} ($${price}/sec)` : r;
+                opt.textContent = price ? `${r} (${t('artsmoker.ui.video_studio.price_per_sec', { price })})` : r;
                 regionSel.appendChild(opt);
             } else {
                 // Auto option → default region (cheapest for now, same price across regions)
@@ -567,14 +567,14 @@
                 const auto = document.createElement('option');
                 auto.value = '';
                 auto.textContent = price
-                    ? `${t('artsmoker.ui.video_studio.auto')} \u2014 ${defaultRegion} ($${price}/sec)`
+                    ? `${t('artsmoker.ui.video_studio.auto')} \u2014 ${defaultRegion} (${t('artsmoker.ui.video_studio.price_per_sec', { price })})`
                     : `${t('artsmoker.ui.video_studio.auto')} \u2014 ${defaultRegion}`;
                 regionSel.appendChild(auto);
 
                 regions.forEach(r => {
                     const opt = document.createElement('option');
                     opt.value = r;
-                    opt.textContent = price ? `${r} ($${price}/sec)` : r;
+                    opt.textContent = price ? `${r} (${t('artsmoker.ui.video_studio.price_per_sec', { price })})` : r;
                     regionSel.appendChild(opt);
                 });
             }
@@ -593,9 +593,9 @@
 
             const region = document.getElementById('vs-region')?.value || model.region || '';
             const price = model.base_price_per_second_usd;
-            const priceStr = price ? `$${price}/sec` : '';
+            const priceStr = price ? t('artsmoker.ui.video_studio.price_per_sec', { price }) : '';
             const regionCount = (model.available_regions || []).length;
-            const regionNote = regionCount > 1 ? `${regionCount} regions available` : '';
+            const regionNote = regionCount > 1 ? t('artsmoker.ui.video_studio.regions_available', { count: regionCount }) : '';
 
             summary.textContent = [region, priceStr, regionNote].filter(Boolean).join(' \u00B7 ');
         },
@@ -677,7 +677,7 @@
                 if (result.was_translated) {
                     const langNames = { ja: '日本語', zh: '中文', ko: '한국어', hi: 'हिन्दी', ru: 'Русский', fr: 'Français', es: 'Español', de: 'Deutsch' };
                     // nosemgrep -- lookup by language code, not JSON-derived object keys
-                    badge.textContent = `${langNames[result.source_lang] || result.source_lang} → English`;
+                    badge.textContent = `${langNames[result.source_lang] || result.source_lang} → ${t('artsmoker.ui.lang.en')}`;
                     engText.textContent = result.translated;
                     preview.classList.remove('hidden');
                 } else {
@@ -967,7 +967,7 @@
                 return html`
                     <div class="card cursor-pointer overflow-hidden group video-card" data-job-id="${j.job_id || j.video_id}">
                         <div class="aspect-video bg-brand-bg relative overflow-hidden">
-                            <img src="${thumbUrl}" alt="Video thumbnail"
+                            <img src="${thumbUrl}" alt="${t('artsmoker.ui.gallery.alt_video_thumb')}"
                                  class="w-full h-full object-cover" loading="lazy"
                                  onerror="this.style.display='none'">
                             <div class="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1218,7 +1218,7 @@
 
                 window.showToast?.(t('artsmoker.ui.video_studio.settings_saved'), 'success');
             } catch (err) {
-                const msg = err.message || 'S3 validation failed';
+                const msg = err.message || t('artsmoker.ui.video_studio.s3_validation_failed');
                 const isNotFound = msg.includes('not found') || msg.includes('does not exist');
 
                 if (isNotFound) {
@@ -1379,10 +1379,11 @@
         try {
             const ms = Date.now() - new Date(isoStr).getTime();
             const s = Math.floor(ms / 1000);
-            if (s < 60) return `${s}s ago`;
+            const ago = (time) => t('artsmoker.ui.video_studio.time_ago', { time });
+            if (s < 60) return ago(`${s}s`);
             const m = Math.floor(s / 60);
-            if (m < 60) return `${m}m ago`;
-            return `${Math.floor(m / 60)}h ${m % 60}m ago`;
+            if (m < 60) return ago(`${m}m`);
+            return ago(`${Math.floor(m / 60)}h ${m % 60}m`);
         } catch (_) { return ''; }
     }
 })();
