@@ -1786,8 +1786,6 @@
     "ready_to_generate": "Prêt à générer — cliquez sur GÉNÉRER ci-dessous.",
     "model_multi_note": "Les {{count}} modèles sélectionnés génèrent chaque sujet — un ensemble multi-modèles.",
     "view_in_gallery": "Voir dans la Galerie",
-    "generated_title": "« {{name}} » générée",
-    "generated_sub": "{{done}}/{{total}} batches · {{images}} images — dans votre Galerie",
     "card_assets_character": "personnages",
     "card_assets_game_asset": "assets de jeu",
     "card_summary_hint": "{{count}} sujets × {{o}} options × {{v}} variations",
@@ -1843,6 +1841,15 @@
     "asset_type_use": "Utiliser « {{type}} »",
     "asset_type_coerced": "Les collections utilisent des Personnages ou des Assets de jeu — passé à « {{type}} ».",
     "asset_type_locked": "Les collections ne prennent en charge que Personnage ou Asset de jeu.",
-    "download_3d_fmt_invalid": "Le format doit être glb, fbx ou usd"
+    "download_3d_fmt_invalid": "Le format doit être glb, fbx ou usd",
+    "batches_done": "{{done}}/{{total}} lots",
+    "status_pending": "Non généré",
+    "generated_done": "Collection générée — {{done}}/{{total}} lots",
+    "generated_done_plain": "Collection générée",
+    "loaded_design_notice": "Affichage du design enregistré — la direction artistique et les prompts de lot exacts qui ont servi à créer cette collection. Rien n’est régénéré sans votre demande (↻ par lot ou « Régénérer tous les déverrouillés »).",
+    "loaded_ad_changed": "La direction artistique de l’étape 2 a été modifiée après la création de cette liste. Utilisez ↻ ou « Régénérer tous les déverrouillés » pour réaligner les lots.",
+    "reread_reference": "Relire la référence",
+    "sent_prompts_label": "Prompts utilisés lors de la dernière génération ({{count}})",
+    "sent_negative_label": "Négatif"
   }
 }

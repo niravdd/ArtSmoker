@@ -1786,8 +1786,6 @@
     "ready_to_generate": "Listo para generar — haz clic en GENERAR abajo.",
     "model_multi_note": "Los {{count}} modelos seleccionados generan cada sujeto — un conjunto multimodelo.",
     "view_in_gallery": "Ver en la Galería",
-    "generated_title": "«{{name}}» generada",
-    "generated_sub": "{{done}}/{{total}} lotes · {{images}} imágenes — ya en tu Galería",
     "card_assets_character": "personajes",
     "card_assets_game_asset": "recursos de juego",
     "card_summary_hint": "{{count}} sujetos × {{o}} opciones × {{v}} variaciones",
@@ -1843,6 +1841,15 @@
     "asset_type_use": "Usar «{{type}}»",
     "asset_type_coerced": "Las colecciones usan Personajes o Recursos de juego: se cambió a «{{type}}».",
     "asset_type_locked": "Las colecciones solo admiten Personaje o Recurso de juego.",
-    "download_3d_fmt_invalid": "El formato debe ser glb, fbx o usd"
+    "download_3d_fmt_invalid": "El formato debe ser glb, fbx o usd",
+    "batches_done": "{{done}}/{{total}} lotes",
+    "status_pending": "Sin generar",
+    "generated_done": "Colección generada — {{done}}/{{total}} lotes",
+    "generated_done_plain": "Colección generada",
+    "loaded_design_notice": "Mostrando el diseño guardado: la dirección de arte y los prompts de cada lote exactos con los que se creó esta colección. No se regenera nada salvo que lo pidas (↻ por lote o «Regenerar todos los desbloqueados»).",
+    "loaded_ad_changed": "La dirección de arte del paso 2 se editó después de crear esta lista. Usa ↻ o «Regenerar todos los desbloqueados» para realinear los lotes.",
+    "reread_reference": "Volver a leer la referencia",
+    "sent_prompts_label": "Prompts usados en la última generación ({{count}})",
+    "sent_negative_label": "Negativo"
   }
 }

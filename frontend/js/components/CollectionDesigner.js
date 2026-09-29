@@ -1,9 +1,10 @@
 /**
  * CollectionDesigner — the Collections (Set Generation) design surface (SPEC §18).
  *
- * A self-contained modal (NOT a mutation of the Prompt Designer). Opening it
- * seeds from the current prompt and auto-decomposes into a shared art direction
- * + a roster of distinct Batches, each with an editable model-agnostic prompt.
+ * A self-contained modal (NOT a mutation of the Prompt Designer). Opening it on a
+ * NEW design builds a roster of distinct Batches from the shared art direction,
+ * each with an editable model-agnostic prompt; reopening an EXISTING design (an
+ * accepted or reloaded collection) shows it exactly as saved — never rebuilt.
  * Editing the art direction recomposes every Batch; per-Batch lock / regenerate /
  * delete; knobs for count / options / variations / cohesion. Generate streams the
  * whole-collection generation and refreshes the Gallery.
@@ -24,7 +25,15 @@
          *  prompt, artDirectionText, priorDesignCost, priorLedger, image_model,
          *  asset_type, style_id, onAccept}. The overarching art-direction is
          *  authored in Step 2 and passed in here; the roster is built from it.
-         *  Accept returns the design to Step 3 — generation is the MAIN Generate. */
+         *  Accept returns the design to Step 3 — generation is the MAIN Generate.
+         *
+         *  Reopening an EXISTING design (a reloaded collection, or one accepted
+         *  earlier) passes `roster` (+ `rosterArtDirectionText`, the art direction
+         *  it was built from): the dialog then SHOWS that exact design — every
+         *  Batch's prompt, and `sent_prompts` (what each model actually received)
+         *  when known — and never rebuilds it. Regenerating is always explicit
+         *  (↻ per Batch / Regenerate all). `onRedesign` + `redesignLabel` add an
+         *  explicit start-over action (e.g. re-read the reference image). */
         async open(opts = {}) {
             this._ctx = {
                 image_model: opts.image_model || 'sd35_large',
@@ -34,6 +43,9 @@
                 style_name: opts.style_name || null,
             };
             this._onAccept = opts.onAccept || null;
+            this._onRedesign = opts.onRedesign || null;
+            this._redesignLabel = opts.redesignLabel || '';
+            const existing = Array.isArray(opts.roster) && opts.roster.length ? opts.roster : null;
             this._state = {
                 collectionId: opts.collectionId || null,
                 name: opts.name || 'Collection',
@@ -51,15 +63,37 @@
                     cohesion: opts.cohesion || 'prompt',
                     removeBg: opts.removeBg !== false,
                 },
+                // Reopened on an existing design → show it as-is (no rebuild).
+                loaded: !!existing,
+                // The Step-2 art direction was edited since this roster was built.
+                adChanged: !!existing && opts.rosterArtDirectionText != null
+                    && opts.rosterArtDirectionText.trim() !== (opts.artDirectionText || '').trim(),
             };
             this._mount();
             if (!this._state.artDirection.text) { this._renderError(t('collection.error')); return; }
+            if (existing) {
+                this._state.roster = existing.map(e => ({
+                    name: e.name || '', slug: e.slug || '', concept: e.concept || '',
+                    model_agnostic_prompt: e.model_agnostic_prompt || '',
+                    locked: !!e.locked,
+                    sent_prompts: Array.isArray(e.sent_prompts) ? e.sent_prompts : [],
+                }));
+                this._render();
+                return;
+            }
             await this._buildRoster();
         },
 
         close() {
             document.getElementById('collection-designer-overlay')?.remove();
             this._state = null;
+        },
+
+        /** Explicit start-over (caller-supplied, e.g. re-read the reference). */
+        _redesign() {
+            const cb = this._onRedesign;
+            this.close();
+            if (cb) cb();
         },
 
         // ── Backend calls ────────────────────────────────────────────────
@@ -242,8 +276,12 @@
                 collectionId: s.collectionId,
                 name: s.name,
                 artDirectionText: s.artDirection.text,
+                // Lock flags + the prompts last sent ride along so reopening the
+                // accepted design shows it exactly as left.
                 roster: s.roster.map(e => ({ name: e.name, slug: e.slug, concept: e.concept,
-                                             model_agnostic_prompt: e.model_agnostic_prompt })),
+                                             model_agnostic_prompt: e.model_agnostic_prompt,
+                                             locked: !!e.locked,
+                                             sent_prompts: e.sent_prompts || [] })),
                 knobs: { ...s.knobs },
                 designCost: s.designCost,
                 ledger: s.ledger,
@@ -367,6 +405,14 @@
             const s = this._state;
             // nosemgrep
             body.innerHTML = html`
+                ${s.loaded ? html`
+                <div class="rounded-lg bg-cyan-500/10 border border-cyan-500/30 p-3 flex items-start justify-between gap-3">
+                    <div class="text-xs text-cyan-200/90 space-y-1">
+                        <p>${t('collection.loaded_design_notice')}</p>
+                        ${s.adChanged ? html`<p class="text-amber-300/90">${t('collection.loaded_ad_changed')}</p>` : ''}
+                    </div>
+                    ${this._onRedesign ? html`<button id="cd-redesign" class="btn btn-xs shrink-0 bg-brand-bg border border-brand-border">${this._redesignLabel || t('collection.regenerate_all')}</button>` : ''}
+                </div>` : ''}
                 <div class="rounded-lg bg-brand-bg/40 border border-brand-border p-3 space-y-2">
                     <div>
                         <div class="text-[10px] font-semibold uppercase tracking-wide text-brand-text-muted mb-0.5">${t('collection.user_prompt_label')}</div>
@@ -402,7 +448,7 @@
                 </div>
                 <label class="flex items-center gap-2 text-[11px] text-brand-text-muted cursor-pointer select-none">
                     <input id="cd-removebg" type="checkbox" class="rounded border-brand-border accent-cyan-500" ${s.knobs.removeBg ? 'checked' : ''} />
-                    <span>${typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.remove_bg') : 'Remove background'}</span>
+                    <span>${t('image_studio.remove_bg')}</span>
                     <span class="text-brand-text-muted/50">— ${t('collection.remove_bg_hint')}</span>
                 </label>
                 <div class="flex items-center justify-between">
@@ -417,6 +463,7 @@
                 <button id="cd-add" class="btn btn-xs bg-brand-bg border border-brand-border">＋ ${t('collection.add_batch')}</button>
             `;
             // Wire controls
+            document.getElementById('cd-redesign')?.addEventListener('click', () => this._redesign());
             document.getElementById('cd-recompose-all').addEventListener('click', () => this._recomposeAll());
             document.getElementById('cd-regen-all').addEventListener('click', () => this._regenerateAllUnlocked());
             document.getElementById('cd-add').addEventListener('click', () => this._addBatch());
@@ -468,6 +515,18 @@
                         <label class="block text-[10px] font-semibold text-brand-text-muted mb-0.5">${t('collection.batch_prompt')} <span class="font-normal text-brand-text-muted/50">— ${t('collection.batch_prompt_hint')}</span></label>
                         <textarea id="cd-prompt-${i}" rows="2" placeholder="${t('collection.batch_prompt')}" class="input text-xs w-full">${e.model_agnostic_prompt || ''}</textarea>
                     </div>
+                    ${(e.sent_prompts || []).length ? html`
+                    <details class="text-xs">
+                        <summary class="cursor-pointer text-[10px] font-semibold text-brand-text-muted select-none">${t('collection.sent_prompts_label', { count: e.sent_prompts.length })}</summary>
+                        <div class="mt-1 space-y-1.5">
+                            ${e.sent_prompts.map(p => html`
+                            <div class="rounded bg-brand-bg/50 border border-brand-border/60 p-2">
+                                <div class="text-[10px] font-mono text-cyan-300/80 mb-0.5">${p.label}</div>
+                                <p class="whitespace-pre-wrap text-brand-text/85 select-text">${p.prompt}</p>
+                                ${p.negative ? html`<p class="mt-1 whitespace-pre-wrap text-brand-text-muted/80"><span class="font-semibold">${t('collection.sent_negative_label')}:</span> ${p.negative}</p>` : ''}
+                            </div>`)}
+                        </div>
+                    </details>` : ''}
                 </div>`;
         },
 

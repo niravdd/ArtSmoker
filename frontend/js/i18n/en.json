@@ -1786,8 +1786,6 @@
     "ready_to_generate": "Ready to generate — click GENERATE below.",
     "model_multi_note": "All {{count}} selected models render every subject — a cross-model set.",
     "view_in_gallery": "View in Gallery",
-    "generated_title": "“{{name}}” generated",
-    "generated_sub": "{{done}}/{{total}} batches · {{images}} images — now in your Gallery",
     "card_assets_character": "characters",
     "card_assets_game_asset": "game assets",
     "card_summary_hint": "{{count}} subjects × {{o}} options × {{v}} variations",
@@ -1843,6 +1841,15 @@
     "asset_type_use": "Use {{type}}",
     "asset_type_coerced": "Collections use Characters or Game Assets — switched to {{type}}.",
     "asset_type_locked": "Collections support only Character or Game Asset.",
-    "download_3d_fmt_invalid": "Format must be glb, fbx, or usd"
+    "download_3d_fmt_invalid": "Format must be glb, fbx, or usd",
+    "batches_done": "{{done}}/{{total}} batches",
+    "status_pending": "Not generated",
+    "generated_done": "Collection generated — {{done}}/{{total}} batches",
+    "generated_done_plain": "Collection generated",
+    "loaded_design_notice": "Showing the saved design — the exact art direction and Batch prompts this collection was built from. Nothing is regenerated unless you ask (↻ per Batch or “Regenerate all unlocked”).",
+    "loaded_ad_changed": "The Step 2 art direction was edited after this roster was built. Use ↻ or “Regenerate all unlocked” to re-align the Batches to it.",
+    "reread_reference": "Re-read the reference",
+    "sent_prompts_label": "Prompts used in the last generation ({{count}})",
+    "sent_negative_label": "Negative"
   }
 }

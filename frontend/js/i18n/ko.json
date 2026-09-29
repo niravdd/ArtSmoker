@@ -1786,8 +1786,6 @@
     "ready_to_generate": "생성 준비 완료 — 아래 '생성'을 클릭하세요.",
     "model_multi_note": "선택한 {{count}}개 모델이 각 대상을 모두 생성합니다 — 모델 교차 세트.",
     "view_in_gallery": "갤러리에서 보기",
-    "generated_title": "‘{{name}}’ 생성 완료",
-    "generated_sub": "{{done}}/{{total}} 배치 · {{images}}장 — 갤러리에 저장됨",
     "card_assets_character": "캐릭터",
     "card_assets_game_asset": "게임 에셋",
     "card_summary_hint": "{{count}} 주제 × 옵션 {{o}} × 변형 {{v}}",
@@ -1843,6 +1841,15 @@
     "asset_type_use": "{{type}} 사용",
     "asset_type_coerced": "컬렉션은 캐릭터 또는 게임 에셋을 사용합니다 — {{type}}(으)로 전환했습니다.",
     "asset_type_locked": "컬렉션은 캐릭터 또는 게임 에셋만 지원합니다.",
-    "download_3d_fmt_invalid": "형식은 glb, fbx, usd 중 하나여야 합니다"
+    "download_3d_fmt_invalid": "형식은 glb, fbx, usd 중 하나여야 합니다",
+    "batches_done": "{{done}}/{{total}} 배치",
+    "status_pending": "생성 안 됨",
+    "generated_done": "컬렉션 생성 완료 — {{done}}/{{total}} 배치",
+    "generated_done_plain": "컬렉션 생성 완료",
+    "loaded_design_notice": "저장된 디자인을 표시하고 있습니다 — 이 컬렉션을 만드는 데 사용된 아트 디렉션과 배치별 프롬프트 그대로입니다. 직접 요청하지 않는 한 다시 생성되지 않습니다(배치별 ↻ 또는 “잠금 해제된 항목 모두 재생성”).",
+    "loaded_ad_changed": "이 로스터를 만든 뒤 2단계 아트 디렉션이 수정되었습니다. ↻ 또는 “잠금 해제된 항목 모두 재생성”으로 배치를 다시 맞출 수 있습니다.",
+    "reread_reference": "참조 이미지 다시 읽기",
+    "sent_prompts_label": "마지막 생성에 사용된 프롬프트({{count}})",
+    "sent_negative_label": "네거티브"
   }
 }

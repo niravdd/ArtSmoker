@@ -1786,8 +1786,6 @@
     "ready_to_generate": "जनरेट करने के लिए तैयार — नीचे GENERATE पर क्लिक करें।",
     "model_multi_note": "चुने गए सभी {{count}} मॉडल हर विषय को तैयार करेंगे — क्रॉस-मॉडल सेट।",
     "view_in_gallery": "गैलरी में देखें",
-    "generated_title": "“{{name}}” जनरेट हुआ",
-    "generated_sub": "{{done}}/{{total}} बैच · {{images}} इमेज — अब आपकी गैलरी में",
     "card_assets_character": "किरदार",
     "card_assets_game_asset": "गेम एसेट",
     "card_summary_hint": "{{count}} विषय × {{o}} विकल्प × {{v}} विविधताएँ",
@@ -1843,6 +1841,15 @@
     "asset_type_use": "{{type}} उपयोग करें",
     "asset_type_coerced": "कलेक्शन कैरेक्टर या गेम एसेट का उपयोग करते हैं — {{type}} पर बदल दिया गया।",
     "asset_type_locked": "कलेक्शन केवल कैरेक्टर या गेम एसेट का समर्थन करते हैं।",
-    "download_3d_fmt_invalid": "फ़ॉर्मेट glb, fbx या usd होना चाहिए"
+    "download_3d_fmt_invalid": "फ़ॉर्मेट glb, fbx या usd होना चाहिए",
+    "batches_done": "{{done}}/{{total}} बैच",
+    "status_pending": "जनरेट नहीं हुआ",
+    "generated_done": "कलेक्शन जनरेट हो गया — {{done}}/{{total}} बैच",
+    "generated_done_plain": "कलेक्शन जनरेट हो गया",
+    "loaded_design_notice": "सहेजा गया डिज़ाइन दिखाया जा रहा है — वही आर्ट डायरेक्शन और बैच प्रॉम्प्ट जिनसे यह कलेक्शन बना था। जब तक आप न कहें, कुछ भी दोबारा जनरेट नहीं होगा (हर बैच पर ↻ या “सभी अनलॉक किए गए फिर से बनाएँ”)।",
+    "loaded_ad_changed": "यह रोस्टर बनने के बाद चरण 2 का आर्ट डायरेक्शन बदला गया है। बैचों को उसके अनुरूप करने के लिए ↻ या “सभी अनलॉक किए गए फिर से बनाएँ” का उपयोग करें।",
+    "reread_reference": "रेफ़रेंस फिर से पढ़ें",
+    "sent_prompts_label": "पिछली जनरेशन में उपयोग हुए प्रॉम्प्ट ({{count}})",
+    "sent_negative_label": "नेगेटिव"
   }
 }

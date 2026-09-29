@@ -630,6 +630,11 @@ async def generate_collection(body: GenerateCollectionRequest):
         raise HTTPException(400, detail="Collection has no Batches with prompts to generate.")
 
     cid = body.collection_id
+    # Re-running a RELOADED collection (its id already has a master record) makes a
+    # NEW Collection — never overwrite the original record, which would orphan its
+    # generated Batches. The client follows the id from `collection_started`.
+    if not cid or cstore.load_collection(cid) is not None:
+        cid = cstore.new_collection_id()
     asset_type = _asset_enum(body.asset_type)
     n_opts = max(1, min(5, body.num_options))
     n_vars = max(1, min(5, body.num_variations))

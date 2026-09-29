@@ -1786,8 +1786,6 @@
     "ready_to_generate": "Bereit zum Generieren — klicke unten auf GENERIEREN.",
     "model_multi_note": "Alle {{count}} ausgewählten Modelle erzeugen jedes Motiv — ein modellübergreifendes Set.",
     "view_in_gallery": "In der Galerie ansehen",
-    "generated_title": "„{{name}}“ generiert",
-    "generated_sub": "{{done}}/{{total}} Batches · {{images}} Bilder — jetzt in deiner Galerie",
     "card_assets_character": "Charaktere",
     "card_assets_game_asset": "Game-Assets",
     "card_summary_hint": "{{count}} Motive × {{o}} Optionen × {{v}} Variationen",
@@ -1843,6 +1841,15 @@
     "asset_type_use": "„{{type}}“ verwenden",
     "asset_type_coerced": "Kollektionen nutzen Charaktere oder Spiel-Assets – auf „{{type}}“ umgestellt.",
     "asset_type_locked": "Kollektionen unterstützen nur Charakter oder Spiel-Asset.",
-    "download_3d_fmt_invalid": "Format muss glb, fbx oder usd sein"
+    "download_3d_fmt_invalid": "Format muss glb, fbx oder usd sein",
+    "batches_done": "{{done}}/{{total}} Stapel",
+    "status_pending": "Nicht generiert",
+    "generated_done": "Kollektion generiert — {{done}}/{{total}} Stapel",
+    "generated_done_plain": "Kollektion generiert",
+    "loaded_design_notice": "Gespeichertes Design wird angezeigt — genau die Art Direction und Stapel-Prompts, aus denen diese Kollektion erstellt wurde. Es wird nichts neu generiert, solange du es nicht anforderst (↻ pro Stapel oder „Alle entsperrten neu generieren“).",
+    "loaded_ad_changed": "Die Art Direction aus Schritt 2 wurde geändert, nachdem diese Liste erstellt wurde. Mit ↻ oder „Alle entsperrten neu generieren“ richtest du die Stapel daran neu aus.",
+    "reread_reference": "Referenz neu auslesen",
+    "sent_prompts_label": "Bei der letzten Generierung verwendete Prompts ({{count}})",
+    "sent_negative_label": "Negativ"
   }
 }

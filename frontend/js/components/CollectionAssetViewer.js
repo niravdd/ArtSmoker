@@ -26,9 +26,11 @@
         },
 
         close() {
+            const cid = this._data?.record?.collection_id;
             document.getElementById('collection-viewer-overlay')?.remove(); this._data = null;
-            // A version pin / Batch retry / 3D run inside the viewer changes covers + badges.
-            window.ImageStudio?.refreshCollections?.();
+            // A version pin / Batch retry inside the viewer changes what Image Studio
+            // shows when this collection is loaded there.
+            window.ImageStudio?.refreshLoadedCollection?.(cid);
         },
 
         _mount(title) {
@@ -638,7 +640,8 @@
             if (!collectionId || !confirm(t('collection.delete_confirm'))) return;
             try {
                 await API.collections.del(collectionId);
-                this.close();   // also refreshes Studio's "Your Collections" panel
+                window.ImageStudio?.clearLoadedCollection?.(collectionId);   // before close()'s refresh
+                this.close();
                 window.Gallery?.refresh?.();
             } catch (e) { alert(e.message || t('collection.error')); }
         },

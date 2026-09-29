@@ -1786,8 +1786,6 @@
     "ready_to_generate": "已准备就绪 — 点击下方的“生成”。",
     "model_multi_note": "所选的 {{count}} 个模型将各自生成每个主体 — 跨模型合集。",
     "view_in_gallery": "在图库中查看",
-    "generated_title": "已生成“{{name}}”",
-    "generated_sub": "{{done}}/{{total}} 个批次 · {{images}} 张图片 — 已保存到图库",
     "card_assets_character": "角色",
     "card_assets_game_asset": "游戏素材",
     "card_summary_hint": "{{count}} 个主体 × {{o}} 个方案 × {{v}} 个变体",
@@ -1843,6 +1841,15 @@
     "asset_type_use": "使用 {{type}}",
     "asset_type_coerced": "合集使用角色或游戏资产——已切换为 {{type}}。",
     "asset_type_locked": "合集仅支持角色或游戏资产。",
-    "download_3d_fmt_invalid": "格式必须为 glb、fbx 或 usd"
+    "download_3d_fmt_invalid": "格式必须为 glb、fbx 或 usd",
+    "batches_done": "{{done}}/{{total}} 个批次",
+    "status_pending": "未生成",
+    "generated_done": "合集已生成 — {{done}}/{{total}} 个批次",
+    "generated_done_plain": "合集已生成",
+    "loaded_design_notice": "正在显示已保存的设计 — 即构建此合集时所用的艺术指导和各批次提示词原文。除非您主动操作（逐批次 ↻ 或“重新生成所有未锁定项”），否则不会重新生成。",
+    "loaded_ad_changed": "此名单生成后，第 2 步的艺术指导已被修改。可使用 ↻ 或“重新生成所有未锁定项”让各批次与之重新对齐。",
+    "reread_reference": "重新读取参考图",
+    "sent_prompts_label": "上次生成所用的提示词（{{count}}）",
+    "sent_negative_label": "负面"
   }
 }

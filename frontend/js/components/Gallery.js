@@ -660,9 +660,9 @@
             return this._assetCardHTML(item);
         },
 
-        /** Collection card (SPEC §18.8) — one card for the whole set. Shared with
-         *  Image Studio's "Your Collections" panel; accepts a raw summary from
-         *  API.collections.list() too (id derived, data-collection carries the id). */
+        /** Collection card (SPEC §18.8) — one card for the whole set. Accepts a raw
+         *  summary from API.collections.list() too (id derived, data-collection
+         *  carries the id). */
         collectionCardHTML(item) {
             const cover = item.cover && item.cover.thumb_path
                 ? item.cover.thumb_path + `?t=${item.updated_at || ''}` : null;

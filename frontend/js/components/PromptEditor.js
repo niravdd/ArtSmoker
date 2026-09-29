@@ -465,15 +465,9 @@
             });
             // Step 3 button opens the (design-only) Collection Designer.
             this._btnCollectionDesigner?.addEventListener('click', () => this._openCollectionDesigner());
-            // Editing the Art Direction invalidates the accepted design (must re-run the Designer).
-            this._artDirectionEl?.addEventListener('input', () => {
-                if (this._collectionDesign) {
-                    this._collectionDesign = null;
-                    this._collectionSummaryEl?.classList.add('hidden');
-                    this._collectionStep3Hint?.classList.remove('hidden');
-                    this._notifyCollectionState();
-                }
-            });
+            // Editing the Art Direction un-accepts the design (must re-open the Designer
+            // and accept); the roster itself is kept, so reopening shows it — no rebuild.
+            this._artDirectionEl?.addEventListener('input', () => this._invalidateCollectionDesign());
             // Initial state: an empty Step-1 prompt keeps the Collection checkbox disabled.
             this._updateCollectionCheckboxState();
         }
@@ -577,6 +571,7 @@
             this._step3Collection?.classList.remove('hidden');
             this._collectionStep3Hint?.classList.add('hidden');
             if (this._artDirectionEl) this._artDirectionEl.value = opts.artDirectionText || '';
+            this._collectionDraft = null;
             this._collectionDesign = {
                 collectionId: this._collectionId, name: this._collectionName,
                 artDirectionText: opts.artDirectionText || '',
@@ -603,6 +598,7 @@
             }
             this._collectionMode = true;
             this._collectionDesign = null;
+            this._collectionDraft = null;
             this._collectionId = null;
             this._collectionName = null;
             this._collectionDesignCost = 0;
@@ -667,13 +663,8 @@
                 this._collectionDesignCost += (r.cost || 0);
                 this._collectionLedger.push(...(r.llm_cost_ledger || []));
                 if (el) el.value = (r.art_direction && r.art_direction.text) || '';
-                // A freshly generated art direction invalidates any accepted design.
-                if (this._collectionDesign) {
-                    this._collectionDesign = null;
-                    this._collectionSummaryEl?.classList.add('hidden');
-                    this._collectionStep3Hint?.classList.remove('hidden');
-                    this._notifyCollectionState();
-                }
+                // A freshly generated art direction un-accepts any accepted design.
+                this._invalidateCollectionDesign();
             } catch (e) {
                 window.showToast?.(e.message || (typeof t !== 'undefined' ? t('artsmoker.ui.collection.error') : 'Something went wrong'), 'error');
             } finally {
@@ -695,6 +686,15 @@
                 try { await this.opts.confirmCollectionAssetType(this.getUserText().trim()); } catch { /* non-blocking */ }
             }
             const ctx = this._collectionContext();
+            // An existing design (accepted, reloaded, or un-accepted by an art-direction
+            // edit) reopens AS-IS: its roster, per-Batch prompts (+ those actually sent)
+            // and cohesion. Rebuilding is only ever the Designer's explicit Regenerate.
+            const prior = this._collectionDesign || this._collectionDraft;
+            const existing = prior && (prior.roster || []).length ? {
+                roster: prior.roster,
+                rosterArtDirectionText: prior.artDirectionText || '',
+                cohesion: (prior.knobs || {}).cohesion,
+            } : {};
             // The collection_id is normally minted when Art Direction is generated.
             // If the user wrote their OWN art direction and skipped Generate, mint it
             // now (server echoes the text verbatim — no LLM call, no cost) so the
@@ -717,13 +717,26 @@
                 priorDesignCost: this._collectionDesignCost,
                 priorLedger: this._collectionLedger,
                 ...ctx,
+                ...existing,
                 onAccept: (design) => this._onCollectionAccepted(design),
             });
+        }
+
+        /** Un-accept the design (Generate disables until the Designer is accepted
+         *  again) while keeping it as a draft, so reopening shows the same roster. */
+        _invalidateCollectionDesign() {
+            if (!this._collectionDesign) return;
+            this._collectionDraft = this._collectionDesign;
+            this._collectionDesign = null;
+            this._collectionSummaryEl?.classList.add('hidden');
+            this._collectionStep3Hint?.classList.remove('hidden');
+            this._notifyCollectionState();
         }
 
         _onCollectionAccepted(design) {
             // design = { collectionId, name, artDirectionText, roster, knobs, designCost, ledger }
             this._collectionDesign = design;
+            this._collectionDraft = null;
             this._collectionId = design.collectionId || this._collectionId;
             this._collectionDesignCost = design.designCost ?? this._collectionDesignCost;
             this._collectionLedger = design.ledger || this._collectionLedger;
@@ -774,6 +787,7 @@
         exitCollectionMode() {
             this._collectionMode = false;
             this._collectionDesign = null;
+            this._collectionDraft = null;
             this._collectionId = null;
             this._collectionName = null;
             this._collectionDesignCost = 0;

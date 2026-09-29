@@ -358,7 +358,11 @@
                                     <h3 id="gen-options-header" class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
                                         ${t('artsmoker.ui.image_studio.options_header')}
                                     </h3>
-                                    <span id="gen-options-count" class="text-xs text-brand-text-muted"></span>
+                                    <div class="flex items-center gap-2">
+                                        <span id="gen-options-count" class="text-xs text-brand-text-muted"></span>
+                                        <!-- Collection results only: the full Collection Asset Viewer (3D, versions, retry). -->
+                                        <button id="gen-options-open-collection" class="hidden btn btn-secondary btn-sm">${t('artsmoker.ui.collection.open_collection')}</button>
+                                    </div>
                                 </div>
                                 <div id="gen-options-grid" class="results-masonry"></div>
                             </div>
@@ -384,14 +388,6 @@
                                         </div>
                                     </div>
                                     <img id="gen-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="${t('artsmoker.ui.image_studio.title')}" />
-                                    <!-- Collection completion summary (SPEC §18): a set generates into the
-                                         Gallery, not the single-asset preview — so show a summary + a way in. -->
-                                    <div id="gen-collection-summary" class="hidden text-center max-w-sm px-4">
-                                        <div class="text-5xl mb-3">🗂️</div>
-                                        <p id="gen-collection-summary-title" class="text-sm font-semibold text-brand-text mb-1"></p>
-                                        <p id="gen-collection-summary-sub" class="text-xs text-brand-text-muted mb-4"></p>
-                                        <button id="gen-collection-view" class="btn btn-primary btn-sm">${t('artsmoker.ui.collection.open_collection')}</button>
-                                    </div>
                                     <!-- Hint that the big preview opens the AssetViewer on click. -->
                                     <div id="gen-click-hint" class="hidden absolute bottom-3 right-3 bg-black/70 text-white text-[10px] font-medium px-2.5 py-1 rounded-full pointer-events-none flex items-center gap-1.5">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -2402,7 +2398,6 @@
 
         _renderResults(result) {
             const options = result.options || [];
-            document.getElementById('gen-collection-summary')?.classList.add('hidden');  // clear any prior collection summary
 
             // Switch to "Post-Processing" mode now that results exist
             const labelEl = document.getElementById('gen-processing-label');
@@ -2438,37 +2433,62 @@
             if (!section || !grid) return;
 
             const isAllModels = this._result?.all_models;
+            // A Collection (SPEC §18.8) renders the SAME cards, grouped under one
+            // header per Batch — see _collectionToResult.
+            const groups = this._result?.collection_groups || null;
+            const openColBtn = document.getElementById('gen-options-open-collection');
+            openColBtn?.classList.toggle('hidden', !groups);
+            if (openColBtn && groups) {
+                const cid = this._result.collection_id;
+                openColBtn.onclick = () => window.CollectionAssetViewer?.open?.(cid);
+            }
 
             // Show the results grid when there's more than one option, All-Models
             // mode, OR a single option that itself has multiple variations (so its
             // filmstrip is reachable). A lone single-variant result = hero only.
             const singleVariants = options[0]?.variants?.length || 0;
-            if (options.length <= 1 && !isAllModels && singleVariants <= 1) {
+            if (!groups && options.length <= 1 && !isAllModels && singleVariants <= 1) {
                 section.classList.add('hidden');
                 return;
             }
             section.classList.remove('hidden');
 
+            const totalImages = options.reduce((s, o) => s + (o.variants?.length || 0), 0);
             const header = document.getElementById('gen-options-header');
             if (header) {
-                header.textContent = isAllModels
+                header.textContent = groups
+                    ? (this._result.collection_name || t('artsmoker.ui.collection.card_badge'))
+                    : isAllModels
                     ? t('artsmoker.ui.image_studio.models_header')
                     : t('artsmoker.ui.image_studio.options_header');
             }
             if (countEl) {
-                const totalImages = options.reduce((s, o) => s + (o.variants?.length || 0), 0);
-                countEl.textContent = isAllModels
+                countEl.textContent = groups
+                    ? `${t('artsmoker.ui.collection.batches_done', { done: groups.filter(g => g.count).length, total: groups.length })} · ${t('artsmoker.ui.collection.images_count', { count: totalImages })}`
+                    : isAllModels
                     ? t('artsmoker.ui.image_studio.images_across_models', { images: totalImages, models: new Set(options.map(o => o.image_model)).size })
                     : `${options.length} ${t('artsmoker.ui.image_studio.num_options').toLowerCase()}`;
             }
 
             // One compact card per option. The model is shown in each card's badge,
             // so no separate model-grouping headers are needed (keeps it uncluttered).
-            // nosemgrep -- SafeHtml from html`` (auto-escaped); joined then assigned
-            grid.innerHTML = options.map((opt, i) => {
-                const modelPart = opt.model_label || `${t('artsmoker.ui.image_studio.option')} ${i + 1}`;
-                return this._renderOptionCard(opt, i, `o${i + 1} · ${modelPart}`);
-            }).join('');
+            const card = (opt, i) => this._renderOptionCard(opt, i, this._optionLabel(opt, i));
+            // A collection nests one masonry per Batch, so the outer grid is a plain block.
+            grid.classList.toggle('results-masonry', !groups);
+            if (groups) {
+                // nosemgrep -- SafeHtml from html`` (auto-escaped); joined then assigned
+                grid.innerHTML = groups.map(g => html`
+                    <div class="collection-result-group mb-4">
+                        <div class="flex items-center justify-between gap-2 mb-2 pb-1 border-b border-brand-border/50">
+                            <h4 class="text-xs font-semibold text-brand-text truncate" title="${g.name}">${g.name}</h4>
+                            ${this._collectionGroupBadge(g)}
+                        </div>
+                        ${g.count ? html`<div class="results-masonry">${options.slice(g.start, g.start + g.count).map((o, j) => card(o, g.start + j))}</div>` : ''}
+                    </div>`).join('');
+            } else {
+                // nosemgrep -- SafeHtml from html`` (auto-escaped); joined then assigned
+                grid.innerHTML = options.map((opt, i) => card(opt, i)).join('');
+            }
 
             // Click the main image → select that option. Click a filmstrip thumb →
             // select that option AND that specific variation.
@@ -2590,7 +2610,7 @@
             `;
         },
 
-        _selectOption(index) {
+        _selectOption(index, { scroll = true } = {}) {
             const result = this._result;
             if (!result) return;
             const options = result.options || [];
@@ -2630,9 +2650,13 @@
             if (usedText) {
                 usedText.textContent = option.enhanced_prompt || result.enhanced_prompt || result.refined_prompt || result.prompt || '';
             }
+            // In a collection, prefix the Batch (roster subject) name so the panel
+            // says whose prompt this is.
+            const optLabel = option._collection
+                ? `${option._collection.batchName} · ${this._optionLabel(option, index)}`
+                : this._optionLabel(option, index);
             if (usedLabel) {
-                const modelPart = option.model_label || `${t('artsmoker.ui.image_studio.option')} ${index + 1}`;
-                usedLabel.textContent = `${t('artsmoker.ui.image_studio.prompt_sent_to_model')} \u2014 o${index + 1} · ${modelPart}`;
+                usedLabel.textContent = `${t('artsmoker.ui.image_studio.prompt_sent_to_model')} \u2014 ${optLabel}`;
             }
             const negText = document.getElementById('gen-negative-prompt-text');
             const negLabel = document.querySelector('#gen-negative-prompt-section > p:first-child');
@@ -2640,16 +2664,33 @@
                 negText.textContent = option.negative_prompt || t('artsmoker.ui.image_studio.negative_prompt_none');
             }
             if (negLabel) {
-                const modelPart = option.model_label || `${t('artsmoker.ui.image_studio.option')} ${index + 1}`;
-                negLabel.textContent = `${t('artsmoker.ui.image_studio.negative_prompt_exclusions')} \u2014 o${index + 1} · ${modelPart}`;
+                negLabel.textContent = `${t('artsmoker.ui.image_studio.negative_prompt_exclusions')} \u2014 ${optLabel}`;
             }
 
             // Update the big preview to this option's first variation (this also
             // highlights the matching filmstrip thumb inside the selected card).
             this._selectVariant(0);
 
-            // Scroll down to the preview area
-            document.getElementById('gen-preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Scroll down to the preview area (not on a background live-refresh).
+            if (scroll) document.getElementById('gen-preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        },
+
+        /** A result card's label: "o{n} · {model}". In a collection n is the
+         *  option's index WITHIN its Batch (the Batch name is the group header). */
+        _optionLabel(opt, index) {
+            const n = opt?._collection ? opt._collection.local : index;
+            const modelPart = opt?.model_label || `${t('artsmoker.ui.image_studio.option')} ${n + 1}`;
+            return `o${n + 1} · ${modelPart}`;
+        },
+
+        /** Status chip for one Batch's group header in collection results. */
+        _collectionGroupBadge(g) {
+            const T = (k, p) => t('artsmoker.ui.collection.' + k, p);
+            if (g.status === 'complete') return html`<span class="text-[10px] text-brand-text-muted shrink-0">${T('images_count', { count: g.images })}</span>`;
+            if (g.status === 'failed') return html`<span class="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 shrink-0">${T('status_failed')}</span>`;
+            if (g.status === 'blocked') return html`<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 shrink-0">${T('status_blocked')}</span>`;
+            if (g.status === 'generating') return html`<span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 animate-pulse shrink-0">${T('viewer_status_generating')}</span>`;
+            return html`<span class="text-[10px] text-brand-text-muted/60 shrink-0">${T('status_pending')}</span>`;
         },
 
         _selectVariant(index) {
@@ -3014,7 +3055,7 @@
                 cohesion: k.cohesion_mode || 'prompt',
                 removeBg: k.remove_background !== false,
             };
-            const roster = rec.roster || [];
+            const roster = this._rosterWithSentPrompts(data);
             const artText = rec.overarching_art_direction || (rec.art_direction_structured || {}).text || '';
             const rawAsk = rec.raw_ask || '';
             // Restore the sidebar (only models that still exist, like loadBatch).
@@ -3059,7 +3100,12 @@
                     designCost: 0, ledger: rec.llm_cost_ledger || [],
                 });
             }
-            window.showToast?.(t('artsmoker.ui.collection.reloaded') || 'Collection loaded — review or Generate', 'success');
+            // Show the set's images in the results area — the SAME cards / preview /
+            // prompt panel as a loaded single Batch, grouped per Batch (SPEC §18.8).
+            this._collectionLive = null;
+            this._showCollectionResults(data);
+            if (k.seed != null) this._setSeed(k.seed);   // the record's seed, not the first image's
+            window.showToast?.(t('artsmoker.ui.collection.reloaded'), 'success');
         },
 
         // ── Helpers ─────────────────────────────────────────────────
@@ -3370,11 +3416,8 @@
             const knobs = design.knobs || {};
             if (btn) btn.disabled = true;
             this._generating = true;
-            this._lastCollection = null;
-            // Fresh run: clear any prior collection summary + show the loading state.
-            document.getElementById('gen-collection-summary')?.classList.add('hidden');
-            document.getElementById('gen-placeholder')?.classList.add('hidden');
-            document.getElementById('gen-loading')?.classList.remove('hidden');
+            // Fresh run: the set's results fill the results area Batch by Batch.
+            this._beginCollectionRun(design.collectionId);
             try {
                 window.Telemetry?.track?.('collection_generation_started', { batches: (design.roster || []).length });
                 await API.collections.generateStream({
@@ -3389,34 +3432,15 @@
                     remove_background: knobs.removeBg !== false,   // collections default to cut-outs
 
                     llm_cost_ledger: design.ledger || [], design_cost: design.designCost || 0,
-                }, (evt) => {
-                    if (evt.type === 'batch_started' || evt.type === 'cost_update' || evt.type === 'collection_complete') {
-                        const done = evt.completed_batches ?? 0, tot = evt.total_batches ?? (design.roster || []).length;
-                        window.showToast && evt.type === 'batch_started' &&
-                            window.showToast(`${t('artsmoker.ui.collection.generating')} ${done}/${tot}`, 'info');
-                    }
-                    if (evt.type === 'collection_complete') {
-                        this._lastCollection = {
-                            id: evt.collection_id || design.collectionId,
-                            name: design.name || 'Collection',
-                            done: evt.completed_batches ?? (design.roster || []).length,
-                            total: evt.total_batches ?? (design.roster || []).length,
-                        };
-                    }
-                });
-                window.showToast?.(t('artsmoker.ui.collection.generating').replace('…', '') + ' ✓', 'success');
-                // A collection lands in the Gallery, not the single-asset preview.
-                // Show a completion summary here (with a way in) instead of silently
-                // leaving the preview empty or yanking the user to the Gallery.
-                this._showCollectionSummary(this._lastCollection, knobs);
-                setTimeout(() => { window.Gallery?.refresh?.(); this.refreshCollections(); }, 200);
+                }, (evt) => this._onCollectionEvent(evt, (design.roster || []).length));
+                this._toastCollectionDone();
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
-                document.getElementById('gen-loading')?.classList.add('hidden');
-                document.getElementById('gen-placeholder')?.classList.remove('hidden');
             } finally {
                 this._generating = false;
                 if (btn) btn.disabled = false;
+                // Final render of the whole set (a failure mid-run still shows what landed).
+                await this._endCollectionRun();
             }
         },
 
@@ -3449,10 +3473,16 @@
          *  art direction (vision), then the input-agnostic Collection Designer builds
          *  the roster from that art direction (roster is text-driven — the image shaped
          *  the art direction, not the membership). */
-        async _designReferenceCollection() {
+        async _designReferenceCollection({ fresh = false } = {}) {
             if (this._designingRefCollection) return;   // guard: the vision call is slow — ignore repeat clicks
             const rs = this._referenceStudio;
             if (!rs) return;
+            // A design already exists (accepted, or a reloaded collection) → reopen
+            // it exactly as it was; re-reading the reference is an explicit action.
+            if (!fresh && this._refCollectionDesign?.roster?.length) {
+                this._reopenReferenceDesign();
+                return;
+            }
             const err = rs.validate();   // needs image(s) + an instruction (what the set IS)
             if (err) { window.showToast?.(err, 'warning'); return; }
             const refImgs = rs.getReferenceImagesB64();
@@ -3505,6 +3535,37 @@
             }
         },
 
+        /** Reopen the existing Image-Inspired design in the Collection Designer —
+         *  its roster, prompts (incl. those actually sent), art direction and knobs
+         *  — without any LLM / vision call. "Re-read the reference" starts over. */
+        _reopenReferenceDesign() {
+            const rs = this._referenceStudio;
+            const d = this._refCollectionDesign;
+            const models = d.models || this._referenceCollectionModels();
+            const k = d.knobs || {};
+            const assetType = (this._getAssetType() === 'character' ? 'character' : 'game_asset');
+            const styleId = this._getStyleId() || null;
+            window.CollectionDesigner?.open({
+                collectionId: d.collectionId, name: d.name,
+                prompt: d.prompt || rs?.getPrompt?.() || '',
+                artDirectionText: d.artDirectionText || '',
+                roster: d.roster,
+                priorDesignCost: d.designCost || 0, priorLedger: d.ledger || [],
+                image_model: models[0], models_selected_count: models.length,
+                asset_type: assetType, style_id: styleId,
+                options: k.options, variations: k.variations, cohesion: k.cohesion, removeBg: k.removeBg,
+                redesignLabel: t('artsmoker.ui.collection.reread_reference'),
+                onRedesign: () => this._designReferenceCollection({ fresh: true }),
+                onAccept: (design) => {
+                    this._refCollectionDesign = {
+                        ...design, reference_images: d.reference_images, models, prompt: d.prompt,
+                    };
+                    rs?.setCollectionReady(this._referenceCollectionSummary(this._refCollectionDesign, models));
+                    this._syncGenerateGate();
+                },
+            });
+        },
+
         /** The sidebar is the single source of truth for a collection's Options ×
          *  Variations (+ remove-bg). The Designer seeds from it and writes back on
          *  accept; a sidebar change AFTER accept updates the accepted design (Text or
@@ -3551,10 +3612,7 @@
             const btn = document.getElementById('btn-generate');
             if (btn) btn.disabled = true;
             this._generating = true;
-            this._lastCollection = null;
-            document.getElementById('gen-collection-summary')?.classList.add('hidden');
-            document.getElementById('gen-placeholder')?.classList.add('hidden');
-            document.getElementById('gen-loading')?.classList.remove('hidden');
+            this._beginCollectionRun(design.collectionId);
             try {
                 window.Telemetry?.track?.('collection_generation_started',
                     { batches: (design.roster || []).length, image_inspired: true });
@@ -3571,60 +3629,219 @@
                     reference_images: design.reference_images || [],
                     remove_background: knobs.removeBg !== false,
                     llm_cost_ledger: design.ledger || [], design_cost: design.designCost || 0,
-                }, (evt) => {
-                    if (evt.type === 'batch_started') {
-                        const done = evt.completed_batches ?? 0, tot = evt.total_batches ?? (design.roster || []).length;
-                        window.showToast?.(`${t('artsmoker.ui.collection.generating')} ${done}/${tot}`, 'info');
-                    }
-                    if (evt.type === 'collection_complete') {
-                        this._lastCollection = {
-                            id: evt.collection_id || design.collectionId,
-                            name: design.name || 'Collection',
-                            done: evt.completed_batches ?? (design.roster || []).length,
-                            total: evt.total_batches ?? (design.roster || []).length,
-                        };
-                    }
-                });
-                window.showToast?.(t('artsmoker.ui.collection.generating').replace('…', '') + ' ✓', 'success');
-                this._showCollectionSummary(this._lastCollection,
-                    { options: knobs.options || 3, variations: knobs.variations || 2 }, models.length);
+                }, (evt) => this._onCollectionEvent(evt, (design.roster || []).length));
+                this._toastCollectionDone();
                 rs?.setCollectionReady('');          // consumed → require a fresh design next time
                 this._refCollectionDesign = null;
                 this._syncGenerateGate();            // re-disable Generate until re-designed
-                setTimeout(() => { window.Gallery?.refresh?.(); this.refreshCollections(); }, 200);
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
-                document.getElementById('gen-loading')?.classList.add('hidden');
-                document.getElementById('gen-placeholder')?.classList.remove('hidden');
             } finally {
                 this._generating = false;
                 if (btn) btn.disabled = false;
+                await this._endCollectionRun();
             }
         },
 
-        /** Show the collection-completion summary in the preview area (a set lands
-         *  in the Gallery, so the single-asset preview would otherwise be empty).
-         *  modelsCount overrides the sidebar count (reference collections use a gated
-         *  model set that may differ from this._selectedModels). */
-        _showCollectionSummary(info, knobs, modelsCount) {
-            document.getElementById('gen-loading')?.classList.add('hidden');
-            document.getElementById('gen-placeholder')?.classList.add('hidden');
-            document.getElementById('gen-result-img')?.classList.add('hidden');
-            const box = document.getElementById('gen-collection-summary');
-            if (!box || !info) { document.getElementById('gen-placeholder')?.classList.remove('hidden'); return; }
-            const O = knobs.options || 3, V = knobs.variations || 2;
-            const M = Math.max(1, modelsCount || (this._selectedModels || []).length);   // each subject renders on every chosen model
-            const title = document.getElementById('gen-collection-summary-title');
-            const sub = document.getElementById('gen-collection-summary-sub');
-            const btn = document.getElementById('gen-collection-view');
-            if (title) title.textContent = t('artsmoker.ui.collection.generated_title', { name: info.name });
-            if (sub) sub.textContent = t('artsmoker.ui.collection.generated_sub',
-                { done: info.done, total: info.total, images: info.done * O * V * M });
-            box.classList.remove('hidden');
-            if (btn) btn.onclick = () => {
-                if (info.id && window.CollectionAssetViewer) window.CollectionAssetViewer.open(info.id);
-                else location.hash = '#gallery';
+        // ── Collection results (SPEC §18.8) ──────────────────────────────
+        // A Collection shows in the SAME results area as a single Batch: the same
+        // option cards, big preview, prompt panel, download bar and AssetViewer.
+        // Its member Batches (each the getBatch shape) are flattened into ONE
+        // options list with GLOBAL indexes — so every select / preview / async-
+        // update path works unchanged — and `collection_groups` maps each Batch
+        // (roster subject) to its slice, rendered as one header per Batch.
+
+        /** The record's roster, each entry carrying `sent_prompts` — the distinct
+         *  enhanced prompts each option / model ACTUALLY received ([{label, prompt,
+         *  negative}]) — so a reopened Collection Designer shows exactly what built
+         *  every Batch. Batches that never generated have none. */
+        _rosterWithSentPrompts(data) {
+            const byIndex = data?.batches || [];
+            return ((data?.record || {}).roster || []).map((e, bi) => {
+                const b = (byIndex[bi] || {}).batch || {};
+                const seen = new Set();
+                const sent = [];
+                (b.options || []).forEach((o, li) => {
+                    const prompt = o.enhanced_prompt || b.enhanced_prompt || '';
+                    if (!prompt) return;
+                    const label = this._optionLabel({ ...o, _collection: { local: li } }, li);
+                    const key = (o.model_label || '') + '\n' + prompt;
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    sent.push({ label, prompt, negative: o.negative_prompt || b.negative_prompt || '' });
+                });
+                return { ...e, sent_prompts: sent };
+            });
+        },
+
+        /** GET /api/collections/{id} payload → a results object. */
+        _collectionToResult(data) {
+            const rec = (data && data.record) || {};
+            const k = rec.knobs || {};
+            const live = this._collectionLive;
+            const options = [];
+            const groups = [];
+            (data?.batches || []).forEach(({ roster_entry: e, batch: b }, bi) => {
+                e = e || {};
+                const start = options.length;
+                (b?.options || []).forEach((o, li) => options.push({
+                    ...o,
+                    // Per-option prompts fall back to the Batch's (what drove it).
+                    enhanced_prompt: o.enhanced_prompt || b.enhanced_prompt || '',
+                    negative_prompt: o.negative_prompt || b.negative_prompt || '',
+                    _collection: { batchName: e.name || '', local: li },
+                }));
+                const count = options.length - start;
+                const images = options.slice(start).reduce((s, o) => s + (o.variants?.length || 0), 0);
+                const status = count ? 'complete'
+                    : (e.gen_status === 'failed' || e.gen_status === 'blocked') ? e.gen_status
+                    : (live && live.id === rec.collection_id && live.index === bi) ? 'generating'
+                    : 'pending';
+                groups.push({ name: e.name || `#${bi + 1}`, start, count, images, status });
+            });
+            return {
+                collection_id: rec.collection_id,
+                collection_name: rec.name || '',
+                collection_groups: groups,
+                options,
+                all_models: (k.models || []).length > 1,
+                prompt: rec.raw_ask || '',
+                original_prompt: rec.raw_ask || '',
+                style_id: k.style_id || '',
+                asset_type: k.asset_type || '',
             };
+        },
+
+        /** Render a collection into the results area. `keepSelection` (live /
+         *  background refresh of the SAME collection) keeps the viewed image and
+         *  doesn't scroll; otherwise the first image is selected, like a Batch. */
+        _showCollectionResults(data, { keepSelection = false } = {}) {
+            const prev = this._result;
+            const result = this._collectionToResult(data);
+            const same = keepSelection && prev?.collection_id && prev.collection_id === result.collection_id;
+            const selO = same ? (this._selectedOption || 0) : 0;
+            const selV = same ? (this._selectedVariant || 0) : 0;
+            const hadImages = same && (prev.options || []).length > 0;
+            this._result = result;
+            const hasImages = result.options.length > 0;
+            // While the first Batch is still generating, keep the loading overlay.
+            if (hasImages || !this._collectionLive) document.getElementById('gen-loading')?.classList.add('hidden');
+            if (!hasImages) {
+                // Nothing to preview yet — clear any previous result's image.
+                this._renderOptionsRow(result.options);
+                document.getElementById('gen-result-img')?.classList.add('hidden');
+                document.getElementById('gen-download-bar')?.classList.add('hidden');
+                this._toggleClickHint(false);
+                if (!this._collectionLive) document.getElementById('gen-placeholder')?.classList.remove('hidden');
+                return;
+            }
+            if (!hadImages) { this._renderResults(result); return; }
+            this._renderOptionsRow(result.options);
+            const o = result.options[selO] ? selO : 0;
+            this._selectOption(o, { scroll: false });
+            if (o === selO && selV) this._selectVariant(selV);
+        },
+
+        /** Re-fetch + re-render the collection in the results area. Coalesces
+         *  overlapping calls, and never clobbers a DIFFERENT result the user has
+         *  since loaded (e.g. a Gallery Batch mid-generation). */
+        async _refreshCollectionResults(collectionId) {
+            if (!collectionId) return;
+            if (this._colRefreshing) { this._colRefreshAgain = true; return; }
+            this._colRefreshing = true;
+            try {
+                do {
+                    this._colRefreshAgain = false;
+                    const data = await API.collections.get(collectionId);
+                    if (this._result && this._result.collection_id !== collectionId) return;
+                    this._showCollectionResults(data, { keepSelection: true });
+                } while (this._colRefreshAgain);
+            } catch (e) {
+                console.warn('Collection results refresh failed:', e);
+            } finally {
+                this._colRefreshing = false;
+            }
+        },
+
+        /** Called by the Collection Asset Viewer on close — a version pin / Batch
+         *  retry there changes what the loaded collection shows here. */
+        refreshLoadedCollection(collectionId) {
+            const cur = this._result?.collection_id;
+            if (cur && (!collectionId || collectionId === cur)) this._refreshCollectionResults(cur);
+        },
+
+        /** The loaded collection was deleted — clear the results area. */
+        clearLoadedCollection(collectionId) {
+            if (!this._result?.collection_id || this._result.collection_id !== collectionId) return;
+            this._result = null;
+            document.getElementById('gen-options-section')?.classList.add('hidden');
+            document.getElementById('gen-result-img')?.classList.add('hidden');
+            document.getElementById('gen-download-bar')?.classList.add('hidden');
+            document.getElementById('gen-placeholder')?.classList.remove('hidden');
+            this._toggleClickHint(false);
+        },
+
+        /** Shared SSE handler for both collection-generation flows: tracks the
+         *  generating Batch and live-refreshes the results as each one lands. */
+        _onCollectionEvent(evt, fallbackTotal) {
+            const live = this._collectionLive;
+            if (!live) return;
+            if (evt.type === 'collection_started' && evt.collection_id) live.id = evt.collection_id;
+            if (evt.type === 'batch_started') {
+                live.index = evt.batch_index ?? live.index;
+                const tot = evt.total_batches ?? fallbackTotal;
+                const lt = document.getElementById('gen-loading-text');
+                const ls = document.getElementById('gen-loading-sub');
+                if (lt) lt.textContent = t('artsmoker.ui.collection.generating');
+                if (ls) ls.textContent = `${(evt.batch_index ?? 0) + 1}/${tot} · ${evt.batch_name || ''}`;
+                this._refreshCollectionResults(live.id);   // "Generating" chip on this Batch
+            }
+            // One Batch finished (landed, failed or blocked) → show it.
+            if (evt.type === 'cost_update' || evt.type === 'batch_error') this._refreshCollectionResults(live.id);
+            if (evt.type === 'collection_complete') {
+                this._lastCollection = {
+                    id: evt.collection_id || live.id,
+                    done: evt.completed_batches ?? fallbackTotal,
+                    total: evt.total_batches ?? fallbackTotal,
+                };
+            }
+        },
+
+        /** Start a collection run in the results area (both flows). */
+        _beginCollectionRun(collectionId) {
+            this._lastCollection = null;
+            this._collectionLive = { id: collectionId, index: 0 };
+            this._result = null;   // the run's results replace whatever was shown
+            this._selectedOption = 0;
+            this._selectedVariant = 0;
+            document.getElementById('gen-options-section')?.classList.add('hidden');
+            document.getElementById('gen-result-img')?.classList.add('hidden');
+            document.getElementById('gen-download-bar')?.classList.add('hidden');
+            this._toggleClickHint(false);
+            document.getElementById('gen-placeholder')?.classList.add('hidden');
+            const lt = document.getElementById('gen-loading-text');
+            if (lt) lt.textContent = t('artsmoker.ui.collection.generating');
+            const ls = document.getElementById('gen-loading-sub');
+            if (ls) ls.textContent = '';
+            document.getElementById('gen-loading')?.classList.remove('hidden');
+        },
+
+        _toastCollectionDone() {
+            const lc = this._lastCollection;
+            window.showToast?.(lc
+                ? t('artsmoker.ui.collection.generated_done', { done: lc.done, total: lc.total })
+                : t('artsmoker.ui.collection.generated_done_plain'), 'success');
+        },
+
+        /** Finish a collection run: final render of the whole set. */
+        async _endCollectionRun() {
+            const id = this._lastCollection?.id || this._collectionLive?.id;
+            this._collectionLive = null;
+            // (If a refresh is already in flight this coalesces into its final pass.)
+            if (id) await this._refreshCollectionResults(id);
+            document.getElementById('gen-loading')?.classList.add('hidden');
+            if (!this._result?.options?.length) document.getElementById('gen-placeholder')?.classList.remove('hidden');
+            window.Gallery?.refresh?.();
         },
 
         /** Seed helpers. The base seed is user-visible (next to Options ×
