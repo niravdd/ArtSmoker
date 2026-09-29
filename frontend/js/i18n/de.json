@@ -1690,7 +1690,9 @@
     "network_error": "Netzwerkfehler",
     "count_image": "{{count}} Bildmodelle",
     "count_chat": "{{count}} Chat-Modelle",
-    "count_video": "{{count}} Videomodelle"
+    "count_video": "{{count}} Videomodelle",
+    "discovering": "Verfügbare Modelle in Amazon Bedrock werden ermittelt...",
+    "server_starting": "Server wird gestartet..."
   },
   "misc": {
     "pe_failed_enhance": "Erweiterter Prompt konnte nicht erzeugt werden",
@@ -1850,6 +1852,8 @@
     "loaded_ad_changed": "Die Art Direction aus Schritt 2 wurde geändert, nachdem diese Liste erstellt wurde. Mit ↻ oder „Alle entsperrten neu generieren“ richtest du die Stapel daran neu aus.",
     "reread_reference": "Referenz neu auslesen",
     "sent_prompts_label": "Bei der letzten Generierung verwendete Prompts ({{count}})",
-    "sent_negative_label": "Negativ"
+    "sent_negative_label": "Negativ",
+    "cohesion_reference": "Referenz-Anker",
+    "postprocess_confirm": "Nachbearbeitung auf alle {{count}} Bilder in {{batches}} Stapeln dieser Kollektion anwenden?"
   }
 }

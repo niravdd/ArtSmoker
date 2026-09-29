@@ -65,7 +65,18 @@ def new_collection_id() -> str:
     return str(uuid.uuid4())
 
 
+def is_valid_collection_id(collection_id: str | None) -> bool:
+    """True for a canonical id minted by new_collection_id (a UUID string).
+    Ids reach us from clients, so this gates every filesystem path built from one."""
+    try:
+        return bool(collection_id) and str(uuid.UUID(collection_id)) == collection_id
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 def collection_dir(collection_id: str) -> Path:
+    if not is_valid_collection_id(collection_id):
+        raise ValueError(f"Invalid collection id: {collection_id!r}")
     d = settings.collections_dir / collection_id
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -155,6 +166,8 @@ def _summary_path(collection_id: str) -> Path:
 
 def load_collection(collection_id: str) -> dict | None:
     """Load the master record, or None if the Collection doesn't exist."""
+    if not is_valid_collection_id(collection_id):
+        return None
     path = _master_path(collection_id)
     if not path.exists():
         return None
@@ -258,6 +271,8 @@ def delete_collection(collection_id: str) -> bool:
     """Delete the whole Collection directory (master + index). Member Job assets
     are deleted separately by the caller (Gallery DELETE) — this only removes the
     collection-level files."""
+    if not is_valid_collection_id(collection_id):
+        return False
     with collection_write_lock(collection_id):
         d = settings.collections_dir / collection_id
         if d.exists() and d.is_dir():

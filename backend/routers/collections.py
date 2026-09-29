@@ -633,7 +633,8 @@ async def generate_collection(body: GenerateCollectionRequest):
     # Re-running a RELOADED collection (its id already has a master record) makes a
     # NEW Collection — never overwrite the original record, which would orphan its
     # generated Batches. The client follows the id from `collection_started`.
-    if not cid or cstore.load_collection(cid) is not None:
+    # A malformed (non-UUID) id is never used as a path — mint one instead.
+    if not cstore.is_valid_collection_id(cid) or cstore.load_collection(cid) is not None:
         cid = cstore.new_collection_id()
     asset_type = _asset_enum(body.asset_type)
     n_opts = max(1, min(5, body.num_options))
@@ -674,6 +675,7 @@ async def generate_collection(body: GenerateCollectionRequest):
         roster=[cstore.new_roster_entry(
             name=e.get("name", ""), slug=e.get("slug", ""), concept=e.get("concept", ""),
             model_agnostic_prompt=e.get("model_agnostic_prompt", ""),
+            locked=bool(e.get("locked")),   # reopening the design keeps the user's locks
         ) for e in roster],
         knobs={"N": len(roster), "O": n_opts, "V": n_vars, "models": models,
                "cohesion_mode": body.cohesion_mode, "seed": base_seed,
@@ -1319,6 +1321,8 @@ async def get_collection_reference(collection_id: str, ref_file: str):
     safe = _os.path.basename(ref_file)
     if not _re.fullmatch(r"ref_\d+\.png", safe):
         raise HTTPException(400, detail="Not a reference file.")
+    if not cstore.is_valid_collection_id(collection_id):
+        raise HTTPException(404, detail="Reference image not found.")
     path = cstore.collection_dir(collection_id) / safe
     if not path.exists():
         raise HTTPException(404, detail="Reference image not found.")

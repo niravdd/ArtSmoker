@@ -1690,7 +1690,9 @@
     "network_error": "Ошибка сети",
     "count_image": "моделей изображений: {{count}}",
     "count_chat": "чат-моделей: {{count}}",
-    "count_video": "видеомоделей: {{count}}"
+    "count_video": "видеомоделей: {{count}}",
+    "discovering": "Определение доступных моделей в Amazon Bedrock...",
+    "server_starting": "Запуск сервера..."
   },
   "misc": {
     "pe_failed_enhance": "Не удалось создать улучшенный промпт",
@@ -1850,6 +1852,8 @@
     "loaded_ad_changed": "Арт-дирекция из шага 2 была изменена после создания этого состава. Нажмите ↻ или «Пересоздать все разблокированные», чтобы согласовать с ней пакеты.",
     "reread_reference": "Перечитать референс",
     "sent_prompts_label": "Промпты последней генерации ({{count}})",
-    "sent_negative_label": "Негативный"
+    "sent_negative_label": "Негативный",
+    "cohesion_reference": "Привязка к референсу",
+    "postprocess_confirm": "Применить постобработку ко всем {{count}} изображениям в {{batches}} пакетах этой коллекции?"
   }
 }

@@ -1690,7 +1690,9 @@
     "network_error": "Error de red",
     "count_image": "{{count}} modelos de imagen",
     "count_chat": "{{count}} modelos de chat",
-    "count_video": "{{count}} modelos de vídeo"
+    "count_video": "{{count}} modelos de vídeo",
+    "discovering": "Detectando los modelos disponibles en Amazon Bedrock...",
+    "server_starting": "Iniciando el servidor..."
   },
   "misc": {
     "pe_failed_enhance": "Error al generar el prompt mejorado",
@@ -1850,6 +1852,8 @@
     "loaded_ad_changed": "La dirección de arte del paso 2 se editó después de crear esta lista. Usa ↻ o «Regenerar todos los desbloqueados» para realinear los lotes.",
     "reread_reference": "Volver a leer la referencia",
     "sent_prompts_label": "Prompts usados en la última generación ({{count}})",
-    "sent_negative_label": "Negativo"
+    "sent_negative_label": "Negativo",
+    "cohesion_reference": "Anclaje a la referencia",
+    "postprocess_confirm": "¿Aplicar el posprocesado a las {{count}} imágenes de los {{batches}} lotes de esta colección?"
   }
 }

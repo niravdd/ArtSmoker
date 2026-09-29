@@ -394,10 +394,10 @@
             }
             // Show sync-in-progress modal if server is still starting
             if (data.sync_in_progress) {
-                _showSyncModal(data.sync_message || 'Discovering model availability in Amazon Bedrock...', true);
+                _showSyncModal(data.sync_message || t('artsmoker.ui.onboarding.discovering'), true);
                 setTimeout(_checkHealth, 3000);
             } else if (!data.ready) {
-                _showSyncModal('Server starting up...', false);
+                _showSyncModal(t('artsmoker.ui.onboarding.server_starting'), false);
                 setTimeout(_checkHealth, 2000);
             } else if (data.sync_error) {
                 _closeSyncModal(true, data.sync_error);

@@ -1690,7 +1690,9 @@
     "network_error": "Network error",
     "count_image": "{{count}} image models",
     "count_chat": "{{count}} chat models",
-    "count_video": "{{count}} video models"
+    "count_video": "{{count}} video models",
+    "discovering": "Discovering model availability in Amazon Bedrock...",
+    "server_starting": "Server starting up..."
   },
   "misc": {
     "pe_failed_enhance": "Failed to generate enhanced prompt",
@@ -1850,6 +1852,8 @@
     "loaded_ad_changed": "The Step 2 art direction was edited after this roster was built. Use ↻ or “Regenerate all unlocked” to re-align the Batches to it.",
     "reread_reference": "Re-read the reference",
     "sent_prompts_label": "Prompts used in the last generation ({{count}})",
-    "sent_negative_label": "Negative"
+    "sent_negative_label": "Negative",
+    "cohesion_reference": "Reference-anchor",
+    "postprocess_confirm": "Apply post-processing to all {{count}} images across {{batches}} Batches in this collection?"
   }
 }

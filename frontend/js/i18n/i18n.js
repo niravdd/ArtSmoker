@@ -139,7 +139,8 @@
         // Replace {{param}} placeholders
         if (params) {
             for (const [k, v] of Object.entries(params)) {
-                str = str.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v);
+                // Function replacer: a value is inserted verbatim (no `$&` / `$'` expansion).
+                str = str.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), () => String(v));
             }
         }
         return str;

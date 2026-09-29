@@ -172,7 +172,7 @@
                                         <span id="vs-translation-badge" class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent font-medium"></span>
                                         <div class="flex gap-0.5 ml-auto">
                                             <button type="button" id="vs-tab-original" class="text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium">${t('artsmoker.ui.common.prompt') || 'Original'}</button>
-                                            <button type="button" id="vs-tab-english" class="text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent">${t('artsmoker.ui.lang.en')}</button>
+                                            <button type="button" id="vs-tab-english" class="text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent">${t('artsmoker.ui.prompt_editor.english_tab')}</button>
                                         </div>
                                     </div>
                                     <div id="vs-translation-text" class="hidden p-2 rounded-lg bg-emerald-950/10 border border-emerald-500/20 text-xs text-brand-text/70 whitespace-pre-wrap max-h-20 overflow-auto"></div>
@@ -677,7 +677,7 @@
                 if (result.was_translated) {
                     const langNames = { ja: '日本語', zh: '中文', ko: '한국어', hi: 'हिन्दी', ru: 'Русский', fr: 'Français', es: 'Español', de: 'Deutsch' };
                     // nosemgrep -- lookup by language code, not JSON-derived object keys
-                    badge.textContent = `${langNames[result.source_lang] || result.source_lang} → ${t('artsmoker.ui.lang.en')}`;
+                    badge.textContent = t('artsmoker.ui.prompt_editor.translated_to_english', { lang: langNames[result.source_lang] || result.source_lang });
                     engText.textContent = result.translated;
                     preview.classList.remove('hidden');
                 } else {
@@ -1380,10 +1380,10 @@
             const ms = Date.now() - new Date(isoStr).getTime();
             const s = Math.floor(ms / 1000);
             const ago = (time) => t('artsmoker.ui.video_studio.time_ago', { time });
-            if (s < 60) return ago(`${s}s`);
+            if (s < 60) return ago(t('artsmoker.ui.common.dur_sec', { n: s }));
             const m = Math.floor(s / 60);
-            if (m < 60) return ago(`${m}m`);
-            return ago(`${Math.floor(m / 60)}h ${m % 60}m`);
+            if (m < 60) return ago(t('artsmoker.ui.common.dur_min', { n: m }));
+            return ago(`${t('artsmoker.ui.common.dur_hr', { n: Math.floor(m / 60) })} ${t('artsmoker.ui.common.dur_min', { n: m % 60 })}`);
         } catch (_) { return ''; }
     }
 })();

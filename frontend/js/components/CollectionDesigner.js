@@ -52,6 +52,7 @@
                 prompt: (opts.prompt || '').trim(),
                 artDirection: { text: (opts.artDirectionText || '').trim() },
                 roster: [], designCost: opts.priorDesignCost || 0,
+                priorCost: opts.priorDesignCost || 0,   // already-spent (kept) design cost
                 ledger: (opts.priorLedger || []).slice(), projected: null,
                 // Seed Options × Variations (+ remove-bg) from the sidebar when the
                 // caller passes them, so the user's chosen counts carry through instead
@@ -132,10 +133,12 @@
                     image_model: this._ctx.image_model,
                     asset_type: this._ctx.asset_type,
                 });
-                // Preserve lock flags; take fresh prompts.
-                const locks = Object.fromEntries(this._state.roster.map(e => [e.slug, e.locked]));
-                this._state.roster = (r.roster || []).map(e => ({ ...e, locked: !!locks[e.slug] }));
+                // Preserve lock flags + the prompts each Batch was last sent; take fresh prompts.
+                const prev = Object.fromEntries(this._state.roster.map(e => [e.slug, e]));
+                this._state.roster = (r.roster || []).map(e => ({ ...e, locked: !!prev[e.slug]?.locked,
+                                                                  sent_prompts: prev[e.slug]?.sent_prompts || [] }));
                 this._state.designCost += (r.cost || 0);
+                this._state.loaded = this._state.adChanged = false;   // re-aligned → no longer "as saved"
                 window.Telemetry?.track?.('collection_art_direction_edited', {});
                 this._render();
             } catch (e) { this._toast(e.message); } finally { this._setBusy(false); }
@@ -169,8 +172,11 @@
                     style_id: this._ctx.style_id,
                 });
                 const locks = Object.fromEntries(locked.map(e => [e.slug, true]));
-                this._state.roster = (r.roster || []).map(e => ({ ...e, locked: !!locks[e.slug] }));
+                const sent = Object.fromEntries(this._state.roster.map(e => [e.slug, e.sent_prompts || []]));
+                this._state.roster = (r.roster || []).map(e => ({ ...e, locked: !!locks[e.slug],
+                                                                  sent_prompts: locks[e.slug] ? sent[e.slug] : [] }));
                 this._state.designCost += (r.cost || 0);
+                this._state.loaded = this._state.adChanged = false;   // rebuilt → no longer "as saved"
                 window.Telemetry?.track?.('collection_roster_regenerated', {});
                 this._render();
             } catch (e) { this._toast(e.message); } finally { this._setBusy(false); }
@@ -348,7 +354,10 @@
         },
 
         _confirmClose() {
-            if (this._state && this._state.designCost > 0) {
+            // Closing discards a FRESH design, or new spend on a reopened one; an
+            // unchanged reopened design is kept by its owner → no prompt.
+            const s = this._state;
+            if (s && s.designCost > 0 && (!s.loaded || s.designCost > s.priorCost)) {
                 if (!confirm(t('collection.reset_confirm', { cost: '$' + this._state.designCost.toFixed(3) }))) return;
             }
             this.close();
@@ -442,6 +451,7 @@
                         <select id="cd-cohesion" class="input text-sm">
                             <option value="prompt" ${s.knobs.cohesion==='prompt'?'selected':''}>${t('collection.cohesion_prompt')}</option>
                             <option value="hero" ${s.knobs.cohesion==='hero'?'selected':''}>${t('collection.cohesion_hero')}</option>
+                            ${s.knobs.cohesion === 'reference' ? html`<option value="reference" selected>${t('collection.cohesion_reference')}</option>` : ''}
                         </select></div>
                     <div><label class="block text-[11px] mb-1">${t('collection.model_label')}</label>
                         <input class="input text-sm" value="${(this._ctx.models_count || 1) > 1 ? `${this._ctx.models_count} ${t('image_studio.models_count')}` : this._ctx.image_model}" disabled /></div>

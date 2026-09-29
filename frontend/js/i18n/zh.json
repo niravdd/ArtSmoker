@@ -1690,7 +1690,9 @@
     "network_error": "网络错误",
     "count_image": "{{count}} 个图像模型",
     "count_chat": "{{count}} 个对话模型",
-    "count_video": "{{count}} 个视频模型"
+    "count_video": "{{count}} 个视频模型",
+    "discovering": "正在检测 Amazon Bedrock 中可用的模型...",
+    "server_starting": "服务器正在启动..."
   },
   "misc": {
     "pe_failed_enhance": "生成增强提示词失败",
@@ -1720,7 +1722,7 @@
     "art_direction_required": "请先添加艺术指导（手动填写或点击“生成”）。",
     "roster_label": "批次",
     "add_batch": "添加批次",
-    "regenerate_all": "重新生成所有未锁定项",
+    "regenerate_all": "重新生成所有未锁定批次",
     "regenerate": "重新生成",
     "lock": "锁定",
     "unlock": "解锁",
@@ -1846,10 +1848,12 @@
     "status_pending": "未生成",
     "generated_done": "合集已生成 — {{done}}/{{total}} 个批次",
     "generated_done_plain": "合集已生成",
-    "loaded_design_notice": "正在显示已保存的设计 — 即构建此合集时所用的艺术指导和各批次提示词原文。除非您主动操作（逐批次 ↻ 或“重新生成所有未锁定项”），否则不会重新生成。",
-    "loaded_ad_changed": "此名单生成后，第 2 步的艺术指导已被修改。可使用 ↻ 或“重新生成所有未锁定项”让各批次与之重新对齐。",
+    "loaded_design_notice": "正在显示已保存的设计 — 即构建此合集时所用的艺术指导和各批次提示词原文。除非您主动操作（逐批次 ↻ 或“重新生成所有未锁定批次”），否则不会重新生成。",
+    "loaded_ad_changed": "此名单生成后，第 2 步的艺术指导已被修改。可使用 ↻ 或“重新生成所有未锁定批次”让各批次与之重新对齐。",
     "reread_reference": "重新读取参考图",
     "sent_prompts_label": "上次生成所用的提示词（{{count}}）",
-    "sent_negative_label": "负面"
+    "sent_negative_label": "负面",
+    "cohesion_reference": "参考图锚定",
+    "postprocess_confirm": "要对此合集中 {{batches}} 个批次的全部 {{count}} 张图像应用后期处理吗？"
   }
 }

@@ -20,16 +20,19 @@
         stable_image_ultra: 'Stable Image Ultra',
     };
 
-    const TYPE_LABELS = {
-        game_asset: 'Game Asset',
-        marketing_banner: 'Marketing Banner',
-        icon: 'Icon',
-        character: 'Character',
-        environment: 'Environment',
-        photorealistic: 'Photorealistic Image',
-        type_studio: 'Type Studio',
-        type_studio_composite: 'Type Studio',
+    // Asset type → i18n key (the same labels the Image Studio picker shows).
+    const TYPE_LABEL_KEYS = {
+        game_asset: 'image_studio.asset_type_game',
+        marketing_banner: 'image_studio.asset_type_banner',
+        icon: 'image_studio.asset_type_icon',
+        character: 'image_studio.asset_type_character',
+        environment: 'image_studio.asset_type_environment',
+        photorealistic: 'image_studio.asset_type_photo',
+        type_studio: 'nav.type_studio',
+        type_studio_composite: 'nav.type_studio',
     };
+    const NO_VALUE = '—';
+    const _typeLabel = (at) => TYPE_LABEL_KEYS[at] ? t('artsmoker.ui.' + TYPE_LABEL_KEYS[at]) : (at || NO_VALUE);
 
     // 3D quality presets — the single source for BOTH the per-asset 3D form and
     // the Collection bulk "Convert to 3D" pane (AssetViewer.threeD* helpers).
@@ -478,7 +481,7 @@
             if (!infoBar) return;
             const createdDate = meta.created_at ? window.formatDate(meta.created_at) : '';
             const modelLabel = meta.model_label || MODEL_LABELS[meta.image_model] || meta.image_model || '';
-            const typeLabel = TYPE_LABELS[meta.asset_type] || meta.asset_type || 'N/A';
+            const typeLabel = _typeLabel(meta.asset_type);
             const styleName = meta.style_snapshot?.name || meta.style_id || '';
             let versionModelLabel = '';
             try {
@@ -494,7 +497,7 @@
                 modelLabel ? html`<span class="px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${modelLabel}${versionModelLabel ? html` <span class="opacity-60">· ${t('artsmoker.ui.asset_viewer.version_original')}</span>` : ''}</span>` : '',
                 versionModelLabel ? html`<span class="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">${versionModelLabel} <span class="opacity-60">· ${t('artsmoker.ui.asset_viewer.version_this_edit')}</span></span>` : '',
                 styleName ? html`<span class="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${styleName}</span>` : '',
-                typeLabel !== 'N/A' ? html`<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${typeLabel}</span>` : '',
+                typeLabel !== NO_VALUE ? html`<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${typeLabel}</span>` : '',
                 meta.width && meta.height ? html`<span>${meta.width}×${meta.height}</span>` : '',
                 createdDate ? html`<span>${createdDate}</span>` : '',
             ].filter(Boolean).join('');
@@ -516,11 +519,11 @@
                 if (dlSvg) dlSvg.setAttribute('download', this._versionDownloadName('svg', curV, vrec));
             } catch {}
 
-            const createdAt = meta.created_at ? window.formatTimestamp(meta.created_at) : 'N/A';
+            const createdAt = meta.created_at ? window.formatTimestamp(meta.created_at) : NO_VALUE;
             const createdDate = meta.created_at ? window.formatDate(meta.created_at) : '';
             const isTypeStudio = meta.type === 'type-studio';
             const modelLabel = meta.model_label || MODEL_LABELS[meta.image_model] || meta.image_model || '';
-            const typeLabel = TYPE_LABELS[meta.asset_type] || meta.asset_type || 'N/A';
+            const typeLabel = _typeLabel(meta.asset_type);
             const styleName = meta.style_snapshot?.name || meta.style_id || '';
 
             // Update the image info bar (below the image, above metadata panel).
@@ -657,10 +660,10 @@
         },
 
         _populateMetadata(container, meta) {
-            const createdAt = meta.created_at ? window.formatTimestamp(meta.created_at) : 'N/A';
+            const createdAt = meta.created_at ? window.formatTimestamp(meta.created_at) : NO_VALUE;
             const isTypeStudio = meta.type === 'type-studio';
             const modelLabel = meta.model_label || MODEL_LABELS[meta.image_model] || meta.image_model || '';
-            const typeLabel = TYPE_LABELS[meta.asset_type] || meta.asset_type || 'N/A';
+            const typeLabel = _typeLabel(meta.asset_type);
             const styleName = meta.style_snapshot?.name || meta.style_id || '';
 
             // Helper: copy button snippet

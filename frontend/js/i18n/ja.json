@@ -1690,7 +1690,9 @@
     "network_error": "ネットワークエラー",
     "count_image": "画像モデル {{count}}",
     "count_chat": "チャットモデル {{count}}",
-    "count_video": "動画モデル {{count}}"
+    "count_video": "動画モデル {{count}}",
+    "discovering": "Amazon Bedrock で利用可能なモデルを検出しています...",
+    "server_starting": "サーバーを起動しています..."
   },
   "misc": {
     "pe_failed_enhance": "強化プロンプトの生成に失敗しました",
@@ -1850,6 +1852,8 @@
     "loaded_ad_changed": "このロスター作成後に Step 2 のアートディレクションが編集されました。↻ または「ロック解除済みをすべて再生成」でバッチを合わせ直せます。",
     "reread_reference": "参照画像を読み直す",
     "sent_prompts_label": "前回の生成で使われたプロンプト（{{count}}）",
-    "sent_negative_label": "ネガティブ"
+    "sent_negative_label": "ネガティブ",
+    "cohesion_reference": "参照アンカー",
+    "postprocess_confirm": "このコレクションの {{batches}} 件のバッチにある全 {{count}} 枚の画像に後処理を適用しますか？"
   }
 }

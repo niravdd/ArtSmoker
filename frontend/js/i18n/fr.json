@@ -1690,7 +1690,9 @@
     "network_error": "Erreur réseau",
     "count_image": "{{count}} modèles d’image",
     "count_chat": "{{count}} modèles de chat",
-    "count_video": "{{count}} modèles vidéo"
+    "count_video": "{{count}} modèles vidéo",
+    "discovering": "Détection des modèles disponibles dans Amazon Bedrock...",
+    "server_starting": "Démarrage du serveur..."
   },
   "misc": {
     "pe_failed_enhance": "Échec de la génération du prompt amélioré",
@@ -1850,6 +1852,8 @@
     "loaded_ad_changed": "La direction artistique de l’étape 2 a été modifiée après la création de cette liste. Utilisez ↻ ou « Régénérer tous les déverrouillés » pour réaligner les lots.",
     "reread_reference": "Relire la référence",
     "sent_prompts_label": "Prompts utilisés lors de la dernière génération ({{count}})",
-    "sent_negative_label": "Négatif"
+    "sent_negative_label": "Négatif",
+    "cohesion_reference": "Ancrage référence",
+    "postprocess_confirm": "Appliquer le post-traitement aux {{count}} images des {{batches}} lots de cette collection ?"
   }
 }

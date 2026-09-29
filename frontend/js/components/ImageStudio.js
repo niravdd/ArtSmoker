@@ -1625,6 +1625,10 @@
                 window.showToast?.(t('artsmoker.ui.image_studio.enable_pp_option'), 'warning');
                 return;
             }
+            // A loaded collection is every Batch of the set — confirm the scale first.
+            const groups = this._result.collection_groups;
+            if (groups && !window.confirm(t('artsmoker.ui.collection.postprocess_confirm',
+                    { count: assetIds.length, batches: groups.filter(g => g.count).length }))) return;
 
             const btn = document.getElementById('btn-apply-postprocess');
             const origHTML = btn.innerHTML;
@@ -2378,7 +2382,7 @@
                     if (sub) sub.textContent = evt.message || t('artsmoker.ui.image_studio.moderation_stopping');
                     if (bar) bar.style.width = '100%';
                     // Track for the dialog
-                    this._moderationErrors.push(evt.error || 'Content moderation blocked');
+                    this._moderationErrors.push(evt.error || t('artsmoker.ui.image_studio.moderation_blocked'));
                     break;
 
                 case 'prompt_refused':
@@ -3437,10 +3441,12 @@
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
             } finally {
+                // Final render of the whole set (a failure mid-run still shows what
+                // landed) BEFORE Generate re-enables, so a click can't race it.
+                await this._endCollectionRun();
                 this._generating = false;
                 if (btn) btn.disabled = false;
-                // Final render of the whole set (a failure mid-run still shows what landed).
-                await this._endCollectionRun();
+                this._syncGenerateGate();
             }
         },
 
@@ -3630,16 +3636,16 @@
                     remove_background: knobs.removeBg !== false,
                     llm_cost_ledger: design.ledger || [], design_cost: design.designCost || 0,
                 }, (evt) => this._onCollectionEvent(evt, (design.roster || []).length));
+                // The design is KEPT (like the Text flow): the Designer reopens it as
+                // generated, and a re-run makes a new Collection (the server mints the id).
                 this._toastCollectionDone();
-                rs?.setCollectionReady('');          // consumed → require a fresh design next time
-                this._refCollectionDesign = null;
-                this._syncGenerateGate();            // re-disable Generate until re-designed
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
             } finally {
+                await this._endCollectionRun();
                 this._generating = false;
                 if (btn) btn.disabled = false;
-                await this._endCollectionRun();
+                this._syncGenerateGate();
             }
         },
 
@@ -3742,25 +3748,36 @@
             if (o === selO && selV) this._selectVariant(selV);
         },
 
-        /** Re-fetch + re-render the collection in the results area. Coalesces
-         *  overlapping calls, and never clobbers a DIFFERENT result the user has
-         *  since loaded (e.g. a Gallery Batch mid-generation). */
-        async _refreshCollectionResults(collectionId) {
-            if (!collectionId) return;
-            if (this._colRefreshing) { this._colRefreshAgain = true; return; }
-            this._colRefreshing = true;
-            try {
-                do {
-                    this._colRefreshAgain = false;
-                    const data = await API.collections.get(collectionId);
-                    if (this._result && this._result.collection_id !== collectionId) return;
-                    this._showCollectionResults(data, { keepSelection: true });
-                } while (this._colRefreshAgain);
-            } catch (e) {
-                console.warn('Collection results refresh failed:', e);
-            } finally {
-                this._colRefreshing = false;
-            }
+        /** Re-fetch + re-render the collection in the results area. Overlapping
+         *  calls coalesce onto the in-flight pass (callers awaiting it get the
+         *  final render) and always fetch the LATEST requested id. A response is
+         *  dropped when it's stale — a run started since (epoch), a newer id was
+         *  requested, or the user has since loaded a DIFFERENT result (e.g. a
+         *  Gallery Batch mid-generation). */
+        _refreshCollectionResults(collectionId) {
+            if (!collectionId) return Promise.resolve();
+            this._colRefreshTarget = collectionId;
+            if (this._colRefreshPromise) { this._colRefreshAgain = true; return this._colRefreshPromise; }
+            this._colRefreshPromise = (async () => {
+                try {
+                    do {
+                        this._colRefreshAgain = false;
+                        const id = this._colRefreshTarget;
+                        const epoch = this._colRunEpoch || 0;
+                        const data = await API.collections.get(id);
+                        if (epoch !== (this._colRunEpoch || 0) || id !== this._colRefreshTarget) continue;
+                        const live = this._collectionLive;
+                        const owner = this._result ? this._result.collection_id : (live && live.id);
+                        if (owner && owner !== id) continue;
+                        this._showCollectionResults(data, { keepSelection: true });
+                    } while (this._colRefreshAgain);
+                } catch (e) {
+                    console.warn('Collection results refresh failed:', e);
+                } finally {
+                    this._colRefreshPromise = null;
+                }
+            })();
+            return this._colRefreshPromise;
         },
 
         /** Called by the Collection Asset Viewer on close — a version pin / Batch
@@ -3774,10 +3791,16 @@
         clearLoadedCollection(collectionId) {
             if (!this._result?.collection_id || this._result.collection_id !== collectionId) return;
             this._result = null;
-            document.getElementById('gen-options-section')?.classList.add('hidden');
-            document.getElementById('gen-result-img')?.classList.add('hidden');
-            document.getElementById('gen-download-bar')?.classList.add('hidden');
+            this._hideResultPanels();
             document.getElementById('gen-placeholder')?.classList.remove('hidden');
+        },
+
+        /** Hide every panel that belongs to the shown result (preview, options,
+         *  download bar, prompt + cost panels) — as _setGenerating does. */
+        _hideResultPanels() {
+            ['gen-options-section', 'gen-result-img', 'gen-download-bar', 'gen-prompt-info',
+             'gen-concept-prompt', 'gen-cost-breakdown'].forEach(id =>
+                document.getElementById(id)?.classList.add('hidden'));
             this._toggleClickHint(false);
         },
 
@@ -3810,14 +3833,12 @@
         /** Start a collection run in the results area (both flows). */
         _beginCollectionRun(collectionId) {
             this._lastCollection = null;
+            this._colRunEpoch = (this._colRunEpoch || 0) + 1;   // drop refreshes started before this run
             this._collectionLive = { id: collectionId, index: 0 };
             this._result = null;   // the run's results replace whatever was shown
             this._selectedOption = 0;
             this._selectedVariant = 0;
-            document.getElementById('gen-options-section')?.classList.add('hidden');
-            document.getElementById('gen-result-img')?.classList.add('hidden');
-            document.getElementById('gen-download-bar')?.classList.add('hidden');
-            this._toggleClickHint(false);
+            this._hideResultPanels();
             document.getElementById('gen-placeholder')?.classList.add('hidden');
             const lt = document.getElementById('gen-loading-text');
             if (lt) lt.textContent = t('artsmoker.ui.collection.generating');
@@ -3841,6 +3862,11 @@
             if (id) await this._refreshCollectionResults(id);
             document.getElementById('gen-loading')?.classList.add('hidden');
             if (!this._result?.options?.length) document.getElementById('gen-placeholder')?.classList.remove('hidden');
+            // An async (self-hosted) Batch that outran the collection's wait lands
+            // later — poll it so its placeholders update in place, as a single Batch does.
+            const pending = (this._result?.options || []).some(o =>
+                (o.variants || []).some(v => v.async_job && !v.png_path));
+            if (pending) { this._startAsyncPolling(); this._checkAsyncJobs(); }
             window.Gallery?.refresh?.();
         },
 

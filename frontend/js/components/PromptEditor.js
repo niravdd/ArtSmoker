@@ -761,7 +761,7 @@
             const ctx = this._collectionContext();
             const M = Math.max(1, ctx.models_selected_count || 1);   // each subject renders on every chosen model
             const O = k.options || 3, V = k.variations || 2, total = n * O * V * M;
-            const cohesionLabel = (k.cohesion === 'hero') ? T('cohesion_hero') : T('cohesion_prompt');
+            const cohesionLabel = T('cohesion_' + (['hero', 'reference'].includes(k.cohesion) ? k.cohesion : 'prompt'));
             const modelName = ctx.model_name || ctx.image_model;   // friendly name, not the raw key
             const modelsLabel = M > 1
                 ? `${M} ${(typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.models_count') : 'models')}`

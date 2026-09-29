@@ -1690,7 +1690,9 @@
     "network_error": "नेटवर्क त्रुटि",
     "count_image": "{{count}} चित्र मॉडल",
     "count_chat": "{{count}} चैट मॉडल",
-    "count_video": "{{count}} वीडियो मॉडल"
+    "count_video": "{{count}} वीडियो मॉडल",
+    "discovering": "Amazon Bedrock में उपलब्ध मॉडल खोजे जा रहे हैं...",
+    "server_starting": "सर्वर शुरू हो रहा है..."
   },
   "misc": {
     "pe_failed_enhance": "उन्नत प्रॉम्प्ट बनाने में विफल",
@@ -1709,9 +1711,9 @@
     "select_model": "मॉडल चुनें..."
   },
   "collection": {
-    "toggle": "संग्रह",
+    "toggle": "कलेक्शन",
     "toggle_hint": "एक प्रॉम्प्ट से पूरा कलेक्शन डिज़ाइन करें",
-    "designer_title": "संग्रह डिज़ाइनर",
+    "designer_title": "कलेक्शन डिज़ाइनर",
     "art_direction_label": "आर्ट डायरेक्शन (पूरे कलेक्शन में साझा)",
     "art_direction_hint": "इसे संपादित करने पर कलेक्शन के हर बैच को फिर से बनाया जाता है।",
     "generate_art_direction": "बनाएँ",
@@ -1744,11 +1746,11 @@
     "cohesion_hero": "हीरो-एंकर",
     "decomposing": "आपका कलेक्शन डिज़ाइन किया जा रहा है…",
     "recomposing": "फिर से रचा जा रहा है…",
-    "generating": "संग्रह बनाया जा रहा है…",
-    "generate": "संग्रह बनाएँ",
-    "generate_disabled_hint": "पहले संग्रह डिज़ाइन करें",
+    "generating": "कलेक्शन बनाया जा रहा है…",
+    "generate": "कलेक्शन बनाएँ",
+    "generate_disabled_hint": "पहले कलेक्शन डिज़ाइन करें",
     "cancel": "बंद करें",
-    "reset_confirm": "संग्रह डिज़ाइन को छोड़ दें? (AI डिज़ाइन लागत पहले ही लग चुकी है: {{cost}})",
+    "reset_confirm": "कलेक्शन डिज़ाइन को छोड़ दें? (AI डिज़ाइन लागत पहले ही लग चुकी है: {{cost}})",
     "cost_design": "डिज़ाइन लागत",
     "cost_projected": "अनुमानित जनरेशन",
     "cost_total": "अनुमानित कुल",
@@ -1757,7 +1759,7 @@
     "batch_prompt": "मॉडल-निरपेक्ष प्रॉम्प्ट (संपादन योग्य)",
     "empty": "अभी तक कोई बैच नहीं।",
     "error": "कुछ गलत हो गया। फिर से प्रयास करें।",
-    "card_badge": "संग्रह",
+    "card_badge": "कलेक्शन",
     "card_count": "{{count}} बैच",
     "remove_bg_hint": "पारदर्शी कट-आउट (उपयोग के लिए तैयार); बंद करने पर बैकग्राउंड बना रहता है",
     "select_version": "वर्शन चुनें",
@@ -1793,7 +1795,7 @@
     "option_label": "विकल्प",
     "variation_label": "विविधता",
     "open_full": "पूरा देखने के लिए क्लिक करें",
-    "viewer_title": "संग्रह",
+    "viewer_title": "कलेक्शन",
     "viewer_open_batch": "खोलें",
     "viewer_3d_set": "पूरे कलेक्शन को 3D करें",
     "viewer_export_set": "कलेक्शन एक्सपोर्ट करें",
@@ -1801,7 +1803,7 @@
     "viewer_status_complete": "पूर्ण",
     "viewer_status_partial": "आंशिक",
     "viewer_status_generating": "बनाया जा रहा है",
-    "delete_confirm": "इस संग्रह और इसकी सभी छवियों को हटाएँ?",
+    "delete_confirm": "इस कलेक्शन और इसकी सभी छवियों को हटाएँ?",
     "version_label": "संस्करण",
     "export_prompt": "एक्सपोर्ट फ़ॉर्मैट? (fbx, usd, या glb)",
     "accept": "स्वीकार करें और बंद करें",
@@ -1812,7 +1814,7 @@
     "example4": "गेम इन्वेंटरी के लिए 8 हाथ से बनी पोशन-बोतल आइकन",
     "images_count": "{{count}} छवियाँ",
     "threed_submitted": "{{count}} 3D मॉडल सबमिट किए गए",
-    "asset_type_note": "संग्रह केवल कैरेक्टर या गेम एसेट बनाते हैं।",
+    "asset_type_note": "कलेक्शन केवल कैरेक्टर या गेम एसेट बनाते हैं।",
     "status_failed": "विफल",
     "status_blocked": "फ़िल्टर किया गया",
     "retry": "पुनः प्रयास",
@@ -1850,6 +1852,8 @@
     "loaded_ad_changed": "यह रोस्टर बनने के बाद चरण 2 का आर्ट डायरेक्शन बदला गया है। बैचों को उसके अनुरूप करने के लिए ↻ या “सभी अनलॉक किए गए फिर से बनाएँ” का उपयोग करें।",
     "reread_reference": "रेफ़रेंस फिर से पढ़ें",
     "sent_prompts_label": "पिछली जनरेशन में उपयोग हुए प्रॉम्प्ट ({{count}})",
-    "sent_negative_label": "नेगेटिव"
+    "sent_negative_label": "नेगेटिव",
+    "cohesion_reference": "रेफ़रेंस-एंकर",
+    "postprocess_confirm": "इस कलेक्शन के {{batches}} बैच की सभी {{count}} इमेज पर पोस्ट-प्रोसेसिंग लागू करें?"
   }
 }
