@@ -564,5 +564,11 @@
         }
       ]
     }
+  },
+  "cutouts": {
+    "1": {
+      "method": "local",
+      "cost_usd": 0.0
+    }
   }
 }
