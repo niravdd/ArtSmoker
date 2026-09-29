@@ -290,6 +290,9 @@ def registry_transaction():
 
 # Fields per model that are user-specific and should NOT be promoted to the base file
 _USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready", "lifecycle_unavailable"}
+# Chat-model price fields owned by the Sync (_apply_llm_pricing): when it drops
+# them, promote_to_base must drop them from base as well.
+_SYNC_CLEARABLE_PRICING_FIELDS = ("input_price_per_1k", "output_price_per_1k", "token_pricing_by_region")
 # Top-level sections that are user-specific
 _USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances", "three_d_defaults", "_warm_mode", "_blender"}
 
@@ -341,6 +344,11 @@ def promote_to_base():
                     base_section[model_key].update(promoted)
                     for field in _USER_ONLY_FIELDS:
                         base_section[model_key].pop(field, None)
+                    # Sync clears pricing it can no longer source (→ "unavailable");
+                    # update() alone would keep the stale base copy forever.
+                    for field in (_SYNC_CLEARABLE_PRICING_FIELDS if section == "chat_models" else ()):
+                        if field not in promoted:
+                            base_section[model_key].pop(field, None)
                 else:
                     base_section[model_key] = promoted
             # Remove models from base that no longer exist in merged
