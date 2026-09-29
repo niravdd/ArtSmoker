@@ -1769,24 +1769,32 @@ def _fetch_llm_pricing() -> dict:
     '1M tokens') and splits input vs output by the usagetype ('-input-tokens' /
     '-output-tokens'). Normalizes everything to USD per 1K tokens.
 
-    Returns { "<model>|<region>": {"input_per_1k": x, "output_per_1k": y}, ... }.
+    Returns { "<model>|<region>": {"input_per_1k": x, "output_per_1k": y,
+    ["global_input_per_1k": gx, "global_output_per_1k": gy]}, ... }. input/output
+    are the REGIONAL (in-Region / geo-profile) rate, falling back to the Global
+    rate when a model only publishes Global rows; the global_* pair is present
+    only when a Global-profile rate exists (Global is ~10% cheaper than geo).
     Empty on failure (callers keep the static seed). Pricing API is us-east-1 only.
     """
     try:
         import json as _json
         client = boto3.Session().client("pricing", region_name="us-east-1")
-        prices: dict = {}
+        # (model, region) → {"regional"|"global": {"input_per_1k"|"output_per_1k": x}}
+        tiers: dict = {}
         # Non-standard billing tiers to EXCLUDE from the on-demand token price.
         # The old "keep the LOWEST price per direction" heuristic silently
         # recorded the -batch rows (HALF the standard rate — e.g. Claude
         # Sonnet 4 batch $1.50/$7.50 vs standard $3/$15 per MTok), so costs
         # under-reported. Standard rows carry none of these markers.
-        _SKIP_TIERS = ("batch", "cache", "priority", "reserved",
-                       "long-context", "long_context", "longcontext")
-        # Modern Anthropic (Claude 3.5+) SKUs live under the separate
-        # "AmazonBedrockService" service code — the "AmazonBedrock" code only
-        # has legacy Claude 2.x/3 rows. Scan both.
-        for service_code in ("AmazonBedrock", "AmazonBedrockService"):
+        _SKIP_TIERS = ("batch", "cache", "priority", "reserved", "latencyoptimized",
+                       "long-context", "long_context", "longcontext", "long_ctx")
+        _MP_SUFFIX = " (Amazon Bedrock Edition)"
+        # Legacy Claude 2.x/3 rows live under "AmazonBedrock"; Claude 3.5+ global-
+        # profile rows under "AmazonBedrockService"; the Marketplace-sold models
+        # (Claude 4.5+ incl. REGIONAL rates, GPT-6, Palmyra, …) only under
+        # "AmazonBedrockFoundationModels", named by `servicename` with an
+        # " (Amazon Bedrock Edition)" suffix instead of a `model` attribute.
+        for service_code in ("AmazonBedrock", "AmazonBedrockService", "AmazonBedrockFoundationModels"):
             next_token, pages = None, 0
             while pages < 120:  # bound the scan (token SKUs across all models/regions)
                 pages += 1
@@ -1798,15 +1806,21 @@ def _fetch_llm_pricing() -> dict:
                     pd = _json.loads(p)
                     attrs = pd.get("product", {}).get("attributes", {})
                     model_name = attrs.get("model", "")
+                    if not model_name:
+                        svc = attrs.get("servicename", "") or ""
+                        model_name = svc[: -len(_MP_SUFFIX)] if svc.endswith(_MP_SUFFIX) else ""
                     region = attrs.get("regionCode", "")
                     usage = (attrs.get("usagetype", "") or "").lower()
                     if not model_name or not region:
                         continue
-                    # Only STANDARD-tier token-priced input/output rows.
-                    is_input = "input-tokens" in usage or "input_tokens" in usage
-                    is_output = "output-tokens" in usage or "output_tokens" in usage
+                    # Only STANDARD-tier token-priced input/output rows. Usage types
+                    # come as "input-tokens", "input_tokens" or "inputtokencount";
+                    # cache rows ("cachereadinputtokencount") are dropped by _SKIP_TIERS.
+                    is_input = any(s in usage for s in ("input-tokens", "input_tokens", "inputtokencount"))
+                    is_output = any(s in usage for s in ("output-tokens", "output_tokens", "outputtokencount"))
                     if not (is_input or is_output) or any(t in usage for t in _SKIP_TIERS):
                         continue
+                    tier = "global" if "global" in usage else "regional"
                     for terms in pd.get("terms", {}).get("OnDemand", {}).values():
                         for dim in terms.get("priceDimensions", {}).values():
                             unit = dim.get("unit", "")
@@ -1814,8 +1828,7 @@ def _fetch_llm_pricing() -> dict:
                             if price <= 0 or unit not in ("1K tokens", "1M tokens"):
                                 continue
                             per_1k = price if unit == "1K tokens" else price / 1000.0
-                            key = f"{model_name}|{region}"
-                            entry = prices.setdefault(key, {})
+                            entry = tiers.setdefault((model_name, region), {}).setdefault(tier, {})
                             # Multiple standard rows per direction (e.g. runtime vs
                             # mantle surfaces) — keep the lowest of the STANDARD rows.
                             fld = "input_per_1k" if is_input else "output_per_1k"
@@ -1824,6 +1837,15 @@ def _fetch_llm_pricing() -> dict:
                 next_token = resp.get("NextToken")
                 if not next_token:
                     break
+        prices: dict = {}
+        for (model_name, region), t in tiers.items():
+            reg, glob = t.get("regional", {}), t.get("global", {})
+            entry = {fld: reg.get(fld, glob.get(fld)) for fld in ("input_per_1k", "output_per_1k")
+                     if fld in reg or fld in glob}
+            for fld in ("input_per_1k", "output_per_1k"):
+                if fld in glob:
+                    entry[f"global_{fld}"] = glob[fld]
+            prices[f"{model_name}|{region}"] = entry
         logger.info("Fetched LLM token pricing for %d model-region combos from AWS Pricing API", len(prices))
         return prices
     except Exception as exc:
@@ -1835,18 +1857,28 @@ def _apply_llm_pricing(registry: dict, llm_pricing: dict) -> int:
     """Stamp fetched token prices onto chat_models entries (Option A — per-model,
     reusing input_price_per_1k/output_price_per_1k that compute_llm_cost reads).
 
-    Matches each chat_models entry to a fetched '<model>|<region>' price by trying
-    the model's available regions, then any region for that model name. The AWS
-    Pricing API 'model' attribute is a display name (e.g. 'Claude 3 Sonnet'), so we
-    match loosely against the registry's name/model_id (case/space/punct-insensitive
-    token overlap). Unmatched models are left unpriced (fall back to the seed).
+    Matches each chat_models entry to a fetched '<model>|<region>' price by name.
+    The AWS Pricing API names models inconsistently — display names ('Claude
+    Sonnet 4.5', 'OpenAI GPT-6 Astra') or model ids ('openai.gpt-5.4') — so each
+    registry entry is tried by its `label` and its model id (geo prefix and ':N'
+    revision stripped, with and without the provider segment). A price name
+    matches when it EQUALS a candidate, or is a PREFIX of it followed only by
+    non-version noise (dates, 'v1', 'instruct', …). Version digits must agree, so
+    'GLM 4.7' never takes 'Grok 4.7' and 'Claude Sonnet 4.5' never takes 'Claude
+    Sonnet 4' (the old word-overlap matcher did both). Most specific name wins.
+
+    A `global.` model id takes the Global-profile rate; every other id (geo
+    profile or in-Region) takes the regional rate. A model with no match loses any
+    previously stamped price (it came from the old matcher or a delisted row) and
+    reads as "pricing unavailable" — except a hand-stamped `pricing_source` price,
+    kept until the Pricing API lists that model (then the live price replaces it).
     Returns the count of entries priced."""
     if not llm_pricing:
         return 0
 
     def _norm(s):
-        import re
-        return re.sub(r"[^a-z0-9]+", " ", (s or "").lower()).strip()
+        s = _re.sub(r"(\d+)\.0(?!\d)", r"\1", (s or "").lower())  # 'Nova 2.0 Lite' == 'nova-2-lite'
+        return _re.sub(r"[^a-z0-9]+", " ", s).strip()
 
     # Index fetched prices by normalized model name → {region: {in,out}}.
     by_name: dict = {}
@@ -1854,53 +1886,83 @@ def _apply_llm_pricing(registry: dict, llm_pricing: dict) -> int:
         name, _, region = key.partition("|")
         by_name.setdefault(_norm(name), {})[region] = px
 
+    # Trailing tokens that don't distinguish a priced model: release dates
+    # (2507, 20250514), revisions (v1), and packaging words. Bare digits are NOT
+    # noise — they are version numbers.
+    _noise = _re.compile(r"^(v\d+|\d{4}|\d{6,8}|instruct|it|pt|dense|bf16|preview)$")
+    # Vendor words the Pricing API sometimes prefixes ('OpenAI GPT-6 Astra',
+    # 'xai.grok-4.6') and the registry label sometimes omits (or vice versa).
+    _vendors = {"openai", "xai", "google", "nvidia", "writer", "meta", "cohere", "amazon", "anthropic"}
+
+    def _variants(norm_name: str) -> set:
+        toks = tuple(norm_name.split())
+        out = {toks} if toks else set()
+        if len(toks) > 2 and toks[0] in _vendors:
+            out.add(toks[1:])
+        return out
+
+    price_names = [(pv, byreg) for pname, byreg in by_name.items() for pv in _variants(pname)]
+
+    def _best_price(cm: dict):
+        mid = _re.sub(r"(:[0-9a-z]+)+$", "", _strip_geo_prefix(cm.get("model_id") or ""))
+        cands = set()
+        for raw in (cm.get("label") or "", mid, mid.split(".", 1)[-1]):
+            cands |= _variants(_norm(raw))
+        best, best_score = None, None
+        for ptoks, byreg in price_names:
+            for ctoks in cands:
+                if ctoks[:len(ptoks)] == ptoks and all(_noise.match(t) for t in ctoks[len(ptoks):]):
+                    score = (1, len(ctoks) == len(ptoks), len(ptoks))  # ordered: exact beats prefix
+                elif set(ptoks) == {t for t in ctoks if not _noise.match(t)}:
+                    score = (0, True, len(ptoks))  # same tokens, other order ('Ministral 8B 3.0')
+                else:
+                    continue
+                if best_score is None or score > best_score:
+                    best, best_score = byreg, score
+        return best
+
     priced = 0
     for cm in (registry.get("chat_models", {}) or {}).values():
-        label = cm.get("name") or cm.get("model_label") or ""
-        mid = cm.get("model_id") or ""
-        cand_norms = {_norm(label), _norm(mid.split(".")[-1].split(":")[0].replace("-", " "))}
-        regions = cm.get("available_regions") or ([cm.get("region")] if cm.get("region") else [])
-        match = None
-        matched_byreg = None
-        for pname, byreg in by_name.items():
-            if not pname:
-                continue
-            # Token-overlap match: every word of the shorter name appears in the other.
-            a, b = set(pname.split()), None
-            for cn in cand_norms:
-                if not cn:
-                    continue
-                b = set(cn.split())
-                short, long = (a, b) if len(a) <= len(b) else (b, a)
-                if short and short.issubset(long):
-                    # Pick the price for a region the model is in, else any region.
-                    px = next((byreg[r] for r in regions if r in byreg), None) or next(iter(byreg.values()), None)
-                    if px:
-                        match = px
-                        matched_byreg = byreg
-                        break
-            if match:
-                break
-        if match and (match.get("input_per_1k") or match.get("output_per_1k")):
-            # Collapsed default (a region the model is in, else any) — the fallback
-            # compute_llm_cost uses when no region is passed or a region isn't mapped.
-            cm["input_price_per_1k"] = match.get("input_per_1k", 0)
-            cm["output_price_per_1k"] = match.get("output_per_1k", 0)
-            # Retain the FULL per-region map ONLY when token prices actually VARY by
-            # region — most models price tokens uniformly across regions, so the
-            # collapsed default suffices and we avoid bloating the registry. When they
-            # differ, compute_llm_cost uses the actual call region's price.
-            per_region = {
-                r: {"input_per_1k": p.get("input_per_1k", 0), "output_per_1k": p.get("output_per_1k", 0)}
-                for r, p in (matched_byreg or {}).items()
-                if (p.get("input_per_1k") or p.get("output_per_1k"))
-            }
-            distinct = {(p["input_per_1k"], p["output_per_1k"]) for p in per_region.values()}
-            if len(distinct) > 1:
-                cm["token_pricing_by_region"] = per_region
-            else:
-                cm.pop("token_pricing_by_region", None)  # prices uniform → default only
-            priced += 1
+        byreg = _best_price(cm)
+        use_global = (cm.get("model_id") or "").startswith("global.")
+
+        def _tier(p):
+            # Both sides required: a row listing only input (or only output)
+            # must not be stored as a $0 counterpart.
+            for pre in (("global_", "") if use_global else ("",)):
+                i, o = p.get(f"{pre}input_per_1k"), p.get(f"{pre}output_per_1k")
+                if i is not None and o is not None:
+                    return i, o
+            return None
+
+        per_region = {}
+        for r, p in (byreg or {}).items():
+            io = _tier(p)
+            if io and (io[0] or io[1]):
+                per_region[r] = {"input_per_1k": io[0], "output_per_1k": io[1]}
+        if not per_region:
+            if not cm.get("pricing_source"):
+                for fld in ("input_price_per_1k", "output_price_per_1k", "token_pricing_by_region"):
+                    cm.pop(fld, None)
+            continue
+        # Collapsed default (the pinned region, else a region the model is in, else
+        # any) — the fallback compute_llm_cost uses when no region is passed or a
+        # region isn't mapped.
+        regions = [cm.get("region")] + list(cm.get("available_regions") or [])
+        px = next((per_region[r] for r in regions if r in per_region), None) or next(iter(per_region.values()))
+        cm["input_price_per_1k"] = px["input_per_1k"]
+        cm["output_price_per_1k"] = px["output_per_1k"]
+        cm.pop("pricing_source", None)  # live Pricing API price supersedes a manual stamp
+        # Retain the FULL per-region map ONLY when token prices actually VARY by
+        # region — most models price tokens uniformly across regions, so the
+        # collapsed default suffices and we avoid bloating the registry. When they
+        # differ, compute_llm_cost uses the actual call region's price.
+        distinct = {(p["input_per_1k"], p["output_per_1k"]) for p in per_region.values()}
+        if len(distinct) > 1:
+            cm["token_pricing_by_region"] = per_region
+        else:
+            cm.pop("token_pricing_by_region", None)  # prices uniform → default only
+        priced += 1
 
     # Voice category (Nova Sonic): speech-input models never enter chat_models
     # (the sync filter requires TEXT input), so stamp the token price onto the
