@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-09-17T02:00:40.070523+00:00",
+  "last_updated": "2026-09-29T07:28:23.390981+00:00",
   "api_compatibility": {
     "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'. Per rule, 'mantle_base' selects the Mantle base path for the OpenAI SDK (/v1 for most; /openai/v1 for openai/xai/google) \u2014 the two paths serve DISJOINT model sets, verified live 2026-09-07.",
     "api_priority": [
@@ -152,7 +152,7 @@
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
       "description": "Used for prompt refinement, pre-screening, cohesion checks, hints generation. Should be fast and affordable.",
-      "current": "us.anthropic.claude-sonnet-5",
+      "current": "global.anthropic.claude-sonnet-5-5",
       "region": "us-west-2",
       "provider": "Anthropic",
       "api_type": "converse"
@@ -160,7 +160,7 @@
     "complex_llm": {
       "label": "Complex LLM (Style Analysis & Creative)",
       "description": "Used for style analysis (vision), concept generation, marketing prompts, moderation analysis, Type Studio layout design. Should be the most capable model available.",
-      "current": "us.anthropic.claude-opus-5",
+      "current": "us.anthropic.claude-opus-5-5",
       "region": "us-west-2",
       "provider": "Anthropic",
       "api_type": "converse"
@@ -168,7 +168,7 @@
     "fallback_llm": {
       "label": "Fallback LLM",
       "description": "Used when primary Claude models return AccessDeniedException. Should be a widely available model.",
-      "current": "us.anthropic.claude-sonnet-4-6",
+      "current": "us.anthropic.claude-sonnet-5",
       "region": "us-west-2",
       "provider": "Anthropic",
       "api_type": "converse"
@@ -2446,7 +2446,141 @@
         "global",
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "token_pricing_by_region": {
+        "eu-north-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "af-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "il-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "me-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "me-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        }
+      }
     },
     "qwen3_235b_a22b_2507_v1": {
       "label": "Qwen3 235B A22B 2507",
@@ -2483,8 +2617,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.000135,
-      "output_price_per_1k": 0.00053,
+      "input_price_per_1k": 0.00011,
+      "output_price_per_1k": 0.00044,
       "token_pricing_by_region": {
         "eu-west-1": {
           "input_per_1k": 0.000132,
@@ -2519,7 +2653,7 @@
           "output_per_1k": 0.00044
         },
         "sa-east-1": {
-          "input_per_1k": 0.000132,
+          "input_per_1k": 0.000264,
           "output_per_1k": 0.000528
         },
         "ap-southeast-2": {
@@ -2579,63 +2713,63 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0006,
-      "output_price_per_1k": 0.00192,
+      "input_price_per_1k": 0.0003,
+      "output_price_per_1k": 0.0015,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "ap-northeast-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "us-east-2": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.0016
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.000515,
-          "output_per_1k": 0.00165
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "eu-south-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.000775,
-          "output_per_1k": 0.00248
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
+        "eu-west-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0018
         },
         "sa-east-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0018
         },
-        "us-east-1": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.0016
+        "eu-north-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0018
         },
-        "eu-west-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
+        "ap-northeast-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0018
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0018
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0015
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0018
         },
         "us-west-2": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.0016
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0015
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0015
         },
         "ap-south-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0018
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0018
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.001545
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000465,
+          "output_per_1k": 0.002325
         }
       },
       "residency_scope": "in-region",
@@ -2682,8 +2816,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.000365,
+      "input_price_per_1k": 7.5e-05,
+      "output_price_per_1k": 0.0003,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -2714,7 +2848,7 @@
         },
         "us-gov-east-1": {
           "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
+          "output_per_1k": 0.00072
         },
         "ap-southeast-2": {
           "input_per_1k": 7.725e-05,
@@ -2787,8 +2921,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.00072,
+      "input_price_per_1k": 7e-05,
+      "output_price_per_1k": 0.0006,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -2839,7 +2973,7 @@
         },
         "eu-north-1": {
           "input_per_1k": 8.4e-05,
-          "output_per_1k": 0.00072
+          "output_per_1k": 0.00144
         },
         "ap-southeast-3": {
           "input_per_1k": 8.4e-05,
@@ -2853,8 +2987,8 @@
     "claude_fable_5": {
       "label": "Claude Fable 5",
       "model_id": "us.anthropic.claude-fable-5",
-      "input_price_per_1k": 0.01,
-      "output_price_per_1k": 0.05,
+      "input_price_per_1k": 0.011,
+      "output_price_per_1k": 0.055,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "us-west-2",
       "available_regions": [
@@ -2904,7 +3038,141 @@
         "global",
         "us"
       ],
-      "supports_temperature": false
+      "supports_temperature": false,
+      "token_pricing_by_region": {
+        "ap-south-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "us-east-2": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "me-south-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "us-west-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "me-central-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "il-central-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "us-west-2": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "us-east-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "af-south-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        }
+      }
     },
     "v3_2": {
       "label": "DeepSeek V3.2",
@@ -2942,71 +3210,63 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00012,
-      "output_price_per_1k": 0.00036,
+      "input_price_per_1k": 0.00031,
+      "output_price_per_1k": 0.000925,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "us-gov-west-1": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00036
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.000103,
-          "output_per_1k": 0.000309
-        },
         "us-east-2": {
-          "input_per_1k": 0.0001,
-          "output_per_1k": 0.0003
-        },
-        "us-gov-east-1": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00036
-        },
-        "eu-south-1": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00035
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00036
-        },
-        "us-west-2": {
-          "input_per_1k": 0.0001,
-          "output_per_1k": 0.0003
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00036
-        },
-        "us-east-1": {
-          "input_per_1k": 0.0001,
-          "output_per_1k": 0.0003
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.00015,
-          "output_per_1k": 0.00047
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00036
-        },
-        "eu-west-1": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00035
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00036
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.000925
         },
         "sa-east-1": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00036
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
         },
         "eu-north-1": {
-          "input_per_1k": 0.00012,
-          "output_per_1k": 0.00036
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.000925
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0004805,
+          "output_per_1k": 0.00143375
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.000925
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00032,
+          "output_per_1k": 0.000955
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
         }
       },
       "residency_scope": "in-region",
@@ -3050,7 +3310,7 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 3e-05,
-      "output_price_per_1k": 0.00015,
+      "output_price_per_1k": 0.00012,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -3167,14 +3427,148 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0.015,
+      "input_price_per_1k": 0.0033,
+      "output_price_per_1k": 0.0165,
       "residency_scope": "geo:us",
       "inference_profiles": [
         "eu",
         "global",
         "us"
-      ]
+      ],
+      "token_pricing_by_region": {
+        "ap-southeast-4": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "af-south-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "me-central-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "me-south-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "il-central-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        }
+      }
     },
     "minimax_m2": {
       "label": "MiniMax M2",
@@ -3212,8 +3606,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00018,
-      "output_price_per_1k": 0.00072,
+      "input_price_per_1k": 0.00015,
+      "output_price_per_1k": 0.0006,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -3313,8 +3707,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 4e-05,
-      "output_price_per_1k": 0.00024,
+      "input_price_per_1k": 3.5e-05,
+      "output_price_per_1k": 0.0002,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -3459,107 +3853,115 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 7.2e-05,
-      "output_price_per_1k": 0.000288,
+      "input_price_per_1k": 0.000165,
+      "output_price_per_1k": 0.001375,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "ap-southeast-5": {
-          "input_per_1k": 7.2e-05,
-          "output_per_1k": 0.000288
-        },
-        "us-east-1": {
-          "input_per_1k": 6e-05,
-          "output_per_1k": 0.00024
-        },
-        "eu-south-1": {
-          "input_per_1k": 9.6e-05,
-          "output_per_1k": 0.000384
-        },
-        "eu-west-2": {
-          "input_per_1k": 8.4e-05,
-          "output_per_1k": 0.000336
-        },
-        "ap-southeast-1": {
-          "input_per_1k": 8.1e-05,
-          "output_per_1k": 0.000324
-        },
-        "eu-north-1": {
-          "input_per_1k": 6.5e-05,
-          "output_per_1k": 0.00026
-        },
-        "us-gov-west-1": {
-          "input_per_1k": 7.2e-05,
-          "output_per_1k": 0.000288
-        },
-        "us-east-2": {
-          "input_per_1k": 6e-05,
-          "output_per_1k": 0.00024
-        },
-        "ap-southeast-7": {
-          "input_per_1k": 7.2e-05,
-          "output_per_1k": 0.000288
-        },
-        "ap-southeast-4": {
-          "input_per_1k": 6.5e-05,
-          "output_per_1k": 0.00026
-        },
-        "ca-central-1": {
-          "input_per_1k": 6.4e-05,
-          "output_per_1k": 0.000256
+        "us-west-2": {
+          "input_per_1k": 0.000165,
+          "output_per_1k": 0.001375
         },
         "eu-central-1": {
-          "input_per_1k": 7.8e-05,
-          "output_per_1k": 0.000312
-        },
-        "me-central-1": {
-          "input_per_1k": 6e-05,
-          "output_per_1k": 0.00024
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 6.3e-05,
-          "output_per_1k": 0.000252
-        },
-        "il-central-1": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
+          "input_per_1k": 0.0002145,
+          "output_per_1k": 0.003597
         },
         "eu-south-2": {
-          "input_per_1k": 6.6e-05,
-          "output_per_1k": 0.000264
-        },
-        "us-west-1": {
-          "input_per_1k": 7.7e-05,
-          "output_per_1k": 0.000308
-        },
-        "ap-northeast-2": {
-          "input_per_1k": 7.1e-05,
-          "output_per_1k": 0.000284
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 7.2e-05,
-          "output_per_1k": 0.000288
-        },
-        "us-west-2": {
-          "input_per_1k": 6e-05,
-          "output_per_1k": 0.00024
-        },
-        "ap-south-1": {
-          "input_per_1k": 7.1e-05,
-          "output_per_1k": 0.000284
-        },
-        "eu-west-1": {
-          "input_per_1k": 6.9e-05,
-          "output_per_1k": 0.000276
+          "input_per_1k": 0.0001815,
+          "output_per_1k": 0.0016025
         },
         "eu-west-3": {
-          "input_per_1k": 8.8e-05,
-          "output_per_1k": 0.000352
+          "input_per_1k": 0.000242,
+          "output_per_1k": 0.0020295
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.000205,
+          "output_per_1k": 0.001695
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.00016,
+          "output_per_1k": 0.001315
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.000352,
+          "output_per_1k": 0.001485
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00016,
+          "output_per_1k": 0.00132
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.000175,
+          "output_per_1k": 0.001475
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.000198,
+          "output_per_1k": 0.003311
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.000363,
+          "output_per_1k": 0.002992
+        },
+        "us-east-2": {
+          "input_per_1k": 0.000165,
+          "output_per_1k": 0.001375
+        },
+        "us-west-1": {
+          "input_per_1k": 0.000429,
+          "output_per_1k": 0.0016755
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.000165,
+          "output_per_1k": 0.001355
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00016,
+          "output_per_1k": 0.001315
+        },
+        "il-central-1": {
+          "input_per_1k": 0.00019,
+          "output_per_1k": 0.001565
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.000205,
+          "output_per_1k": 0.001695
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.000264,
+          "output_per_1k": 0.0022055
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.000187,
+          "output_per_1k": 0.0015785
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.000205,
+          "output_per_1k": 0.001695
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00021,
+          "output_per_1k": 0.00176
+        },
+        "me-central-1": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.00125
+        },
+        "us-east-1": {
+          "input_per_1k": 0.000165,
+          "output_per_1k": 0.001375
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.000374,
+          "output_per_1k": 0.0015455
         },
         "ap-east-2": {
-          "input_per_1k": 7.2e-05,
-          "output_per_1k": 0
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.001505
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00296
         }
       },
       "residency_scope": "geo:us",
@@ -3608,63 +4010,63 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0006,
-      "output_price_per_1k": 0.00192,
+      "input_price_per_1k": 0.00015,
+      "output_price_per_1k": 0.0006,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "ap-northeast-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
         "eu-central-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "us-east-2": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.0016
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.000515,
-          "output_per_1k": 0.00165
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "eu-south-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
         },
         "eu-west-2": {
-          "input_per_1k": 0.000775,
-          "output_per_1k": 0.00248
+          "input_per_1k": 0.000235,
+          "output_per_1k": 0.00093
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
         },
         "eu-north-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
         },
-        "sa-east-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "us-east-1": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.0016
-        },
-        "eu-west-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
-        },
-        "us-west-2": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.0016
+        "ap-southeast-2": {
+          "input_per_1k": 0.000155,
+          "output_per_1k": 0.00062
         },
         "ap-south-1": {
-          "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
         }
       },
       "residency_scope": "in-region",
@@ -3707,15 +4109,15 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 6e-05,
-      "output_price_per_1k": 0.00017,
+      "input_price_per_1k": 5e-05,
+      "output_price_per_1k": 0.00015,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
         "ap-southeast-2": {
           "input_per_1k": 4.635e-05,
-          "output_per_1k": 0.00014935
+          "output_per_1k": 0.0002987
         },
         "eu-west-1": {
           "input_per_1k": 6e-05,
@@ -3739,7 +4141,7 @@
         },
         "ap-southeast-3": {
           "input_per_1k": 5.4e-05,
-          "output_per_1k": 0.000174
+          "output_per_1k": 0.000348
         },
         "ap-south-1": {
           "input_per_1k": 6e-05,
@@ -3802,8 +4204,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00036,
-      "output_price_per_1k": 0.00152,
+      "input_price_per_1k": 0.0003,
+      "output_price_per_1k": 0.00125,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -3850,14 +4252,14 @@
         },
         "eu-south-1": {
           "input_per_1k": 0.00036,
-          "output_per_1k": 0.0015
+          "output_per_1k": 0.003
         },
         "eu-west-2": {
           "input_per_1k": 0.000465,
           "output_per_1k": 0.0019375
         },
         "ap-southeast-2": {
-          "input_per_1k": 0.000309,
+          "input_per_1k": 0.000618,
           "output_per_1k": 0.0012875
         }
       },
@@ -3899,8 +4301,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0003,
-      "output_price_per_1k": 0.00091,
+      "input_price_per_1k": 0.00025,
+      "output_price_per_1k": 0.00075,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -4053,65 +4455,9 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00024,
-      "output_price_per_1k": 0.0012,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "token_pricing_by_region": {
-        "ap-south-1": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        },
-        "us-west-2": {
-          "input_per_1k": 0.0002,
-          "output_per_1k": 0.001
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        },
-        "eu-west-1": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.000205,
-          "output_per_1k": 0.00103
-        },
-        "us-east-1": {
-          "input_per_1k": 0.0002,
-          "output_per_1k": 0.001
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        },
-        "eu-south-1": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.00031,
-          "output_per_1k": 0.00155
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        },
-        "us-east-2": {
-          "input_per_1k": 0.0002,
-          "output_per_1k": 0.001
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.00024,
-          "output_per_1k": 0.0012
-        }
-      },
       "residency_scope": "in-region",
       "inference_profiles": [],
       "supports_temperature": true
@@ -4154,63 +4500,63 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00035083,
-      "output_price_per_1k": 0.00101621,
+      "input_price_per_1k": 0.00015,
+      "output_price_per_1k": 0.0006,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "ap-southeast-3": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.00087
-        },
-        "us-east-2": {
-          "input_per_1k": 0.00029,
-          "output_per_1k": 0.00084
-        },
         "us-west-2": {
-          "input_per_1k": 0.00029,
-          "output_per_1k": 0.00084
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.0002987,
-          "output_per_1k": 0.0008652
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 0.00035083,
-          "output_per_1k": 0.00101621
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.000348,
-          "output_per_1k": 0.001008
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.000348,
-          "output_per_1k": 0.001008
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.00044999,
-          "output_per_1k": 0.00130343
-        },
-        "eu-west-1": {
-          "input_per_1k": 0.000348,
-          "output_per_1k": 0.001008
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.00034121,
-          "output_per_1k": 0.00098834
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
         },
         "us-east-1": {
-          "input_per_1k": 0.00029,
-          "output_per_1k": 0.00084
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
         },
         "eu-north-1": {
-          "input_per_1k": 0.00029,
-          "output_per_1k": 0.00084
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000235,
+          "output_per_1k": 0.00093
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000155,
+          "output_per_1k": 0.00062
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
         },
         "eu-south-1": {
-          "input_per_1k": 0.000348,
-          "output_per_1k": 0.001008
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
         }
       },
       "residency_scope": "in-region",
@@ -4255,8 +4601,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.00039,
+      "input_price_per_1k": 7.5e-05,
+      "output_price_per_1k": 0.000325,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -4307,7 +4653,7 @@
         },
         "ap-southeast-3": {
           "input_per_1k": 9e-05,
-          "output_per_1k": 0.00039
+          "output_per_1k": 0.00078
         },
         "sa-east-1": {
           "input_per_1k": 9e-05,
@@ -4364,8 +4710,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.000365,
+      "input_price_per_1k": 0.00015,
+      "output_price_per_1k": 0.0003,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -4399,7 +4745,7 @@
           "output_per_1k": 0.000395
         },
         "us-west-2": {
-          "input_per_1k": 7.5e-05,
+          "input_per_1k": 0.00015,
           "output_per_1k": 0.0003
         },
         "ap-south-1": {
@@ -4468,13 +4814,69 @@
       "end_of_life_time": "",
       "residency_scope": "in-region",
       "inference_profiles": [],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.0001,
+      "output_price_per_1k": 0.0001,
+      "token_pricing_by_region": {
+        "us-west-2": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.0001
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00012
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00012
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00012
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000103,
+          "output_per_1k": 0.000103
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00012
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00012
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.00015
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.0001
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00012
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.0001
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00012
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00012
+        }
+      }
     },
     "claude_opus_4_6_v1": {
       "label": "Claude Opus 4.6",
       "model_id": "us.anthropic.claude-opus-4-6-v1",
-      "input_price_per_1k": 0.005,
-      "output_price_per_1k": 0.025,
+      "input_price_per_1k": 0.0055,
+      "output_price_per_1k": 0.0275,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "us-west-2",
       "available_regions": [
@@ -4525,7 +4927,141 @@
         "global",
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "token_pricing_by_region": {
+        "il-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "me-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "af-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "me-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        }
+      }
     },
     "nemotron_nano_9b_v2": {
       "label": "NVIDIA Nemotron Nano 9B v2",
@@ -4611,7 +5147,63 @@
       "end_of_life_time": "",
       "residency_scope": "in-region",
       "inference_profiles": [],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 7e-05,
+      "output_price_per_1k": 7e-05,
+      "token_pricing_by_region": {
+        "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 9e-05
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 9e-05
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.725e-05,
+          "output_per_1k": 7.725e-05
+        },
+        "eu-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 9e-05
+        },
+        "us-east-2": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 7e-05
+        },
+        "us-west-2": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 7e-05
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 9e-05
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 9e-05
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00012
+        },
+        "eu-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 9e-05
+        },
+        "us-east-1": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 7e-05
+        },
+        "eu-central-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 9e-05
+        },
+        "eu-north-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00018
+        }
+      }
     },
     "voxtral_small_24b_2507": {
       "label": "Voxtral Small 24B 2507",
@@ -4692,8 +5284,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0006,
-      "output_price_per_1k": 0.00192,
+      "input_price_per_1k": 0.0005,
+      "output_price_per_1k": 0.0016,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -4740,7 +5332,7 @@
         },
         "eu-west-1": {
           "input_per_1k": 0.0006,
-          "output_per_1k": 0.00192
+          "output_per_1k": 0.00384
         },
         "us-west-2": {
           "input_per_1k": 0.0005,
@@ -4795,8 +5387,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 4e-05,
-      "output_price_per_1k": 0.00018,
+      "input_price_per_1k": 3.5e-05,
+      "output_price_per_1k": 0.00015,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -4902,8 +5494,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 3e-05,
-      "output_price_per_1k": 5e-05,
+      "input_price_per_1k": 2e-05,
+      "output_price_per_1k": 4e-05,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -4968,8 +5560,8 @@
     "claude_opus_4_8": {
       "label": "Claude Opus 4.8",
       "model_id": "us.anthropic.claude-opus-4-8",
-      "input_price_per_1k": 0.005,
-      "output_price_per_1k": 0.025,
+      "input_price_per_1k": 0.0055,
+      "output_price_per_1k": 0.0275,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "us-west-2",
       "available_regions": [
@@ -5020,13 +5612,155 @@
         "global",
         "us"
       ],
-      "supports_temperature": false
+      "supports_temperature": false,
+      "token_pricing_by_region": {
+        "eu-south-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "af-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.006,
+          "output_per_1k": 0.03
+        },
+        "me-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "il-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.006,
+          "output_per_1k": 0.03
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "me-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        }
+      }
     },
     "claude_opus_4_7": {
       "label": "Claude Opus 4.7",
       "model_id": "us.anthropic.claude-opus-4-7",
-      "input_price_per_1k": 0.005,
-      "output_price_per_1k": 0.025,
+      "input_price_per_1k": 0.0055,
+      "output_price_per_1k": 0.0275,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "us-west-2",
       "available_regions": [
@@ -5077,7 +5811,141 @@
         "global",
         "us"
       ],
-      "supports_temperature": false
+      "supports_temperature": false,
+      "token_pricing_by_region": {
+        "eu-south-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "me-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "me-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "af-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "il-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        }
+      }
     },
     "gpt_oss_safeguard_120b": {
       "label": "GPT OSS Safeguard 120B",
@@ -5117,71 +5985,63 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.000365,
+      "input_price_per_1k": 7e-05,
+      "output_price_per_1k": 0.0003,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "us-east-2": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
+        "ap-southeast-3": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "eu-north-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00047
         },
         "eu-west-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00035
         },
-        "eu-north-1": {
-          "input_per_1k": 7.5e-05,
+        "us-east-1": {
+          "input_per_1k": 7e-05,
           "output_per_1k": 0.0003
         },
         "eu-south-1": {
-          "input_per_1k": 0.0001,
-          "output_per_1k": 0.000395
-        },
-        "us-east-1": {
-          "input_per_1k": 7.5e-05,
-          "output_per_1k": 0.0003
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.000115,
-          "output_per_1k": 0.000465
-        },
-        "us-gov-east-1": {
           "input_per_1k": 9e-05,
-          "output_per_1k": 0.00036
+          "output_per_1k": 0.00035
         },
         "ap-southeast-2": {
           "input_per_1k": 7.725e-05,
           "output_per_1k": 0.000309
         },
-        "eu-central-1": {
-          "input_per_1k": 0.0001,
-          "output_per_1k": 0.000395
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 9e-05,
-          "output_per_1k": 0.000365
-        },
         "us-west-2": {
-          "input_per_1k": 7.5e-05,
+          "input_per_1k": 7e-05,
           "output_per_1k": 0.0003
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 8e-05,
-          "output_per_1k": 0.00031
         },
         "ap-south-1": {
           "input_per_1k": 9e-05,
-          "output_per_1k": 0.000355
+          "output_per_1k": 0.00036
         },
-        "us-gov-west-1": {
+        "ap-northeast-1": {
           "input_per_1k": 9e-05,
           "output_per_1k": 0.00036
         },
+        "us-east-2": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.0003
+        },
         "sa-east-1": {
           "input_per_1k": 9e-05,
-          "output_per_1k": 0.000365
+          "output_per_1k": 0.00036
+        },
+        "eu-central-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00072
         }
       },
       "residency_scope": "in-region",
@@ -5224,8 +6084,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00014,
-      "output_price_per_1k": 0.00023,
+      "input_price_per_1k": 0.00012,
+      "output_price_per_1k": 0.00019,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -5334,14 +6194,152 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0.015,
+      "input_price_per_1k": 0.0033,
+      "output_price_per_1k": 0.0165,
       "residency_scope": "geo:us",
       "inference_profiles": [
         "eu",
         "global",
         "us"
-      ]
+      ],
+      "token_pricing_by_region": {
+        "us-west-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "me-central-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "af-south-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.0036,
+          "output_per_1k": 0.018
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "me-south-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.0165
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.0036,
+          "output_per_1k": 0.018
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "il-central-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        }
+      }
     },
     "qwen3_vl_235b_a22b": {
       "label": "Qwen3 VL 235B A22B",
@@ -5377,8 +6375,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00032,
-      "output_price_per_1k": 0.00161,
+      "input_price_per_1k": 0.00026,
+      "output_price_per_1k": 0.00133,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -5421,14 +6419,14 @@
         },
         "ap-southeast-3": {
           "input_per_1k": 0.000318,
-          "output_per_1k": 0.001596
+          "output_per_1k": 0.003192
         },
         "sa-east-1": {
           "input_per_1k": 0.00032,
           "output_per_1k": 0.00161
         },
         "ap-southeast-2": {
-          "input_per_1k": 0.00027295,
+          "input_per_1k": 0.0005459,
           "output_per_1k": 0.0013699
         },
         "ap-northeast-1": {
@@ -5476,8 +6474,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00036,
-      "output_price_per_1k": 0.00132,
+      "input_price_per_1k": 0.0003,
+      "output_price_per_1k": 0.0011,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -5571,8 +6569,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00027,
-      "output_price_per_1k": 0.00109,
+      "input_price_per_1k": 0.000225,
+      "output_price_per_1k": 0.0009,
       "token_pricing_by_region": {
         "sa-east-1": {
           "input_per_1k": 0.00027,
@@ -5580,7 +6578,7 @@
         },
         "ap-southeast-2": {
           "input_per_1k": 0.00023175,
-          "output_per_1k": 0.000927
+          "output_per_1k": 0.001854
         },
         "eu-north-1": {
           "input_per_1k": 0.000225,
@@ -5615,7 +6613,7 @@
           "output_per_1k": 0.00106
         },
         "us-east-1": {
-          "input_per_1k": 0.000225,
+          "input_per_1k": 0.00045,
           "output_per_1k": 0.0009
         },
         "us-east-2": {
@@ -5708,7 +6706,63 @@
       "invoke_api": "converse",
       "residency_scope": "in-region",
       "inference_profiles": [],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.00029,
+      "output_price_per_1k": 0.00084,
+      "token_pricing_by_region": {
+        "ap-southeast-3": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00087
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0002987,
+          "output_per_1k": 0.0008652
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00035083,
+          "output_per_1k": 0.00101621
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.000696,
+          "output_per_1k": 0.001008
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00044999,
+          "output_per_1k": 0.00130343
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00034121,
+          "output_per_1k": 0.00098834
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        }
+      }
     },
     "ministral_3_3b_instruct": {
       "label": "Ministral 3B",
@@ -5751,13 +6805,69 @@
       "end_of_life_time": "",
       "residency_scope": "in-region",
       "inference_profiles": [],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 5e-05,
+      "output_price_per_1k": 5e-05,
+      "token_pricing_by_region": {
+        "eu-central-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 6e-05
+        },
+        "eu-west-2": {
+          "input_per_1k": 8e-05,
+          "output_per_1k": 8e-05
+        },
+        "eu-south-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 6e-05
+        },
+        "us-east-1": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 5e-05
+        },
+        "sa-east-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 6e-05
+        },
+        "eu-north-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 6e-05
+        },
+        "ap-south-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 6e-05
+        },
+        "us-east-2": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 5e-05
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 5.15e-05,
+          "output_per_1k": 5.15e-05
+        },
+        "us-west-2": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 5e-05
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 6e-05
+        },
+        "eu-west-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 6e-05
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 6e-05
+        }
+      }
     },
     "claude_opus_4_5_20251101_v1": {
       "label": "Claude Opus 4.5",
       "model_id": "us.anthropic.claude-opus-4-5-20251101-v1:0",
-      "input_price_per_1k": 0.005,
-      "output_price_per_1k": 0.025,
+      "input_price_per_1k": 0.0055,
+      "output_price_per_1k": 0.0275,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "us-west-2",
       "available_regions": [
@@ -5808,7 +6918,113 @@
         "global",
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "me-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "af-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "il-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "me-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        }
+      }
     },
     "qwen3_coder_30b_a3b_v1": {
       "label": "Qwen3-Coder-30B-A3B-Instruct",
@@ -5846,8 +7062,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.000365,
+      "input_price_per_1k": 7.5e-05,
+      "output_price_per_1k": 0.0003,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -5947,71 +7163,63 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 4e-05,
-      "output_price_per_1k": 0.00018,
+      "input_price_per_1k": 3e-05,
+      "output_price_per_1k": 0.0001,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "ap-southeast-3": {
-          "input_per_1k": 3.5e-05,
-          "output_per_1k": 0.000155
+        "eu-south-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00012
         },
         "us-east-2": {
-          "input_per_1k": 3.5e-05,
-          "output_per_1k": 0.00015
-        },
-        "us-gov-west-1": {
-          "input_per_1k": 4.2e-05,
-          "output_per_1k": 0.00018
-        },
-        "us-gov-east-1": {
-          "input_per_1k": 4.2e-05,
-          "output_per_1k": 0.00018
-        },
-        "us-east-1": {
-          "input_per_1k": 3.5e-05,
-          "output_per_1k": 0.00015
-        },
-        "eu-south-1": {
-          "input_per_1k": 4.5e-05,
-          "output_per_1k": 0.0002
-        },
-        "sa-east-1": {
-          "input_per_1k": 4e-05,
-          "output_per_1k": 0.00018
-        },
-        "eu-central-1": {
-          "input_per_1k": 4.5e-05,
-          "output_per_1k": 0.0002
-        },
-        "eu-west-1": {
-          "input_per_1k": 4e-05,
-          "output_per_1k": 0.000175
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.0001
         },
         "us-west-2": {
-          "input_per_1k": 3.5e-05,
-          "output_per_1k": 0.00015
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.0001
         },
         "ap-south-1": {
           "input_per_1k": 4e-05,
-          "output_per_1k": 0.000175
+          "output_per_1k": 0.00012
         },
-        "eu-north-1": {
-          "input_per_1k": 3.5e-05,
-          "output_per_1k": 0.00015
+        "us-east-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.0001
         },
-        "ap-southeast-2": {
-          "input_per_1k": 3.605e-05,
-          "output_per_1k": 0.0001545
+        "eu-west-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00012
         },
         "ap-northeast-1": {
           "input_per_1k": 4e-05,
-          "output_per_1k": 0.00018
+          "output_per_1k": 0.00012
+        },
+        "eu-central-1": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.00012
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 3.605e-05,
+          "output_per_1k": 0.000103
         },
         "eu-west-2": {
-          "input_per_1k": 5.5e-05,
-          "output_per_1k": 0.000235
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00015
+        },
+        "sa-east-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00012
+        },
+        "eu-north-1": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.00012
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.00012
         }
       },
       "residency_scope": "in-region",
@@ -6089,8 +7297,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00048,
-      "output_price_per_1k": 0.00192,
+      "input_price_per_1k": 0.0004,
+      "output_price_per_1k": 0.0016,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -6141,7 +7349,7 @@
         },
         "us-west-1": {
           "input_per_1k": 0.000515,
-          "output_per_1k": 0.00206
+          "output_per_1k": 0.00412
         },
         "us-east-1": {
           "input_per_1k": 0.0004,
@@ -6161,7 +7369,7 @@
         },
         "us-gov-west-1": {
           "input_per_1k": 0.00048,
-          "output_per_1k": 0.00192
+          "output_per_1k": 0.00384
         },
         "il-central-1": {
           "input_per_1k": 0.0005,
@@ -6173,7 +7381,7 @@
         },
         "eu-central-1": {
           "input_per_1k": 0.000525,
-          "output_per_1k": 0.0021
+          "output_per_1k": 0.0042
         },
         "eu-south-1": {
           "input_per_1k": 0.00064,
@@ -6186,10 +7394,6 @@
         "ap-southeast-4": {
           "input_per_1k": 0.000435,
           "output_per_1k": 0.00174
-        },
-        "ap-southeast-7": {
-          "input_per_1k": 0.00048,
-          "output_per_1k": 0.00192
         }
       },
       "residency_scope": "geo:us",
@@ -6241,8 +7445,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 7.2e-05,
-      "output_price_per_1k": 0.000288,
+      "input_price_per_1k": 6e-05,
+      "output_price_per_1k": 0.00024,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -6287,14 +7491,6 @@
           "input_per_1k": 6.5e-05,
           "output_per_1k": 0.00026
         },
-        "ca-central-1": {
-          "input_per_1k": 6.4e-05,
-          "output_per_1k": 0.000256
-        },
-        "eu-central-1": {
-          "input_per_1k": 7.8e-05,
-          "output_per_1k": 0.000312
-        },
         "me-central-1": {
           "input_per_1k": 6e-05,
           "output_per_1k": 0.00024
@@ -6315,10 +7511,6 @@
           "input_per_1k": 7.7e-05,
           "output_per_1k": 0.000308
         },
-        "ap-northeast-2": {
-          "input_per_1k": 7.1e-05,
-          "output_per_1k": 0.000284
-        },
         "ap-northeast-1": {
           "input_per_1k": 7.2e-05,
           "output_per_1k": 0.000288
@@ -6338,10 +7530,6 @@
         "eu-west-3": {
           "input_per_1k": 8.8e-05,
           "output_per_1k": 0.000352
-        },
-        "ap-east-2": {
-          "input_per_1k": 7.2e-05,
-          "output_per_1k": 0
         }
       },
       "residency_scope": "geo:us",
@@ -6390,8 +7578,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 4.2e-05,
-      "output_price_per_1k": 0.000168,
+      "input_price_per_1k": 3.5e-05,
+      "output_price_per_1k": 0.00014,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -6444,10 +7632,6 @@
           "input_per_1k": 4.2e-05,
           "output_per_1k": 0.000168
         },
-        "ap-southeast-5": {
-          "input_per_1k": 4.2e-05,
-          "output_per_1k": 0
-        },
         "us-gov-west-1": {
           "input_per_1k": 4.2e-05,
           "output_per_1k": 0.000168
@@ -6460,17 +7644,9 @@
           "input_per_1k": 5.6e-05,
           "output_per_1k": 0.000224
         },
-        "eu-west-2": {
-          "input_per_1k": 4.9e-05,
-          "output_per_1k": 0.000196
-        },
         "eu-west-3": {
           "input_per_1k": 5.2e-05,
           "output_per_1k": 0.000208
-        },
-        "eu-north-1": {
-          "input_per_1k": 3.8e-05,
-          "output_per_1k": 0.000152
         }
       },
       "residency_scope": "geo:us",
@@ -6513,7 +7689,7 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00025,
-      "output_price_per_1k": 0,
+      "output_price_per_1k": 0.00125,
       "lifecycle_status": "LEGACY",
       "legacy_time": "2026-03-10T08:00:00+00:00",
       "end_of_life_time": "2026-09-10T08:00:00+00:00",
@@ -6523,7 +7699,77 @@
         "eu",
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "token_pricing_by_region": {
+        "us-west-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0015
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0015
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
+        }
+      }
     },
     "claude_3_5_sonnet_20240620_v1": {
       "label": "Claude 3.5 Sonnet v2",
@@ -6555,7 +7801,7 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0,
+      "output_price_per_1k": 0.015,
       "residency_scope": "geo:apac",
       "inference_profiles": [
         "apac"
@@ -6594,7 +7840,7 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0,
+      "output_price_per_1k": 0.015,
       "residency_scope": "geo:apac",
       "inference_profiles": [
         "apac",
@@ -6667,12 +7913,82 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0,
+      "output_price_per_1k": 0.015,
       "residency_scope": "geo:apac",
       "inference_profiles": [
         "apac"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "token_pricing_by_region": {
+        "us-gov-west-1": {
+          "input_per_1k": 0.0036,
+          "output_per_1k": 0.018
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "us-east-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "us-west-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.0036,
+          "output_per_1k": 0.018
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "us-east-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.003,
+          "output_per_1k": 0.015
+        }
+      }
     },
     "llama3_8b_instruct_v1": {
       "label": "Llama 3 8B Instruct",
@@ -6709,7 +8025,35 @@
       "end_of_life_time": "",
       "residency_scope": "in-region",
       "inference_profiles": [],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.0003,
+      "output_price_per_1k": 0.0006,
+      "token_pricing_by_region": {
+        "us-west-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0006
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.00101
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.00035,
+          "output_per_1k": 0.00069
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00039,
+          "output_per_1k": 0.00078
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0006
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00072
+        }
+      }
     },
     "llama3_70b_instruct_v1": {
       "label": "Llama 3 70B Instruct",
@@ -6746,7 +8090,35 @@
       "end_of_life_time": "",
       "residency_scope": "in-region",
       "inference_profiles": [],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.00318,
+      "output_price_per_1k": 0.0042,
+      "token_pricing_by_region": {
+        "sa-east-1": {
+          "input_per_1k": 0.00445,
+          "output_per_1k": 0.00588
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00318,
+          "output_per_1k": 0.0042
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.00305,
+          "output_per_1k": 0.00403
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00265,
+          "output_per_1k": 0.0035
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00345,
+          "output_per_1k": 0.00455
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.00265,
+          "output_per_1k": 0.0035
+        }
+      }
     },
     "mistral_7b_instruct_v0": {
       "label": "Mistral 7B Instruct",
@@ -6782,8 +8154,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00018,
-      "output_price_per_1k": 0.00024,
+      "input_price_per_1k": 0.00015,
+      "output_price_per_1k": 0.0002,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -6808,21 +8180,9 @@
           "input_per_1k": 0.00015,
           "output_per_1k": 0.0002
         },
-        "eu-west-3": {
-          "input_per_1k": 0.0002,
-          "output_per_1k": 0.00026
-        },
         "ca-central-1": {
           "input_per_1k": 0.00017,
           "output_per_1k": 0.00023
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.00018,
-          "output_per_1k": 0.00024
-        },
-        "us-east-1": {
-          "input_per_1k": 0.00015,
-          "output_per_1k": 0.0002
         }
       },
       "residency_scope": "in-region",
@@ -6863,16 +8223,12 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00054,
-      "output_price_per_1k": 0.00084,
+      "input_price_per_1k": 0.00059,
+      "output_price_per_1k": 0.00091,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "eu-west-2": {
-          "input_per_1k": 0.00059,
-          "output_per_1k": 0.00091
-        },
         "eu-west-3": {
           "input_per_1k": 0.00059,
           "output_per_1k": 0.00091
@@ -6881,29 +8237,13 @@
           "input_per_1k": 0.00059,
           "output_per_1k": 0.00091
         },
-        "ca-central-1": {
-          "input_per_1k": 0.00052,
-          "output_per_1k": 0.00081
-        },
-        "us-west-2": {
-          "input_per_1k": 0.00045,
-          "output_per_1k": 0.0007
-        },
         "sa-east-1": {
           "input_per_1k": 0.00076,
           "output_per_1k": 0.00118
         },
-        "us-east-1": {
-          "input_per_1k": 0.00045,
-          "output_per_1k": 0.0007
-        },
         "eu-west-1": {
           "input_per_1k": 0.00049,
           "output_per_1k": 0.00076
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.00054,
-          "output_per_1k": 0.00084
         }
       },
       "residency_scope": "in-region",
@@ -6944,8 +8284,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0048,
-      "output_price_per_1k": 0.0144,
+      "input_price_per_1k": 0.004,
+      "output_price_per_1k": 0.012,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -6969,10 +8309,6 @@
         "sa-east-1": {
           "input_per_1k": 0.0067,
           "output_per_1k": 0.0202
-        },
-        "eu-west-3": {
-          "input_per_1k": 0.0052,
-          "output_per_1k": 0.0156
         },
         "ap-southeast-2": {
           "input_per_1k": 0.0052,
@@ -7021,8 +8357,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00026,
-      "output_price_per_1k": 0.00062,
+      "input_price_per_1k": 0.00025,
+      "output_price_per_1k": 0.0006,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -7124,7 +8460,9 @@
         "eu",
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.006
     },
     "palmyra_x5_v1": {
       "label": "Palmyra X5",
@@ -7162,7 +8500,9 @@
       "inference_profiles": [
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.0006,
+      "output_price_per_1k": 0.006
     },
     "palmyra_x4_v1": {
       "label": "Palmyra X4",
@@ -7200,7 +8540,9 @@
       "inference_profiles": [
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.0025,
+      "output_price_per_1k": 0.01
     },
     "palmyra_vision_7b": {
       "label": "Writer Palmyra Vision 7B",
@@ -7364,107 +8706,111 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0004,
-      "output_price_per_1k": 0.0016,
+      "input_price_per_1k": 0.0006875,
+      "output_price_per_1k": 0.0055,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
       "token_pricing_by_region": {
-        "eu-west-3": {
-          "input_per_1k": 0.00059,
-          "output_per_1k": 0.00236
-        },
-        "ap-northeast-2": {
-          "input_per_1k": 0.000475,
-          "output_per_1k": 0.0019
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.000435,
-          "output_per_1k": 0.00174
-        },
-        "ap-southeast-1": {
-          "input_per_1k": 0.00054,
-          "output_per_1k": 0.00216
-        },
-        "ap-east-2": {
-          "input_per_1k": 0.00048,
-          "output_per_1k": 0.00192
-        },
-        "ap-southeast-5": {
-          "input_per_1k": 0.00048,
-          "output_per_1k": 0.00192
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 0.00048,
-          "output_per_1k": 0.00192
-        },
-        "eu-west-1": {
-          "input_per_1k": 0.00046,
-          "output_per_1k": 0.00184
-        },
-        "me-central-1": {
-          "input_per_1k": 0.0004,
-          "output_per_1k": 0.0016
-        },
-        "eu-south-2": {
-          "input_per_1k": 0.00044,
-          "output_per_1k": 0.00176
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.000565,
-          "output_per_1k": 0.00226
-        },
-        "us-west-1": {
-          "input_per_1k": 0.000515,
-          "output_per_1k": 0.00206
+        "ca-west-1": {
+          "input_per_1k": 0.0007755,
+          "output_per_1k": 0.006193
         },
         "us-east-1": {
-          "input_per_1k": 0.0004,
-          "output_per_1k": 0.0016
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.00042,
-          "output_per_1k": 0.00168
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.00042,
-          "output_per_1k": 0.00168
+          "input_per_1k": 0.0006875,
+          "output_per_1k": 0.0055
         },
         "us-east-2": {
-          "input_per_1k": 0.0004,
-          "output_per_1k": 0.0016
-        },
-        "us-gov-west-1": {
-          "input_per_1k": 0.00048,
-          "output_per_1k": 0.00192
-        },
-        "il-central-1": {
-          "input_per_1k": 0.0005,
-          "output_per_1k": 0.002
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.00047,
-          "output_per_1k": 0.00188
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.000525,
-          "output_per_1k": 0.0021
-        },
-        "eu-south-1": {
-          "input_per_1k": 0.00064,
-          "output_per_1k": 0.002605
+          "input_per_1k": 0.0006875,
+          "output_per_1k": 0.0055
         },
         "us-west-2": {
-          "input_per_1k": 0.0004,
-          "output_per_1k": 0.0016
+          "input_per_1k": 0.0006875,
+          "output_per_1k": 0.0055
         },
         "ap-southeast-4": {
-          "input_per_1k": 0.000435,
-          "output_per_1k": 0.00174
+          "input_per_1k": 0.00068,
+          "output_per_1k": 0.00542
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0008855,
+          "output_per_1k": 0.007062
+        },
+        "me-central-1": {
+          "input_per_1k": 0.000625,
+          "output_per_1k": 0.00501
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00074,
+          "output_per_1k": 0.0059
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.00069,
+          "output_per_1k": 0.00551
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0007315,
+          "output_per_1k": 0.005863
         },
         "ap-southeast-7": {
-          "input_per_1k": 0.00048,
-          "output_per_1k": 0.00192
+          "input_per_1k": 0.000845,
+          "output_per_1k": 0.00678
+        },
+        "il-central-1": {
+          "input_per_1k": 0.00078,
+          "output_per_1k": 0.006255
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.000715,
+          "output_per_1k": 0.005735
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.000755,
+          "output_per_1k": 0.00625
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00088,
+          "output_per_1k": 0.007035
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.000845,
+          "output_per_1k": 0.01356
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000815,
+          "output_per_1k": 0.00654
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.00092,
+          "output_per_1k": 0.00737
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000655,
+          "output_per_1k": 0.005255
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.00169,
+          "output_per_1k": 0.00678
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.00074,
+          "output_per_1k": 0.01184
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00151,
+          "output_per_1k": 0.00625
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00066,
+          "output_per_1k": 0.00528
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00068,
+          "output_per_1k": 0.005435
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.001005,
+          "output_per_1k": 0.008025
         }
       },
       "residency_scope": "geo:us",
@@ -7504,7 +8850,9 @@
       "end_of_life_time": "2026-11-26T08:00:00+00:00",
       "residency_scope": "in-region",
       "inference_profiles": [],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.008
     },
     "jamba_1_5_mini_v1": {
       "label": "Jamba 1.5 Mini",
@@ -7537,7 +8885,9 @@
       "end_of_life_time": "2026-11-26T08:00:00+00:00",
       "residency_scope": "in-region",
       "inference_profiles": [],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.0002,
+      "output_price_per_1k": 0.0004
     },
     "r1_v1": {
       "label": "DeepSeek-R1",
@@ -7613,7 +8963,9 @@
       "inference_profiles": [
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.00022,
+      "output_price_per_1k": 0.00022
     },
     "llama3_1_70b_instruct_v1": {
       "label": "Llama 3.1 70B Instruct",
@@ -7650,7 +9002,9 @@
       "inference_profiles": [
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.00072,
+      "output_price_per_1k": 0.00072
     },
     "llama3_3_70b_instruct_v1": {
       "label": "Llama 3.3 70B Instruct",
@@ -7725,7 +9079,9 @@
       "inference_profiles": [
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.00017,
+      "output_price_per_1k": 0.00066
     },
     "llama4_maverick_17b_instruct_v1": {
       "label": "Llama 4 Maverick 17B Instruct",
@@ -7763,7 +9119,9 @@
       "inference_profiles": [
         "us"
       ],
-      "supports_temperature": true
+      "supports_temperature": true,
+      "input_price_per_1k": 0.00024,
+      "output_price_per_1k": 0.00097
     },
     "mistral_small_2402_v1": {
       "label": "Mistral Small (24.02)",
@@ -7791,8 +9149,6 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.001,
-      "output_price_per_1k": 0.003,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -7826,46 +9182,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.004,
-      "output_price_per_1k": 0.012,
-      "token_pricing_by_region": {
-        "ca-central-1": {
-          "input_per_1k": 0.0046,
-          "output_per_1k": 0.0138
-        },
-        "us-east-1": {
-          "input_per_1k": 0.004,
-          "output_per_1k": 0.012
-        },
-        "eu-west-1": {
-          "input_per_1k": 0.0043,
-          "output_per_1k": 0.013
-        },
-        "us-west-2": {
-          "input_per_1k": 0.004,
-          "output_per_1k": 0.012
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.0067,
-          "output_per_1k": 0.0202
-        },
-        "eu-west-3": {
-          "input_per_1k": 0.0052,
-          "output_per_1k": 0.0156
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.0052,
-          "output_per_1k": 0.0156
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.0052,
-          "output_per_1k": 0.0156
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.0048,
-          "output_per_1k": 0.0144
-        }
-      },
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.006,
       "residency_scope": "in-region",
       "inference_profiles": [],
       "supports_temperature": true
@@ -7873,8 +9191,8 @@
     "claude_sonnet_5": {
       "label": "Claude Sonnet 5",
       "model_id": "us.anthropic.claude-sonnet-5",
-      "input_price_per_1k": 0.002,
-      "output_price_per_1k": 0.01,
+      "input_price_per_1k": 0.0022,
+      "output_price_per_1k": 0.011,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "us-west-2",
       "available_regions": [
@@ -7925,13 +9243,155 @@
         "eu",
         "global",
         "us"
-      ]
+      ],
+      "token_pricing_by_region": {
+        "ap-northeast-3": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "il-central-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.0024,
+          "output_per_1k": 0.012
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.0024,
+          "output_per_1k": 0.012
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "me-south-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.011
+        },
+        "me-central-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "af-south-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        }
+      }
     },
     "claude_opus_5": {
       "label": "Claude Opus 5",
       "model_id": "us.anthropic.claude-opus-5",
-      "input_price_per_1k": 0.005,
-      "output_price_per_1k": 0.025,
+      "input_price_per_1k": 0.0055,
+      "output_price_per_1k": 0.0275,
       "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "us-west-2",
       "available_regions": [
@@ -7982,7 +9442,149 @@
         "eu",
         "global",
         "us"
-      ]
+      ],
+      "token_pricing_by_region": {
+        "us-west-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.006,
+          "output_per_1k": 0.03
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "me-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "me-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "il-central-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0055,
+          "output_per_1k": 0.0275
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "af-south-1": {
+          "input_per_1k": 0.005,
+          "output_per_1k": 0.025
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.006,
+          "output_per_1k": 0.03
+        }
+      }
     },
     "gpt_5_6_terra": {
       "label": "GPT-5.6 Terra",
@@ -8099,7 +9701,8 @@
         "global",
         "in",
         "us"
-      ]
+      ],
+      "supports_temperature": false
     },
     "gpt_5_6_sol": {
       "label": "GPT-5.6 Sol",
@@ -8196,152 +9799,152 @@
       ],
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "responses",
-      "input_price_per_1k": 0.001,
-      "output_price_per_1k": 0.003,
+      "input_price_per_1k": 0.0011,
+      "output_price_per_1k": 0.0033,
       "token_pricing_by_region": {
         "ap-southeast-4": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "eu-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-east-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "us-gov-east-1": {
-          "input_per_1k": 0.0012,
-          "output_per_1k": 0.0036
+          "input_per_1k": 0.00132,
+          "output_per_1k": 0.00396
         },
         "me-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.0033
         },
         "ap-northeast-3": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0066
         },
         "ap-south-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "us-gov-west-1": {
-          "input_per_1k": 0.0012,
-          "output_per_1k": 0.0036
+          "input_per_1k": 0.00132,
+          "output_per_1k": 0.00396
         },
         "us-west-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-east-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "eu-north-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "eu-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "us-west-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ca-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-northeast-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-southeast-3": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.0033
         },
         "eu-west-3": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-southeast-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "us-east-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-southeast-5": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "eu-central-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-northeast-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-southeast-7": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "sa-east-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-southeast-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "af-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "me-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "il-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "eu-south-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-southeast-6": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0066
         },
         "eu-west-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "us-east-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0066
         },
         "ca-west-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0066
         },
         "eu-west-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "ap-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         },
         "mx-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
         }
       },
       "residency_scope": "geo:us",
@@ -8400,7 +10003,151 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "supports_temperature": false
+      "supports_temperature": false,
+      "input_price_per_1k": 0.011,
+      "output_price_per_1k": 0.055,
+      "token_pricing_by_region": {
+        "ca-west-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "us-east-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "us-west-2": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "me-central-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "us-west-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "us-east-2": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.012,
+          "output_per_1k": 0.06
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.012,
+          "output_per_1k": 0.06
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "me-south-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "af-south-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "il-central-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        }
+      }
     },
     "qwen3_coder_480b_a35b_instruct": {
       "label": "qwen.qwen3-coder-480b-a35b-instruct",
@@ -8435,7 +10182,7 @@
         },
         "ap-southeast-2": {
           "input_per_1k": 0.00023175,
-          "output_per_1k": 0.000927
+          "output_per_1k": 0.001854
         },
         "eu-north-1": {
           "input_per_1k": 0.000225,
@@ -8470,7 +10217,7 @@
           "output_per_1k": 0.00106
         },
         "us-east-1": {
-          "input_per_1k": 0.000225,
+          "input_per_1k": 0.00045,
           "output_per_1k": 0.0009
         },
         "us-east-2": {
@@ -8508,7 +10255,141 @@
       "residency_scope": "in-region",
       "inference_profiles": [],
       "input_price_per_1k": 0.0011,
-      "output_price_per_1k": 0.0055
+      "output_price_per_1k": 0.0055,
+      "token_pricing_by_region": {
+        "eu-north-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "af-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "il-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "me-central-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "me-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0055
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.001,
+          "output_per_1k": 0.005
+        }
+      }
     },
     "glm_4_6": {
       "label": "zai.glm-4.6",
@@ -8533,155 +10414,7 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "residency_scope": "in-region",
-      "inference_profiles": [],
-      "input_price_per_1k": 0.001,
-      "output_price_per_1k": 0.003,
-      "token_pricing_by_region": {
-        "ap-southeast-4": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-east-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "us-gov-east-1": {
-          "input_per_1k": 0.0012,
-          "output_per_1k": 0.0036
-        },
-        "me-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-northeast-3": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-south-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "us-gov-west-1": {
-          "input_per_1k": 0.0012,
-          "output_per_1k": 0.0036
-        },
-        "us-west-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-east-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "us-west-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ca-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-west-3": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "us-east-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-5": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-central-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-northeast-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-7": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "af-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "me-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "il-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-south-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-6": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-west-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "us-east-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ca-west-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "mx-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        }
-      }
+      "inference_profiles": []
     },
     "gemma_4_26b_a4b": {
       "label": "google.gemma-4-26b-a4b",
@@ -8715,7 +10448,7 @@
           "output_per_1k": 0.0002
         },
         "us-east-1": {
-          "input_per_1k": 6.5e-05,
+          "input_per_1k": 0.00013,
           "output_per_1k": 0.0002
         },
         "us-east-2": {
@@ -8773,10 +10506,10 @@
         },
         "us-east-1": {
           "input_per_1k": 7e-05,
-          "output_per_1k": 0.0002
+          "output_per_1k": 0.0004
         },
         "eu-central-1": {
-          "input_per_1k": 8.4e-05,
+          "input_per_1k": 0.000168,
           "output_per_1k": 0.00024
         }
       }
@@ -8846,14 +10579,14 @@
         },
         "ap-southeast-3": {
           "input_per_1k": 0.000318,
-          "output_per_1k": 0.001596
+          "output_per_1k": 0.003192
         },
         "sa-east-1": {
           "input_per_1k": 0.00032,
           "output_per_1k": 0.00161
         },
         "ap-southeast-2": {
-          "input_per_1k": 0.00027295,
+          "input_per_1k": 0.0005459,
           "output_per_1k": 0.0013699
         },
         "ap-northeast-1": {
@@ -8931,14 +10664,14 @@
         },
         "eu-south-1": {
           "input_per_1k": 0.00036,
-          "output_per_1k": 0.0015
+          "output_per_1k": 0.003
         },
         "eu-west-2": {
           "input_per_1k": 0.000465,
           "output_per_1k": 0.0019375
         },
         "ap-southeast-2": {
-          "input_per_1k": 0.000309,
+          "input_per_1k": 0.000618,
           "output_per_1k": 0.0012875
         }
       }
@@ -9016,7 +10749,7 @@
         },
         "eu-north-1": {
           "input_per_1k": 8.4e-05,
-          "output_per_1k": 0.00072
+          "output_per_1k": 0.00144
         },
         "ap-southeast-3": {
           "input_per_1k": 8.4e-05,
@@ -9150,7 +10883,7 @@
         },
         "eu-central-1": {
           "input_per_1k": 2.4e-05,
-          "output_per_1k": 4.8e-05
+          "output_per_1k": 9.6e-05
         }
       }
     },
@@ -9178,60 +10911,20 @@
       "invoke_api": "responses",
       "residency_scope": "in-region",
       "inference_profiles": [],
-      "input_price_per_1k": 0.00025,
-      "output_price_per_1k": 0.00075,
+      "input_price_per_1k": 0.000625,
+      "output_price_per_1k": 0.00125,
       "token_pricing_by_region": {
-        "eu-west-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0009
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.0002575,
-          "output_per_1k": 0.0007725
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.0003875,
-          "output_per_1k": 0.0011625
-        },
-        "us-east-1": {
-          "input_per_1k": 0.00025,
-          "output_per_1k": 0.00075
-        },
-        "us-east-2": {
-          "input_per_1k": 0.00025,
-          "output_per_1k": 0.00075
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.00091
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0009
-        },
         "ap-south-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.00088
+          "input_per_1k": 0.00075,
+          "output_per_1k": 0.0015
         },
         "us-west-2": {
-          "input_per_1k": 0.00025,
-          "output_per_1k": 0.00075
+          "input_per_1k": 0.000625,
+          "output_per_1k": 0.00125
         },
-        "sa-east-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.00091
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0009
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0009
-        },
-        "eu-south-1": {
-          "input_per_1k": 0.0003,
-          "output_per_1k": 0.0009
+        "us-east-1": {
+          "input_per_1k": 0.000625,
+          "output_per_1k": 0.00125
         }
       }
     },
@@ -9287,7 +10980,7 @@
           "output_per_1k": 0.001008
         },
         "sa-east-1": {
-          "input_per_1k": 0.000348,
+          "input_per_1k": 0.000696,
           "output_per_1k": 0.001008
         },
         "eu-west-2": {
@@ -9318,9 +11011,27 @@
     },
     "gpt_5_4": {
       "label": "openai.gpt-5.4",
-      "model_id": "openai.gpt-5.4",
+      "model_id": "us.openai.gpt-5.4",
       "region": "us-west-2",
-      "available_regions": [],
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
       "provider": "OpenAI",
       "model_source": "foundation",
       "model_arn": "",
@@ -9338,156 +11049,13 @@
       ],
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "responses",
-      "residency_scope": "in-region",
-      "inference_profiles": [],
-      "input_price_per_1k": 0.001,
-      "output_price_per_1k": 0.003,
-      "token_pricing_by_region": {
-        "ap-southeast-4": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-east-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "us-gov-east-1": {
-          "input_per_1k": 0.0012,
-          "output_per_1k": 0.0036
-        },
-        "me-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-northeast-3": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-south-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "us-gov-west-1": {
-          "input_per_1k": 0.0012,
-          "output_per_1k": 0.0036
-        },
-        "us-west-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-east-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-north-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "us-west-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ca-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-northeast-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-3": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-west-3": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "us-east-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-5": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-central-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-northeast-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-7": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "sa-east-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "af-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "me-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "il-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-south-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-southeast-6": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-west-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "us-east-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ca-west-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "eu-west-2": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "ap-south-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        },
-        "mx-central-1": {
-          "input_per_1k": 0.001,
-          "output_per_1k": 0.003
-        }
-      }
+      "residency_scope": "geo:us",
+      "inference_profiles": [
+        "global",
+        "us"
+      ],
+      "input_price_per_1k": 0.0033,
+      "output_price_per_1k": 0.0198
     },
     "gpt_6_astra": {
       "label": "GPT-6 Astra",
@@ -9539,7 +11107,1013 @@
         "responses"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.011,
+      "output_price_per_1k": 0.055,
+      "token_pricing_by_region": {
+        "ap-northeast-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "us-east-2": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "us-east-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "us-west-2": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        },
+        "us-west-1": {
+          "input_per_1k": 0.011,
+          "output_per_1k": 0.055
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.01,
+          "output_per_1k": 0.05
+        }
+      }
+    },
+    "claude_opus_5_5": {
+      "label": "Claude Opus 5.5",
+      "model_id": "us.anthropic.claude-opus-5-5",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-opus-5-5",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "inference_profiles": [
+        "eu",
+        "global",
+        "us"
+      ],
+      "residency_scope": "geo:us",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
+      "supports_temperature": false,
+      "input_price_per_1k": 0.0044,
+      "output_price_per_1k": 0.022,
+      "token_pricing_by_region": {
+        "us-west-2": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.0048,
+          "output_per_1k": 0.024
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.0048,
+          "output_per_1k": 0.024
+        },
+        "me-central-1": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "me-south-1": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "il-central-1": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "af-south-1": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0044,
+          "output_per_1k": 0.022
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.02
+        }
+      }
+    },
+    "kimi_k3": {
+      "label": "Kimi K3",
+      "model_id": "us.moonshotai.kimi-k3",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Moonshot AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/moonshotai.kimi-k3",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "inference_profiles": [
+        "global",
+        "us"
+      ],
+      "residency_scope": "geo:us",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00165,
+      "output_price_per_1k": 0.00825,
+      "token_pricing_by_region": {
+        "ap-northeast-2": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "il-central-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.00825
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.00198,
+          "output_per_1k": 0.0099
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "af-south-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.00825
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "me-central-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.0018,
+          "output_per_1k": 0.0198
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.0165
+        },
+        "me-south-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-east-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00165,
+          "output_per_1k": 0.00825
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.0033,
+          "output_per_1k": 0.00825
+        }
+      },
+      "supports_temperature": false
+    },
+    "grok_4_7": {
+      "label": "Grok 4.7",
+      "model_id": "us.xai.grok-4.7",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "xAI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/xai.grok-4.7",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "inference_profiles": [
+        "global",
+        "us"
+      ],
+      "residency_scope": "geo:us",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.0011,
+      "output_price_per_1k": 0.0033,
+      "token_pricing_by_region": {
+        "ap-southeast-7": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.00132,
+          "output_per_1k": 0.00396
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "us-west-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.0033
+        },
+        "me-south-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-northeast-3": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.0033
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.00132,
+          "output_per_1k": 0.00396
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0066
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0066
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.0033
+        },
+        "me-central-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0066
+        },
+        "il-central-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0066
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "af-south-1": {
+          "input_per_1k": 0.0022,
+          "output_per_1k": 0.0033
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0011,
+          "output_per_1k": 0.0033
+        }
+      },
+      "supports_temperature": false
+    },
+    "gpt_6_sol": {
+      "label": "GPT-6 Sol",
+      "model_id": "us.openai.gpt-6-sol",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "OpenAI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-6-sol",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "inference_profiles": [
+        "global",
+        "us"
+      ],
+      "residency_scope": "geo:us",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
+      "supports_temperature": false
+    },
+    "gpt_6_luna": {
+      "label": "GPT-6 Luna",
+      "model_id": "us.openai.gpt-6-luna",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "OpenAI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-6-luna",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "inference_profiles": [
+        "global",
+        "us"
+      ],
+      "residency_scope": "geo:us",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
+      "supports_temperature": false
+    },
+    "claude_sonnet_5_5": {
+      "label": "Claude Sonnet 5.5",
+      "model_id": "global.anthropic.claude-sonnet-5-5",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-5-5",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "inference_profiles": [
+        "global"
+      ],
+      "residency_scope": "global",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
+      "supports_temperature": false,
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.01,
+      "token_pricing_by_region": {
+        "ap-east-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "me-central-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "us-east-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "eu-central-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "me-south-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-south-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "us-east-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 0.0024,
+          "output_per_1k": 0.012
+        },
+        "us-west-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.0024,
+          "output_per_1k": 0.012
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ca-west-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "us-west-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "mx-central-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "il-central-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "af-south-1": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        },
+        "ap-southeast-6": {
+          "input_per_1k": 0.002,
+          "output_per_1k": 0.01
+        }
+      }
+    },
+    "gpt_5_5": {
+      "label": "GPT 5.5",
+      "model_id": "us.openai.gpt-5.5",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "OpenAI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-5.5",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "inference_profiles": [
+        "global",
+        "us"
+      ],
+      "residency_scope": "geo:us",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
+        "responses"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
+      "supports_temperature": false
     }
   },
   "custom_model_catalog": {
@@ -12820,80 +15394,6 @@
         "eu-west-3"
       ]
     },
-    "anthropic.claude-opus-4-7": {
-      "global": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "us": [
-        "ca-central-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "eu": [
-        "eu-central-1",
-        "eu-north-1",
-        "eu-south-1",
-        "eu-south-2",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3"
-      ]
-    },
-    "anthropic.claude-opus-4-8": {
-      "global": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "us": [
-        "ca-central-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "eu": [
-        "eu-central-1",
-        "eu-north-1",
-        "eu-south-1",
-        "eu-south-2",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3"
-      ]
-    },
     "anthropic.claude-haiku-4-5-20251001": {
       "global": [
         "ap-northeast-1",
@@ -12957,80 +15457,6 @@
         "us-east-2",
         "us-west-1",
         "us-west-2"
-      ]
-    },
-    "anthropic.claude-sonnet-5": {
-      "global": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "us": [
-        "ca-central-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "eu": [
-        "eu-central-1",
-        "eu-north-1",
-        "eu-south-1",
-        "eu-south-2",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3"
-      ]
-    },
-    "anthropic.claude-opus-5": {
-      "global": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "us": [
-        "ca-central-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "eu": [
-        "eu-central-1",
-        "eu-north-1",
-        "eu-south-1",
-        "eu-south-2",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3"
       ]
     },
     "openai.gpt-5.6-sol": {
@@ -13218,6 +15644,355 @@
         "eu-west-3"
       ]
     },
+    "moonshotai.kimi-k3": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "openai.gpt-6-sol": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "openai.gpt-6-luna": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-opus-5-5": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "openai.gpt-5.4": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "openai.gpt-5.5": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-opus-5": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-opus-4-8": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-sonnet-5": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "anthropic.claude-opus-4-7": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "xai.grok-4.7": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
     "openai.gpt-6-astra": {
       "global": [
         "ap-northeast-1",
@@ -13240,6 +16015,27 @@
       ],
       "us": [
         "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-sonnet-5-5": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
         "us-east-1",
         "us-east-2",
         "us-west-1",
