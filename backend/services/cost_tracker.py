@@ -193,25 +193,35 @@ def add_background_s3_cost(operation: str, size_bytes: int = 0, detail: str = ""
         add_background_cost("s3", cost, detail or f"S3 {operation} ({size_bytes}B)")
 
 
-def _registry_llm_price(model_id: str, region: str | None = None) -> dict | None:
+def _registry_llm_price(model_id: str, region: str | None = None,
+                        input_tokens: int | None = None) -> dict | None:
     """Look up per-token pricing for a model from the chat_models registry.
 
-    Prices are stamped onto each chat_models entry by AWS Sync
-    (_fetch_llm_pricing → _apply_llm_pricing) as input_price_per_1k /
-    output_price_per_1k — the LIVE, per-model source. When token prices VARY by
-    region, the full per-region map is also stored as `token_pricing_by_region`;
-    if a `region` is passed we use that region's price, else the collapsed default.
-    Matches by exact model_id first, then by the registry KEY, then a substring
-    match (handles us./eu. cross-region prefixes vs the base id). Returns
+    Official prices are stamped onto each chat_models entry by AWS Sync
+    (admin._sync_official_pricing, SPEC §14.1) as `token_pricing` — the rate
+    set for the pinned Region ({input,output,global_*,long_*}_per_1k), a
+    per-Region map when rates differ, and the documented long-context
+    threshold. The rate is picked for THIS call: the Region it ran in, the
+    invoked id's tier (a `global.` profile bills the Global rate, every other id
+    the regional rate) and, above the threshold, the long-context rate. Legacy
+    flat input/output_price_per_1k is the fallback.
+
+    Matches by exact model_id, then the registry KEY, then the same foundation
+    model (inference-profile geo prefix stripped on both sides). Returns
     {input_per_mtok, output_per_mtok} or None if the registry has no price."""
     try:
         from backend.services.model_registry import get_registry
+        from backend.services.official_pricing import base_model_id, pick_token_rate, rates_for_region
         cms = (get_registry().get("chat_models", {}) or {})
         def _priced(cm):
-            # Region-specific price first (present only when prices vary by region),
-            # else the collapsed default input_price_per_1k / output_price_per_1k.
             in_p = out_p = None
-            if region:
+            tp = cm.get("token_pricing") or {}
+            if tp:
+                rates = (rates_for_region(tp.get("by_region") or {}, region) if region else None) or tp.get("rates")
+                io = pick_token_rate(rates, model_id, input_tokens, tp.get("long_context_threshold_tokens"))
+                if io:
+                    in_p, out_p = io
+            if in_p is None and out_p is None and region:
                 pr = (cm.get("token_pricing_by_region") or {}).get(region)
                 if pr:
                     in_p, out_p = pr.get("input_per_1k"), pr.get("output_per_1k")
@@ -222,7 +232,7 @@ def _registry_llm_price(model_id: str, region: str | None = None) -> dict | None
                 # per-1k → per-mtok (×1000).
                 return {"input_per_mtok": (in_p or 0) * 1000, "output_per_mtok": (out_p or 0) * 1000}
             return None
-        # 1) exact model_id, 2) exact registry key, 3) substring either way.
+        # 1) exact model_id, 2) exact registry key, 3) same foundation model.
         for cm in cms.values():
             if cm.get("model_id") == model_id:
                 p = _priced(cm)
@@ -230,9 +240,9 @@ def _registry_llm_price(model_id: str, region: str | None = None) -> dict | None
         if model_id in cms:
             p = _priced(cms[model_id])
             if p: return p
-        for key, cm in cms.items():
-            mid = cm.get("model_id", "")
-            if mid and (mid in model_id or model_id in mid):
+        base = base_model_id(model_id or "")
+        for cm in cms.values():
+            if base and base_model_id(cm.get("model_id") or "") == base:
                 p = _priced(cm)
                 if p: return p
         # 4) LLM-category entries (e.g. categories.voice = Nova Sonic) — models
@@ -251,8 +261,10 @@ def resolve_image_price(cfg: dict, model_key: str, region: str,
                         quality: str = "", size: str = "") -> float | None:
     """Registry-sourced per-image price for a Bedrock image model at a given
     region + quality — reads the Sync-recorded `image_pricing` section (keyed
-    `model_name|region|quality|size`, with a `model_name|region` simple fallback).
-    Mirrors the matching in admin.get_image_model_options so display and cost agree.
+    `name|region|quality|size`, with a `name|region` simple fallback). The Sync
+    re-keys each model's official rows under its registry key (SPEC §14.2), so
+    `model_key` is tried first; the label variants cover rows recorded by the
+    on-demand fetch. Mirrors admin.get_image_model_options so display and cost agree.
 
     Returns None when the registry has no price for this model/region — the caller
     then tries an on-demand fetch, then `base_price_usd`, and finally surfaces
@@ -264,7 +276,7 @@ def resolve_image_price(cfg: dict, model_key: str, region: str,
         if not pricing:
             return None
         label = cfg.get("label", "") or ""
-        variants = [label, label.replace("Amazon ", ""), label.replace("Stable ", ""), model_key]
+        variants = [model_key, label, label.replace("Amazon ", ""), label.replace("Stable ", "")]
         sizes = ([size] if size else []) + [s for s in ("1024", "512", "") if s != size]
         # 1) precise: model|region|quality|size (T2I rows only)
         for v in variants:
@@ -316,26 +328,32 @@ def ondemand_image_price(cfg: dict, model_key: str, region: str,
     return None
 
 
-def resolve_video_price_per_sec(vid_cfg: dict, model_key: str, region: str = "") -> float | None:
-    """Registry-sourced per-SECOND video price for the given region — reads the
-    Sync-recorded `video_pricing[model|region]` section when present, else the
-    model's `base_price_per_second_usd`. Returns None if neither exists → caller
-    surfaces "pricing unavailable" (never a hardcoded guess).
-
-    Note: only Nova Reel is priced by the AWS Pricing API; 3rd-party video models
-    (e.g. Luma Ray) aren't, so they use the registry-recorded base_price_per_second_usd
-    — analogous to Stability on the image side.
+def resolve_video_price_per_sec(vid_cfg: dict, model_key: str, region: str = "",
+                                resolution: str | None = None) -> float | None:
+    """Registry-sourced per-SECOND video price for the given region + output
+    resolution — reads the Sync-recorded `video_pricing[model|region]` section
+    (official Price List rows, re-keyed under the registry key — SPEC §14.2)
+    when present, else the model's `base_price_per_second_usd`. AWS tiers video
+    rates by resolution ('HD' = 720p and above, 'Standard' below — e.g. Luma
+    Ray 720p $1.50/s vs 540p $0.75/s); `by_tier` holds both. Returns None if
+    nothing is recorded → caller surfaces "pricing unavailable" (never a guess).
     """
+    from backend.services.official_pricing import video_resolution_tier
+    tier = video_resolution_tier(resolution)
     try:
         from backend.services.model_registry import get_registry
         vp = get_registry().get("video_pricing", {}) or {}
         if region and vp:
             label = (vid_cfg or {}).get("label", "") or ""
-            for v in (label, model_key, (vid_cfg or {}).get("model_id", "")):
+            for v in (model_key, label, (vid_cfg or {}).get("model_id", "")):
                 if not v:
                     continue
                 pi = vp.get(f"{v}|{region}")
-                pps = pi.get("price_per_second") if isinstance(pi, dict) else pi
+                if isinstance(pi, dict):
+                    pps = (pi.get("by_tier") or {}).get(tier) if tier else None
+                    pps = pps or pi.get("price_per_second")
+                else:
+                    pps = pi
                 if pps:
                     return float(pps)
     except Exception:
@@ -352,10 +370,12 @@ def compute_llm_cost(model_id: str, input_tokens: int, output_tokens: int,
 
     Pricing resolution order (most authoritative first):
       1. Explicit prices passed by the caller (e.g. a model config).
-      2. LIVE per-model, per-REGION prices synced from the AWS Pricing API onto the
-         chat_models registry (_registry_llm_price, using `region` when prices vary
-         by region) — the ONLY source. If a model isn't priced there yet, cost is 0.0
-         ("pricing unavailable") — there is no hardcoded fallback.
+      2. Official per-model prices synced onto the chat_models registry
+         (_registry_llm_price — picks the call's Region, the invoked id's
+         Global/regional tier, and the long-context rate when `input_tokens`
+         exceeds the model's documented threshold) — the ONLY source. If a model
+         isn't priced there yet, cost is 0.0 ("pricing unavailable") — there is
+         no hardcoded fallback.
     """
     if input_price_per_mtok is not None and output_price_per_mtok is not None:
         input_cost = (input_tokens / 1_000_000) * input_price_per_mtok
@@ -365,7 +385,7 @@ def compute_llm_cost(model_id: str, input_tokens: int, output_tokens: int,
     # 2) Registry-ONLY — live, per-model, region-aware, Sync-maintained. No hardcoded
     # fallback: an unpriced model returns 0.0 (surfaced as "pricing unavailable")
     # until a Sync records its per-token price.
-    pricing = _registry_llm_price(model_id, region)
+    pricing = _registry_llm_price(model_id, region, input_tokens)
     if not pricing:
         return 0.0
     input_cost = (input_tokens / 1_000_000) * pricing["input_per_mtok"]

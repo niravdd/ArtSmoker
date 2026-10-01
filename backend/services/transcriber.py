@@ -304,7 +304,7 @@ async def _attempt_streaming_transcription(
     if in_tokens or out_tokens:
         try:
             from backend.services.cost_tracker import _registry_llm_price, add_cost
-            price = _registry_llm_price(model_id, region)
+            price = _registry_llm_price(model_id, region, in_tokens)
             if price:
                 cost = round((in_tokens / 1e6) * price.get("input_per_mtok", 0)
                              + (out_tokens / 1e6) * price.get("output_per_mtok", 0), 6)

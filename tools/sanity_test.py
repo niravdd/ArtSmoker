@@ -69,7 +69,6 @@ LOG_ERROR_IGNORE = (
     "[CLIENT]",                            # browser-reported client errors
 )
 
-GEO_PREFIXES = ("us.", "eu.", "apac.", "in.", "global.")
 
 
 # ── HTTP helpers (stdlib only) ──────────────────────────────────────────────
@@ -149,11 +148,17 @@ def load_registry() -> dict:
     return reg
 
 
+_GEOS: set = set()
+
+
 def _strip_geo(mid: str) -> str:
-    for p in GEO_PREFIXES:
-        if mid.startswith(p):
-            return mid[len(p):]
-    return mid
+    # Geo prefixes = the inference-profile geos AWS Sync discovered (registry
+    # `inference_profiles`) — same rule as model_registry.strip_geo_prefix.
+    if not _GEOS:
+        profiles = json.loads(REGISTRY_PATH.read_text()).get("inference_profiles") or {}
+        _GEOS.update(g for geos in profiles.values() for g in geos)
+    head, dot, rest = mid.partition(".")
+    return rest if dot and "." in rest and head in _GEOS else mid
 
 
 # Non-native (self-deployed) model sources — excluded by default (--include-custom).

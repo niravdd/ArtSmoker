@@ -291,8 +291,10 @@ def registry_transaction():
 # Fields per model that are user-specific and should NOT be promoted to the base file
 _USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready", "lifecycle_unavailable"}
 # Chat-model price fields owned by the Sync (_apply_llm_pricing): when it drops
-# them, promote_to_base must drop them from base as well.
-_SYNC_CLEARABLE_PRICING_FIELDS = ("input_price_per_1k", "output_price_per_1k", "token_pricing_by_region")
+# them, promote_to_base must drop them from base as well. `pricing_source` (a
+# hand-stamped price) is dropped once AWS publishes an official one.
+_SYNC_CLEARABLE_PRICING_FIELDS = ("input_price_per_1k", "output_price_per_1k", "token_pricing_by_region",
+                                  "token_pricing", "unit_pricing", "pricing_source")
 # Top-level sections that are user-specific
 _USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances", "three_d_defaults", "_warm_mode", "_blender"}
 
@@ -1045,6 +1047,26 @@ ensure_code_defaults()
 def get_registry() -> dict:
     """Return the full registry."""
     return _registry
+
+
+def inference_profile_geos(registry: dict | None = None) -> frozenset:
+    """Geo prefixes of Amazon Bedrock cross-region inference profiles ('us', 'eu',
+    'apac', 'global', …) — exactly the ones AWS Sync discovered via
+    ListInferenceProfiles (``inference_profiles``), never a fixed list, so a
+    geography AWS adds is recognised after the next Sync."""
+    profiles = (registry if registry is not None else _registry).get("inference_profiles") or {}
+    return frozenset(g for geos in profiles.values() for g in (geos or {}))
+
+
+def strip_geo_prefix(model_id: str, geos=None) -> str:
+    """Bare foundation-model id: 'us.anthropic.claude-x' → 'anthropic.claude-x'.
+    A leading segment is a geo prefix only when it is a discovered profile geo
+    AND the remainder is itself a 'provider.model' id."""
+    mid = model_id or ""
+    head, dot, rest = mid.partition(".")
+    if dot and "." in rest and head in (geos if geos is not None else inference_profile_geos()):
+        return rest
+    return mid
 
 
 def get_category(name: str) -> dict:

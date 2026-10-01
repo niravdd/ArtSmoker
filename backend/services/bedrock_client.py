@@ -644,8 +644,8 @@ def _short_model_label(model_id: str) -> str:
     if not model_id:
         return "AI model"
     mid = model_id.split("/")[-1]          # strip arn path if present
-    if mid.startswith(("us.", "eu.", "apac.")):
-        mid = mid.split(".", 1)[1]
+    from backend.services.model_registry import strip_geo_prefix
+    mid = strip_geo_prefix(mid)            # any discovered profile geo
     return mid.split(".", 1)[1] if "." in mid else mid
 
 

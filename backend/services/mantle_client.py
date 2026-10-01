@@ -260,17 +260,12 @@ def _build_client(region: str, token: str | None = None, base_path: str = "/v1")
 
 
 # Mantle uses BARE model ids — it doesn't understand Bedrock geo/inference-profile
-# prefixes (us./eu./apac./in./global.). A stray prefix (e.g. a residency-pinned
-# `us.xai.grok-4.6`) yields a 404 "model does not exist" on Mantle.
-_MANTLE_GEO_PREFIXES = ("us.", "eu.", "apac.", "in.", "global.")
-
-
+# prefixes (us./eu./apac./in./global./… — the Sync-discovered set). A stray prefix
+# (e.g. a residency-pinned `us.xai.grok-4.6`) yields a 404 "model does not exist"
+# on Mantle.
 def _bare_mantle_id(model_id: str) -> str:
-    mid = model_id or ""
-    for p in _MANTLE_GEO_PREFIXES:
-        if mid.startswith(p):
-            return mid[len(p):]
-    return mid
+    from backend.services.model_registry import strip_geo_prefix
+    return strip_geo_prefix(model_id)
 
 
 def _get_openai_client(region: str, base_path: str = "/v1"):

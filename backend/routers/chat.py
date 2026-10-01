@@ -434,11 +434,13 @@ def _usable_regions(model_id: str, available: list, profile_map: dict) -> list:
     (from the discovered inference_profiles map); `global.`/bare ids → all
     discovered regions."""
     avail = available or ([] )
+    from backend.services.model_registry import strip_geo_prefix
     prefix = model_id.split(".", 1)[0] if "." in model_id else ""
-    if prefix in ("us", "eu", "apac", "in"):
+    # Geo-pinned = any discovered non-global profile geo (a new geo needs no code).
+    if prefix != "global" and strip_geo_prefix(model_id) != model_id:
         try:
-            from backend.routers.admin import _normalize_model_id, _strip_geo_prefix
-            base = _normalize_model_id(_strip_geo_prefix(model_id))
+            from backend.routers.admin import _normalize_model_id
+            base = _normalize_model_id(strip_geo_prefix(model_id))
             covered = (profile_map.get(base) or {}).get(prefix) or []
             inter = sorted(set(covered) & set(avail))
             if inter:
@@ -456,7 +458,7 @@ async def list_chat_models():
     LLM categories (fast/complex/fallback), and custom_llms.
     Includes per-model pricing (cost per 1K input/output tokens).
     """
-    from backend.services.model_registry import get_registry
+    from backend.services.model_registry import get_registry, strip_geo_prefix
     registry = get_registry()
 
     def _get_pricing(model_id: str, chat_model_entry: dict | None = None) -> dict:
@@ -468,7 +470,8 @@ async def list_chat_models():
             in_p = chat_model_entry.get("input_price_per_1k", 0)
             out_p = chat_model_entry.get("output_price_per_1k", 0)
             if in_p or out_p:
-                return {"input_per_1k": round(in_p, 4), "output_per_1k": round(out_p, 4)}
+                # 8 decimals: 4 rounded sub-cent rates (GPT-6 Luna $0.00011/1K) to $0.0001.
+                return {"input_per_1k": round(in_p, 8), "output_per_1k": round(out_p, 8)}
         return {}
 
     models = []
@@ -498,7 +501,7 @@ async def list_chat_models():
         # Use the inference profile ID if this model matches a category
         effective_id = mid
         for cid in active_cat_ids:
-            if mid in cid or cid.replace("us.", "") in mid:
+            if mid in cid or strip_geo_prefix(cid) in mid:
                 effective_id = cid  # Use the category's inference profile ID
                 break
 
@@ -542,11 +545,11 @@ async def list_chat_models():
         cat_vision = False
         cat_ctx = 200000
         # Extract family: "claude-sonnet" from "us.anthropic.claude-sonnet-4-6-v1"
-        mid_clean = mid.replace("us.", "").split(":")[0]
+        mid_clean = strip_geo_prefix(mid).split(":")[0]
         mid_parts = mid_clean.split(".")[-1]  # "claude-sonnet-4-6-v1" or "claude-opus-4-6-v1"
         mid_family = _re.sub(r"-\d.*", "", mid_parts)  # "claude-sonnet" or "claude-opus"
         for _, cm in registry.get("chat_models", {}).items():
-            cm_id = cm.get("model_id", "").replace("us.", "").split(":")[0]
+            cm_id = strip_geo_prefix(cm.get("model_id", "")).split(":")[0]
             cm_parts = cm_id.split(".")[-1]
             cm_family = _re.sub(r"-\d.*", "", cm_parts)
             if mid_family and cm_family == mid_family:

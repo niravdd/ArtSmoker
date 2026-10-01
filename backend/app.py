@@ -374,7 +374,7 @@ async def lifespan(app: FastAPI):
                     # Keep gpu_instances rates in lockstep with live pricing (no extra call).
                     if _refresh_gpu_instance_rates(registry):
                         _reg_save()
-                    # Per-region video pricing (Nova Reel); Luma/3rd-party keep base_price_per_second_usd.
+                    # Per-region, per-resolution video pricing (Nova Reel, Luma Ray).
                     vid_pricing = _fetch_video_pricing(all_regions)
                     if vid_pricing:
                         registry["video_pricing"] = vid_pricing
@@ -457,18 +457,16 @@ async def lifespan(app: FastAPI):
                         if not cfg.get("available_regions") and cfg.get("enabled", True):
                             update_image_model(key, {"enabled": False})
 
-                    # Step 4c: Live per-model LLM token pricing onto chat_models (after
-                    # the scan populated available_regions). Registry-first source for
-                    # compute_llm_cost; replaces the stale hardcoded fallback.
+                    # Step 4c: Official pricing (SPEC §14) — token prices onto chat
+                    # models + per-image / per-second prices onto image + video models
+                    # (after the scan populated available_regions).
                     try:
-                        from backend.routers.admin import _fetch_llm_pricing, _apply_llm_pricing
-                        _lp = _fetch_llm_pricing()
-                        if _lp:
-                            _np = _apply_llm_pricing(registry, _lp)
-                            logger.info("Auto-Sync: LLM token pricing applied to %d chat model(s)", _np)
+                        from backend.routers.admin import _sync_official_pricing
+                        _sync_progress("Applying official Amazon Bedrock pricing...")
+                        if _sync_official_pricing(registry):
                             _reg_save()
                     except Exception as _e:
-                        logger.debug("Auto-Sync LLM pricing skipped: %s", _e)
+                        logger.warning("Auto-Sync official pricing skipped: %s", _e)
 
                     # Stamp
                     from datetime import datetime, timezone

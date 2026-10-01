@@ -608,21 +608,21 @@ import re as _re
 
 
 # Amazon Bedrock cross-region inference-profile geo prefixes. A profile id is
-# geo-scoped: ``us.`` routes only within US Regions, ``eu.``/``apac.``/``in.``
+# geo-scoped: ``us.`` routes only within US Regions, ``eu.``/``apac.``/``in.``/…
 # within those geographies, and ``global.`` from ANY commercial Region where the
-# model is offered. Stripping the prefix yields the bare model id for
-# cross-endpoint/family matching; picking the RIGHT prefix (per invoke Region) is
-# what keeps an inference-profile model actually invocable.
-_GEO_PREFIXES = ("global.", "us.", "eu.", "apac.", "in.")
-
-
+# model is offered. The set of geos is whatever ListInferenceProfiles returned
+# (registry ``inference_profiles``) — see model_registry.inference_profile_geos.
+# Stripping the prefix yields the bare model id for cross-endpoint/family
+# matching; picking the RIGHT prefix (per invoke Region) is what keeps an
+# inference-profile model actually invocable.
 def _strip_geo_prefix(mid: str) -> str:
     """Return the bare model id with any cross-region geo prefix removed."""
-    mid = mid or ""
-    for pre in _GEO_PREFIXES:
-        if mid.startswith(pre):
-            return mid[len(pre):]
-    return mid
+    from backend.services.model_registry import strip_geo_prefix
+    return strip_geo_prefix(mid)
+
+
+def _has_geo_prefix(mid: str) -> bool:
+    return _strip_geo_prefix(mid) != (mid or "")
 
 
 def _profile_prefix_for_region(region: str) -> str:
@@ -657,8 +657,10 @@ def _discover_inference_profiles(bedrock_client) -> dict:
                 pid = p.get("inferenceProfileId", "")
                 if "." not in pid or p.get("status") != "ACTIVE":
                     continue
+                # SYSTEM_DEFINED profile ids are '<geo>.<provider>.<model>' — the
+                # geo is taken as AWS names it (a new geography needs no code).
                 prefix, base = pid.split(".", 1)
-                if prefix not in ("us", "eu", "apac", "in", "global"):
+                if "." not in base:
                     continue
                 regions = {a.split(":")[3] for m in (p.get("models") or [])
                            if len((a := m.get("modelArn", "")).split(":")) > 4 and a.split(":")[3]}
@@ -702,27 +704,44 @@ def _residency_scope(effective_id: str, base_id: str) -> str:
     return "global" if pre == "global" else f"geo:{pre}"
 
 
-def _region_geo(region: str) -> str:
-    """Coarse geography of an AWS Region from its name prefix (us/eu/apac/in/…).
+def _region_geos(profile_map: dict) -> dict:
+    """``Region -> {geo prefixes whose profiles cover it}`` from the discovered
+    inference profiles (``global`` excluded — it covers everything)."""
+    out: dict = {}
+    for profs in (profile_map or {}).values():
+        for geo, regions in (profs or {}).items():
+            if geo != "global":
+                for r in regions or ():
+                    out.setdefault(r, set()).add(geo)
+    return out
+
+
+def _region_in_geo(region: str, geo: str, region_geos: dict) -> bool:
+    """Whether ``region`` lies in geography ``geo``.
 
     Used only to prefer a Region in the deployment's preferred residency geo when
     pinning a model that has no cross-region profile (a plain regional model keeps
-    its data in whatever Region it runs in). ``ap-*`` maps to ``apac`` to match the
-    Bedrock geo-profile prefix.
+    its data in whatever Region it runs in). Authoritative when a discovered geo
+    profile covers the Region; otherwise the Region's name prefix must start the
+    geo name ('ap-*' ∈ 'apac', 'eu-*' ∈ 'eu').
     """
+    if region in region_geos:
+        return geo in region_geos[region]
     p = (region or "").split("-")[0]
-    return {"ap": "apac"}.get(p, p)
+    return bool(p) and geo.startswith(p)
 
 
-def _preferred_residency_geo() -> str:
+def _preferred_residency_geo(registry: dict | None = None) -> str:
     """The configured data-residency preference (config.py / env), validated.
 
-    Defaults to ``us``; falls back to ``us`` if set to anything that isn't a real
-    geo profile prefix. AWS Sync realigns every model's pin toward this geo.
+    Defaults to ``us``; falls back to ``us`` if set to anything that isn't a
+    discovered geo profile prefix (``global`` is not a residency). AWS Sync
+    realigns every model's pin toward this geo.
     """
     from backend.config import settings
+    from backend.services.model_registry import inference_profile_geos
     geo = (getattr(settings, "preferred_residency_geo", "us") or "us").strip().lower()
-    return geo if geo in ("us", "eu", "apac", "in") else "us"
+    return geo if geo != "global" and geo in inference_profile_geos(registry) else "us"
 
 
 def _resolve_residency_pins(registry: dict, progress=None) -> int:
@@ -744,7 +763,8 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
     from backend.services.mantle_client import derive_model_apis, resolve_invoke_path
     from backend.config import settings
     pmap = registry.get("inference_profiles", {}) or {}
-    pref = _preferred_residency_geo()
+    pref = _preferred_residency_geo(registry)
+    region_geos = _region_geos(pmap)
     if not pmap:
         # Nothing discovered → keep existing pins (safe no-op). Log it: a silent
         # skip here is exactly how a stale/failed discovery hides itself.
@@ -770,12 +790,12 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
             sel = _select_profile_prefix(base, r, pmap)  # None | '' | 'us.' | geo | 'global.'
             if sel is None or sel == "":
                 # Plain regional model → residency IS the Region's own geo.
-                rank, prefix = (0 if _region_geo(r) == pref else 2), ""
+                rank, prefix = (0 if _region_in_geo(r, pref, region_geos) else 2), ""
             elif sel == "global.":
                 rank, prefix = 3, "global."
             else:
                 rank, prefix = (0 if sel.rstrip(".") == pref else 1), sel
-            key = (rank, 0 if _region_geo(r) == pref else 1, 0 if r == home else 1, r)
+            key = (rank, 0 if _region_in_geo(r, pref, region_geos) else 1, 0 if r == home else 1, r)
             if best is None or key < best[0]:
                 best = (key, r, prefix)
         return (best[1], best[2]) if best else (None, "")
@@ -791,7 +811,7 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
             if not avail:
                 continue
             cur_id = cfg.get("model_id", "")
-            if profile_only and not cur_id.startswith(_GEO_PREFIXES):
+            if profile_only and not _has_geo_prefix(cur_id):
                 continue  # leave plain regional image pins alone (admin-curated)
             # id_base preserves the FULL id (version/suffix) — only the geo prefix is
             # stripped — so the rebuilt model_id stays invokable. lookup_key is the
@@ -1101,7 +1121,7 @@ async def auto_register_image_models(region: str):
         inference_types = m.get("inferenceTypesSupported", [])
 
         effective_id = model_id
-        if "INFERENCE_PROFILE" in inference_types and not model_id.startswith(_GEO_PREFIXES):
+        if "INFERENCE_PROFILE" in inference_types and not _has_geo_prefix(model_id):
             # Discovered profiles decide the prefix (residency-first); fall back to the
             # region heuristic only when this model isn't in the profile map.
             sel = _select_profile_prefix(model_id, region, profile_map)
@@ -1402,7 +1422,7 @@ async def auto_register_image_models(region: str):
         # in the discovered profile map.
         inference_types = m.get("inferenceTypesSupported", [])
         effective_model_id = model_id
-        if "INFERENCE_PROFILE" in inference_types and not model_id.startswith(_GEO_PREFIXES):
+        if "INFERENCE_PROFILE" in inference_types and not _has_geo_prefix(model_id):
             sel = _select_profile_prefix(model_id, region, profile_map)
             prefix = sel if sel is not None else _profile_prefix_for_region(region)
             effective_model_id = prefix + model_id
@@ -1488,92 +1508,82 @@ async def auto_register_image_models(region: str):
 
 
 def _fetch_image_pricing() -> dict:
-    """Fetch per-image pricing from the AWS Pricing API.
+    """Per-image pricing from the AWS Price List (SPEC §14.2).
 
-    Returns a dict keyed by 'model_name|region' with price_usd values.
-    Only called during refresh-all — results are stored in the registry.
-    The Pricing API is only available in us-east-1.
+    Returns a dict keyed 'model_name|region|quality|size' (Nova Canvas-style
+    rows whose usagetype carries quality + size) plus a 'model_name|region'
+    simple key. Marketplace-sold models (Stable Diffusion 3.5 Large, Stable
+    Image Ultra/Core) live under AmazonBedrockFoundationModels with ONE flat
+    per-image price → simple key only. Empty dict on failure.
     """
+    from backend.services.official_pricing import price_list_products, on_demand_dimensions, product_model_name
     try:
-        import json as _json
-        client = boto3.Session().client("pricing", region_name="us-east-1")
-        prices = {}
-        next_token = None
-
-        while True:
-            kwargs = {"ServiceCode": "AmazonBedrock", "MaxResults": 100}
-            if next_token:
-                kwargs["NextToken"] = next_token
-            resp = client.get_products(**kwargs)
-
-            for p in resp.get("PriceList", []):
-                pd = _json.loads(p)
-                attrs = pd.get("product", {}).get("attributes", {})
-                usage = attrs.get("usagetype", "")
-
-                for terms in pd.get("terms", {}).values():
-                    for term in terms.values():
-                        for dim in term.get("priceDimensions", {}).values():
-                            unit = dim.get("unit", "")
-                            if unit == "image":
-                                model_name = attrs.get("model", "")
-                                region = attrs.get("regionCode", "")
-                                price = float(dim.get("pricePerUnit", {}).get("USD", "0"))
-                                if model_name and region and price > 0:
-                                    # Parse quality and size from usage type
-                                    # e.g. "USE1-NovaCanvas-T2I-1024-Premium"
-                                    u = usage.upper()
-                                    is_t2i = "T2I" in u
-
-                                    # Extract quality tier dynamically from the usage string
-                                    # by splitting on delimiters and finding non-numeric,
-                                    # non-structural tokens (not region prefix, model name, T2I/I2I)
-                                    parts = _re.split(r"[-_]", usage)
-                                    _STRUCTURAL = {"T2I", "I2I", "Custom"}
-                                    quality_tier = ""
-                                    size_tier = ""
-                                    for part in parts:
-                                        if _re.match(r"^\d+$", part):
-                                            size_tier = part  # e.g. "1024", "2048", "512"
-                                        elif part not in _STRUCTURAL and not _re.match(r"^[A-Z]{2,4}\d", part) and len(part) > 3:
-                                            # Not a region prefix, not a structural keyword,
-                                            # not a short code — likely a quality tier
-                                            if part.lower() not in model_name.lower():
-                                                quality_tier = part.lower()  # e.g. "premium", "standard"
-
-                                    # Store with full key: model|region|quality|size
-                                    full_key = f"{model_name}|{region}|{quality_tier}|{size_tier}"
-                                    # Also store a simpler key for backward compat
-                                    simple_key = f"{model_name}|{region}"
-
-                                    if is_t2i or full_key not in prices:
-                                        prices[full_key] = {
-                                            "model_name": model_name,
-                                            "region": region,
-                                            "quality": quality_tier,
-                                            "size": size_tier,
-                                            "price_usd": price,
-                                            "usage_type": usage[:80],
-                                            "is_t2i": is_t2i,
-                                        }
-                                    # Keep simple key as fallback (T2I 1024 standard)
-                                    if is_t2i and size_tier == "1024" and quality_tier == "standard":
-                                        prices[simple_key] = {
-                                            "model_name": model_name,
-                                            "region": region,
-                                            "price_usd": price,
-                                            "usage_type": usage[:80],
-                                        }
-
-            next_token = resp.get("NextToken")
-            if not next_token:
-                break
-
-        logger.debug("Fetched %d image pricing entries from AWS Pricing API", len(prices))
-        return prices
+        products = price_list_products()
     except Exception as exc:
         logger.warning("Failed to fetch pricing data: %s", exc)
         return {}
+    prices = {}
+    for pd in products:
+        attrs = pd.get("product", {}).get("attributes", {})
+        usage = attrs.get("usagetype", "") or ""
+        model_name = product_model_name(attrs)
+        region = attrs.get("regionCode", "") or ""
+        for unit, price in on_demand_dimensions(pd):
+            if unit.lower() != "image" or not (model_name and region and price > 0):
+                continue
+            if pd.get("_service_code") == "AmazonBedrockFoundationModels":
+                # e.g. 'USE1-MP:USE1_created_image-Units' — one output-image price.
+                prices.setdefault(f"{model_name}|{region}", {
+                    "model_name": model_name, "region": region,
+                    "price_usd": price, "usage_type": usage[:80],
+                })
+                continue
+            # Parse quality and size from usage type
+            # e.g. "USE1-NovaCanvas-T2I-1024-Premium"
+            is_t2i = "T2I" in usage.upper()
+
+            # Extract quality tier dynamically from the usage string
+            # by splitting on delimiters and finding non-numeric,
+            # non-structural tokens (not region prefix, model name, T2I/I2I)
+            parts = _re.split(r"[-_]", usage)
+            _STRUCTURAL = {"T2I", "I2I", "Custom"}
+            quality_tier = ""
+            size_tier = ""
+            for part in parts:
+                if _re.match(r"^\d+$", part):
+                    size_tier = part  # e.g. "1024", "2048", "512"
+                elif part not in _STRUCTURAL and not _re.match(r"^[A-Z]{2,4}\d", part) and len(part) > 3:
+                    # Not a region prefix, not a structural keyword,
+                    # not a short code — likely a quality tier
+                    if part.lower() not in model_name.lower():
+                        quality_tier = part.lower()  # e.g. "premium", "standard"
+
+            # Store with full key: model|region|quality|size
+            full_key = f"{model_name}|{region}|{quality_tier}|{size_tier}"
+            # Also store a simpler key for backward compat
+            simple_key = f"{model_name}|{region}"
+
+            if is_t2i or full_key not in prices:
+                prices[full_key] = {
+                    "model_name": model_name,
+                    "region": region,
+                    "quality": quality_tier,
+                    "size": size_tier,
+                    "price_usd": price,
+                    "usage_type": usage[:80],
+                    "is_t2i": is_t2i,
+                }
+            # Keep simple key as fallback (T2I 1024 standard)
+            if is_t2i and size_tier == "1024" and quality_tier == "standard":
+                prices[simple_key] = {
+                    "model_name": model_name,
+                    "region": region,
+                    "price_usd": price,
+                    "usage_type": usage[:80],
+                }
+
+    logger.debug("Fetched %d image pricing entries from the AWS Price List", len(prices))
+    return prices
 
 
 def _fetch_sagemaker_pricing(regions: list[str] | None = None) -> dict:
@@ -1667,57 +1677,46 @@ def _refresh_gpu_instance_rates(registry: dict) -> int:
 
 
 def _fetch_video_pricing(regions: list[str] | None = None) -> dict:
-    """Fetch per-region VIDEO pricing from the AWS Pricing API (AmazonBedrock,
-    'video'/'seconds' unit — e.g. Nova Reel priced per second). Mirrors the shape of
-    _fetch_image_pricing. Returns
-    { "<model>|<region>": {"model_name","region","price_per_second","usage_type"} }.
-    Only models AWS prices this way appear (Nova Reel); 3rd-party video models (Luma
-    Ray) aren't in the API and keep their registry base_price_per_second_usd — the
-    same fallback Stability uses on the image side. Empty on failure; us-east-1 only."""
+    """Per-region, per-SECOND video pricing from the AWS Price List (SPEC §14.2):
+    Nova Reel (AmazonBedrock, unit 'video' billed per second) and Luma Ray
+    (AmazonBedrockService 'Ray v2' / Marketplace 'Luma Ray2', unit 'Second').
+    Rows are tiered by output resolution — the `imageresolution` attribute or the
+    usagetype ('…-Medfps-HDRes' / '…StandardRes') — recorded as `by_tier`
+    ({"hd": 1.5, "standard": 0.75}); `price_per_second` is the HD rate (the
+    default output). Returns
+    { "<model>|<region>": {"model_name","region","price_per_second","by_tier","usage_type"} }.
+    Empty on failure."""
+    from backend.services.official_pricing import price_list_products, on_demand_dimensions, product_model_name
     try:
-        import json as _json
-        client = boto3.Session().client("pricing", region_name="us-east-1")
-        target = set(regions or [])
-        prices: dict = {}
-        nt, pages = None, 0
-        while pages < 40:  # bound the scan
-            pages += 1
-            kw = {"ServiceCode": "AmazonBedrock", "MaxResults": 100}
-            if nt:
-                kw["NextToken"] = nt
-            resp = client.get_products(**kw)
-            for p in resp.get("PriceList", []):
-                pd = _json.loads(p)
-                attrs = pd.get("product", {}).get("attributes", {})
-                model_name = attrs.get("model", "")
-                region = attrs.get("regionCode", "")
-                if not model_name or not region:
-                    continue
-                if target and region not in target:
-                    continue
-                for terms in pd.get("terms", {}).values():
-                    for term in terms.values():
-                        for dim in term.get("priceDimensions", {}).values():
-                            if dim.get("unit", "").lower() not in ("video", "second", "seconds"):
-                                continue
-                            price = float(dim.get("pricePerUnit", {}).get("USD", "0") or 0)
-                            if price <= 0:
-                                continue
-                            key = f"{model_name}|{region}"
-                            if key not in prices:  # first = representative rate
-                                prices[key] = {
-                                    "model_name": model_name, "region": region,
-                                    "price_per_second": price,
-                                    "usage_type": attrs.get("usagetype", "")[:80],
-                                }
-            nt = resp.get("NextToken")
-            if not nt:
-                break
-        logger.info("Fetched %d video pricing entries from AWS Pricing API", len(prices))
-        return prices
+        products = price_list_products()
     except Exception as exc:
         logger.warning("Failed to fetch video pricing: %s", exc)
         return {}
+    target = set(regions or [])
+    prices: dict = {}
+    for pd in products:
+        attrs = pd.get("product", {}).get("attributes", {})
+        model_name = product_model_name(attrs)
+        region = attrs.get("regionCode", "") or ""
+        if not model_name or not region or (target and region not in target):
+            continue
+        usage = attrs.get("usagetype", "") or ""
+        tier = (attrs.get("imageresolution") or "").lower()
+        if tier not in ("hd", "standard"):
+            u = usage.lower()
+            tier = "hd" if "hdres" in u else "standard" if "standardres" in u else "hd"
+        for unit, price in on_demand_dimensions(pd):
+            if unit.lower() not in ("video", "second", "seconds") or price <= 0:
+                continue
+            e = prices.setdefault(f"{model_name}|{region}", {
+                "model_name": model_name, "region": region, "by_tier": {},
+                "usage_type": usage[:80],
+            })
+            e["by_tier"].setdefault(tier, price)
+    for e in prices.values():
+        e["price_per_second"] = e["by_tier"].get("hd") or min(e["by_tier"].values())
+    logger.info("Fetched %d video pricing entries from the AWS Price List", len(prices))
+    return prices
 
 
 def _record_infra_pricing(registry: dict) -> int:
@@ -1747,11 +1746,13 @@ def _record_infra_pricing(registry: dict) -> int:
 
 
 def _provider_price_default(kind: str, key: str):
-    """Look up a published per-unit price from the registry's `provider_price_defaults`
-    (the source of record for models the AWS Pricing API can't price — Stability image
-    services, video). `kind` is 'image' or 'video'; `key` is 'Provider|purpose' (image)
-    or the family (video). Returns None when absent → base_price_usd stays unset →
-    'pricing unavailable'. Prices live in the registry, NOT hardcoded in code."""
+    """Look up a per-unit price from the registry's `provider_price_defaults` —
+    the REGISTRATION seed for a newly discovered image/video model, until the
+    same Sync's official-pricing pass (_apply_media_pricing) replaces it with
+    the AWS-published rate. `kind` is 'image' or 'video'; `key` is
+    'Provider|purpose' (image) or the family (video). Returns None when absent →
+    base_price_usd stays unset → 'unavailable'. Prices live in the registry,
+    NOT hardcoded in code."""
     try:
         from backend.services.model_registry import get_registry
         return (get_registry().get("provider_price_defaults", {}) or {}).get(kind, {}).get(key)
@@ -1759,210 +1760,180 @@ def _provider_price_default(kind: str, key: str):
         return None
 
 
-def _fetch_llm_pricing() -> dict:
-    """Fetch per-model, per-region LLM TOKEN pricing from the AWS Pricing API.
+def _official_pricing_model_ids(registry: dict) -> set:
+    """Foundation-model ids (geo prefix stripped) of every Bedrock model in the
+    registry — the ids agreement offers are looked up by. Custom-hosted and
+    imported models (SageMaker / ARNs) are excluded: they're priced per hour."""
+    from backend.services.official_pricing import base_model_id
+    ids = set()
+    for section in ("chat_models", "image_models", "video_models"):
+        for cfg in (registry.get(section, {}) or {}).values():
+            if not isinstance(cfg, dict) or cfg.get("model_source") in ("custom_hosted", "imported", "custom"):
+                continue
+            mid = base_model_id(cfg.get("model_id") or "")
+            if "." in mid and not mid.startswith("arn:"):
+                ids.add(mid)
+    voice = ((registry.get("categories", {}) or {}).get("voice") or {}).get("current")
+    if voice:
+        ids.add(base_model_id(voice))
+    return ids
 
-    LLM cost = (input_tokens × input_price) + (output_tokens × output_price), so
-    the per-token price must be live and per-model — previously it fell back to a
-    stale hardcoded 3-entry dict, defaulting unknown models to Sonnet pricing.
-    Scans AmazonBedrock products for token-priced rows (unit '1K tokens' /
-    '1M tokens') and splits input vs output by the usagetype ('-input-tokens' /
-    '-output-tokens'). Normalizes everything to USD per 1K tokens.
 
-    Returns { "<model>|<region>": {"input_per_1k": x, "output_per_1k": y,
-    ["global_input_per_1k": gx, "global_output_per_1k": gy]}, ... }. input/output
-    are the REGIONAL (in-Region / geo-profile) rate, falling back to the Global
-    rate when a model only publishes Global rows; the global_* pair is present
-    only when a Global-profile rate exists (Global is ~10% cheaper than geo).
-    Empty on failure (callers keep the static seed). Pricing API is us-east-1 only.
-    """
+def _fetch_llm_pricing(registry: dict | None = None) -> dict:
+    """Gather every official Amazon Bedrock price source (SPEC §14.1):
+
+      * AWS Price List token rows — by display name AND by exact model id (the
+        `-mantle-` usagetypes embed the id). One shared, uncapped scan.
+      * Agreement-offer rate cards for every Bedrock model in `registry`
+        (Marketplace-sold models: Claude, OpenAI frontier, Stability, …).
+      * Bedrock User Guide model cards (price tables + long-context threshold).
+
+    Token rates are USD per 1K; standard on-demand tier only (Batch / Flex /
+    Priority / Reserved / cache tiers are never requested by ArtSmoker).
+    Returns {"by_name", "by_id", "codes", "offers", "cards"}, or {} when every
+    source failed (callers keep the previously synced prices)."""
+    from backend.services import official_pricing as op
     try:
-        import json as _json
-        client = boto3.Session().client("pricing", region_name="us-east-1")
-        # (model, region) → {"regional"|"global": {"input_per_1k"|"output_per_1k": x}}
-        tiers: dict = {}
-        # Non-standard billing tiers to EXCLUDE from the on-demand token price.
-        # The old "keep the LOWEST price per direction" heuristic silently
-        # recorded the -batch rows (HALF the standard rate — e.g. Claude
-        # Sonnet 4 batch $1.50/$7.50 vs standard $3/$15 per MTok), so costs
-        # under-reported. Standard rows carry none of these markers.
-        _SKIP_TIERS = ("batch", "cache", "priority", "reserved", "latencyoptimized",
-                       "long-context", "long_context", "longcontext", "long_ctx")
-        _MP_SUFFIX = " (Amazon Bedrock Edition)"
-        # Legacy Claude 2.x/3 rows live under "AmazonBedrock"; Claude 3.5+ global-
-        # profile rows under "AmazonBedrockService"; the Marketplace-sold models
-        # (Claude 4.5+ incl. REGIONAL rates, GPT-6, Palmyra, …) only under
-        # "AmazonBedrockFoundationModels", named by `servicename` with an
-        # " (Amazon Bedrock Edition)" suffix instead of a `model` attribute.
-        for service_code in ("AmazonBedrock", "AmazonBedrockService", "AmazonBedrockFoundationModels"):
-            next_token, pages = None, 0
-            while pages < 120:  # bound the scan (token SKUs across all models/regions)
-                pages += 1
-                kwargs = {"ServiceCode": service_code, "MaxResults": 100}
-                if next_token:
-                    kwargs["NextToken"] = next_token
-                resp = client.get_products(**kwargs)
-                for p in resp.get("PriceList", []):
-                    pd = _json.loads(p)
-                    attrs = pd.get("product", {}).get("attributes", {})
-                    model_name = attrs.get("model", "")
-                    if not model_name:
-                        svc = attrs.get("servicename", "") or ""
-                        model_name = svc[: -len(_MP_SUFFIX)] if svc.endswith(_MP_SUFFIX) else ""
-                    region = attrs.get("regionCode", "")
-                    usage = (attrs.get("usagetype", "") or "").lower()
-                    if not model_name or not region:
-                        continue
-                    # Only STANDARD-tier token-priced input/output rows. Usage types
-                    # come as "input-tokens", "input_tokens" or "inputtokencount";
-                    # cache rows ("cachereadinputtokencount") are dropped by _SKIP_TIERS.
-                    is_input = any(s in usage for s in ("input-tokens", "input_tokens", "inputtokencount"))
-                    is_output = any(s in usage for s in ("output-tokens", "output_tokens", "outputtokencount"))
-                    if not (is_input or is_output) or any(t in usage for t in _SKIP_TIERS):
-                        continue
-                    tier = "global" if "global" in usage else "regional"
-                    for terms in pd.get("terms", {}).get("OnDemand", {}).values():
-                        for dim in terms.get("priceDimensions", {}).values():
-                            unit = dim.get("unit", "")
-                            price = float(dim.get("pricePerUnit", {}).get("USD", "0") or 0)
-                            if price <= 0 or unit not in ("1K tokens", "1M tokens"):
-                                continue
-                            per_1k = price if unit == "1K tokens" else price / 1000.0
-                            entry = tiers.setdefault((model_name, region), {}).setdefault(tier, {})
-                            # Multiple standard rows per direction (e.g. runtime vs
-                            # mantle surfaces) — keep the lowest of the STANDARD rows.
-                            fld = "input_per_1k" if is_input else "output_per_1k"
-                            if fld not in entry or per_1k < entry[fld]:
-                                entry[fld] = round(per_1k, 8)
-                next_token = resp.get("NextToken")
-                if not next_token:
-                    break
-        prices: dict = {}
-        for (model_name, region), t in tiers.items():
-            reg, glob = t.get("regional", {}), t.get("global", {})
-            entry = {fld: reg.get(fld, glob.get(fld)) for fld in ("input_per_1k", "output_per_1k")
-                     if fld in reg or fld in glob}
-            for fld in ("input_per_1k", "output_per_1k"):
-                if fld in glob:
-                    entry[f"global_{fld}"] = glob[fld]
-            prices[f"{model_name}|{region}"] = entry
-        logger.info("Fetched LLM token pricing for %d model-region combos from AWS Pricing API", len(prices))
-        return prices
+        products = op.price_list_products()
     except Exception as exc:
-        logger.warning("Failed to fetch LLM pricing: %s", exc)
+        logger.warning("Price List fetch failed: %s", exc)
+        products = []
+    codes = op.region_code_map(products)
+    tokens = op.price_list_token_rates(products) if products else {"by_name": {}, "by_id": {}}
+    offers: dict = {}
+    if registry:
+        try:
+            offers = op.agreement_rate_cards(_official_pricing_model_ids(registry))
+        except Exception as exc:
+            logger.warning("Agreement-offer pricing skipped: %s", exc)
+    try:
+        cards = op.model_card_pricing()
+    except Exception as exc:
+        logger.warning("Model-card pricing skipped: %s", exc)
+        cards = {}
+    if not (tokens["by_name"] or tokens["by_id"] or offers or cards):
         return {}
+    logger.info("Official pricing: %d named + %d id-keyed Price List rate sets, %d rate card(s), %d model card(s)",
+                len(tokens["by_name"]), len(tokens["by_id"]), len(offers), len(cards))
+    # Vendor names for name matching — learned from the Price List and the
+    # registry's own models (ListFoundationModels providers), never a fixed list.
+    models = [cfg for section in ("chat_models", "image_models", "video_models")
+              for cfg in ((registry or {}).get(section, {}) or {}).values()]
+    return {"by_name": tokens["by_name"], "by_id": tokens["by_id"], "codes": codes,
+            "offers": offers, "cards": cards, "vendors": op.vendor_names(products, models)}
+
+
+def _id_candidates(base_id: str) -> list:
+    """A foundation-model id and its revision-less forms, for exact-id lookups:
+    'openai.gpt-oss-120b-1:0' → [..., 'openai.gpt-oss-120b']."""
+    out = [base_id.lower()]
+    for pat in (r":\d+$", r"-v\d+(:\d+)?$", r"-\d+:\d+$"):
+        c = _re.sub(pat, "", out[0])
+        if c not in out:
+            out.append(c)
+    return out
+
+
+def _by_region_index(flat: dict) -> dict:
+    """{'<key>|<region>': rates} → {key: {region: rates}}."""
+    idx: dict = {}
+    for k, rates in (flat or {}).items():
+        key, _, region = k.rpartition("|")
+        idx.setdefault(key, {})[region] = rates
+    return idx
+
+
+def _pinned_rates(by_region: dict, cfg: dict):
+    """The rate set for a model's pinned Region (else a Region it's available
+    in, else any) — the display / default price."""
+    from backend.services.official_pricing import rates_for_region
+    for r in [cfg.get("region")] + list(cfg.get("available_regions") or []):
+        rs = rates_for_region(by_region, r)
+        if rs:
+            return rs
+    return next(iter(by_region.values()), None)
 
 
 def _apply_llm_pricing(registry: dict, llm_pricing: dict) -> int:
-    """Stamp fetched token prices onto chat_models entries (Option A — per-model,
-    reusing input_price_per_1k/output_price_per_1k that compute_llm_cost reads).
+    """Stamp official token prices onto every chat_models entry (SPEC §14.1).
 
-    Matches each chat_models entry to a fetched '<model>|<region>' price by name.
-    The AWS Pricing API names models inconsistently — display names ('Claude
-    Sonnet 4.5', 'OpenAI GPT-6 Astra') or model ids ('openai.gpt-5.4') — so each
-    registry entry is tried by its `label` and its model id (geo prefix and ':N'
-    revision stripped, with and without the provider segment). A price name
-    matches when it EQUALS a candidate, or is a PREFIX of it followed only by
-    non-version noise (dates, 'v1', 'instruct', …). Version digits must agree, so
-    'GLM 4.7' never takes 'Grok 4.7' and 'Claude Sonnet 4.5' never takes 'Claude
-    Sonnet 4' (the old word-overlap matcher did both). Most specific name wins.
+    Source precedence per model — the first that prices it wins:
+      1. Agreement-offer rate card for its exact foundation-model id;
+      2. Price List rows keyed by the exact model id (Mantle usagetypes);
+      3. its model card's price table;
+      4. Price List rows matched by display name (NameIndex).
+    The model card's long-context threshold applies whatever the source.
 
-    A `global.` model id takes the Global-profile rate; every other id (geo
-    profile or in-Region) takes the regional rate. A model with no match loses any
-    previously stamped price (it came from the old matcher or a delisted row) and
-    reads as "pricing unavailable" — except a hand-stamped `pricing_source` price,
-    kept until the Pricing API lists that model (then the live price replaces it).
+    Writes `token_pricing` = {"source", "rates" (pinned Region), "by_region"
+    (only when rates differ by Region), "long_context_threshold_tokens"},
+    `unit_pricing` for non-token units (search units, video seconds), and the
+    flat input/output_price_per_1k for the pinned id (display + legacy). A model
+    no source prices loses stale prices and reads "pricing unavailable" — except
+    a hand-stamped `pricing_source` price, kept until AWS publishes one.
     Returns the count of entries priced."""
     if not llm_pricing:
         return 0
+    import json
+    from backend.services import official_pricing as op
 
-    def _norm(s):
-        s = _re.sub(r"(\d+)\.0(?!\d)", r"\1", (s or "").lower())  # 'Nova 2.0 Lite' == 'nova-2-lite'
-        return _re.sub(r"[^a-z0-9]+", " ", s).strip()
-
-    # Index fetched prices by normalized model name → {region: {in,out}}.
-    by_name: dict = {}
-    for key, px in llm_pricing.items():
-        name, _, region = key.partition("|")
-        by_name.setdefault(_norm(name), {})[region] = px
-
-    # Trailing tokens that don't distinguish a priced model: release dates
-    # (2507, 20250514), revisions (v1), and packaging words. Bare digits are NOT
-    # noise — they are version numbers.
-    _noise = _re.compile(r"^(v\d+|\d{4}|\d{6,8}|instruct|it|pt|dense|bf16|preview)$")
-    # Vendor words the Pricing API sometimes prefixes ('OpenAI GPT-6 Astra',
-    # 'xai.grok-4.6') and the registry label sometimes omits (or vice versa).
-    _vendors = {"openai", "xai", "google", "nvidia", "writer", "meta", "cohere", "amazon", "anthropic"}
-
-    def _variants(norm_name: str) -> set:
-        toks = tuple(norm_name.split())
-        out = {toks} if toks else set()
-        if len(toks) > 2 and toks[0] in _vendors:
-            out.add(toks[1:])
-        return out
-
-    price_names = [(pv, byreg) for pname, byreg in by_name.items() for pv in _variants(pname)]
-
-    def _best_price(cm: dict):
-        mid = _re.sub(r"(:[0-9a-z]+)+$", "", _strip_geo_prefix(cm.get("model_id") or ""))
-        cands = set()
-        for raw in (cm.get("label") or "", mid, mid.split(".", 1)[-1]):
-            cands |= _variants(_norm(raw))
-        best, best_score = None, None
-        for ptoks, byreg in price_names:
-            for ctoks in cands:
-                if ctoks[:len(ptoks)] == ptoks and all(_noise.match(t) for t in ctoks[len(ptoks):]):
-                    score = (1, len(ctoks) == len(ptoks), len(ptoks))  # ordered: exact beats prefix
-                elif set(ptoks) == {t for t in ctoks if not _noise.match(t)}:
-                    score = (0, True, len(ptoks))  # same tokens, other order ('Ministral 8B 3.0')
-                else:
-                    continue
-                if best_score is None or score > best_score:
-                    best, best_score = byreg, score
-        return best
+    codes = llm_pricing.get("codes") or {}
+    offers = llm_pricing.get("offers") or {}
+    cards = llm_pricing.get("cards") or {}
+    by_id = _by_region_index(llm_pricing.get("by_id"))
+    by_name = _by_region_index(llm_pricing.get("by_name"))
+    names = op.NameIndex(by_name.keys(), llm_pricing.get("vendors") or ())
 
     priced = 0
-    for cm in (registry.get("chat_models", {}) or {}).values():
-        byreg = _best_price(cm)
-        use_global = (cm.get("model_id") or "").startswith("global.")
+    unpriced = []
+    for key, cm in (registry.get("chat_models", {}) or {}).items():
+        invoked = cm.get("model_id") or ""
+        base = op.base_model_id(invoked)
+        cands = _id_candidates(base)
+        card = next((cards[c] for c in cands if c in cards), None) or cards.get(base)
+        by_region, units, source = {}, {}, None
+        if base in offers:
+            parsed = op.parse_token_rate_card(offers[base], codes)
+            by_region, units = parsed["rates"], parsed["units"]
+            source = "agreement_offer" if by_region else None
+        if not by_region:
+            by_region = next((by_id[c] for c in cands if c in by_id), {})
+            source = "price_list" if by_region else None
+        if not by_region and card and card.get("rates"):
+            by_region, source = {"*": card["rates"]}, "model_card"
+        if not by_region:
+            name = names.best(cm.get("label") or "", invoked, cm.get("provider") or "")
+            by_region = by_name.get(name, {}) if name else {}
+            source = "price_list" if by_region else None
 
-        def _tier(p):
-            # Both sides required: a row listing only input (or only output)
-            # must not be stored as a $0 counterpart.
-            for pre in (("global_", "") if use_global else ("",)):
-                i, o = p.get(f"{pre}input_per_1k"), p.get(f"{pre}output_per_1k")
-                if i is not None and o is not None:
-                    return i, o
-            return None
-
-        per_region = {}
-        for r, p in (byreg or {}).items():
-            io = _tier(p)
-            if io and (io[0] or io[1]):
-                per_region[r] = {"input_per_1k": io[0], "output_per_1k": io[1]}
-        if not per_region:
+        rates = _pinned_rates(by_region, cm) if by_region else None
+        io = op.pick_token_rate(rates, invoked) if rates else None
+        if not io or not (io[0] or io[1]):
             if not cm.get("pricing_source"):
-                for fld in ("input_price_per_1k", "output_price_per_1k", "token_pricing_by_region"):
+                for fld in ("input_price_per_1k", "output_price_per_1k", "token_pricing_by_region",
+                            "token_pricing", "unit_pricing"):
                     cm.pop(fld, None)
+            unpriced.append(key)
             continue
-        # Collapsed default (the pinned region, else a region the model is in, else
-        # any) — the fallback compute_llm_cost uses when no region is passed or a
-        # region isn't mapped.
-        regions = [cm.get("region")] + list(cm.get("available_regions") or [])
-        px = next((per_region[r] for r in regions if r in per_region), None) or next(iter(per_region.values()))
-        cm["input_price_per_1k"] = px["input_per_1k"]
-        cm["output_price_per_1k"] = px["output_per_1k"]
-        cm.pop("pricing_source", None)  # live Pricing API price supersedes a manual stamp
-        # Retain the FULL per-region map ONLY when token prices actually VARY by
-        # region — most models price tokens uniformly across regions, so the
-        # collapsed default suffices and we avoid bloating the registry. When they
-        # differ, compute_llm_cost uses the actual call region's price.
-        distinct = {(p["input_per_1k"], p["output_per_1k"]) for p in per_region.values()}
-        if len(distinct) > 1:
-            cm["token_pricing_by_region"] = per_region
+        cm["input_price_per_1k"], cm["output_price_per_1k"] = io
+        tp = {"source": source, "rates": rates}
+        # Keep the full per-Region map ONLY when rates actually differ — most
+        # models price uniformly, and the pinned set suffices.
+        if len({json.dumps(v, sort_keys=True) for v in by_region.values()}) > 1:
+            tp["by_region"] = by_region
+        if card and card.get("threshold_tokens"):
+            tp["long_context_threshold_tokens"] = card["threshold_tokens"]
+        cm["token_pricing"] = tp
+        u = _pinned_rates(units, cm) if units else None
+        if u:
+            cm["unit_pricing"] = u
         else:
-            cm.pop("token_pricing_by_region", None)  # prices uniform → default only
+            cm.pop("unit_pricing", None)
+        cm.pop("token_pricing_by_region", None)  # superseded by token_pricing.by_region
+        cm.pop("pricing_source", None)  # official price supersedes a manual stamp
         priced += 1
+    if unpriced:
+        logger.info("No official token price for %d chat model(s) (not in the Price List, "
+                    "rate cards or model cards): %s", len(unpriced), ", ".join(sorted(unpriced)))
 
     # Voice category (Nova Sonic): speech-input models never enter chat_models
     # (the sync filter requires TEXT input), so stamp the token price onto the
@@ -1972,23 +1943,150 @@ def _apply_llm_pricing(registry: dict, llm_pricing: dict) -> int:
     if isinstance(voice, dict) and voice.get("current"):
         # Normalize the FULL model id (keep the ":0" version digit): e.g.
         # "amazon.nova-2-sonic-v1:0" → {amazon,nova,2,sonic,v1,0}, so the
-        # Pricing API's "Nova Sonic 2.0" ({nova,sonic,2,0}) is a subset.
-        vtok = set(_norm(voice["current"]).split())
+        # Price List's "Nova Sonic 2.0" ({nova,sonic,2,0}) is a subset.
+        vtok = set(op.norm_name(voice["current"]).split())
         # BEST match (most tokens), not first: "Nova Sonic" and "Nova Sonic 2.0"
         # are both subsets of nova-2-sonic-v1 — the longer name is the right one.
         best = None
         for pname, byreg in by_name.items():
-            ptok = set(pname.split())
-            if pname and ptok.issubset(vtok) and (best is None or len(ptok) > len(best[0])):
+            ptok = set(op.norm_name(pname).split())
+            if ptok and ptok.issubset(vtok) and (best is None or len(ptok) > len(best[0])):
                 best = (ptok, byreg)
         if best:
             byreg = best[1]
-            px = byreg.get(voice.get("region")) or next(iter(byreg.values()), None)
-            if px and (px.get("input_per_1k") or px.get("output_per_1k")):
-                voice["input_price_per_1k"] = px.get("input_per_1k", 0)
-                voice["output_price_per_1k"] = px.get("output_per_1k", 0)
+            px = op.rates_for_region(byreg, voice.get("region")) or next(iter(byreg.values()), None)
+            io = op.pick_token_rate(px, voice["current"]) if px else None
+            if not io and px:
+                io = (px.get("input_per_1k", px.get("global_input_per_1k", 0)),
+                      px.get("output_per_1k", px.get("global_output_per_1k", 0)))
+            if io and (io[0] or io[1]):
+                voice["input_price_per_1k"], voice["output_price_per_1k"] = io
                 priced += 1
     return priced
+
+
+def _match_offer_dimension(rows: list, label: str):
+    """The rate-card rows for one model out of a SHARED offer — Stability's
+    image services all carry one 13-dimension card ('One image output from
+    Creative Upscale', …). The description words after 'from' must all appear
+    in the model's label; the most specific (longest) description wins and an
+    ambiguous tie prices nothing (never a guess)."""
+    from backend.services.official_pricing import norm_name
+    ltoks = set(norm_name(label).split())
+    best, best_len, tie = None, 0, False
+    for desc in {r["description"] for r in rows}:
+        d = desc.split(" from ", 1)[-1]
+        dtoks = set(norm_name(d).split())
+        if not dtoks or not dtoks <= ltoks:
+            continue
+        if len(dtoks) > best_len:
+            best, best_len, tie = desc, len(dtoks), False
+        elif len(dtoks) == best_len:
+            tie = True
+    if not best or tie:
+        return []
+    return [r for r in rows if r["description"] == best]
+
+
+def _apply_media_pricing(registry: dict, official: dict) -> int:
+    """Price every Bedrock image + video model from official sources (SPEC §14.2).
+
+    Image models: an agreement-offer rate card (Stability image services) takes
+    precedence; else the Price List image rows (`image_pricing`, from
+    _fetch_image_pricing) matched to the model by NameIndex. Video models: the
+    Price List video rows (`video_pricing`, per-resolution `by_tier`).
+    Matched rows are re-keyed under the model's registry key
+    ('<model_key>|<region>[|quality|size]') so cost resolution is an exact
+    lookup, and base_price_usd / base_price_per_second_usd is set to the pinned
+    Region's official rate. Returns the count of models priced."""
+    from backend.services import official_pricing as op
+    codes = (official or {}).get("codes") or {}
+    offers = (official or {}).get("offers") or {}
+    vendors = (official or {}).get("vendors") or ()
+    priced = 0
+    unpriced = []
+
+    img = registry.setdefault("image_pricing", {})
+    img_names = op.NameIndex({v.get("model_name") for v in img.values()
+                              if isinstance(v, dict) and v.get("model_name")
+                              and v.get("source") != "agreement_offer"}, vendors)
+    img_by_name: dict = {}
+    for k, v in img.items():
+        if isinstance(v, dict) and v.get("model_name") and v.get("source") != "agreement_offer":
+            img_by_name.setdefault(v["model_name"], {})[k] = v
+    for key, cfg in (registry.get("image_models", {}) or {}).items():
+        if not isinstance(cfg, dict) or cfg.get("model_source") in ("custom_hosted", "imported", "custom"):
+            continue
+        label = cfg.get("label") or ""
+        base = op.base_model_id(cfg.get("model_id") or "")
+        per_region: dict = {}
+        rows = op.parse_media_rate_card(offers.get(base) or [], codes)
+        if rows:
+            regions = {r["region"] for r in rows}
+            chosen = rows if all(len({r["price"] for r in rows if r["region"] == g}) == 1
+                                 for g in regions) else _match_offer_dimension(rows, label)
+            for r in chosen:
+                img[f"{key}|{r['region']}"] = {"model_name": key, "region": r["region"],
+                                               "price_usd": r["price"], "usage_type": r["dimension"][:80],
+                                               "source": "agreement_offer"}
+                per_region[r["region"]] = r["price"]
+        if not per_region:
+            name = img_names.best(label, cfg.get("model_id") or "", cfg.get("provider") or "")
+            for k, v in (img_by_name.get(name) or {}).items() if name else ():
+                rest = k.split("|", 1)[1]
+                if name != key:
+                    img[f"{key}|{rest}"] = dict(v, model_name=key)
+                simple = "|" not in rest or (v.get("is_t2i") and v.get("quality") == "standard"
+                                             and v.get("size") == "1024")
+                if simple or v["region"] not in per_region:
+                    per_region[v["region"]] = v["price_usd"]
+        if not per_region:
+            unpriced.append(key)
+            continue
+        pin = next((r for r in [cfg.get("region")] + list(cfg.get("available_regions") or [])
+                    if r in per_region), None) or next(iter(per_region))
+        cfg["base_price_usd"] = per_region[pin]
+        priced += 1
+
+    vid = registry.setdefault("video_pricing", {})
+    vid_names = op.NameIndex({v.get("model_name") for v in vid.values()
+                              if isinstance(v, dict) and v.get("model_name")}, vendors)
+    for key, cfg in (registry.get("video_models", {}) or {}).items():
+        if not isinstance(cfg, dict) or cfg.get("model_source") in ("custom_hosted", "imported", "custom"):
+            continue
+        name = vid_names.best(cfg.get("label") or "", cfg.get("model_id") or "", cfg.get("provider") or "")
+        per_region = {v["region"]: v for v in vid.values()
+                      if isinstance(v, dict) and name and v.get("model_name") == name}
+        if not per_region:
+            unpriced.append(key)
+            continue
+        for region, v in per_region.items():
+            if name != key:
+                vid[f"{key}|{region}"] = dict(v, model_name=key)
+        pin = next((r for r in [cfg.get("region")] + list(cfg.get("available_regions") or [])
+                    if r in per_region), None) or next(iter(per_region))
+        cfg["base_price_per_second_usd"] = per_region[pin]["price_per_second"]
+        priced += 1
+    if unpriced:
+        logger.info("No official media price for %d model(s): %s", len(unpriced), ", ".join(sorted(unpriced)))
+    return priced
+
+
+def _sync_official_pricing(registry: dict, progress=None) -> int:
+    """The AWS Sync's official-pricing pass (both Sync paths): token prices
+    onto chat models + per-image / per-second prices onto media models. Runs
+    after the region scan (needs available_regions + the media Price List
+    sections recorded earlier in the same Sync). Mutates `registry` in place —
+    the caller saves. Returns models priced."""
+    official = _fetch_llm_pricing(registry)
+    if not official:
+        return 0
+    n_llm = _apply_llm_pricing(registry, official)
+    n_media = _apply_media_pricing(registry, official)
+    if progress:
+        progress(f"Applied official pricing to {n_llm} chat and {n_media} image/video model(s).")
+    logger.info("Official pricing applied: %d chat, %d image/video model(s)", n_llm, n_media)
+    return n_llm + n_media
 
 
 def _get_bedrock_regions() -> list[str]:
@@ -2632,8 +2730,8 @@ def _run_refresh_all_regions():
         # sagemaker_pricing (they previously drifted). No extra AWS call.
         _refresh_gpu_instance_rates(registry)
 
-        # Step 2b-iii: Per-region VIDEO pricing (Nova Reel $/second). 3rd-party video
-        # models (Luma Ray) aren't in the API → they keep base_price_per_second_usd.
+        # Step 2b-iii: Per-region, per-resolution VIDEO pricing ($/second — Nova
+        # Reel, Luma Ray), from the same shared Price List scan.
         vid_pricing = _fetch_video_pricing(scan_regions)
         if vid_pricing:
             registry["video_pricing"] = vid_pricing
@@ -2755,7 +2853,7 @@ def _run_refresh_all_regions():
             n_res = _resolve_residency_pins(registry, _progress)
             if n_res:
                 logger.info("Residency: realigned %d model pin(s) to '%s'",
-                            n_res, _preferred_residency_geo())
+                            n_res, _preferred_residency_geo(registry))
         except Exception as exc:
             logger.warning("Residency realignment skipped: %s", exc)
 
@@ -2823,16 +2921,15 @@ def _run_refresh_all_regions():
                 disabled.append(key)
                 logger.debug("Disabled video model %s — no longer found in any region", key)
 
-        # Step 4c: Stamp live per-model LLM token pricing onto chat_models (runs
-        # AFTER the region scan, which fills available_regions used for matching).
+        # Step 4e: Official pricing (SPEC §14) — token prices onto chat_models,
+        # per-image / per-second prices onto image + video models. Runs AFTER the
+        # region scan, which fills the available_regions used to pick each
+        # model's pinned rate.
+        _progress("Applying official Amazon Bedrock pricing...")
         try:
-            llm_pricing = _fetch_llm_pricing()
-            if llm_pricing:
-                n_priced = _apply_llm_pricing(registry, llm_pricing)
-                _progress(f"Applied LLM token pricing to {n_priced} model(s).")
-                logger.info("LLM token pricing applied to %d chat model(s)", n_priced)
+            _sync_official_pricing(registry, _progress)
         except Exception as exc:
-            logger.warning("LLM pricing apply skipped: %s", exc)
+            logger.warning("Official pricing apply skipped: %s", exc)
 
         # Step 5: Smartly roll fast_llm/complex_llm to the newest Claude available.
         # Keeps non-technical users off deprecated models without manual config.

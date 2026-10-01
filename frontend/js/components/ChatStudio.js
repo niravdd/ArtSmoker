@@ -422,9 +422,11 @@
         if (!el) return;
 
         const p = model.pricing;
-        if (p && p.input_per_1k) {
-            const input1k = `$${p.input_per_1k.toFixed(4)}`;
-            const output1k = `$${p.output_per_1k.toFixed(4)}`;
+        if (p && (p.input_per_1k || p.output_per_1k)) {
+            // 4 decimals hide sub-cent rates (e.g. $0.00011/1K) — keep 3 significant digits.
+            const fmt1k = (n) => `$${(n || 0) >= 0.01 ? (n || 0).toFixed(4) : String(Number((n || 0).toPrecision(3)))}`;
+            const input1k = fmt1k(p.input_per_1k);
+            const output1k = fmt1k(p.output_per_1k);
             // Calculate what 10K tokens would cost (typical short conversation)
             const est10k = ((p.input_per_1k * 7) + (p.output_per_1k * 3)).toFixed(3);
             // Calculate what 100K tokens would cost (long conversation)
