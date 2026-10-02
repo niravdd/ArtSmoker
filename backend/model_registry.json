@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-10-01T06:22:19.828128+00:00",
+  "last_updated": "2026-10-02T05:31:21.584925+00:00",
   "api_compatibility": {
     "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'. Per rule, 'mantle_base' selects the Mantle base path for the OpenAI SDK (/v1 for most; /openai/v1 for openai/xai/google) \u2014 the two paths serve DISJOINT model sets, verified live 2026-09-07.",
     "api_priority": [
@@ -160,7 +160,7 @@
     "complex_llm": {
       "label": "Complex LLM (Style Analysis & Creative)",
       "description": "Used for style analysis (vision), concept generation, marketing prompts, moderation analysis, Type Studio layout design. Should be the most capable model available.",
-      "current": "us.anthropic.claude-opus-5-5",
+      "current": "global.anthropic.claude-opus-5-5",
       "region": "us-west-2",
       "provider": "Anthropic",
       "api_type": "converse"
@@ -168,7 +168,7 @@
     "fallback_llm": {
       "label": "Fallback LLM",
       "description": "Used when primary Claude models return AccessDeniedException. Should be a widely available model.",
-      "current": "us.anthropic.claude-sonnet-5",
+      "current": "global.anthropic.claude-sonnet-5",
       "region": "us-west-2",
       "provider": "Anthropic",
       "api_type": "converse"
@@ -1345,384 +1345,6 @@
       "price_usd": 0.07,
       "usage_type": "CreatedImageSearchReplace",
       "source": "agreement_offer"
-    },
-    "nova_canvas_v1|eu-west-1|premium|1024": {
-      "model_name": "nova_canvas_v1",
-      "region": "eu-west-1",
-      "quality": "premium",
-      "size": "1024",
-      "price_usd": 0.06,
-      "usage_type": "EU-NovaCanvas-T2I-1024-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|ap-northeast-1|premium|2048": {
-      "model_name": "nova_canvas_v1",
-      "region": "ap-northeast-1",
-      "quality": "premium",
-      "size": "2048",
-      "price_usd": 0.08,
-      "usage_type": "APN1-NovaCanvas-T2I-2048-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|us-east-1|standard|2048": {
-      "model_name": "nova_canvas_v1",
-      "region": "us-east-1",
-      "quality": "standard",
-      "size": "2048",
-      "price_usd": 0.06,
-      "usage_type": "USE1-NovaCanvas-T2I-2048-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|eu-west-1|standard|1024": {
-      "model_name": "nova_canvas_v1",
-      "region": "eu-west-1",
-      "quality": "standard",
-      "size": "1024",
-      "price_usd": 0.04,
-      "usage_type": "EU-NovaCanvas-T2I-1024-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|eu-west-1|premium|2048": {
-      "model_name": "nova_canvas_v1",
-      "region": "eu-west-1",
-      "quality": "premium",
-      "size": "2048",
-      "price_usd": 0.08,
-      "usage_type": "EU-NovaCanvas-T2I-2048-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|us-east-1|premium|1024": {
-      "model_name": "nova_canvas_v1",
-      "region": "us-east-1",
-      "quality": "premium",
-      "size": "1024",
-      "price_usd": 0.06,
-      "usage_type": "USE1-NovaCanvas-T2I-1024-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|us-east-1|standard|1024": {
-      "model_name": "nova_canvas_v1",
-      "region": "us-east-1",
-      "quality": "standard",
-      "size": "1024",
-      "price_usd": 0.04,
-      "usage_type": "USE1-NovaCanvas-T2I-1024-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|us-east-1|premium|2048": {
-      "model_name": "nova_canvas_v1",
-      "region": "us-east-1",
-      "quality": "premium",
-      "size": "2048",
-      "price_usd": 0.08,
-      "usage_type": "USE1-NovaCanvas-T2I-2048-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|ap-northeast-1|premium|1024": {
-      "model_name": "nova_canvas_v1",
-      "region": "ap-northeast-1",
-      "quality": "premium",
-      "size": "1024",
-      "price_usd": 0.06,
-      "usage_type": "APN1-NovaCanvas-T2I-1024-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|ap-northeast-1|standard|1024": {
-      "model_name": "nova_canvas_v1",
-      "region": "ap-northeast-1",
-      "quality": "standard",
-      "size": "1024",
-      "price_usd": 0.04,
-      "usage_type": "APN1-NovaCanvas-T2I-1024-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|ap-northeast-1|standard|2048": {
-      "model_name": "nova_canvas_v1",
-      "region": "ap-northeast-1",
-      "quality": "standard",
-      "size": "2048",
-      "price_usd": 0.06,
-      "usage_type": "APN1-NovaCanvas-T2I-2048-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|ap-northeast-1": {
-      "model_name": "nova_canvas_v1",
-      "region": "ap-northeast-1",
-      "price_usd": 0.04,
-      "usage_type": "APN1-NovaCanvas-T2I-1024-Standard"
-    },
-    "nova_canvas_v1|eu-west-1|standard|2048": {
-      "model_name": "nova_canvas_v1",
-      "region": "eu-west-1",
-      "quality": "standard",
-      "size": "2048",
-      "price_usd": 0.06,
-      "usage_type": "EU-NovaCanvas-T2I-2048-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1|eu-west-1": {
-      "model_name": "nova_canvas_v1",
-      "region": "eu-west-1",
-      "price_usd": 0.04,
-      "usage_type": "EU-NovaCanvas-T2I-1024-Standard"
-    },
-    "nova_canvas_v1|us-east-1": {
-      "model_name": "nova_canvas_v1",
-      "region": "us-east-1",
-      "price_usd": 0.04,
-      "usage_type": "USE1-NovaCanvas-T2I-1024-Standard"
-    },
-    "nova_canvas_v1_inpaint|eu-west-1|premium|1024": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "eu-west-1",
-      "quality": "premium",
-      "size": "1024",
-      "price_usd": 0.06,
-      "usage_type": "EU-NovaCanvas-T2I-1024-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|ap-northeast-1|premium|2048": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "ap-northeast-1",
-      "quality": "premium",
-      "size": "2048",
-      "price_usd": 0.08,
-      "usage_type": "APN1-NovaCanvas-T2I-2048-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|us-east-1|standard|2048": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "us-east-1",
-      "quality": "standard",
-      "size": "2048",
-      "price_usd": 0.06,
-      "usage_type": "USE1-NovaCanvas-T2I-2048-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|eu-west-1|standard|1024": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "eu-west-1",
-      "quality": "standard",
-      "size": "1024",
-      "price_usd": 0.04,
-      "usage_type": "EU-NovaCanvas-T2I-1024-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|eu-west-1|premium|2048": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "eu-west-1",
-      "quality": "premium",
-      "size": "2048",
-      "price_usd": 0.08,
-      "usage_type": "EU-NovaCanvas-T2I-2048-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|us-east-1|premium|1024": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "us-east-1",
-      "quality": "premium",
-      "size": "1024",
-      "price_usd": 0.06,
-      "usage_type": "USE1-NovaCanvas-T2I-1024-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|us-east-1|standard|1024": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "us-east-1",
-      "quality": "standard",
-      "size": "1024",
-      "price_usd": 0.04,
-      "usage_type": "USE1-NovaCanvas-T2I-1024-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|us-east-1|premium|2048": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "us-east-1",
-      "quality": "premium",
-      "size": "2048",
-      "price_usd": 0.08,
-      "usage_type": "USE1-NovaCanvas-T2I-2048-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|ap-northeast-1|premium|1024": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "ap-northeast-1",
-      "quality": "premium",
-      "size": "1024",
-      "price_usd": 0.06,
-      "usage_type": "APN1-NovaCanvas-T2I-1024-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|ap-northeast-1|standard|1024": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "ap-northeast-1",
-      "quality": "standard",
-      "size": "1024",
-      "price_usd": 0.04,
-      "usage_type": "APN1-NovaCanvas-T2I-1024-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|ap-northeast-1|standard|2048": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "ap-northeast-1",
-      "quality": "standard",
-      "size": "2048",
-      "price_usd": 0.06,
-      "usage_type": "APN1-NovaCanvas-T2I-2048-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|ap-northeast-1": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "ap-northeast-1",
-      "price_usd": 0.04,
-      "usage_type": "APN1-NovaCanvas-T2I-1024-Standard"
-    },
-    "nova_canvas_v1_inpaint|eu-west-1|standard|2048": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "eu-west-1",
-      "quality": "standard",
-      "size": "2048",
-      "price_usd": 0.06,
-      "usage_type": "EU-NovaCanvas-T2I-2048-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_inpaint|eu-west-1": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "eu-west-1",
-      "price_usd": 0.04,
-      "usage_type": "EU-NovaCanvas-T2I-1024-Standard"
-    },
-    "nova_canvas_v1_inpaint|us-east-1": {
-      "model_name": "nova_canvas_v1_inpaint",
-      "region": "us-east-1",
-      "price_usd": 0.04,
-      "usage_type": "USE1-NovaCanvas-T2I-1024-Standard"
-    },
-    "nova_canvas_v1_outpaint|eu-west-1|premium|1024": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "eu-west-1",
-      "quality": "premium",
-      "size": "1024",
-      "price_usd": 0.06,
-      "usage_type": "EU-NovaCanvas-T2I-1024-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|ap-northeast-1|premium|2048": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "ap-northeast-1",
-      "quality": "premium",
-      "size": "2048",
-      "price_usd": 0.08,
-      "usage_type": "APN1-NovaCanvas-T2I-2048-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|us-east-1|standard|2048": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "us-east-1",
-      "quality": "standard",
-      "size": "2048",
-      "price_usd": 0.06,
-      "usage_type": "USE1-NovaCanvas-T2I-2048-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|eu-west-1|standard|1024": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "eu-west-1",
-      "quality": "standard",
-      "size": "1024",
-      "price_usd": 0.04,
-      "usage_type": "EU-NovaCanvas-T2I-1024-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|eu-west-1|premium|2048": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "eu-west-1",
-      "quality": "premium",
-      "size": "2048",
-      "price_usd": 0.08,
-      "usage_type": "EU-NovaCanvas-T2I-2048-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|us-east-1|premium|1024": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "us-east-1",
-      "quality": "premium",
-      "size": "1024",
-      "price_usd": 0.06,
-      "usage_type": "USE1-NovaCanvas-T2I-1024-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|us-east-1|standard|1024": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "us-east-1",
-      "quality": "standard",
-      "size": "1024",
-      "price_usd": 0.04,
-      "usage_type": "USE1-NovaCanvas-T2I-1024-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|us-east-1|premium|2048": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "us-east-1",
-      "quality": "premium",
-      "size": "2048",
-      "price_usd": 0.08,
-      "usage_type": "USE1-NovaCanvas-T2I-2048-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|ap-northeast-1|premium|1024": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "ap-northeast-1",
-      "quality": "premium",
-      "size": "1024",
-      "price_usd": 0.06,
-      "usage_type": "APN1-NovaCanvas-T2I-1024-Premium",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|ap-northeast-1|standard|1024": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "ap-northeast-1",
-      "quality": "standard",
-      "size": "1024",
-      "price_usd": 0.04,
-      "usage_type": "APN1-NovaCanvas-T2I-1024-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|ap-northeast-1|standard|2048": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "ap-northeast-1",
-      "quality": "standard",
-      "size": "2048",
-      "price_usd": 0.06,
-      "usage_type": "APN1-NovaCanvas-T2I-2048-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|ap-northeast-1": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "ap-northeast-1",
-      "price_usd": 0.04,
-      "usage_type": "APN1-NovaCanvas-T2I-1024-Standard"
-    },
-    "nova_canvas_v1_outpaint|eu-west-1|standard|2048": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "eu-west-1",
-      "quality": "standard",
-      "size": "2048",
-      "price_usd": 0.06,
-      "usage_type": "EU-NovaCanvas-T2I-2048-Standard",
-      "is_t2i": true
-    },
-    "nova_canvas_v1_outpaint|eu-west-1": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "eu-west-1",
-      "price_usd": 0.04,
-      "usage_type": "EU-NovaCanvas-T2I-1024-Standard"
-    },
-    "nova_canvas_v1_outpaint|us-east-1": {
-      "model_name": "nova_canvas_v1_outpaint",
-      "region": "us-east-1",
-      "price_usd": 0.04,
-      "usage_type": "USE1-NovaCanvas-T2I-1024-Standard"
     }
   },
   "format_families": {
@@ -3036,7 +2658,7 @@
     },
     "claude_sonnet_4_20250514_v1": {
       "label": "Claude Sonnet 4",
-      "model_id": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+      "model_id": "global.anthropic.claude-sonnet-4-20250514-v1:0",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -3079,7 +2701,7 @@
       "end_of_life_time": "2026-10-14T08:00:00+00:00",
       "input_price_per_1k": 0.003,
       "output_price_per_1k": 0.015,
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "apac",
         "eu",
@@ -3242,7 +2864,7 @@
     },
     "claude_haiku_4_5_20251001_v1": {
       "label": "Claude Haiku 4.5",
-      "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "model_id": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -3286,9 +2908,9 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "input_price_per_1k": 0.0011,
-      "output_price_per_1k": 0.0055,
-      "residency_scope": "geo:us",
+      "input_price_per_1k": 0.001,
+      "output_price_per_1k": 0.005,
+      "residency_scope": "global",
       "inference_profiles": [
         "au",
         "eu",
@@ -3582,7 +3204,10 @@
             "input_per_1k": 0.00022
           }
         }
-      }
+      },
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "kimi_k2_5": {
       "label": "Kimi K2.5",
@@ -3849,6 +3474,10 @@
           "output_per_1k": 0.0012
         },
         "by_region": {
+          "ap-south-1": {
+            "output_per_1k": 0.00144,
+            "input_per_1k": 0.000168
+          },
           "sa-east-1": {
             "output_per_1k": 0.00144,
             "input_per_1k": 0.000168
@@ -3889,10 +3518,6 @@
             "output_per_1k": 0.00144,
             "input_per_1k": 0.000168
           },
-          "ap-south-1": {
-            "output_per_1k": 0.00144,
-            "input_per_1k": 0.000168
-          },
           "us-east-2": {
             "output_per_1k": 0.0012,
             "input_per_1k": 0.00014
@@ -3906,9 +3531,9 @@
     },
     "claude_fable_5": {
       "label": "Claude Fable 5",
-      "model_id": "us.anthropic.claude-fable-5",
-      "input_price_per_1k": 0.011,
-      "output_price_per_1k": 0.055,
+      "model_id": "global.anthropic.claude-fable-5",
+      "input_price_per_1k": 0.01,
+      "output_price_per_1k": 0.05,
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -3952,7 +3577,7 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "global",
         "us"
@@ -4366,7 +3991,7 @@
     },
     "claude_sonnet_4_6": {
       "label": "Claude Sonnet 4.6",
-      "model_id": "us.anthropic.claude-sonnet-4-6",
+      "model_id": "global.anthropic.claude-sonnet-4-6",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -4411,9 +4036,9 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "input_price_per_1k": 0.0033,
-      "output_price_per_1k": 0.0165,
-      "residency_scope": "geo:us",
+      "input_price_per_1k": 0.003,
+      "output_price_per_1k": 0.015,
+      "residency_scope": "global",
       "inference_profiles": [
         "au",
         "eu",
@@ -5033,7 +4658,7 @@
     },
     "nova_2_lite_v1": {
       "label": "Nova 2 Lite",
-      "model_id": "us.amazon.nova-2-lite-v1:0",
+      "model_id": "global.amazon.nova-2-lite-v1:0",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -5071,12 +4696,12 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00033,
-      "output_price_per_1k": 0.00275,
+      "input_price_per_1k": 0.0003,
+      "output_price_per_1k": 0.0025,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "eu",
         "global",
@@ -5636,7 +5261,7 @@
     },
     "pegasus_1_2_v1": {
       "label": "Pegasus v1.2",
-      "model_id": "us.twelvelabs.pegasus-1-2-v1:0",
+      "model_id": "global.twelvelabs.pegasus-1-2-v1:0",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -5679,7 +5304,7 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "apac",
         "eu",
@@ -6367,9 +5992,9 @@
     },
     "claude_opus_4_6_v1": {
       "label": "Claude Opus 4.6",
-      "model_id": "us.anthropic.claude-opus-4-6-v1",
-      "input_price_per_1k": 0.0055,
-      "output_price_per_1k": 0.0275,
+      "model_id": "global.anthropic.claude-opus-4-6-v1",
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.025,
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -6413,7 +6038,7 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "au",
         "eu",
@@ -7353,9 +6978,9 @@
     },
     "claude_opus_4_8": {
       "label": "Claude Opus 4.8",
-      "model_id": "us.anthropic.claude-opus-4-8",
-      "input_price_per_1k": 0.0055,
-      "output_price_per_1k": 0.0275,
+      "model_id": "global.anthropic.claude-opus-4-8",
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.025,
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -7399,7 +7024,7 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "au",
         "eu",
@@ -7598,9 +7223,9 @@
     },
     "claude_opus_4_7": {
       "label": "Claude Opus 4.7",
-      "model_id": "us.anthropic.claude-opus-4-7",
-      "input_price_per_1k": 0.0055,
-      "output_price_per_1k": 0.0275,
+      "model_id": "global.anthropic.claude-opus-4-7",
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.025,
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -7644,7 +7269,7 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "au",
         "eu",
@@ -8041,7 +7666,7 @@
     },
     "claude_sonnet_4_5_20250929_v1": {
       "label": "Claude Sonnet 4.5",
-      "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "model_id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -8086,9 +7711,9 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "input_price_per_1k": 0.0033,
-      "output_price_per_1k": 0.0165,
-      "residency_scope": "geo:us",
+      "input_price_per_1k": 0.003,
+      "output_price_per_1k": 0.015,
+      "residency_scope": "global",
       "inference_profiles": [
         "au",
         "eu",
@@ -8697,7 +8322,10 @@
             "input_per_1k": 0.00054
           }
         }
-      }
+      },
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "magistral_small_2509": {
       "label": "Magistral Small 2509",
@@ -8898,7 +8526,10 @@
             "output_per_1k": 0.00168
           }
         }
-      }
+      },
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "ministral_3_3b_instruct": {
       "label": "Ministral 3B",
@@ -9004,9 +8635,9 @@
     },
     "claude_opus_4_5_20251101_v1": {
       "label": "Claude Opus 4.5",
-      "model_id": "us.anthropic.claude-opus-4-5-20251101-v1:0",
-      "input_price_per_1k": 0.0055,
-      "output_price_per_1k": 0.0275,
+      "model_id": "global.anthropic.claude-opus-4-5-20251101-v1:0",
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.025,
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -9050,7 +8681,7 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "eu",
         "global",
@@ -9477,7 +9108,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "residency_scope": "in-region",
-      "inference_profiles": []
+      "inference_profiles": [],
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "nova_pro_v1": {
       "label": "Nova Pro",
@@ -9919,8 +9553,8 @@
     },
     "claude_3_haiku_20240307_v1": {
       "label": "Claude 3 Haiku",
-      "model_id": "anthropic.claude-3-haiku-20240307-v1:0",
-      "region": "ca-central-1",
+      "model_id": "apac.anthropic.claude-3-haiku-20240307-v1:0",
+      "region": "ap-northeast-2",
       "available_regions": [
         "ap-northeast-2",
         "ap-south-1",
@@ -9950,10 +9584,10 @@
       "invoke_api": "converse",
       "input_price_per_1k": 0.00025,
       "output_price_per_1k": 0.00125,
-      "lifecycle_status": "LEGACY",
-      "legacy_time": "2026-03-10T08:00:00+00:00",
-      "end_of_life_time": "2026-09-10T08:00:00+00:00",
-      "residency_scope": "in-region",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "residency_scope": "geo:apac",
       "inference_profiles": [
         "apac",
         "eu",
@@ -9963,8 +9597,8 @@
       "token_pricing": {
         "source": "price_list",
         "rates": {
-          "output_per_1k": 0.00125,
-          "input_per_1k": 0.00025
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00125
         },
         "by_region": {
           "us-west-2": {
@@ -10080,12 +9714,15 @@
           "output_per_1k": 0.015,
           "input_per_1k": 0.003
         }
-      }
+      },
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_3_sonnet_20240229_v1": {
       "label": "Claude 3 Sonnet",
-      "model_id": "anthropic.claude-3-sonnet-20240229-v1:0:28k",
-      "region": "ca-central-1",
+      "model_id": "apac.anthropic.claude-3-sonnet-20240229-v1:0:28k",
+      "region": "ap-south-1",
       "available_regions": [
         "ap-south-1",
         "ap-southeast-1",
@@ -10115,7 +9752,7 @@
       "invoke_api": "converse",
       "input_price_per_1k": 0.003,
       "output_price_per_1k": 0.015,
-      "residency_scope": "in-region",
+      "residency_scope": "geo:apac",
       "inference_profiles": [
         "apac",
         "eu",
@@ -10124,10 +9761,13 @@
       "token_pricing": {
         "source": "price_list",
         "rates": {
-          "input_per_1k": 0.003,
-          "output_per_1k": 0.015
+          "output_per_1k": 0.015,
+          "input_per_1k": 0.003
         }
-      }
+      },
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "rerank_v3_5": {
       "label": "Rerank 3.5",
@@ -10276,7 +9916,10 @@
             "output_per_1k": 0.015
           }
         }
-      }
+      },
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "llama3_8b_instruct_v1": {
       "label": "Llama 3 8B Instruct",
@@ -10640,8 +10283,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.002,
-      "output_price_per_1k": 0.006,
+      "input_price_per_1k": 0.004,
+      "output_price_per_1k": 0.012,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -10651,8 +10294,46 @@
       "token_pricing": {
         "source": "price_list",
         "rates": {
-          "input_per_1k": 0.002,
-          "output_per_1k": 0.006
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.012
+        },
+        "by_region": {
+          "ca-central-1": {
+            "output_per_1k": 0.0138,
+            "input_per_1k": 0.0046
+          },
+          "us-east-1": {
+            "input_per_1k": 0.004,
+            "output_per_1k": 0.012
+          },
+          "eu-west-1": {
+            "input_per_1k": 0.0043,
+            "output_per_1k": 0.013
+          },
+          "us-west-2": {
+            "input_per_1k": 0.004,
+            "output_per_1k": 0.012
+          },
+          "sa-east-1": {
+            "input_per_1k": 0.0067,
+            "output_per_1k": 0.0202
+          },
+          "eu-west-3": {
+            "output_per_1k": 0.0156,
+            "input_per_1k": 0.0052
+          },
+          "ap-southeast-2": {
+            "output_per_1k": 0.0156,
+            "input_per_1k": 0.0052
+          },
+          "eu-west-2": {
+            "output_per_1k": 0.0156,
+            "input_per_1k": 0.0052
+          },
+          "ap-south-1": {
+            "input_per_1k": 0.0048,
+            "output_per_1k": 0.0144
+          }
         }
       }
     },
@@ -11643,13 +11324,16 @@
           "input_per_1k": 0.002,
           "output_per_1k": 0.006
         }
-      }
+      },
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_sonnet_5": {
       "label": "Claude Sonnet 5",
-      "model_id": "us.anthropic.claude-sonnet-5",
-      "input_price_per_1k": 0.0022,
-      "output_price_per_1k": 0.011,
+      "model_id": "global.anthropic.claude-sonnet-5",
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.01,
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -11694,7 +11378,7 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "au",
         "eu",
@@ -11900,9 +11584,9 @@
     },
     "claude_opus_5": {
       "label": "Claude Opus 5",
-      "model_id": "us.anthropic.claude-opus-5",
-      "input_price_per_1k": 0.0055,
-      "output_price_per_1k": 0.0275,
+      "model_id": "global.anthropic.claude-opus-5",
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.025,
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -11947,7 +11631,7 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "au",
         "eu",
@@ -12153,7 +11837,7 @@
     },
     "gpt_5_6_terra": {
       "label": "GPT-5.6 Terra",
-      "model_id": "us.openai.gpt-5.6-terra",
+      "model_id": "global.openai.gpt-5.6-terra",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -12197,12 +11881,12 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0022,
-      "output_price_per_1k": 0.0132,
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.012,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "global",
         "in",
@@ -12226,7 +11910,7 @@
     },
     "gpt_5_6_luna": {
       "label": "GPT-5.6 Luna",
-      "model_id": "us.openai.gpt-5.6-luna",
+      "model_id": "global.openai.gpt-5.6-luna",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -12270,12 +11954,12 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.00022,
-      "output_price_per_1k": 0.00132,
+      "input_price_per_1k": 0.0002,
+      "output_price_per_1k": 0.0012,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "global",
         "in",
@@ -12299,7 +11983,7 @@
     },
     "gpt_5_6_sol": {
       "label": "GPT-5.6 Sol",
-      "model_id": "us.openai.gpt-5.6-sol",
+      "model_id": "global.openai.gpt-5.6-sol",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -12345,14 +12029,14 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "global",
         "us"
       ],
       "supports_temperature": false,
-      "input_price_per_1k": 0.0044,
-      "output_price_per_1k": 0.022,
+      "input_price_per_1k": 0.004,
+      "output_price_per_1k": 0.02,
       "token_pricing": {
         "source": "agreement_offer",
         "rates": {
@@ -12370,7 +12054,7 @@
     },
     "grok_4_6": {
       "label": "xai.grok-4.6",
-      "model_id": "us.xai.grok-4.6",
+      "model_id": "global.xai.grok-4.6",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -12408,9 +12092,9 @@
       ],
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "responses",
-      "input_price_per_1k": 0.0022,
-      "output_price_per_1k": 0.0066,
-      "residency_scope": "geo:us",
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.006,
+      "residency_scope": "global",
       "inference_profiles": [
         "global",
         "us"
@@ -12639,7 +12323,7 @@
     },
     "claude_fable_5_1": {
       "label": "Claude Fable 5.1",
-      "model_id": "us.anthropic.claude-fable-5-1",
+      "model_id": "global.anthropic.claude-fable-5-1",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -12674,7 +12358,7 @@
         "global",
         "us"
       ],
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -12688,8 +12372,8 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "supports_temperature": false,
-      "input_price_per_1k": 0.011,
-      "output_price_per_1k": 0.055,
+      "input_price_per_1k": 0.01,
+      "output_price_per_1k": 0.05,
       "token_pricing": {
         "source": "agreement_offer",
         "rates": {
@@ -13643,7 +13327,7 @@
     },
     "gpt_5_4": {
       "label": "openai.gpt-5.4",
-      "model_id": "us.openai.gpt-5.4",
+      "model_id": "global.openai.gpt-5.4",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -13681,13 +13365,13 @@
       ],
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "responses",
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "inference_profiles": [
         "global",
         "us"
       ],
-      "input_price_per_1k": 0.00275,
-      "output_price_per_1k": 0.0165,
+      "input_price_per_1k": 0.0025,
+      "output_price_per_1k": 0.015,
       "token_pricing": {
         "source": "agreement_offer",
         "rates": {
@@ -13705,7 +13389,7 @@
     },
     "gpt_6_astra": {
       "label": "GPT-6 Astra",
-      "model_id": "us.openai.gpt-6-astra",
+      "model_id": "global.openai.gpt-6-astra",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -13740,7 +13424,7 @@
         "global",
         "us"
       ],
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -13754,8 +13438,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.011,
-      "output_price_per_1k": 0.055,
+      "input_price_per_1k": 0.01,
+      "output_price_per_1k": 0.05,
       "token_pricing": {
         "source": "agreement_offer",
         "rates": {
@@ -13773,7 +13457,7 @@
     },
     "claude_opus_5_5": {
       "label": "Claude Opus 5.5",
-      "model_id": "us.anthropic.claude-opus-5-5",
+      "model_id": "global.anthropic.claude-opus-5-5",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -13811,7 +13495,7 @@
         "jp",
         "us"
       ],
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -13825,8 +13509,8 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "supports_temperature": false,
-      "input_price_per_1k": 0.0044,
-      "output_price_per_1k": 0.022,
+      "input_price_per_1k": 0.004,
+      "output_price_per_1k": 0.02,
       "token_pricing": {
         "source": "agreement_offer",
         "rates": {
@@ -14017,7 +13701,7 @@
     },
     "kimi_k3": {
       "label": "Kimi K3",
-      "model_id": "us.moonshotai.kimi-k3",
+      "model_id": "global.moonshotai.kimi-k3",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -14052,7 +13736,7 @@
         "global",
         "us"
       ],
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -14064,8 +13748,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0033,
-      "output_price_per_1k": 0.0165,
+      "input_price_per_1k": 0.003,
+      "output_price_per_1k": 0.015,
       "supports_temperature": false,
       "token_pricing": {
         "source": "price_list",
@@ -14291,7 +13975,7 @@
     },
     "grok_4_7": {
       "label": "Grok 4.7",
-      "model_id": "us.xai.grok-4.7",
+      "model_id": "global.xai.grok-4.7",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -14326,7 +14010,7 @@
         "global",
         "us"
       ],
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -14338,8 +14022,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0022,
-      "output_price_per_1k": 0.0066,
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.006,
       "supports_temperature": false,
       "token_pricing": {
         "source": "price_list",
@@ -14559,7 +14243,7 @@
     },
     "gpt_6_sol": {
       "label": "GPT-6 Sol",
-      "model_id": "us.openai.gpt-6-sol",
+      "model_id": "global.openai.gpt-6-sol",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -14594,7 +14278,7 @@
         "global",
         "us"
       ],
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -14607,8 +14291,8 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "supports_temperature": false,
-      "input_price_per_1k": 0.0022,
-      "output_price_per_1k": 0.011,
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.01,
       "token_pricing": {
         "source": "agreement_offer",
         "rates": {
@@ -14626,7 +14310,7 @@
     },
     "gpt_6_luna": {
       "label": "GPT-6 Luna",
-      "model_id": "us.openai.gpt-6-luna",
+      "model_id": "global.openai.gpt-6-luna",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -14661,7 +14345,7 @@
         "global",
         "us"
       ],
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -14674,8 +14358,8 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "supports_temperature": false,
-      "input_price_per_1k": 0.00011,
-      "output_price_per_1k": 0.00055,
+      "input_price_per_1k": 0.0001,
+      "output_price_per_1k": 0.0005,
       "token_pricing": {
         "source": "agreement_offer",
         "rates": {
@@ -14693,7 +14377,7 @@
     },
     "claude_sonnet_5_5": {
       "label": "Claude Sonnet 5.5",
-      "model_id": "us.anthropic.claude-sonnet-5-5",
+      "model_id": "global.anthropic.claude-sonnet-5-5",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -14729,7 +14413,7 @@
         "global",
         "us"
       ],
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -14743,8 +14427,8 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "supports_temperature": false,
-      "input_price_per_1k": 0.0022,
-      "output_price_per_1k": 0.011,
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.01,
       "token_pricing": {
         "source": "agreement_offer",
         "rates": {
@@ -14935,7 +14619,7 @@
     },
     "gpt_5_5": {
       "label": "GPT 5.5",
-      "model_id": "us.openai.gpt-5.5",
+      "model_id": "global.openai.gpt-5.5",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -14970,7 +14654,7 @@
         "global",
         "us"
       ],
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -14986,8 +14670,8 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "supports_temperature": false,
-      "input_price_per_1k": 0.0055,
-      "output_price_per_1k": 0.033,
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.03,
       "token_pricing": {
         "source": "agreement_offer",
         "rates": {
@@ -15005,7 +14689,7 @@
     },
     "gpt_6_1_sol": {
       "label": "GPT-6.1 Sol",
-      "model_id": "us.openai.gpt-6.1-sol",
+      "model_id": "global.openai.gpt-6.1-sol",
       "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
@@ -15040,7 +14724,7 @@
         "global",
         "us"
       ],
-      "residency_scope": "geo:us",
+      "residency_scope": "global",
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
@@ -15052,8 +14736,8 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "input_price_per_1k": 0.0022,
-      "output_price_per_1k": 0.011,
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.01,
       "token_pricing": {
         "source": "agreement_offer",
         "rates": {
@@ -15067,7 +14751,8 @@
           "long_output_per_1k": 0.0022
         },
         "long_context_threshold_tokens": 272000
-      }
+      },
+      "supports_temperature": false
     }
   },
   "custom_model_catalog": {

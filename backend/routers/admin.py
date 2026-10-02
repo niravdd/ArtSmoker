@@ -2387,7 +2387,7 @@ def _backfill_chat_lifecycle(registry: dict) -> int:
     inference-profile ids (``us.<id>``) plus context-window suffixes (``:200k``),
     so its in-loop match can't reliably refresh pre-existing entries — only freshly
     created ones pick up lifecycle. This pass fetches the authoritative
-    ``modelLifecycle`` once (it's account/region-independent) and applies it to each
+    ``modelLifecycle`` per pinned Region (it differs by Region) and applies it to each
     chat entry by a normalized model id that tolerates the geo prefix and context
     suffix. Mirrors the per-region backfill image/video models already get in
     discovery. Idempotent. Returns the number of entries updated.
@@ -2431,9 +2431,11 @@ def _backfill_chat_lifecycle(registry: dict) -> int:
         if not isinstance(cfg, dict):
             continue
         norm = _strip_geo_prefix(cfg.get("model_id", ""))
-        fields = _lookup(_lc_map(settings.aws_region_models), norm)
-        if fields is None and cfg.get("region"):
-            fields = _lookup(_lc_map(cfg["region"]), norm)
+        # Lifecycle is per Region (a model retired in one geography can still be
+        # ACTIVE in another) — the pinned Region, where calls go, is authoritative.
+        fields = _lookup(_lc_map(cfg["region"]), norm) if cfg.get("region") else None
+        if fields is None:
+            fields = _lookup(_lc_map(settings.aws_region_models), norm)
         if not fields:
             continue
         if (cfg.get("lifecycle_status") != fields["lifecycle_status"]

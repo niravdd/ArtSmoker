@@ -356,7 +356,13 @@ def server_settings() -> dict:
     try:
         sys.path.insert(0, str(ROOT))
         from backend.config import settings
-        return {"residency": (settings.preferred_residency_geo or "").strip().lower(),
+        geo = (settings.preferred_residency_geo or "").strip().lower()
+        # Same validation as the server (admin._preferred_residency_geo): 'global'
+        # is not a residency, and an undiscovered geo is ignored → no constraint.
+        offered = {g for p in _profile_map().values() for g in p}
+        if geo == "global" or (offered and geo not in offered):
+            geo = ""
+        return {"residency": geo,
                 "home_models": settings.aws_region_models, "home_images": settings.aws_region_images}
     except Exception:
         return {"residency": "", "home_models": "", "home_images": ""}

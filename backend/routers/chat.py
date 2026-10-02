@@ -510,8 +510,11 @@ async def list_chat_models():
             "provider": cfg.get("provider", ""),
             "region": cfg.get("region", ""),
             "available_regions": cfg.get("available_regions", []),
-            "usable_regions": _usable_regions(effective_id, cfg.get("available_regions", []),
-                                              registry.get("inference_profiles", {})),
+            # Mantle-only models list no runtime Regions — their pin is the one Region.
+            "usable_regions": _usable_regions(
+                effective_id,
+                cfg.get("available_regions") or [r for r in (cfg.get("region"),) if r],
+                registry.get("inference_profiles", {})),
             "has_vision": cfg.get("has_vision", False),
             "streaming_supported": cfg.get("streaming_supported", True),
             "max_context_tokens": cfg.get("max_context_tokens", 128000),
