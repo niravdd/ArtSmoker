@@ -61,6 +61,7 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -96,13 +97,21 @@ def _req(url: str, payload=None, method="GET", accept="application/json", timeou
     return urllib.request.Request(url, data=data, headers=headers, method=method)
 
 
+def _urlopen(req: urllib.request.Request, timeout: float):
+    """The one place the harness opens a URL — http(s) only (no file:/custom
+    schemes), always against the server under test (--base)."""
+    if urllib.parse.urlparse(req.full_url).scheme not in ("http", "https"):
+        raise ValueError(f"refusing non-http(s) URL: {req.full_url}")
+    return urllib.request.urlopen(req, timeout=timeout)  # nosec B310 # nosemgrep -- scheme checked above; URL is the --base server under test
+
+
 def get_json(base, path, timeout=60):
-    with urllib.request.urlopen(_req(base + path, timeout=timeout), timeout=timeout) as r:
+    with _urlopen(_req(base + path, timeout=timeout), timeout) as r:
         return json.loads(r.read().decode())
 
 
 def post_json(base, path, payload, timeout=120):
-    with urllib.request.urlopen(_req(base + path, payload, "POST", timeout=timeout), timeout=timeout) as r:
+    with _urlopen(_req(base + path, payload, "POST", timeout=timeout), timeout) as r:
         return json.loads(r.read().decode())
 
 
@@ -110,7 +119,7 @@ def post_sse(base, path, payload, timeout=300):
     """POST and consume an SSE stream; return the list of parsed `data:` event dicts."""
     events = []
     req = _req(base + path, payload, "POST", accept="text/event-stream", timeout=timeout)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with _urlopen(req, timeout) as r:
         for raw in r:
             line = raw.decode("utf-8", "replace").strip()
             if line.startswith("data:"):
@@ -343,9 +352,17 @@ def _geo_of(mid: str) -> str:
 def valid_regions(cfg: dict, mid: str) -> list[str]:
     """Regions ``mid`` (any profile/plain id of this entry's model) can be
     invoked from: a geo profile → the Regions it covers that the account has the
-    model in; ``global.`` / an in-Region id → every Region the model is in."""
-    avail = set(cfg.get("available_regions") or ([cfg["region"]] if cfg.get("region") else []))
+    model in; ``global.`` / an in-Region id → every Region the model is in. Per
+    what the Sync recorded: a Mantle-served model → Regions whose Mantle lists it;
+    a plain id of a profile-capable model → Regions serving it on demand."""
+    avail = cfg.get("available_regions") or ([cfg["region"]] if cfg.get("region") else [])
     geo = _geo_of(mid)
+    if cfg.get("invoke_endpoint") == "bedrock-mantle" and cfg.get("mantle_regions"):
+        avail = cfg["mantle_regions"]
+    elif (not geo and "on_demand_regions" in cfg
+          and "INFERENCE_PROFILE" in (cfg.get("inference_types") or [])):
+        avail = [r for r in avail if r in cfg["on_demand_regions"]]
+    avail = set(avail)
     if geo and geo != "global":
         return sorted(set(profiles_for(mid).get(geo) or ()) & avail)
     return sorted(avail)
@@ -484,9 +501,10 @@ def _restart_recommendation(base, want):
     )
 
 
-def run_chat(base, model, region, max_tokens, timeout=45, model_id=None):
-    # 45s (not 25) so slow REASONING models (grok, kimi-thinking) that legitimately
-    # take ~20-40s aren't flagged as cross-geo hangs. temperature is ALWAYS sent —
+def run_chat(base, model, region, max_tokens, timeout=90, model_id=None):
+    # 90s: past the server's 60s Bedrock read timeout, so a stalled model surfaces
+    # as the server's own error (logged inside this stage), and slow REASONING
+    # models (grok, kimi-thinking) aren't flagged as hangs. temperature is ALWAYS sent —
     # the server must drop it for models the registry says reject it (gate by
     # foundation model, so every profile id of the model is gated).
     payload = {
@@ -498,7 +516,7 @@ def run_chat(base, model, region, max_tokens, timeout=45, model_id=None):
     except (TimeoutError, OSError) as e:
         # A geo-pinned id sent to a non-matching region often HANGS (Bedrock accepts
         # but never responds) rather than erroring — bound it and report clearly.
-        return False, f"timeout/no-response after {timeout}s ({type(e).__name__}) — region likely can't serve this id"
+        return False, f"timeout/no-response after {timeout}s ({type(e).__name__}) — region likely can't serve this id", None
     err = next((e for e in events if e.get("type") == "error"), None)
     blocked = next((e for e in events if e.get("type") == "content_blocked"), None)
     meta = next((e for e in events if e.get("type") == "metadata"), None)
@@ -571,7 +589,7 @@ def run_image(base, model, region):
 def _delete_json(base, path, timeout=60):
     """Execute a DELETE and return the parsed JSON (the older code built a Request
     but never opened it — so cleanup silently no-op'd). Always urlopen."""
-    with urllib.request.urlopen(_req(base + path, method="DELETE", timeout=timeout), timeout=timeout) as r:
+    with _urlopen(_req(base + path, method="DELETE", timeout=timeout), timeout) as r:
         return json.loads(r.read().decode())
 
 
@@ -814,11 +832,11 @@ def run_collection(base, model, region, extra_models=None):
             # PNG; a non-conforming name is rejected (no path traversal). Without this
             # the image-inspired reload can't repopulate the Reference Studio.
             ref_fn = (rec3.get("reference_images") or ["ref_0.png"])[0]
-            with urllib.request.urlopen(_req(f"{base}/api/collections/{cid3}/reference/{ref_fn}", timeout=30), timeout=30) as _rr:
+            with _urlopen(_req(f"{base}/api/collections/{cid3}/reference/{ref_fn}", timeout=30), 30) as _rr:
                 if _rr.status != 200 or not _rr.read(8).startswith(b"\x89PNG"):
                     return False, "collection reference route did not serve the persisted PNG", cid
             try:
-                urllib.request.urlopen(_req(f"{base}/api/collections/{cid3}/reference/asset.png", timeout=15), timeout=15)
+                _urlopen(_req(f"{base}/api/collections/{cid3}/reference/asset.png", timeout=15), 15)
                 return False, "collection reference route accepted a non-ref filename (should 400)", cid
             except urllib.error.HTTPError as e:
                 if e.code != 400:
@@ -861,7 +879,7 @@ def run_collection(base, model, region, extra_models=None):
         try:
             import io as _io
             from PIL import Image as _Image
-            with urllib.request.urlopen(_req(f"{base}{png_rel}", timeout=60), timeout=60) as _r:
+            with _urlopen(_req(f"{base}{png_rel}", timeout=60), 60) as _r:
                 _img = _Image.open(_io.BytesIO(_r.read()))
             if _img.mode not in ("RGBA", "LA") and "transparency" not in _img.info:
                 return False, f"background not removed — Job PNG has no alpha (mode={_img.mode})", cid
@@ -899,7 +917,7 @@ def run_collection(base, model, region, extra_models=None):
 
         # 10) export with no 3D yet → graceful 400 (exercises export wiring)
         try:
-            urllib.request.urlopen(_req(f"{base}/api/collections/{cid}/export?fmt=fbx", timeout=60), timeout=60)
+            _urlopen(_req(f"{base}/api/collections/{cid}/export?fmt=fbx", timeout=60), 60)
             return False, "export should 400 (no 3D) but returned 200", cid
         except urllib.error.HTTPError as e:
             if e.code != 400:
@@ -991,6 +1009,23 @@ def registry_checks(base, reg) -> list[dict]:
                     f"profile doesn't cover it", c.get("region", ""))
             else:
                 row("pin-valid", name, True, f"{mid} @ {c.get('region')}", c.get("region", ""))
+
+    # 1b) Every enabled chat pin is servable where it's pinned, per the Sync's
+    #     per-Region data (Mantle catalog / on-demand) — not merely listed there.
+    for k, c in enabled.items():
+        mid, pin = c.get("model_id", ""), c.get("region", "")
+        served = valid_regions(c, mid)
+        mantle = c.get("invoke_endpoint") == "bedrock-mantle"
+        if mantle and "mantle_regions" not in c:
+            row("pin-servable", k, False, f"{mid}: Mantle-served but no mantle_regions "
+                f"recorded — run AWS Sync", pin, warn=True)
+        elif pin and served and pin not in served:
+            row("pin-servable", k, False, f"{mid} pinned @ {pin} — servable only in "
+                f"{', '.join(served)}", pin)
+        elif not served:
+            row("pin-servable", k, False, f"{mid}: no Region can serve this id", pin)
+        else:
+            row("pin-servable", k, True, f"{mid} @ {pin}" + (" (Mantle)" if mantle else ""), pin)
 
     # 2) Pin posture follows the residency setting (none = global. where offered;
     #    set = that geo's profile where it covers a Region the model is in).

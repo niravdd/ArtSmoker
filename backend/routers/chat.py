@@ -173,7 +173,8 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
                 return
 
             latency_ms = round((time.time() - start) * 1000)
-            cost = compute_llm_cost(model_id, usage["in"], usage["out"], region=region)
+            served_region = mc.mantle_region_for(region)  # the Region actually called
+            cost = compute_llm_cost(model_id, usage["in"], usage["out"], region=served_region)
             try:
                 if cost > 0:
                     from backend.services.cost_tracker import add_cost
@@ -184,7 +185,7 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
                 pass
             yield sse({"type": "metadata", "input_tokens": usage["in"], "output_tokens": usage["out"],
                        "latency_ms": latency_ms, "cost_usd": cost,
-                       "model_id": model_id, "region": region,
+                       "model_id": model_id, "region": served_region,
                        "endpoint": "bedrock-mantle", "api": (used or ("", invoke_api))[1]})
             yield sse({"type": "stop", "stop_reason": "end_turn"})
         except Exception as exc:
@@ -449,6 +450,22 @@ def _usable_regions(model_id: str, available: list, profile_map: dict) -> list:
     return avail
 
 
+def _model_usable_regions(model_id: str, cfg: dict, profile_map: dict) -> list:
+    """Regions where ``model_id`` (any profile id of the model in ``cfg``) can be
+    invoked, from what the Sync recorded. A Mantle-served model → the Regions whose
+    Mantle catalog lists it (it differs by Region). A plain id → the Regions that
+    serve it on demand (some Regions serve it only through a profile). Then
+    narrowed to the profile's coverage by ``_usable_regions``."""
+    from backend.services.model_registry import strip_geo_prefix
+    base = cfg.get("available_regions") or [r for r in (cfg.get("region"),) if r]
+    if cfg.get("invoke_endpoint") == "bedrock-mantle" and cfg.get("mantle_regions"):
+        base = cfg["mantle_regions"]
+    elif (strip_geo_prefix(model_id) == model_id and "on_demand_regions" in cfg
+          and "INFERENCE_PROFILE" in (cfg.get("inference_types") or [])):
+        base = [r for r in base if r in cfg["on_demand_regions"]]
+    return _usable_regions(model_id, base, profile_map)
+
+
 @router.get("/models")
 async def list_chat_models():
     """List all available LLM models for Chat Studio.
@@ -510,11 +527,8 @@ async def list_chat_models():
             "provider": cfg.get("provider", ""),
             "region": cfg.get("region", ""),
             "available_regions": cfg.get("available_regions", []),
-            # Mantle-only models list no runtime Regions — their pin is the one Region.
-            "usable_regions": _usable_regions(
-                effective_id,
-                cfg.get("available_regions") or [r for r in (cfg.get("region"),) if r],
-                registry.get("inference_profiles", {})),
+            "usable_regions": _model_usable_regions(
+                effective_id, cfg, registry.get("inference_profiles", {})),
             "has_vision": cfg.get("has_vision", False),
             "streaming_supported": cfg.get("streaming_supported", True),
             "max_context_tokens": cfg.get("max_context_tokens", 128000),
@@ -965,8 +979,7 @@ def _resolve_chat_region(model_id: str) -> str:
     pinned = cfg.get("region") or home
     if cfg.get("model_id") == model_id:
         return pinned
-    usable = _usable_regions(model_id, cfg.get("available_regions") or [pinned],
-                             registry.get("inference_profiles", {}))
+    usable = _model_usable_regions(model_id, cfg, registry.get("inference_profiles", {}))
     if pinned in usable:
         return pinned
     return home if home in usable else (usable[0] if usable else pinned)

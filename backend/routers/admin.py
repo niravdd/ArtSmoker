@@ -839,6 +839,9 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
             # (bedrock-mantle + bedrock-runtime) DO get scanned Regions and are
             # residency-pinned on their runtime Region like any other.
             avail = cfg.get("available_regions") or []
+            if cfg.get("invoke_endpoint") == "bedrock-mantle" and cfg.get("mantle_regions"):
+                # Served by Mantle → only Regions whose Mantle catalog lists it.
+                avail = [r for r in avail if r in cfg["mantle_regions"]]
             if not avail:
                 continue
             cur_id = cfg.get("model_id", "")
@@ -1196,6 +1199,11 @@ async def auto_register_image_models(region: str):
                 regions.append(region)
                 regions.sort()
                 existing["available_regions"] = regions
+            # Plain (in-Region) invocation differs by Region — some Regions serve
+            # the model only through an inference profile.
+            existing["on_demand_regions"] = sorted(
+                set(existing.get("on_demand_regions") or [])
+                | ({region} if "ON_DEMAND" in inference_types else set()))
 
             # Keep the NEWEST model version in the family.
             # Compare by lifecycle (ACTIVE > LEGACY) then by model name/id.
@@ -1246,6 +1254,7 @@ async def auto_register_image_models(region: str):
             "max_context_tokens": 128000,  # Default — admin can override per model
             "customizations_supported": m.get("customizationsSupported", []),
             "inference_types": inference_types,
+            "on_demand_regions": [region] if "ON_DEMAND" in inference_types else [],
             "inference_profiles": avail_profiles,
             "residency_scope": residency_scope,
             **_lifecycle_fields(m),
@@ -2236,7 +2245,7 @@ def _claude_version_tuple(model_id: str) -> tuple:
     return (major, minor, date)
 
 
-def _reconcile_mantle_models(registry: dict) -> int:
+def _reconcile_mantle_models(registry: dict, scan_regions: list | None = None) -> int:
     """Reconcile the bedrock-mantle catalog into chat_models.
 
     The bedrock-runtime ListFoundationModels scan (done per-region above) does
@@ -2250,20 +2259,30 @@ def _reconcile_mantle_models(registry: dict) -> int:
     additive, never disturbs the runtime catalog. User overrides in .user.json
     win on reload as usual.
     """
+    from concurrent.futures import ThreadPoolExecutor
     from backend.services.mantle_client import (
         mantle_available, list_mantle_models, derive_model_apis,
-        resolve_invoke_path, mantle_region_for,
+        resolve_invoke_path, mantle_region_for, MANTLE_REGIONS,
     )
-    from backend.services.model_registry import get_registry
 
     if not mantle_available():
         logger.info("Mantle unavailable (no SDK/token) — skipping Mantle reconciliation")
         return 0
 
+    # The Mantle catalog differs by Region (a model listed in one Region can 404 in
+    # another), so list every Mantle Region and record where each model is served.
     region = mantle_region_for(None)
-    mantle_ids = list_mantle_models(region)
-    if not mantle_ids:
-        return 0
+    mantle_regions = sorted(r for r in MANTLE_REGIONS
+                            if scan_regions is None or r in scan_regions or r == region)
+    with ThreadPoolExecutor(max_workers=min(8, len(mantle_regions) or 1)) as pool:
+        listings = dict(zip(mantle_regions, pool.map(list_mantle_models, mantle_regions)))
+    if not listings.get(region):
+        return 0  # home listing failed → keep the recorded Mantle data
+    served_in: dict[str, set] = {}
+    for r, ids in listings.items():
+        for mid in ids:
+            served_in.setdefault(_normalize_model_id(mid), set()).add(r)
+    mantle_ids = sorted({mid for ids in listings.values() for mid in ids})
 
     chat_models = registry.setdefault("chat_models", {})
 
@@ -2295,10 +2314,20 @@ def _reconcile_mantle_models(registry: dict) -> int:
         base = _re2.sub(r"-\d{4}-\d{2}-\d{2}$", "", mid)
         return base != mid and base in _id_set
 
+    def _pin_mantle_region(cfg: dict, served: list) -> None:
+        # A Mantle-served model's pin must be a Region whose Mantle lists it.
+        cfg["mantle_regions"] = served
+        if cfg.get("invoke_endpoint") == "bedrock-mantle" and served and cfg.get("region") not in served:
+            cfg["region"] = region if region in served else served[0]
+
+    for cfg in chat_models.values():
+        cfg.pop("mantle_regions", None)  # re-derived below from this Sync's listings
+
     reconciled = 0
     for mid in mantle_ids:
         if _is_dupe_dated_alias(mid):
             continue
+        served = sorted(served_in.get(_normalize_model_id(mid), ()))
         existing_key = by_norm.get(_normalize_model_id(mid))
         if existing_key:
             cfg = chat_models[existing_key]
@@ -2310,6 +2339,7 @@ def _reconcile_mantle_models(registry: dict) -> int:
             cfg["apis"] = derive_model_apis(cfg.get("model_id", mid), provider,
                                             on_mantle=True, on_runtime=on_runtime)
             cfg["invoke_endpoint"], cfg["invoke_api"] = resolve_invoke_path(cfg["apis"])
+            _pin_mantle_region(cfg, served)
             reconciled += 1
         else:
             # Mantle-only model — add a fresh entry (shared keymaker; version-safe).
@@ -2340,8 +2370,10 @@ def _reconcile_mantle_models(registry: dict) -> int:
                 "invoke_endpoint": inv_ep,
                 "invoke_api": inv_api,
             }
+            _pin_mantle_region(chat_models[key], served)
             reconciled += 1
-    logger.info("Mantle reconciliation: %d model(s) (of %d listed)", reconciled, len(mantle_ids))
+    logger.info("Mantle reconciliation: %d model(s) (of %d listed across %d Regions)",
+                reconciled, len(mantle_ids), sum(1 for ids in listings.values() if ids))
     return reconciled
 
 
@@ -2856,6 +2888,8 @@ def _run_refresh_all_regions():
         # Also reset chat_models regions
         for key in list(registry.get("chat_models", {}).keys()):
             registry["chat_models"][key]["available_regions"] = []
+            if "on_demand_regions" in registry["chat_models"][key]:
+                registry["chat_models"][key]["on_demand_regions"] = []
 
         # Step 3: Scan each ENABLED region for foundation + custom + imported models
         _progress(f"Scanning {len(scan_regions)} enabled regions for available models...")
@@ -2936,7 +2970,7 @@ def _run_refresh_all_regions():
         # `endpoints` when the prune runs, so they're correctly exempted.
         _progress("Reconciling Amazon Bedrock Mantle model catalog...")
         try:
-            mantle_added = _reconcile_mantle_models(registry)
+            mantle_added = _reconcile_mantle_models(registry, scan_regions)
             if mantle_added:
                 _progress(f"Mantle: {mantle_added} model(s) reconciled")
         except Exception as exc:
