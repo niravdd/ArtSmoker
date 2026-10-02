@@ -464,17 +464,15 @@ def _model_supports_temperature(model_id: str) -> bool:
     and the fact is persisted. No code heuristic to drift over time.
     """
     try:
-        from backend.services.model_registry import get_registry
-        mid = model_id or ""
-        for cfg in (get_registry().get("chat_models", {}) or {}).values():
-            if cfg.get("model_id") == mid or cfg.get("model_arn", "").endswith(mid):
-                if cfg.get("supports_temperature") is False:
-                    return False
-                if "temperature" in (cfg.get("deprecated_params") or []):
-                    return False
-                if cfg.get("supports_temperature") is True:
-                    return True
-                break  # entry exists but hasn't been probed yet → default below
+        from backend.services.model_registry import find_chat_model
+        cfg = find_chat_model(model_id) or {}
+        if cfg.get("supports_temperature") is False:
+            return False
+        if "temperature" in (cfg.get("deprecated_params") or []):
+            return False
+        if cfg.get("supports_temperature") is True:
+            return True
+        # entry missing or not yet probed → default below
     except Exception:
         pass
     # Registry silent → assume supported; the self-heal path corrects + records
@@ -506,13 +504,11 @@ def record_temperature_unsupported(model_id: str) -> None:
     hardcoded model list — the capability is discovered the first time a model
     rejects the param."""
     try:
-        from backend.services.model_registry import registry_transaction
+        from backend.services.model_registry import find_chat_model, registry_transaction
         with registry_transaction() as reg:
-            for cfg in (reg.get("chat_models") or {}).values():
-                if cfg.get("model_id") == model_id or cfg.get("model_arn", "").endswith(model_id):
-                    if cfg.get("supports_temperature") is not False:
-                        cfg["supports_temperature"] = False
-                    break
+            cfg = find_chat_model(model_id, reg.get("chat_models") or {})
+            if cfg is not None and cfg.get("supports_temperature") is not False:
+                cfg["supports_temperature"] = False
         logger.info("Param gate: recorded supports_temperature=false for %s (self-learned)", model_id)
     except Exception:
         logger.debug("Could not record temperature-unsupported for %s", model_id, exc_info=True)

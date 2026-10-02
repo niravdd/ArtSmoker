@@ -308,14 +308,13 @@ def record_mantle_route(model_id: str, base_path: str, route: str) -> None:
     safe), so the self-healed combo becomes the fast path next time. Registry-
     driven, self-learned — no code edit when Mantle routing shifts."""
     try:
-        from backend.services.model_registry import registry_transaction
+        from backend.services.model_registry import find_chat_model, registry_transaction
         with registry_transaction() as reg:
-            for cfg in (reg.get("chat_models") or {}).values():
-                if cfg.get("model_id") == model_id or cfg.get("model_arn", "").endswith(model_id):
-                    cfg["mantle_base"] = base_path
-                    cfg["invoke_api"] = route
-                    cfg["invoke_endpoint"] = "bedrock-mantle"
-                    break
+            cfg = find_chat_model(model_id, reg.get("chat_models") or {})
+            if cfg is not None:
+                cfg["mantle_base"] = base_path
+                cfg["invoke_api"] = route
+                cfg["invoke_endpoint"] = "bedrock-mantle"
         logger.info("Mantle route learned for %s → %s %s", model_id, base_path, route)
     except Exception:
         logger.debug("Could not record Mantle route for %s", model_id, exc_info=True)

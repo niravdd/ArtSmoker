@@ -1069,6 +1069,27 @@ def strip_geo_prefix(model_id: str, geos=None) -> str:
     return mid
 
 
+def find_chat_model(model_id: str, chat_models: dict | None = None) -> dict | None:
+    """The chat_models entry for an invoked id: exact model_id / model_arn match
+    first, else the same foundation model under another profile prefix. A
+    category can call 'global.x' while Sync's residency pass pins the entry to
+    'us.x' — model capabilities (temperature, Mantle route) belong to the model,
+    not the profile. Pass ``chat_models`` to resolve inside a transaction."""
+    mid = model_id or ""
+    if not mid:
+        return None
+    cms = chat_models if chat_models is not None else (_registry.get("chat_models") or {})
+    for cfg in cms.values():
+        if cfg.get("model_id") == mid or cfg.get("model_arn", "").endswith(mid):
+            return cfg
+    geos = inference_profile_geos()
+    base = strip_geo_prefix(mid, geos)
+    for cfg in cms.values():
+        if strip_geo_prefix(cfg.get("model_id") or "", geos) == base:
+            return cfg
+    return None
+
+
 def get_category(name: str) -> dict:
     """Get a model category config (fast_llm, complex_llm, etc.)."""
     return _registry.get("categories", {}).get(name, {})

@@ -83,9 +83,8 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
         msgs.append({"role": m.get("role", "user"), "content": m.get("content", "")})
 
     # Provider (for the registry-driven Mantle base/route lookup).
-    from backend.services.model_registry import get_registry as _gr
-    provider = next((c.get("provider", "") for c in _gr().get("chat_models", {}).values()
-                     if c.get("model_id") == model_id), "")
+    from backend.services.model_registry import find_chat_model
+    provider = (find_chat_model(model_id) or {}).get("provider", "")
 
     def generate():
         from backend.services import mantle_client as mc
