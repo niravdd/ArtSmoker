@@ -2350,11 +2350,12 @@ def _reconcile_mantle_models(registry: dict, scan_regions: list | None = None) -
             by_norm[_normalize_model_id(mid)] = key  # so dated aliases/dupes match this
             apis = derive_model_apis(mid, provider, on_mantle=True, on_runtime=False)
             inv_ep, inv_api = resolve_invoke_path(apis)
+            pin = region if region in served or not served else served[0]
             chat_models[key] = {
                 "label": mid,
                 "model_id": mid,
-                "region": region,
-                "available_regions": [region],
+                "region": pin,
+                "available_regions": [pin],
                 "provider": provider,
                 "enabled": True,
                 "model_source": "foundation",
