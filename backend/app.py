@@ -320,10 +320,8 @@ async def lifespan(app: FastAPI):
         # Sanity check (not an exhaustive audit): a representative sample of
         # models was reachable. Keep it to ONE short line so it never wraps.
         _probes = [p for p in _aws_status.get("probes", []) if p.get("ok")]
-        # Short model id: drop the "us." inference-profile + provider prefixes.
-        def _short(mid: str) -> str:
-            mid = mid[3:] if mid.startswith("us.") else mid
-            return mid.split(".", 1)[1] if "." in mid else mid
+        # Short model id: drop any inference-profile + provider prefixes.
+        from backend.services.bedrock_client import _short_model_label as _short
         _regions = {p.get("region") for p in _probes}
         _rgn = next(iter(_regions)) if len(_regions) == 1 else "multi-region"
         _names = ", ".join(_short(p["model_id"]) for p in _probes)

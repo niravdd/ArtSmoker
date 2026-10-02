@@ -676,23 +676,27 @@ def _discover_inference_profiles(bedrock_client) -> dict:
     return out
 
 
-def _select_profile_prefix(model_id: str, region: str, profile_map: dict):
-    """Residency-aware inference-profile prefix for invoking ``model_id`` from ``region``.
+def _select_profile_prefix(model_id: str, region: str, profile_map: dict,
+                           residency: str | None = None):
+    """Inference-profile prefix for invoking ``model_id`` from ``region``.
 
-    Prefers a GEO profile that ACTUALLY covers the Region (``us.``/``eu.``/``apac.``/
-    ``in.`` — keeps data in that geography); falls back to ``global.`` (worldwide,
-    residency NOT enforceable) only when no geo profile covers it; ``""`` when only
-    the in-Region base id exists. Returns ``None`` when the model isn't in the
-    discovered map (caller then uses the Region heuristic).
+    No residency constraint (the default, ``preferred_residency_geo`` unset):
+    ``global.`` when AWS offers it (callable from any source Region), else a geo
+    profile that covers the Region. With a residency constraint: a geo profile
+    covering the Region first (data stays in that geography), ``global.`` only
+    when none does. ``""`` when only the in-Region base id exists; ``None`` when
+    the model isn't in the discovered map (caller then uses the Region heuristic).
     """
     profs = profile_map.get(_normalize_model_id(model_id))
     if not profs:
         return None
+    if residency is None:
+        residency = _preferred_residency_geo()
     geo = sorted(pre for pre, regs in profs.items() if pre != "global" and region in regs)
+    if "global" in profs and not (residency and geo):
+        return "global."
     if geo:
-        return geo[0] + "."            # residency-preserving geo profile
-    if "global" in profs:
-        return "global."               # no in-geo profile → worldwide routing
+        return geo[0] + "."            # geo profile covering this Region
     return ""                          # only the in-Region base id exists
 
 
@@ -732,29 +736,39 @@ def _region_in_geo(region: str, geo: str, region_geos: dict) -> bool:
 
 
 def _preferred_residency_geo(registry: dict | None = None) -> str:
-    """The configured data-residency preference (config.py / env), validated.
+    """The OPTIONAL data-residency constraint (config.py / env), validated.
 
-    Defaults to ``us``; falls back to ``us`` if set to anything that isn't a
-    discovered geo profile prefix (``global`` is not a residency). AWS Sync
-    realigns every model's pin toward this geo.
+    ``""`` (the default) = no constraint — pins prefer ``global.``. A value is
+    honoured only when it is a discovered geo profile prefix (``global`` is not a
+    residency); anything else is ignored with a warning, i.e. treated as unset.
     """
     from backend.config import settings
     from backend.services.model_registry import inference_profile_geos
-    geo = (getattr(settings, "preferred_residency_geo", "us") or "us").strip().lower()
-    return geo if geo != "global" and geo in inference_profile_geos(registry) else "us"
+    geo = (getattr(settings, "preferred_residency_geo", "") or "").strip().lower()
+    if not geo:
+        return ""
+    geos = inference_profile_geos(registry)
+    if geo != "global" and (geo in geos or not geos):
+        return geo
+    logger.warning("preferred_residency_geo=%r is not a discovered geo profile (%s) — "
+                   "ignored (no residency constraint)", geo, ", ".join(sorted(geos - {"global"})))
+    return ""
 
 
 def _resolve_residency_pins(registry: dict, progress=None) -> int:
-    """Self-healing residency post-pass: re-derive every chat model's pin
-    (``region`` + ``model_id`` prefix) from the profiles discovered this Sync,
-    independent of the (alphabetical) order Regions were scanned in.
+    """Self-healing pin post-pass: re-derive every chat model's pin (``region`` +
+    ``model_id`` prefix) from the profiles discovered this Sync, independent of
+    the (alphabetical) order Regions were scanned in.
 
-    For each model it evaluates ALL Regions where the model was found and picks the
-    one giving the best residency for the configured preferred geo (config.py):
-    a geo profile in the preferred geo → any geo profile → global. → a plain
-    regional pin in the preferred geo. This heals drift (e.g. an old ``us.<id>``
-    stuck on a non-US Region — an invalid combo that fails to invoke) and makes the
-    residency guarantee deterministic rather than an accident of scan order.
+    For each model it evaluates ALL Regions where the model was found. With no
+    residency constraint (the default): ``global.`` → a geo profile → a plain
+    regional pin, preferring the home Region (config.py) and then its geography.
+    With ``preferred_residency_geo`` set: an in-geo profile or Region → any geo
+    profile → a plain regional pin elsewhere → ``global.``. This heals drift (e.g.
+    an old ``us.<id>`` stuck on a non-US Region — an invalid combo that fails to
+    invoke) and keeps pins deterministic rather than an accident of scan order.
+    The pin is only the default route: lookups (capabilities, routing, pricing)
+    resolve by foundation model, so any profile id AWS offers keeps working.
 
     Image models are healed too, but ONLY when they already carry a geo/global
     prefix (profile-based) — plain regional image pins are admin-curated and left
@@ -777,25 +791,33 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
     healed = 0
 
     def _best_pin(base: str, avail: list[str], home: str):
-        """(region, prefix) with the best residency for `pref` among `avail`.
+        """(region, prefix) for one model among the Regions it was found in.
 
-        Tie-break order: residency rank → Region in the preferred geo → the
-        configured home Region (config.py) → name order. So among equally-good US
-        Regions we land on the deployment's home (e.g. us-west-2), consistent with
-        the LLM categories and where the app actually operates — not an alphabetical
-        accident.
+        Rank: no constraint → global. (0), geo profile (1), plain regional (2);
+        with `pref` → in-geo profile/Region (0), other geo profile (1), plain
+        regional elsewhere (2), global. (3). Tie-break: a Region in the target
+        geography (`pref`, else the home Region's own) → the configured home
+        Region (config.py) → name order — consistent with the LLM categories and
+        where the app operates, not an alphabetical accident.
         """
+        home_geos = set(region_geos.get(home) or ())
+        def _in_target(r):
+            if pref:
+                return _region_in_geo(r, pref, region_geos)
+            return bool(home_geos & set(region_geos.get(r) or ()))
         best = None  # (sort_key, region, prefix)
         for r in avail:
-            sel = _select_profile_prefix(base, r, pmap)  # None | '' | 'us.' | geo | 'global.'
+            sel = _select_profile_prefix(base, r, pmap, pref)  # None | '' | geo. | 'global.'
             if sel is None or sel == "":
                 # Plain regional model → residency IS the Region's own geo.
-                rank, prefix = (0 if _region_in_geo(r, pref, region_geos) else 2), ""
+                prefix = ""
+                rank = (0 if _region_in_geo(r, pref, region_geos) else 2) if pref else 2
             elif sel == "global.":
-                rank, prefix = 3, "global."
+                rank, prefix = (3 if pref else 0), "global."
             else:
-                rank, prefix = (0 if sel.rstrip(".") == pref else 1), sel
-            key = (rank, 0 if _region_in_geo(r, pref, region_geos) else 1, 0 if r == home else 1, r)
+                prefix = sel
+                rank = (0 if sel.rstrip(".") == pref else 1) if pref else 1
+            key = (rank, 0 if _in_target(r) else 1, 0 if r == home else 1, r)
             if best is None or key < best[0]:
                 best = (key, r, prefix)
         return (best[1], best[2]) if best else (None, "")
@@ -849,7 +871,8 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
     _heal("image_models", profile_only=True, home=settings.aws_region_images)
     # Always report the outcome (even 0) — confirms the pass ran and how many
     # models it evaluated, so a no-op is distinguishable from "didn't run".
-    msg = (f"Residency: realigned {healed} pin(s) to '{pref}' preference "
+    posture = f"'{pref}' residency" if pref else "no residency constraint (global. preferred)"
+    msg = (f"Profile pins: re-pinned {healed} model(s) — {posture} "
            f"({len(pmap)} models in the discovered profile map)")
     logger.info(msg)
     if progress:
@@ -981,11 +1004,11 @@ async def auto_register_image_models(region: str):
     except Exception as exc:
         raise HTTPException(502, detail=f"Failed to list models in {region}: {exc}")
 
-    # Residency-aware routing: the cross-region inference profiles usable FROM this
-    # Region (its geo + global), each with the exact model Regions it covers. Drives
-    # _select_profile_prefix so we pin the in-geography profile when one exists and
-    # only fall through to global. when it doesn't (see _register_chat_model). Empty
-    # on failure → callers fall back to the region heuristic.
+    # Profile routing: the cross-region inference profiles usable FROM this Region
+    # (its geo + global), each with the exact model Regions it covers. Drives
+    # _select_profile_prefix (global. where offered, or the in-geo profile under an
+    # optional residency constraint — see _register_chat_model). Empty on failure →
+    # callers fall back to the region heuristic.
     profile_map = _discover_inference_profiles(bedrock)
 
     from backend.services.model_registry import (
@@ -1122,7 +1145,7 @@ async def auto_register_image_models(region: str):
 
         effective_id = model_id
         if "INFERENCE_PROFILE" in inference_types and not _has_geo_prefix(model_id):
-            # Discovered profiles decide the prefix (residency-first); fall back to the
+            # Discovered profiles decide the prefix (_select_profile_prefix); fall back to the
             # region heuristic only when this model isn't in the profile map.
             sel = _select_profile_prefix(model_id, region, profile_map)
             prefix = sel if sel is not None else _profile_prefix_for_region(region)
@@ -1416,10 +1439,10 @@ async def auto_register_image_models(region: str):
         if get_image_model(key):
             key = f"{key}_{region.replace('-', '_')}"
 
-        # Models that require INFERENCE_PROFILE need a geo/global prefix. The prefix is
-        # residency-aware: the discovered in-geography profile when one covers this
-        # Region, else global.; fall back to the region heuristic when the model isn't
-        # in the discovered profile map.
+        # Models that require INFERENCE_PROFILE need a geo/global prefix, chosen by
+        # _select_profile_prefix from the discovered profiles (global. where offered
+        # unless a residency is configured); fall back to the region heuristic when
+        # the model isn't in the discovered profile map.
         inference_types = m.get("inferenceTypesSupported", [])
         effective_model_id = model_id
         if "INFERENCE_PROFILE" in inference_types and not _has_geo_prefix(model_id):
@@ -2383,7 +2406,7 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
     On every AWS Sync we re-point:
       • fast_llm    → newest ACTIVE Claude **Sonnet** discovered in chat_models
       • complex_llm → newest ACTIVE Claude **Opus** discovered in chat_models
-    Selection prefers `us.` cross-region inference profiles, ACTIVE over LEGACY,
+    Selection prefers cross-region inference profiles (any geo or global.), ACTIVE over LEGACY,
     and the highest (major, minor, date) via _claude_version_tuple. The category
     region is preserved if the chosen model is available there, else it falls back
     to the model's home region.
@@ -2412,7 +2435,7 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
             if cfg.get("provider", "").lower() not in ("anthropic", ""):
                 continue
             lifecycle = (cfg.get("lifecycle_status") or "ACTIVE").upper()
-            prefer_profile = 1 if cfg.get("model_id", "").startswith("us.") else 0
+            prefer_profile = 1 if _has_geo_prefix(cfg.get("model_id", "")) else 0
             active = 1 if lifecycle == "ACTIVE" else 0
             cands.append(((active, prefer_profile) + _claude_version_tuple(mid), k, cfg))
         cands.sort(key=lambda t: t[0])
@@ -2844,16 +2867,13 @@ def _run_refresh_all_regions():
             for b, profs in combined_profiles.items()
         }
 
-        # Step 4b-bis: Residency post-pass — re-derive each model's Region + profile
-        # prefix from the profiles discovered this Sync, toward the configured
-        # preferred geo (config.py). Order-independent; heals drift (e.g. a us.<id>
-        # stuck on a non-US Region). Runs BEFORE routing/lifecycle backfill so those
-        # see the corrected model_ids.
+        # Step 4b-bis: Pin post-pass — re-derive each model's Region + profile prefix
+        # from the profiles discovered this Sync (global. where offered unless an
+        # optional residency is configured in config.py). Order-independent; heals
+        # drift (e.g. a us.<id> stuck on a non-US Region). Runs BEFORE routing/
+        # lifecycle backfill so those see the corrected model_ids. Logs its outcome.
         try:
-            n_res = _resolve_residency_pins(registry, _progress)
-            if n_res:
-                logger.info("Residency: realigned %d model pin(s) to '%s'",
-                            n_res, _preferred_residency_geo(registry))
+            _resolve_residency_pins(registry, _progress)
         except Exception as exc:
             logger.warning("Residency realignment skipped: %s", exc)
 

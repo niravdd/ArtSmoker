@@ -11,16 +11,17 @@ class Settings(BaseSettings):
     aws_region_images: str = "us-east-1"
     aws_profile: str | None = None
 
-    # Data-residency preference for cross-region inference-profile routing.
-    # Bedrock exposes geo profiles (us./eu./apac./in. — data stays in that
-    # geography) and a global. profile (routes worldwide, no residency). When
-    # AWS Sync pins each model to a Region + profile it prefers, in order:
-    #   1. a geo profile in THIS geography (residency preserved),
-    #   2. any other geo profile, then
-    #   3. global. (only when no geo profile covers the model).
-    # Change this to eu / apac / in for a non-US deployment; every Sync realigns
-    # its findings to it. One of: us, eu, apac, in. Env: ARTSMOKER_PREFERRED_RESIDENCY_GEO.
-    preferred_residency_geo: str = "us"
+    # OPTIONAL data-residency constraint for cross-region inference-profile
+    # routing. Bedrock exposes geo profiles (us./eu./apac./… — data stays in that
+    # geography) and a global. profile (routes worldwide). Every model works with
+    # any profile AWS offers for it; this only decides which one AWS Sync pins.
+    #   ""  (default) — no residency constraint: pin global. where offered (any
+    #        source Region, Global rate), else the geo profile covering the home
+    #        Region (aws_region_models), else the model's own Region.
+    #   a discovered geo (eu, apac, us, …) — only when data MUST stay in that
+    #        geography: pin an in-geo profile/Region first, global. last.
+    # Env: ARTSMOKER_PREFERRED_RESIDENCY_GEO.
+    preferred_residency_geo: str = ""
 
     # Note: LLM model IDs are configured in model_registry.json (categories section).
     # No hardcoded model IDs here — everything comes from the registry.

@@ -412,24 +412,18 @@ def _resolve_invoke_path(model_id: str) -> tuple[str, str]:
     """Resolve (invoke_endpoint, invoke_api) for a model from the registry.
 
     Reads the per-model ``invoke_endpoint``/``invoke_api`` that Sync stamped on
-    the ``chat_models`` entry (matched by model_id, with/without the ``us.``
-    profile prefix). Defaults to ("bedrock-runtime", "converse") when the model
-    isn't found or carries no routing — i.e. the Converse path stays the default
-    for everything not explicitly marked otherwise (Converse-first policy).
+    the ``chat_models`` entry (matched by model_id, else the same foundation model
+    under any profile prefix — global./us./eu./…). Defaults to ("bedrock-runtime",
+    "converse") when the model isn't found or carries no routing — i.e. the
+    Converse path stays the default for everything not explicitly marked
+    otherwise (Converse-first policy).
     """
     try:
-        from backend.services.model_registry import get_registry
-        mid = model_id or ""
-        bare = mid[3:] if mid.startswith("us.") else mid
-        for cfg in (get_registry().get("chat_models", {}) or {}).values():
-            cmid = cfg.get("model_id", "")
-            cbare = cmid[3:] if cmid.startswith("us.") else cmid
-            if cmid == mid or cbare == bare:
-                ep = cfg.get("invoke_endpoint")
-                api = cfg.get("invoke_api")
-                if ep and api:
-                    return ep, api
-                break
+        from backend.services.model_registry import find_chat_model
+        cfg = find_chat_model(model_id) or {}
+        ep, api = cfg.get("invoke_endpoint"), cfg.get("invoke_api")
+        if ep and api:
+            return ep, api
     except Exception:
         pass
     return "bedrock-runtime", "converse"
