@@ -2697,24 +2697,24 @@ def _probe_and_record_temperature(model_id: str, region: str, registry: dict):
     """Probe a model with `temperature` once and record support on its chat_models
     entry, so the param gate (_model_supports_temperature) needs no hardcoding.
 
-    A 1-token Converse call: if it succeeds, temperature is supported; if it fails
+    A tiny Converse call: if it succeeds, temperature is supported; if it fails
     specifically because temperature is unsupported/deprecated, record that. Other
     errors (throttling, access) are ignored — we don't want to mislabel on a fluke.
     """
     try:
-        import boto3 as _b
-        client = _b.client("bedrock-runtime", region_name=region)
+        from backend.services.bedrock_client import is_temperature_error
+        from backend.services.servability import PROBE_MAX_TOKENS, _runtime_client
         try:
-            client.converse(
+            _runtime_client(region).converse(
                 modelId=model_id,
                 messages=[{"role": "user", "content": [{"text": "hi"}]}],
-                inferenceConfig={"maxTokens": 1, "temperature": 0.0},
+                inferenceConfig={"maxTokens": PROBE_MAX_TOKENS, "temperature": 0.0},
             )
             supports = True
         except Exception as exc:
             txt = str(exc).lower()
-            if "temperature" in txt and ("not support" in txt or "deprecated" in txt
-                                         or "unsupported" in txt or "invalid" in txt):
+            # Same wording check as the chat self-heal (one source of truth).
+            if is_temperature_error(txt) or ("temperature" in txt and "invalid" in txt):
                 supports = False
             else:
                 return  # inconclusive — leave the entry untouched
@@ -2763,16 +2763,31 @@ def _backfill_temperature_support(registry: dict, progress=None) -> int:
     return probed
 
 
-def _probe_chat_servability(registry: dict, progress=None) -> dict:
-    """Probe every enabled chat model in each Region its pinned id routes from,
-    and record the Regions that don't answer (services/servability.py) — a Region
-    can list a model yet hang on it or reject it, which no listing shows.
+def _model_ids(cfg: dict, pmap: dict) -> list:
+    """Every id a chat model can be called by — the pinned id first, then each
+    other inference profile AWS offers for it and the plain id where some Region
+    serves it on demand. A Mantle model has one: Mantle takes bare ids only."""
+    pinned = cfg.get("model_id") or ""
+    if cfg.get("invoke_endpoint") == "bedrock-mantle":
+        return [pinned]
+    base = _strip_geo_prefix(pinned)
+    ids = [pinned] + [f"{g}.{base}" for g in sorted(pmap.get(_normalize_model_id(base)) or {})]
+    if cfg.get("on_demand_regions"):
+        ids.append(base)
+    return list(dict.fromkeys(ids))
 
-    Per model: dead Regions go to ``unservable_regions`` for the pinned id's kind
-    (replacing the previous record, runtime marks included); a pin on a dead
-    Region moves to a live one (home first). A model that AWS reports not found /
-    not served in EVERY probed Region isn't kept at all — no Region can serve it; a
-    Legacy model this account lost access to gets the per-account lifecycle mark.
+
+def _probe_chat_servability(registry: dict, progress=None) -> dict:
+    """Probe every enabled chat model by each id it can be called by (pinned id,
+    other profiles, plain id), in each Region that id routes from, and record the
+    Regions that don't answer (services/servability.py) — a Region can list a
+    model yet hang on it or reject it, which no listing shows.
+
+    Per model: dead Regions go to ``unservable_regions`` per id kind (replacing
+    the previous record, runtime marks included); a pin on a dead Region moves to
+    a live one (home first). A model that AWS reports not found / not served by
+    its pinned id in EVERY probed Region isn't kept at all — no Region can serve
+    it; a Legacy model this account lost access to gets the per-account lifecycle mark.
     If most probes fail, the problem is the environment (network, credentials),
     not the models: the previous record is kept and nothing is removed."""
     from concurrent.futures import ThreadPoolExecutor
@@ -2783,7 +2798,7 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
     from backend.services.model_registry import _lifecycle_usable
     chat = registry.get("chat_models", {}) or {}
     pmap = registry.get("inference_profiles", {}) or {}
-    jobs = []  # (key, model_id, region)
+    jobs = []  # (key, model_id, region) — every id × the Regions it routes from
     for key, cfg in chat.items():
         if cfg.get("enabled") is False or not _lifecycle_usable(cfg):
             continue
@@ -2792,8 +2807,8 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
         if cfg.get("model_source", "foundation") != "foundation" or not cfg.get("model_id"):
             continue
         fresh = {k: v for k, v in cfg.items() if k != "unservable_regions"}
-        jobs.extend((key, cfg["model_id"], r)
-                    for r in _model_usable_regions(cfg["model_id"], fresh, pmap))
+        for mid in _model_ids(cfg, pmap):
+            jobs.extend((key, mid, r) for r in _model_usable_regions(mid, fresh, pmap))
     if not jobs:
         return {"probed": 0}
     if progress:
@@ -2809,27 +2824,33 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
             progress(msg)
         return {"probed": len(results), "aborted": True}
 
-    per_model: dict = {}
+    per_model: dict = {}  # key → {model_id: {region: result}}
     for (key, mid, region), v in zip(jobs, results):
-        per_model.setdefault(key, (mid, {}))[1][region] = v
+        per_model.setdefault(key, {}).setdefault(mid, {})[region] = v
     now = datetime.now(timezone.utc).isoformat()
     cat_bases = {_strip_geo_prefix((c or {}).get("current", ""))
                  for c in (registry.get("categories", {}) or {}).values() if isinstance(c, dict)}
     home = settings.aws_region_models
     removed, repinned, legacy, marked = [], [], [], 0
-    for key, (mid, res) in per_model.items():
+    for key, by_id in per_model.items():
         cfg = chat[key]
-        kind = sv.id_kind(mid)
-        prev = sv.unservable_for(cfg, mid)
-        marks = {}
-        for region, v in res.items():
-            if v in (sv.OK, sv.LEGACY):
-                continue
-            if v:
-                marks[region] = {"reason": v, "detected_at": now}
-            elif region in prev:
-                marks[region] = prev[region]  # inconclusive → keep what was known
-        if all(v in sv.NOT_SERVED for v in res.values()) and _strip_geo_prefix(mid) not in cat_bases:
+        mid = cfg["model_id"]
+        res = by_id.get(mid) or {}  # the pinned id decides keep / Legacy / re-pin
+        records = {}
+        for probed_id, id_res in by_id.items():
+            prev = sv.unservable_for(cfg, probed_id)
+            id_marks = {}
+            for region, v in id_res.items():
+                if v in (sv.OK, sv.LEGACY):
+                    continue
+                if v:
+                    id_marks[region] = {"reason": v, "detected_at": now}
+                elif region in prev:
+                    id_marks[region] = prev[region]  # inconclusive → keep what was known
+            if id_marks:
+                records[sv.id_kind(probed_id)] = id_marks
+        marks = records.get(sv.id_kind(mid)) or {}
+        if res and all(v in sv.NOT_SERVED for v in res.values()) and _strip_geo_prefix(mid) not in cat_bases:
             del chat[key]
             removed.append(mid)
             continue
@@ -2840,9 +2861,9 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
             cfg["lifecycle_unavailable"] = {"reason": sv.LEGACY, "detected_at": now}
             legacy.append(mid)
             continue
-        if marks:
-            cfg["unservable_regions"] = {kind: marks}
-            marked += len(marks)
+        if records:
+            cfg["unservable_regions"] = records
+            marked += sum(len(m) for m in records.values())
         else:
             cfg.pop("unservable_regions", None)
         live = sorted(r for r in res if r not in marks)

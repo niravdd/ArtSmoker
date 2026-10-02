@@ -488,7 +488,7 @@ def is_temperature_error(msg: str) -> bool:
     models deprecate it). Lets callers self-heal: retry without it + record the fact."""
     m = (msg or "").lower()
     return "temperature" in m and any(t in m for t in (
-        "deprecat", "not support", "isn't support", "does not support",
+        "deprecat", "not support", "isn't support", "does not support", "doesn't support",
         "remove temperature", "unsupported"))
 
 

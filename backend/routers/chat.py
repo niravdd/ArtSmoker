@@ -405,7 +405,17 @@ async def chat_stream(req: ChatMessageRequest):
                     ),
                 })
             else:
-                yield sse({"type": "error", "detail": f"Validation error: {err_msg}"})
+                from backend.services.servability import mark_region_unservable, region_rejection
+                reason = None if full_text else region_rejection(err_msg)
+                if reason:
+                    # The Region won't run this model (for this account): skip it
+                    # until the next Sync, like a Region that doesn't answer.
+                    mark_region_unservable(model_id, region, reason)
+                    yield sse({"type": "error", "detail":
+                               f"{model_id} isn't available in {region} — that Region is now "
+                               "skipped for this model. Send again to use another Region."})
+                else:
+                    yield sse({"type": "error", "detail": f"Validation error: {err_msg}"})
         except client.exceptions.AccessDeniedException as exc:
             yield sse({"type": "error", "detail": f"Access denied for model {model_id}. Check IAM permissions or model access."})
         except Exception as exc:
@@ -485,8 +495,7 @@ def _model_usable_regions(model_id: str, cfg: dict, profile_map: dict) -> list:
     base = cfg.get("available_regions") or [r for r in (cfg.get("region"),) if r]
     if cfg.get("invoke_endpoint") == "bedrock-mantle" and cfg.get("mantle_regions"):
         base = cfg["mantle_regions"]
-    elif (strip_geo_prefix(model_id) == model_id and "on_demand_regions" in cfg
-          and "INFERENCE_PROFILE" in (cfg.get("inference_types") or [])):
+    elif strip_geo_prefix(model_id) == model_id and "on_demand_regions" in cfg:
         base = [r for r in base if r in cfg["on_demand_regions"]]
     from backend.services.servability import unservable_for
     dead = unservable_for(cfg, model_id)  # Regions that didn't answer this id

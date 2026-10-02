@@ -34,6 +34,11 @@ NOT_SERVED = {"not_found", "unsupported"}
 # Bedrock ValidationException wording for "this id isn't invocable here" (as
 # opposed to a bad request parameter, which says nothing about the Region).
 _UNSUPPORTED_HINTS = ("model identifier", "on-demand throughput")
+# Wording for a Region that won't run the model for THIS account (its data-
+# retention mode isn't offered there) — the model works elsewhere, so the Region
+# is skipped but the model is kept.
+NOT_AVAILABLE = "not_available"
+_NOT_AVAILABLE_HINTS = ("retention mode",)
 # Mantle 400 wording for an unknown model or a route the model doesn't serve.
 _MANTLE_NOT_SERVED_HINTS = ("not found", "does not exist", "does not support")
 
@@ -52,6 +57,17 @@ def id_kind(model_id: str) -> str:
 def unservable_for(cfg: dict, model_id: str) -> dict:
     """Recorded dead Regions ({Region: info}) for ``model_id``'s id kind."""
     return ((cfg.get("unservable_regions") or {}).get(id_kind(model_id))) or {}
+
+
+def region_rejection(message: str) -> str | None:
+    """What a Converse ValidationException says about its Region: NOT_AVAILABLE,
+    ``unsupported``, or None when it's about the request, not the Region."""
+    low = (message or "").lower()
+    if any(h in low for h in _NOT_AVAILABLE_HINTS):
+        return NOT_AVAILABLE
+    if any(h in low for h in _UNSUPPORTED_HINTS):
+        return "unsupported"
+    return None
 
 
 def _runtime_client(region: str):
@@ -87,15 +103,14 @@ def _probe_converse(model_id: str, region: str) -> str | None:
         except ClientError as exc:
             from backend.services.model_registry import is_legacy_unavailable_error
             code = (exc.response or {}).get("Error", {}).get("Code", "")
-            low = str(exc).lower()
             if is_legacy_unavailable_error(exc):
                 return LEGACY  # this account lost access to a Legacy model
             if code == "ResourceNotFoundException":
                 return "not_found"
             if code == "AccessDeniedException":
                 return "access_denied"
-            if code == "ValidationException" and any(h in low for h in _UNSUPPORTED_HINTS):
-                return "unsupported"
+            if code == "ValidationException":
+                return region_rejection(str(exc))
             return None
         except Exception:
             return None
@@ -104,16 +119,18 @@ def _probe_converse(model_id: str, region: str) -> str | None:
 
 def _probe_mantle(model_id: str, provider: str, region: str) -> str | None:
     """Try the model's Mantle routes in the order chat uses them (registry-derived
-    first, then the self-heal fallbacks). OK on the first that answers; a reason
-    only when every route failed definitively."""
+    first, then the self-heal fallbacks). OK on the first that answers; else
+    ``timeout`` if a route hung, else a reason only when every route failed
+    definitively."""
     import openai
     import requests
     from backend.services import mantle_client as mc
     msgs = [{"role": "user", "content": "Reply with OK."}]
     api_model = mc._bare_mantle_id(model_id)
     reasons = set()
-    for base_path, route in mc.mantle_invocation_candidates(model_id, provider):
-        for attempt in (1, 2):
+    for idx, (base_path, route) in enumerate(mc.mantle_invocation_candidates(model_id, provider)):
+        # The primary route gets a second try on a timeout; a fallback route one.
+        for attempt in ((1, 2) if idx == 0 else (2,)):
             try:
                 if route == "messages":
                     mc.invoke_messages(model_id, msgs, region=region,
@@ -133,7 +150,7 @@ def _probe_mantle(model_id: str, provider: str, region: str) -> str | None:
                 return OK
             except (openai.APITimeoutError, requests.Timeout):
                 if attempt == 2:
-                    return "timeout"  # the Region accepted the call and never answered
+                    reasons.add("timeout")  # hung — chat moves on to the next route too
             except openai.NotFoundError:
                 reasons.add("not_found")
                 break
@@ -158,6 +175,8 @@ def _probe_mantle(model_id: str, provider: str, region: str) -> str | None:
             except Exception:
                 reasons.add(None)
                 break
+    if "timeout" in reasons:
+        return "timeout"  # no route answered and one hung — chat would hang here too
     if None in reasons or not reasons:
         return None
     return "access_denied" if "access_denied" in reasons else "not_found"

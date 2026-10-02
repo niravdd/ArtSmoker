@@ -358,14 +358,13 @@ def valid_regions(cfg: dict, mid: str) -> list[str]:
     invoked from: a geo profile → the Regions it covers that the account has the
     model in; ``global.`` / an in-Region id → every Region the model is in. Per
     what the Sync recorded: a Mantle-served model → Regions whose Mantle lists it;
-    a plain id of a profile-capable model → Regions serving it on demand. Minus
+    a plain id → Regions serving it on demand (as listed by the Sync). Minus
     the Regions recorded as not answering this id kind (unservable_regions)."""
     avail = cfg.get("available_regions") or ([cfg["region"]] if cfg.get("region") else [])
     geo = _geo_of(mid)
     if cfg.get("invoke_endpoint") == "bedrock-mantle" and cfg.get("mantle_regions"):
         avail = cfg["mantle_regions"]
-    elif (not geo and "on_demand_regions" in cfg
-          and "INFERENCE_PROFILE" in (cfg.get("inference_types") or [])):
+    elif not geo and "on_demand_regions" in cfg:
         avail = [r for r in avail if r in cfg["on_demand_regions"]]
     avail = set(avail) - set(dead_regions(cfg, mid))
     if geo and geo != "global":
@@ -513,12 +512,22 @@ def _restart_recommendation(base, want):
     )
 
 
-def run_chat(base, model, region, max_tokens, timeout=90, model_id=None):
+# The server's per-route Mantle timeout (mantle_client._get_openai_client): a route
+# that hangs costs this long before chat falls back to the next one.
+MANTLE_ROUTE_TIMEOUT_S = 90
+
+
+def run_chat(base, model, region, max_tokens, timeout=None, model_id=None):
     # 90s: past the server's 60s Bedrock read timeout, so a stalled model surfaces
     # as the server's own error (logged inside this stage), and slow REASONING
-    # models (grok, kimi-thinking) aren't flagged as hangs. temperature is ALWAYS sent —
+    # models (grok, kimi-thinking) aren't flagged as hangs. A Mantle model gets
+    # room for one hung route + the fallback that answers (what a user waits for),
+    # so a recovered request isn't reported as a hang. temperature is ALWAYS sent —
     # the server must drop it for models the registry says reject it (gate by
     # foundation model, so every profile id of the model is gated).
+    if timeout is None:
+        timeout = (2 * MANTLE_ROUTE_TIMEOUT_S + 20 if model.get("invoke_endpoint") == "bedrock-mantle"
+                   else 90)
     payload = {
         "model_id": model_id or model["model_id"], "region": region, "messages": CHAT_PROMPT,
         "system_prompt": "", "temperature": 0.7, "max_tokens": max_tokens,
