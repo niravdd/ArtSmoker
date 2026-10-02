@@ -289,7 +289,8 @@ def registry_transaction():
         _save_nolock()        # persist the rebased + mutated result
 
 # Fields per model that are user-specific and should NOT be promoted to the base file
-_USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready", "lifecycle_unavailable"}
+_USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready", "lifecycle_unavailable",
+                     "unservable_regions"}
 # Chat-model price fields owned by the Sync (_apply_llm_pricing): when it drops
 # them, promote_to_base must drop them from base as well. `pricing_source` (a
 # hand-stamped price) is dropped once AWS publishes an official one.
@@ -1341,6 +1342,22 @@ def mark_lifecycle_unavailable(section: str, key: str, reason: str = "legacy_acc
     _save_user_pref(section, key, "lifecycle_unavailable", val)  # persist to user.json
     logger.info("Marked %s.%s lifecycle_unavailable (%s) — dropped from pickers", section, key, reason)
 
+
+
+def mark_chat_region_unservable(model_id: str, kind: str, region: str, info: dict) -> bool:
+    """Record (PER-USER, in user.json) that ``region`` didn't answer ``model_id``
+    (id kind ``kind`` — see services/servability.py), so Chat Studio stops offering
+    it and auto-routing picks another Region. False if the model is unknown."""
+    chat = _registry.get("chat_models", {})
+    cfg = find_chat_model(model_id, chat)
+    key = next((k for k, v in chat.items() if v is cfg), None)
+    if key is None:
+        return False
+    marks = dict(cfg.get("unservable_regions") or {})
+    marks[kind] = {**(marks.get(kind) or {}), region: info}
+    cfg["unservable_regions"] = marks                                   # live cache
+    _save_user_pref("chat_models", key, "unservable_regions", marks)    # persist to user.json
+    return True
 
 def get_video_model_keys_sorted() -> list[str]:
     """Return enabled video model keys sorted by label."""

@@ -904,6 +904,12 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
     return healed
 
 
+def _invocable(inference_types) -> bool:
+    """Whether a listing's inference types allow calling it without provisioned
+    throughput (on demand, or through an inference profile)."""
+    return bool({"ON_DEMAND", "INFERENCE_PROFILE"} & set(inference_types or ()))
+
+
 def _normalize_model_id(model_id: str) -> str:
     """Bare, comparable form of a model id for cross-endpoint matching.
 
@@ -1166,6 +1172,11 @@ async def auto_register_image_models(region: str):
         provider = m.get("providerName", "")
         inp = m.get("inputModalities", [])
         inference_types = m.get("inferenceTypesSupported", [])
+        if not _invocable(inference_types):
+            # Provisioned-throughput-only variant (e.g. a ':28k' context listing):
+            # its id can't be invoked on demand — the family's on-demand/profile
+            # variant represents the model.
+            return
 
         effective_id = model_id
         if "INFERENCE_PROFILE" in inference_types and not _has_geo_prefix(model_id):
@@ -1213,6 +1224,7 @@ async def auto_register_image_models(region: str):
             existing_name = existing.get("label", "")
 
             is_newer = (
+                not _invocable(existing.get("inference_types")) or
                 (new_lifecycle == "ACTIVE" and existing_lifecycle == "LEGACY") or
                 (new_lifecycle == existing_lifecycle and new_name > existing_name)
             )
@@ -2537,9 +2549,9 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
         """Region for a category switching to ``model_cfg``'s pinned id: keep the
         category's Region only if that id can be invoked from it (a geo profile
         routes only from its own geography), else the model's pinned Region."""
-        from backend.routers.chat import _usable_regions
-        usable = _usable_regions(model_cfg.get("model_id", ""), model_cfg.get("available_regions") or [],
-                                 registry.get("inference_profiles", {}))
+        from backend.routers.chat import _model_usable_regions
+        usable = _model_usable_regions(model_cfg.get("model_id", ""), model_cfg,
+                                       registry.get("inference_profiles", {}))
         return cur_region if cur_region in usable else (model_cfg.get("region") or cur_region)
 
     def _follow_repin(cat: dict, label: str) -> None:
@@ -2749,6 +2761,103 @@ def _backfill_temperature_support(registry: dict, progress=None) -> int:
         if progress:
             progress(msg)
     return probed
+
+
+def _probe_chat_servability(registry: dict, progress=None) -> dict:
+    """Probe every enabled chat model in each Region its pinned id routes from,
+    and record the Regions that don't answer (services/servability.py) — a Region
+    can list a model yet hang on it or reject it, which no listing shows.
+
+    Per model: dead Regions go to ``unservable_regions`` for the pinned id's kind
+    (replacing the previous record, runtime marks included); a pin on a dead
+    Region moves to a live one (home first). A model that AWS reports not found /
+    not served in EVERY probed Region isn't kept at all — no Region can serve it; a
+    Legacy model this account lost access to gets the per-account lifecycle mark.
+    If most probes fail, the problem is the environment (network, credentials),
+    not the models: the previous record is kept and nothing is removed."""
+    from concurrent.futures import ThreadPoolExecutor
+    from datetime import datetime, timezone
+    from backend.config import settings
+    from backend.routers.chat import _model_usable_regions
+    from backend.services import servability as sv
+    from backend.services.model_registry import _lifecycle_usable
+    chat = registry.get("chat_models", {}) or {}
+    pmap = registry.get("inference_profiles", {}) or {}
+    jobs = []  # (key, model_id, region)
+    for key, cfg in chat.items():
+        if cfg.get("enabled") is False or not _lifecycle_usable(cfg):
+            continue
+        if (cfg.get("lifecycle_status") or "ACTIVE").upper() == "EOL":
+            continue
+        if cfg.get("model_source", "foundation") != "foundation" or not cfg.get("model_id"):
+            continue
+        fresh = {k: v for k, v in cfg.items() if k != "unservable_regions"}
+        jobs.extend((key, cfg["model_id"], r)
+                    for r in _model_usable_regions(cfg["model_id"], fresh, pmap))
+    if not jobs:
+        return {"probed": 0}
+    if progress:
+        progress(f"Checking which Regions answer each chat model ({len(jobs)} routes)...")
+    with ThreadPoolExecutor(max_workers=24) as pool:
+        results = list(pool.map(lambda j: sv.probe_region(j[1], chat[j[0]], j[2]), jobs))
+    dead = sum(1 for v in results if v not in (sv.OK, None))
+    if len(results) >= 10 and dead * 2 > len(results):
+        msg = (f"Region check: {dead}/{len(results)} routes failed — looks environmental "
+               "(network/credentials); previous Region records kept")
+        logger.warning(msg)
+        if progress:
+            progress(msg)
+        return {"probed": len(results), "aborted": True}
+
+    per_model: dict = {}
+    for (key, mid, region), v in zip(jobs, results):
+        per_model.setdefault(key, (mid, {}))[1][region] = v
+    now = datetime.now(timezone.utc).isoformat()
+    cat_bases = {_strip_geo_prefix((c or {}).get("current", ""))
+                 for c in (registry.get("categories", {}) or {}).values() if isinstance(c, dict)}
+    home = settings.aws_region_models
+    removed, repinned, legacy, marked = [], [], [], 0
+    for key, (mid, res) in per_model.items():
+        cfg = chat[key]
+        kind = sv.id_kind(mid)
+        prev = sv.unservable_for(cfg, mid)
+        marks = {}
+        for region, v in res.items():
+            if v in (sv.OK, sv.LEGACY):
+                continue
+            if v:
+                marks[region] = {"reason": v, "detected_at": now}
+            elif region in prev:
+                marks[region] = prev[region]  # inconclusive → keep what was known
+        if all(v in sv.NOT_SERVED for v in res.values()) and _strip_geo_prefix(mid) not in cat_bases:
+            del chat[key]
+            removed.append(mid)
+            continue
+        if all(v == sv.LEGACY for v in res.values()):
+            # Legacy model this account stopped using → the existing per-account
+            # lifecycle exclusion (same record a failed chat call would leave).
+            cfg["lifecycle_unavailable"] = {"reason": sv.LEGACY, "detected_at": now}
+            legacy.append(mid)
+            continue
+        if marks:
+            cfg["unservable_regions"] = {kind: marks}
+            marked += len(marks)
+        else:
+            cfg.pop("unservable_regions", None)
+        live = sorted(r for r in res if r not in marks)
+        if cfg.get("region") in marks and live:
+            cfg["region"] = home if home in live else live[0]
+            repinned.append(f"{mid}→{cfg['region']}")
+    for mid in removed:
+        logger.info("Region check: %s isn't served in any Region — not registered", mid)
+    msg = (f"Region check: {len(results)} routes, {marked} not answering; "
+           f"{len(repinned)} pin(s) moved, {len(removed)} unservable model(s) dropped, "
+           f"{len(legacy)} Legacy model(s) this account can no longer use")
+    logger.info(msg + (f" (moved: {', '.join(repinned)})" if repinned else ""))
+    if progress:
+        progress(msg)
+    return {"probed": len(results), "unservable": marked, "repinned": repinned,
+            "removed": removed, "legacy_unavailable": legacy}
 
 
 @router.get("/3d/export-targets")
@@ -3022,6 +3131,14 @@ def _run_refresh_all_regions():
             _backfill_temperature_support(registry, _progress)
         except Exception as exc:
             logger.warning("Temperature-support backfill skipped: %s", exc)
+
+        # Step 4c-quater: Which Regions actually answer each chat model (some list a
+        # model yet hang on it). Records dead Regions per account, moves pins off
+        # them, and drops models no Region serves. After pinning, before pricing.
+        try:
+            _probe_chat_servability(registry, _progress)
+        except Exception as exc:
+            logger.warning("Region check skipped: %s", exc)
 
         # Step 4d: Prune — disable models not found in any region this scan.
         disabled = []

@@ -409,6 +409,7 @@ def invoke_messages(
     temperature: float | None = None,
     extra: dict | None = None,
     usage_out: dict | None = None,
+    timeout: float = 120,
 ) -> str:
     """Anthropic Messages API on Mantle (e.g. Claude Mythos is Messages-only).
 
@@ -435,7 +436,7 @@ def invoke_messages(
             "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
         }
-        resp = requests.post(url, json=body, headers=headers, timeout=120)
+        resp = requests.post(url, json=body, headers=headers, timeout=timeout)
         resp.raise_for_status()
         data = resp.json()
         _capture_usage(usage_out, data.get("usage"))

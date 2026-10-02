@@ -87,6 +87,8 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
     provider = (find_chat_model(model_id) or {}).get("provider", "")
 
     def generate():
+        import openai
+        import requests
         from backend.services import mantle_client as mc
         from backend.services.bedrock_client import _model_supports_temperature
         start = time.time()
@@ -148,6 +150,7 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
             committed = False
             used = None
             errors = []
+            timed_out = False
             for idx, (base_path, route) in enumerate(candidates):
                 try:
                     for piece in _open(base_path, route):
@@ -166,7 +169,12 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
                     if committed:
                         raise  # already streaming — don't restart, surface below
                     errors.append(f"{base_path}|{route}: {str(e)[:50]}")
+                    timed_out = timed_out or isinstance(e, (openai.APITimeoutError, requests.Timeout))
 
+            if not committed and timed_out:
+                # No route answered and the Region hung: skip it until the next Sync.
+                from backend.services.servability import mark_region_unservable
+                mark_region_unservable(model_id, mc.mantle_region_for(region))
             if not committed:
                 yield sse({"type": "error",
                            "detail": f"Mantle: no working route for {model_id} — {'; '.join(errors[:4])}"})
@@ -214,6 +222,13 @@ async def chat_stream(req: ChatMessageRequest):
 
     model_id = req.model_id
     region = req.region or _resolve_chat_region(model_id)
+    if req.region:
+        # A Region recorded as not answering this id (e.g. the picker still shows
+        # it after a timeout) → route like an unset Region instead of hanging again.
+        from backend.services.model_registry import find_chat_model
+        from backend.services.servability import unservable_for
+        if req.region in unservable_for(find_chat_model(model_id) or {}, model_id):
+            region = _resolve_chat_region(model_id)
 
     # Route by the model's resolved invoke path. Mantle-only models (e.g. OpenAI
     # GPT-5.x via Responses, GLM/Grok via Chat Completions, Claude Mythos via
@@ -404,6 +419,15 @@ async def chat_stream(req: ChatMessageRequest):
                            f"{model_id} has reached end-of-life at AWS and is no longer "
                            "available. It's been removed — pick another model."})
                 return
+            from botocore.exceptions import ConnectTimeoutError, ReadTimeoutError
+            if isinstance(exc, (ReadTimeoutError, ConnectTimeoutError)) and not full_text:
+                # The Region never answered: skip it until the next Sync re-checks.
+                from backend.services.servability import mark_region_unservable
+                mark_region_unservable(model_id, region)
+                yield sse({"type": "error", "detail":
+                           f"{model_id} did not answer in {region} — that Region is now "
+                           "skipped for this model. Send again to use another Region."})
+                return
             logger.error("Chat stream error: %s", exc)
             if "content" in err_msg.lower() or "safety" in err_msg.lower() or "blocked" in err_msg.lower():
                 yield sse({
@@ -455,7 +479,8 @@ def _model_usable_regions(model_id: str, cfg: dict, profile_map: dict) -> list:
     invoked, from what the Sync recorded. A Mantle-served model → the Regions whose
     Mantle catalog lists it (it differs by Region). A plain id → the Regions that
     serve it on demand (some Regions serve it only through a profile). Then
-    narrowed to the profile's coverage by ``_usable_regions``."""
+    narrowed to the profile's coverage by ``_usable_regions``, minus the Regions
+    recorded as not answering this id (services/servability.py)."""
     from backend.services.model_registry import strip_geo_prefix
     base = cfg.get("available_regions") or [r for r in (cfg.get("region"),) if r]
     if cfg.get("invoke_endpoint") == "bedrock-mantle" and cfg.get("mantle_regions"):
@@ -463,7 +488,9 @@ def _model_usable_regions(model_id: str, cfg: dict, profile_map: dict) -> list:
     elif (strip_geo_prefix(model_id) == model_id and "on_demand_regions" in cfg
           and "INFERENCE_PROFILE" in (cfg.get("inference_types") or [])):
         base = [r for r in base if r in cfg["on_demand_regions"]]
-    return _usable_regions(model_id, base, profile_map)
+    from backend.services.servability import unservable_for
+    dead = unservable_for(cfg, model_id)  # Regions that didn't answer this id
+    return [r for r in _usable_regions(model_id, base, profile_map) if r not in dead]
 
 
 @router.get("/models")
@@ -503,6 +530,7 @@ async def list_chat_models():
 
     # 1. chat_models (discovered text LLMs — the comprehensive source)
     from backend.services.model_registry import _lifecycle_usable
+    from backend.services.servability import unservable_for
     for key, cfg in registry.get("chat_models", {}).items():
         if not cfg.get("enabled", True) or not _lifecycle_usable(cfg):
             continue
@@ -519,6 +547,9 @@ async def list_chat_models():
         # category on another profile of the model never swaps the id shown here.
         is_active = strip_geo_prefix(mid) in active_cat_bases
         effective_id = mid
+        usable = _model_usable_regions(effective_id, cfg, registry.get("inference_profiles", {}))
+        if not usable and unservable_for(cfg, effective_id):
+            continue  # no Region answers this model (recorded by Sync / a timeout)
 
         models.append({
             "key": key,
@@ -527,8 +558,7 @@ async def list_chat_models():
             "provider": cfg.get("provider", ""),
             "region": cfg.get("region", ""),
             "available_regions": cfg.get("available_regions", []),
-            "usable_regions": _model_usable_regions(
-                effective_id, cfg, registry.get("inference_profiles", {})),
+            "usable_regions": usable,
             "has_vision": cfg.get("has_vision", False),
             "streaming_supported": cfg.get("streaming_supported", True),
             "max_context_tokens": cfg.get("max_context_tokens", 128000),
@@ -963,7 +993,8 @@ def _resolve_chat_region(model_id: str) -> str:
     Resolved by foundation model, so any profile id (us./global./eu./…) of a
     registered model finds it. The pinned Region serves the pinned id; another
     profile of the same model needs a Region that profile covers (a geo profile
-    only routes from its own geography). Falls back to the home Region."""
+    only routes from its own geography). A Region recorded as not answering the
+    id is skipped (services/servability.py). Falls back to the home Region."""
     from backend.config import settings
     from backend.services.model_registry import get_registry, find_chat_model
     registry = get_registry()
@@ -977,9 +1008,7 @@ def _resolve_chat_region(model_id: str) -> str:
                 return cat.get("region") or home
         return home
     pinned = cfg.get("region") or home
-    if cfg.get("model_id") == model_id:
-        return pinned
     usable = _model_usable_regions(model_id, cfg, registry.get("inference_profiles", {}))
-    if pinned in usable:
+    if pinned in usable or (cfg.get("model_id") == model_id and not usable):
         return pinned
     return home if home in usable else (usable[0] if usable else pinned)

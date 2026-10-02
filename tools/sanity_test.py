@@ -19,8 +19,9 @@ DESIGN
   and captures the excerpt so you can confirm the action was recorded.
 
 SELECTION (matches the agreed scope; all configurable)
-- chat  : per provider, the top N tiers × top N newest versions each (default 2×2),
-          excluding non-text modalities (rerank / vision-only / audio / video-understanding).
+- chat  : per provider, the top N tiers × top N newest versions each (default 2×2;
+          0 = all), excluding models no Region answers (hidden by the server) and
+          non-text modalities (rerank / vision-only / audio / video-understanding).
 - image : Stability "SD" text-to-image models only.
 - video : every enabled video model.
 Region scope: every Region a route can be served from ("all"), or one per route.
@@ -34,7 +35,8 @@ it). Each call asserts: the id invoked, a Region that id can be served from, and
 the cost billed at the registry's official rate for THAT route (Global vs
 regional). A pass that needed the server's temperature self-heal is a FAIL.
 
-REGISTRY stage (no invocations): pins are offered profiles in covered Regions,
+REGISTRY stage (no invocations): pins are offered profiles in covered Regions that
+answer (Regions the Sync probe recorded as not answering are excluded),
 pin posture follows the residency setting, categories hold their model's current
 pin, /api/chat/models serves each entry's own id + an exact Region picker + the
 active flags, no duplicate foundation models, Global rate ≤ regional rate.
@@ -45,7 +47,7 @@ USAGE
   python3 tools/sanity_test.py --region-scope pinned   # one Region per route
   python3 tools/sanity_test.py --geo-scope pinned      # chat: pinned id only
   python3 tools/sanity_test.py --stages registry       # static consistency only
-  python3 tools/sanity_test.py --tiers 2 --versions 2  # selection depth
+  python3 tools/sanity_test.py --tiers 2 --versions 2  # selection depth (0 0 = every model)
   python3 tools/sanity_test.py --limit 5               # smoke-test the harness itself
   python3 tools/sanity_test.py --base-url http://127.0.0.1:8000
 
@@ -263,6 +265,8 @@ def select_chat_models(reg: dict, tiers: int, versions: int, include_custom: boo
             continue
         if not c.get("model_id") or not (c.get("available_regions") or c.get("region")):
             continue
+        if dead_regions(c, c["model_id"]) and not valid_regions(c, c["model_id"]):
+            continue  # no Region answers it — the server hides it from Chat Studio
         cand.append({**c, "key": key})
     # group by provider → tier → members
     by_prov = defaultdict(lambda: defaultdict(list))
@@ -272,8 +276,8 @@ def select_chat_models(reg: dict, tiers: int, versions: int, include_custom: boo
     for prov, tier_map in by_prov.items():
         ranked_tiers = sorted(tier_map.items(),
                               key=lambda kv: (max(_recency(m) for m in kv[1]), kv[0]), reverse=True)
-        for _tier, members in ranked_tiers[:tiers]:
-            for c in sorted(members, key=_recency, reverse=True)[:versions]:
+        for _tier, members in ranked_tiers[:tiers or None]:     # 0 = every tier
+            for c in sorted(members, key=_recency, reverse=True)[:versions or None]:
                 selected.append(c)
     return selected
 
@@ -354,7 +358,8 @@ def valid_regions(cfg: dict, mid: str) -> list[str]:
     invoked from: a geo profile → the Regions it covers that the account has the
     model in; ``global.`` / an in-Region id → every Region the model is in. Per
     what the Sync recorded: a Mantle-served model → Regions whose Mantle lists it;
-    a plain id of a profile-capable model → Regions serving it on demand."""
+    a plain id of a profile-capable model → Regions serving it on demand. Minus
+    the Regions recorded as not answering this id kind (unservable_regions)."""
     avail = cfg.get("available_regions") or ([cfg["region"]] if cfg.get("region") else [])
     geo = _geo_of(mid)
     if cfg.get("invoke_endpoint") == "bedrock-mantle" and cfg.get("mantle_regions"):
@@ -362,10 +367,16 @@ def valid_regions(cfg: dict, mid: str) -> list[str]:
     elif (not geo and "on_demand_regions" in cfg
           and "INFERENCE_PROFILE" in (cfg.get("inference_types") or [])):
         avail = [r for r in avail if r in cfg["on_demand_regions"]]
-    avail = set(avail)
+    avail = set(avail) - set(dead_regions(cfg, mid))
     if geo and geo != "global":
         return sorted(set(profiles_for(mid).get(geo) or ()) & avail)
     return sorted(avail)
+
+
+def dead_regions(cfg: dict, mid: str) -> dict:
+    """{Region: info} the Sync probe (or a chat timeout) recorded as not answering
+    this id kind — the server skips them (services/servability.py)."""
+    return ((cfg.get("unservable_regions") or {}).get(_geo_of(mid))) or {}
 
 
 def server_settings() -> dict:
@@ -418,7 +429,8 @@ def chat_routes(cfg: dict, scope: str, served: dict | None, home: str) -> list[d
             continue
         chosen = _pick_one(regions, cfg.get("region"), home) if scope == "pinned" else regions
         out += [{"id": mid, "kind": kind, "region": r, "expect": [r]} for r in chosen]
-        expect_auto = [cfg["region"]] if mid == pinned and cfg.get("region") else regions
+        expect_auto = ([cfg["region"]] if mid == pinned and cfg.get("region") in regions
+                       else regions)
         out.append({"id": mid, "kind": kind + "/auto", "region": None, "expect": expect_auto})
     return out
 
@@ -1022,6 +1034,10 @@ def registry_checks(base, reg) -> list[dict]:
         elif pin and served and pin not in served:
             row("pin-servable", k, False, f"{mid} pinned @ {pin} — servable only in "
                 f"{', '.join(served)}", pin)
+        elif not served and dead_regions(c, mid):
+            row("pin-servable", k, False, f"{mid}: no Region answers it ("
+                + ", ".join(f"{r}: {i.get('reason')}" for r, i in dead_regions(c, mid).items())
+                + ") — hidden from Chat Studio", pin, warn=True)
         elif not served:
             row("pin-servable", k, False, f"{mid}: no Region can serve this id", pin)
         else:
@@ -1130,8 +1146,8 @@ def main():
     ap.add_argument("--concurrency", type=int, default=10,
                     help="parallel in-flight requests per stage (hides cross-geo hangs)")
     ap.add_argument("--log-path", default="", help="server log file to verify (default logs/artsmoker.log)")
-    ap.add_argument("--tiers", type=int, default=2, help="top N tiers per provider (chat)")
-    ap.add_argument("--versions", type=int, default=2, help="top N versions per tier (chat)")
+    ap.add_argument("--tiers", type=int, default=2, help="top N tiers per provider (chat; 0 = all)")
+    ap.add_argument("--versions", type=int, default=2, help="top N versions per tier (chat; 0 = all)")
     ap.add_argument("--include-custom", action="store_true",
                     help="also test self-deployed custom models (default: native/foundation only)")
     ap.add_argument("--skip-server-check", action="store_true",
