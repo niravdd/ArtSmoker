@@ -458,8 +458,12 @@ def model_card_pricing(workers: int = 8) -> dict:
             if not card or not (card["rates"] or card["threshold_tokens"]):
                 continue
             for mid in card["model_ids"]:
-                out[mid] = {"threshold_tokens": card["threshold_tokens"],
-                            "rates": card["rates"], "card": slug[:-5]}
+                entry = {"threshold_tokens": card["threshold_tokens"],
+                         "rates": card["rates"], "card": slug[:-5]}
+                out[mid] = entry
+                # Cards may list only a profile id (global./us./…) — also key
+                # the foundation id, which is what the pricing pass looks up.
+                out.setdefault(base_model_id(mid.strip()), entry)
     logger.info("Model cards: %d of %d publish pricing details", len(out), len(slugs))
     return out
 
@@ -567,18 +571,29 @@ class NameIndex:
 
     def __init__(self, names, vendors=()):
         phrases = sorted({tuple(v.split()) for v in vendors if v}, key=len, reverse=True)
-        self._names = []  # (tokens, price name, vendor key the tokens dropped | None)
+        # (tokens, price name, vendor key the tokens dropped | None, published
+        # as-is — False for a noise-trimmed variant)
+        self._names = []
         for n in set(names):
             norm = norm_name(n)
-            self._names.extend((v, n, None) for v in _name_variants(norm))
             toks = tuple(norm.split())
+            self._names.extend((v, n, None, v == toks) for v in _name_variants(norm))
             for vt in phrases:
                 rest = _strip_vendor(toks, vt)
                 if rest:
-                    self._names.extend((v, n, "".join(vt)) for v in _name_variants(" ".join(rest)))
+                    self._names.extend((v, n, "".join(vt), v == rest)
+                                       for v in _name_variants(" ".join(rest)))
                     break
 
     def best(self, label: str, model_id: str, provider: str = ""):
+        tied = self.matches(label, model_id, provider)
+        return tied[0] if tied else None
+
+    def matches(self, label: str, model_id: str, provider: str = "") -> list:
+        """Every price name tied for the best match, sorted. AWS sometimes lists
+        one model under two names ('Qwen3 Next 80B A3B' and 'qwen3-next-80b-a3b',
+        each covering different Regions) — callers merge them rather than take
+        whichever a set happened to yield first."""
         own = model_vendors(provider, model_id)
         own_keys = {v.replace(" ", "") for v in own}
         mid = re.sub(r"(:[0-9a-z]+)+$", "", strip_geo_prefix(model_id or ""))
@@ -590,8 +605,8 @@ class NameIndex:
                 rest = _strip_vendor(tuple(norm.split()), tuple(v.split()))
                 if rest:
                     cands |= _name_variants(" ".join(rest)) - {()}
-        best, best_score = None, None
-        for ptoks, name, vkey in self._names:
+        best, best_score = set(), None
+        for ptoks, name, vkey, as_is in self._names:
             if vkey and not _same_vendor(vkey, own_keys):
                 continue
             for ctoks in cands:
@@ -604,9 +619,14 @@ class NameIndex:
                     score = (0, len(ptoks), True)  # same tokens, other order ('Ministral 8B 3.0')
                 else:
                     continue
+                # A name as AWS published it beats another name's noise-trimmed
+                # form: 'Mistral Large' — not 'Mistral Large 2407' trimmed to it.
+                score += (as_is,)
                 if best_score is None or score > best_score:
-                    best, best_score = name, score
-        return best
+                    best, best_score = {name}, score
+                elif score == best_score:
+                    best.add(name)
+        return sorted(best)
 
 
 # ── Rate selection (shared by the Sync and cost_tracker) ──────────────────

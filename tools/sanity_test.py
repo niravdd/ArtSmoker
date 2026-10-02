@@ -23,12 +23,28 @@ SELECTION (matches the agreed scope; all configurable)
           excluding non-text modalities (rerank / vision-only / audio / video-understanding).
 - image : Stability "SD" text-to-image models only.
 - video : every enabled video model.
-Region scope: every region a model is available in ("all"), or its pinned region only.
+Region scope: every Region a route can be served from ("all"), or one per route.
+
+ROUTES (chat) — every inference profile AWS offers is exercised, not just the pin
+(geos come from the registry's discovered inference_profiles; a new geo is picked
+up with no code change): the pinned id from each Region Chat Studio offers, every
+other profile (global. + each geo) from each Region it covers, the plain in-Region
+id where on-demand is supported, and each id with NO Region (server must route
+it). Each call asserts: the id invoked, a Region that id can be served from, and
+the cost billed at the registry's official rate for THAT route (Global vs
+regional). A pass that needed the server's temperature self-heal is a FAIL.
+
+REGISTRY stage (no invocations): pins are offered profiles in covered Regions,
+pin posture follows the residency setting, categories hold their model's current
+pin, /api/chat/models serves each entry's own id + an exact Region picker + the
+active flags, no duplicate foundation models, Global rate ≤ regional rate.
 
 USAGE
   python3 tools/sanity_test.py                         # all stages, all regions
   python3 tools/sanity_test.py --stages chat           # one stage
-  python3 tools/sanity_test.py --region-scope pinned   # pinned region only
+  python3 tools/sanity_test.py --region-scope pinned   # one Region per route
+  python3 tools/sanity_test.py --geo-scope pinned      # chat: pinned id only
+  python3 tools/sanity_test.py --stages registry       # static consistency only
   python3 tools/sanity_test.py --tiers 2 --versions 2  # selection depth
   python3 tools/sanity_test.py --limit 5               # smoke-test the harness itself
   python3 tools/sanity_test.py --base-url http://127.0.0.1:8000
@@ -288,10 +304,133 @@ def select_video_models(reg: dict, include_custom: bool = False) -> list[dict]:
 
 
 def regions_for(cfg: dict, scope: str) -> list[str]:
+    """Regions the entry's PINNED id can be invoked from (a geo profile id only
+    from the Regions that profile covers) — all of them, or just the pin."""
     if scope == "pinned":
         return [cfg.get("region")] if cfg.get("region") else (cfg.get("available_regions") or [])[:1]
-    regs = cfg.get("available_regions") or ([cfg["region"]] if cfg.get("region") else [])
-    return sorted(set(regs))
+    return valid_regions(cfg, cfg.get("model_id", "")) or \
+        ([cfg["region"]] if cfg.get("region") else [])
+
+
+# ── Inference-profile routes (every geo AWS offers, all from the registry) ────
+_REG_CACHE: dict = {}
+
+
+def _profile_map() -> dict:
+    if "pmap" not in _REG_CACHE:
+        _REG_CACHE["pmap"] = json.loads(REGISTRY_PATH.read_text()).get("inference_profiles") or {}
+    return _REG_CACHE["pmap"]
+
+
+def _norm_base(mid: str) -> str:
+    """Profile-map key for an id — same normalization the Sync keys it by
+    (geo prefix, ':qualifier', trailing '-vN' and a size-suffixed '-N' dropped)."""
+    s = _strip_geo(mid).split(":")[0]
+    s = re.sub(r"-v\d+$", "", s)
+    return re.sub(r"(\d+b)-\d+$", r"\1", s)
+
+
+def profiles_for(mid: str) -> dict:
+    """{geo: [Regions that profile covers]} AWS offers for this foundation model."""
+    return _profile_map().get(_norm_base(mid)) or {}
+
+
+def _geo_of(mid: str) -> str:
+    """The id's profile geo ('global', 'us', 'eu', …) or '' for an in-Region id."""
+    return mid.split(".", 1)[0] if _strip_geo(mid) != mid else ""
+
+
+def valid_regions(cfg: dict, mid: str) -> list[str]:
+    """Regions ``mid`` (any profile/plain id of this entry's model) can be
+    invoked from: a geo profile → the Regions it covers that the account has the
+    model in; ``global.`` / an in-Region id → every Region the model is in."""
+    avail = set(cfg.get("available_regions") or ([cfg["region"]] if cfg.get("region") else []))
+    geo = _geo_of(mid)
+    if geo and geo != "global":
+        return sorted(set(profiles_for(mid).get(geo) or ()) & avail)
+    return sorted(avail)
+
+
+def server_settings() -> dict:
+    """Residency + home Regions as the server reads them (config.py / .env)."""
+    try:
+        sys.path.insert(0, str(ROOT))
+        from backend.config import settings
+        return {"residency": (settings.preferred_residency_geo or "").strip().lower(),
+                "home_models": settings.aws_region_models, "home_images": settings.aws_region_images}
+    except Exception:
+        return {"residency": "", "home_models": "", "home_images": ""}
+
+
+def _pick_one(regions: list, *prefer) -> list:
+    for r in prefer:
+        if r and r in regions:
+            return [r]
+    return regions[:1]
+
+
+def chat_routes(cfg: dict, scope: str, served: dict | None, home: str) -> list[dict]:
+    """Every way a user/app can invoke this model, each checked independently:
+      - the pinned id from every Region Chat Studio offers for it (served usable_regions)
+      - EVERY other inference profile AWS offers (global. + each geo), from each
+        Region that profile covers — a lookup keyed by one exact id breaks here
+      - the plain in-Region id where the model supports on-demand
+      - each id with NO Region (the server must route it to a Region it can serve)
+    `scope=pinned` keeps one Region per route (the home/pinned Region when valid)."""
+    pinned = cfg.get("model_id", "")
+    base = _strip_geo(pinned)
+    out = []
+    pin_regions = sorted((served or {}).get("usable_regions") or regions_for(cfg, "all"))
+    ids = [(pinned, "pinned:" + (_geo_of(pinned) or "in-region"), pin_regions)]
+    for geo in sorted(profiles_for(pinned)):
+        mid = f"{geo}.{base}"
+        if mid != pinned:
+            ids.append((mid, geo, valid_regions(cfg, mid)))
+    if "ON_DEMAND" in (cfg.get("inference_types") or []) and base != pinned:
+        ids.append((base, "in-region", valid_regions(cfg, base)))
+    for mid, kind, regions in ids:
+        if not regions:
+            out.append({"id": mid, "kind": kind, "region": "", "expect": [], "skip":
+                        "no Region this account has the model in is covered by this profile"})
+            continue
+        chosen = _pick_one(regions, cfg.get("region"), home) if scope == "pinned" else regions
+        out += [{"id": mid, "kind": kind, "region": r, "expect": [r]} for r in chosen]
+        expect_auto = [cfg["region"]] if mid == pinned and cfg.get("region") else regions
+        out.append({"id": mid, "kind": kind + "/auto", "region": None, "expect": expect_auto})
+    return out
+
+
+def expected_llm_cost(reg: dict, mid: str, region: str, tin: int, tout: int):
+    """Independent re-derivation of what one call must cost from the registry's
+    official rates: the Region's rate set (or its geography's / '*'), the Global
+    rate for a global. id and the regional rate otherwise (each falling back to
+    the other). None when the registry has no price for the model."""
+    cms = reg.get("chat_models", {}) or {}
+    base = _strip_geo(mid)
+    cm = next((c for c in cms.values() if c.get("model_id") == mid), None) or \
+        next((c for c in cms.values() if _strip_geo(c.get("model_id", "")) == base), None)
+    if not cm:
+        return None
+    tp = cm.get("token_pricing") or {}
+    by_region = tp.get("by_region") or {}
+    rates = by_region.get(region)
+    if rates is None and region:
+        g = region.split("-", 1)[0].upper()
+        rates = next((by_region[k] for k in (f"geo:{g}", "geo:AP" if g == "AP" else "",
+                                             "geo:APAC" if g == "AP" else "") if k and k in by_region), None)
+    rates = rates or by_region.get("*") or tp.get("rates") or {}
+    order = ("global_", "") if mid.startswith("global.") else ("", "global_")
+    io = next(((rates[f"{p}input_per_1k"], rates[f"{p}output_per_1k"]) for p in order
+               if rates.get(f"{p}input_per_1k") is not None
+               and rates.get(f"{p}output_per_1k") is not None), None)
+    if not io:
+        pr = (cm.get("token_pricing_by_region") or {}).get(region) or {}
+        io = (pr.get("input_per_1k"), pr.get("output_per_1k")) if pr else None
+    if not io or not any(io):
+        io = (cm.get("input_price_per_1k"), cm.get("output_price_per_1k"))
+    if not any(io):
+        return None
+    return round(tin * (io[0] or 0) / 1000 + tout * (io[1] or 0) / 1000, 6)
 
 
 # ── Stage runners (drive the real endpoints) ─────────────────────────────────
@@ -339,11 +478,13 @@ def _restart_recommendation(base, want):
     )
 
 
-def run_chat(base, model, region, max_tokens, timeout=45):
+def run_chat(base, model, region, max_tokens, timeout=45, model_id=None):
     # 45s (not 25) so slow REASONING models (grok, kimi-thinking) that legitimately
-    # take ~20-40s aren't flagged as cross-geo hangs.
+    # take ~20-40s aren't flagged as cross-geo hangs. temperature is ALWAYS sent —
+    # the server must drop it for models the registry says reject it (gate by
+    # foundation model, so every profile id of the model is gated).
     payload = {
-        "model_id": model["model_id"], "region": region, "messages": CHAT_PROMPT,
+        "model_id": model_id or model["model_id"], "region": region, "messages": CHAT_PROMPT,
         "system_prompt": "", "temperature": 0.7, "max_tokens": max_tokens,
     }
     try:
@@ -354,15 +495,53 @@ def run_chat(base, model, region, max_tokens, timeout=45):
         return False, f"timeout/no-response after {timeout}s ({type(e).__name__}) — region likely can't serve this id"
     err = next((e for e in events if e.get("type") == "error"), None)
     blocked = next((e for e in events if e.get("type") == "content_blocked"), None)
+    meta = next((e for e in events if e.get("type") == "metadata"), None)
     text = "".join(e.get("text", "") for e in events if e.get("type") == "delta")
     got_stop = any(e.get("type") == "stop" for e in events)
     if err:
-        return False, f"error: {err.get('detail', '')[:120]}"
+        return False, f"error: {err.get('detail', '')[:120]}", meta
     if blocked:
-        return False, "content_blocked"
+        return False, "content_blocked", meta
     if text.strip() or got_stop:
-        return True, (text.strip()[:60] or "(stop, no text)")
-    return False, f"no output ({len(events)} events)"
+        return True, (text.strip()[:60] or "(stop, no text)"), meta
+    return False, f"no output ({len(events)} events)", meta
+
+
+def run_chat_route(base, reg, model, route, max_tokens):
+    """One route of a model (chat_routes) + the checks that make it correct, not
+    just 'it answered': the server invoked the id asked for, from a Region that
+    route can be served from, and billed it at the registry's rate for THAT
+    route (Global rate for global., regional otherwise)."""
+    if route.get("skip"):
+        return None, f"SKIP {route['skip']}"
+    ok, detail, meta = run_chat(base, model, route["region"], max_tokens, model_id=route["id"])
+    if not ok:
+        return False, detail
+    if not meta:
+        return False, f"{detail} | no metadata event (tokens/cost/route not reported)"
+    problems = []
+    if meta.get("model_id") and meta["model_id"] != route["id"]:
+        problems.append(f"invoked {meta['model_id']} instead of {route['id']}")
+    used = meta.get("region") or ""
+    if route["expect"] and used not in route["expect"]:
+        problems.append(f"routed to {used or '?'} — not a Region this id can be served from "
+                        f"({', '.join(route['expect'][:6])})")
+    tin, tout = int(meta.get("input_tokens") or 0), int(meta.get("output_tokens") or 0)
+    cost = float(meta.get("cost_usd") or 0)
+    want = expected_llm_cost(reg, route["id"], used, tin, tout)
+    if want is None:
+        note = "unpriced in registry"
+    elif tin + tout == 0:
+        note = "no token usage reported"
+        problems.append(note)
+    elif abs(cost - want) > max(2e-6, 0.02 * want):
+        problems.append(f"cost ${cost:.6f} ≠ registry rate ${want:.6f} for {route['kind']} @ {used}")
+        note = ""
+    else:
+        note = f"${cost:.6f}"
+    if problems:
+        return False, f"{detail} | " + "; ".join(problems)
+    return True, f"{detail} | {used} {tin}+{tout} tok {note}"
 
 
 def run_image(base, model, region):
@@ -769,13 +948,144 @@ def run_video(base, model, region, timeout):
     return False, f"job {job_id} timeout after {timeout}s (last: {last})", job_id
 
 
+# ── Registry / routing consistency (no invocations) ─────────────────────────
+def registry_checks(base, reg) -> list[dict]:
+    """Static checks that every pin, category and served id is one the app can
+    actually invoke — the failures here are the ones a single happy-path call
+    never shows (stale category ids, a profile pinned in a Region it doesn't
+    cover, Chat Studio serving another model's id, a Region picker offering a
+    Region the id can't route from). Rows: PASS / FAIL / WARN (WARN never fails)."""
+    rows = []
+    cfgs = server_settings()
+    residency, home = cfgs["residency"], cfgs["home_models"]
+
+    def row(check, name, ok, detail, region="", warn=False):
+        rows.append({"model": name, "key": check, "model_id": "", "region": region,
+                     "route": check, "invoke_ok": ok,
+                     "status": "PASS" if ok else ("WARN" if warn else "FAIL"), "detail": detail})
+
+    chat = {k: c for k, c in (reg.get("chat_models") or {}).items() if isinstance(c, dict)}
+    enabled = {k: c for k, c in chat.items() if c.get("enabled") is not False}
+
+    # 1) Every geo-prefixed pin (chat / image / post-processing) is a profile AWS
+    #    offers for that model, pinned in a Region the profile covers.
+    for section in ("chat_models", "image_models", "post_processing"):
+        for k, c in (reg.get(section) or {}).items():
+            mid = (c or {}).get("model_id", "") if isinstance(c, dict) else ""
+            geo = _geo_of(mid)
+            if not geo:
+                continue
+            profs = profiles_for(mid)
+            name = f"{section}.{k}"
+            if geo not in profs:
+                row("pin-valid", name, False, f"{mid}: AWS offers no '{geo}' profile "
+                    f"(offered: {', '.join(sorted(profs)) or 'none'})", c.get("region", ""))
+            elif geo != "global" and c.get("region") not in profs[geo]:
+                row("pin-valid", name, False, f"{mid} pinned @ {c.get('region')} — the '{geo}' "
+                    f"profile doesn't cover it", c.get("region", ""))
+            else:
+                row("pin-valid", name, True, f"{mid} @ {c.get('region')}", c.get("region", ""))
+
+    # 2) Pin posture follows the residency setting (none = global. where offered;
+    #    set = that geo's profile where it covers a Region the model is in).
+    for k, c in enabled.items():
+        mid, profs = c.get("model_id", ""), profiles_for(c.get("model_id", ""))
+        if not profs or not c.get("available_regions"):
+            continue
+        avail = set(c["available_regions"])
+        if residency and residency in profs and set(profs[residency]) & avail:
+            want = residency
+        elif not residency and "global" in profs:
+            want = "global"
+        else:
+            continue
+        got = _geo_of(mid) or "in-region"
+        row("pin-posture", k, got == want,
+            f"{mid} — expected the {want}. profile (residency: {residency or 'none'})", c.get("region", ""))
+        if got == want == "global" and home and home in avail and c.get("region") != home:
+            row("pin-home", k, False, f"{mid} pinned @ {c.get('region')}, home Region {home} "
+                f"is available (tie-break should pick it)", c.get("region", ""), warn=True)
+
+    # 3) No two enabled entries are the same foundation model (lookups by
+    #    foundation model would be ambiguous).
+    seen: dict = {}
+    for k, c in enabled.items():
+        b = _strip_geo(c.get("model_id", ""))
+        if b in seen:
+            row("unique-base", k, False, f"same foundation model as {seen[b]} ({b})")
+        seen[b] = k
+
+    # 4) Categories hold their model's CURRENT pin and a Region it can use.
+    for cat_name in ("fast_llm", "complex_llm", "fallback_llm"):
+        cat = (reg.get("categories") or {}).get(cat_name) or {}
+        cur = cat.get("current", "")
+        if not cur:
+            row("category", cat_name, False, "no model assigned")
+            continue
+        twin = next((c for c in enabled.values() if _strip_geo(c.get("model_id", "")) == _strip_geo(cur)), None)
+        if not twin:
+            row("category", cat_name, False, f"{cur} is not an enabled chat model", warn=True)
+            continue
+        ok = twin["model_id"] == cur
+        ok_r = cat.get("region") in valid_regions(twin, cur)
+        row("category", cat_name, ok and ok_r,
+            f"{cur} @ {cat.get('region')}" + ("" if ok else f" — model is now pinned as {twin['model_id']}")
+            + ("" if ok_r else " — Region can't serve this id"), cat.get("region", ""))
+
+    # 5) Chat Studio's model list serves each entry's own pin, its foundation id,
+    #    a Region picker of exactly the Regions that id routes from, and the
+    #    active flag for the category models.
+    try:
+        served = {m.get("key"): m for m in get_json(base, "/api/chat/models").get("models", [])}
+    except Exception as e:
+        row("served", "/api/chat/models", False, f"fetch failed: {e}")
+        served = {}
+    cat_bases = {_strip_geo((reg.get("categories") or {}).get(c, {}).get("current", ""))
+                 for c in ("fast_llm", "complex_llm", "fallback_llm")} - {""}
+    for k, m in served.items():
+        c = chat.get(k)
+        if not c:
+            continue  # category / custom-LLM rows
+        problems = []
+        if m.get("model_id") != c.get("model_id"):
+            problems.append(f"serves {m.get('model_id')} for {c.get('model_id')}")
+        if m.get("base_model_id") != _strip_geo(c.get("model_id", "")):
+            problems.append(f"base_model_id {m.get('base_model_id')!r}")
+        usable, want = sorted(m.get("usable_regions") or []), valid_regions(c, c.get("model_id", ""))
+        if want and usable != want:
+            problems.append(f"usable_regions {usable} ≠ {want}")
+        if c.get("region") and want and c["region"] not in usable:
+            problems.append(f"pinned Region {c['region']} not offered")
+        if bool(m.get("is_active_llm")) != (_strip_geo(c.get("model_id", "")) in cat_bases):
+            problems.append(f"is_active_llm={m.get('is_active_llm')}")
+        row("served", k, not problems, "; ".join(problems) or f"{m.get('model_id')} "
+            f"({len(usable)} Regions)", c.get("region", ""))
+
+    # 6) Official pricing: a Global rate is never above the regional one.
+    for k, c in enabled.items():
+        tp = c.get("token_pricing") or {}
+        sets = {"(pinned)": tp.get("rates") or {}, **(tp.get("by_region") or {})}
+        bad = [r for r, rs in sets.items() if isinstance(rs, dict) and any(
+            rs.get(f"global_{d}_per_1k") is not None and rs.get(f"{d}_per_1k") is not None
+            and rs[f"global_{d}_per_1k"] > rs[f"{d}_per_1k"] for d in ("input", "output"))]
+        if bad:
+            row("price-order", k, False, f"Global rate above regional in {', '.join(bad[:5])}")
+        if not (c.get("input_price_per_1k") or c.get("output_price_per_1k") or tp):
+            row("priced", k, False, f"{c.get('model_id')} has no official price", warn=True)
+    return rows
+
+
 # ── Orchestration ────────────────────────────────────────────────────────────
 def main():
     ap = argparse.ArgumentParser(description="ArtSmoker end-to-end sanity harness")
     ap.add_argument("--base-url", default="http://127.0.0.1:8000")
-    ap.add_argument("--stages", default="chat,image,video",
-                    help="comma list of: chat,image,video,collections")
-    ap.add_argument("--region-scope", choices=("all", "pinned"), default="all")
+    ap.add_argument("--stages", default="registry,chat,image,video",
+                    help="comma list of: registry,chat,image,video,collections")
+    ap.add_argument("--region-scope", choices=("all", "pinned"), default="all",
+                    help="every Region each route can be served from, or one per route")
+    ap.add_argument("--geo-scope", choices=("all", "pinned"), default="all",
+                    help="chat: every inference profile AWS offers (global + each geo + "
+                         "in-Region + no-Region), or the pinned id only")
     ap.add_argument("--concurrency", type=int, default=10,
                     help="parallel in-flight requests per stage (hides cross-geo hangs)")
     ap.add_argument("--log-path", default="", help="server log file to verify (default logs/artsmoker.log)")
@@ -811,9 +1121,10 @@ def main():
     results = {"started": datetime.now(timezone.utc).isoformat(), "base": base,
                "region_scope": args.region_scope, "stages": {}}
 
-    def run_stage(name, models, runner):
-        # build (model, region) matrix
-        jobs = [(m, r) for m in models for r in regions_for(m, args.region_scope)]
+    def run_stage(name, models, runner, jobs=None):
+        # (model, target) matrix — target is a Region, or a chat route dict
+        jobs = jobs if jobs is not None else \
+            [(m, r) for m in models for r in regions_for(m, args.region_scope)]
         if args.limit:
             jobs = jobs[:args.limit]
         conc = max(1, args.concurrency)
@@ -825,22 +1136,29 @@ def main():
         done = {"n": 0}
         lock = threading.Lock()
 
-        def work(idx, m, region):
-            label = f"{m.get('label', m['key'])} @ {region}"
+        def work(idx, m, target):
+            route = target if isinstance(target, dict) else None
+            region = (route["region"] if route else target) or ""
+            mid = route["id"] if route else m.get("model_id")
+            label = (f"{m.get('label', m['key'])} [{route['kind']}] {mid} @ {region or 'auto'}"
+                     if route else f"{m.get('label', m['key'])} @ {region}")
             t0 = time.time()
             try:
-                ok, detail, *_ = runner(m, region)
+                ok, detail, *_ = runner(m, target)
             except urllib.error.HTTPError as e:
                 ok, detail = False, f"HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:120]}"
             except Exception as e:
                 ok, detail = False, f"{type(e).__name__}: {str(e)[:120]}"
             dt = time.time() - t0
-            rows[idx] = {"model": m.get("label", m["key"]), "model_id": m.get("model_id"),
-                         "key": m["key"], "region": region, "invoke_ok": ok, "detail": detail,
-                         "seconds": round(dt, 1), "status": "PASS" if ok else "FAIL"}
+            status = "SKIP" if ok is None else ("PASS" if ok else "FAIL")
+            rows[idx] = {"model": m.get("label", m["key"]), "model_id": mid,
+                         "key": m["key"], "region": region or "auto",
+                         "route": route["kind"] if route else "pinned",
+                         "invoke_ok": bool(ok), "detail": detail,
+                         "seconds": round(dt, 1), "status": status}
             with lock:
                 done["n"] += 1
-                print(f"[{done['n']}/{len(jobs)}] {'PASS' if ok else 'FAIL'} {label} — {detail} "
+                print(f"[{done['n']}/{len(jobs)}] {status} {label} — {detail} "
                       f"({dt:.1f}s)", flush=True)
 
         with ThreadPoolExecutor(max_workers=conc) as ex:
@@ -851,34 +1169,61 @@ def main():
         # Stage-level log verification: no ERROR/CRITICAL/Traceback appended, and the
         # log actually grew (activity was recorded).
         newlog, log_errors = log_since(stage_off)
+        # The temperature self-heal ("<id> rejects temperature — retried without it")
+        # means the registry gate MISSED a model it knows about — e.g. a lookup by
+        # one exact profile id. A call that only passed via the self-heal is a FAIL.
+        healed_ids = set(re.findall(r"(\S+) rejects temperature", newlog))
         for row in rows:
             row["log_clean"] = not log_errors
-            if not log_errors and row["status"] == "PASS":
-                pass
+            if row["status"] == "PASS" and row["model_id"] in healed_ids:
+                row["status"] = "FAIL"
+                row["detail"] += " | temperature gate missed (server self-healed)"
             elif log_errors and row["status"] == "PASS":
                 row["status"] = "PASS*"  # invoke ok, but stage log had errors (see below)
+        record_stage(name, rows, log_errors, len(newlog))
+
+    def record_stage(name, rows, log_errors=(), log_bytes=0):
         passed = sum(1 for r in rows if r["status"].startswith("PASS"))
         failed = sum(1 for r in rows if r["status"] == "FAIL")
-        print(f"--- {name}: {passed} PASS, {failed} FAIL | log grew {len(newlog)} bytes, "
+        other = {st: sum(1 for r in rows if r["status"] == st) for st in ("WARN", "SKIP")}
+        extra = "".join(f", {n} {st}" for st, n in other.items() if n)
+        print(f"--- {name}: {passed} PASS, {failed} FAIL{extra} | log grew {log_bytes} bytes, "
               f"{len(log_errors)} error line(s) ---", flush=True)
-        if log_errors:
-            for ln in log_errors[:20]:
-                print(f"    LOG-ERROR: {ln}", flush=True)
-        results["stages"][name] = {"passed": passed, "failed": failed,
-                                    "log_errors": log_errors, "log_bytes": len(newlog),
-                                    "rows": rows}
+        for ln in list(log_errors)[:20]:
+            print(f"    LOG-ERROR: {ln}", flush=True)
+        # Per route kind (pinned / global / each geo / in-region / …/auto) — proof
+        # that every residency AWS offers was exercised, not just the pin.
+        kinds: dict = {}
+        for r in rows:
+            k = kinds.setdefault(r.get("route") or "-", {"PASS": 0, "FAIL": 0, "WARN": 0, "SKIP": 0})
+            k["PASS" if r["status"].startswith("PASS") else r["status"]] += 1
+        if len(kinds) > 1:
+            for k, c in sorted(kinds.items()):
+                print(f"    {k:22s} " + "  ".join(f"{st} {n}" for st, n in c.items() if n), flush=True)
+        results["stages"][name] = {"passed": passed, "failed": failed, **{s.lower(): n for s, n in other.items()},
+                                   "by_route": kinds, "log_errors": list(log_errors),
+                                   "log_bytes": log_bytes, "rows": rows}
 
     scope_note = "native+custom" if args.include_custom else "native only"
-    print(f"Model scope: {scope_note}")
+    srv = server_settings()
+    print(f"Model scope: {scope_note} | residency: {srv['residency'] or 'none (global. preferred)'} "
+          f"| geos offered: {', '.join(sorted({g for p in _profile_map().values() for g in p})) or 'none'}")
+
+    if "registry" in stages:
+        print("\n=== STAGE REGISTRY — pins, categories, served ids, Region pickers, price order ===")
+        record_stage("registry", registry_checks(base, reg))
 
     # Cross-platform concurrency preflight: measure the server's real parallelism and,
     # if it serializes, RECOMMEND a multi-worker restart (portable) rather than forcing one.
-    if not args.skip_server_check and args.concurrency > 1:
+    # Probe = the app's own Fast LLM (whatever Region/profile it is pinned to).
+    if not args.skip_server_check and args.concurrency > 1 and set(stages) - {"registry"}:
         pool = select_chat_models(reg, 1, 1, args.include_custom)
-        probe = next((m for m in pool if (m.get("region") or "").startswith("us-")
-                      and "converse" in (m.get("invoke_api") or "")), pool[0] if pool else None)
+        fast = ((reg.get("categories") or {}).get("fast_llm") or {})
+        probe = next((m for m in pool if _strip_geo(m["model_id"]) == _strip_geo(fast.get("current", ""))),
+                     None) or next((m for m in pool if "converse" in (m.get("invoke_api") or "")),
+                                   pool[0] if pool else None)
         if probe:
-            preg = probe.get("region") or (probe.get("available_regions") or ["us-west-2"])[0]
+            preg = probe.get("region") or (probe.get("available_regions") or [""])[0]
             print(f"Concurrency preflight: probing {probe.get('label')} @ {preg} ...", flush=True)
             try:
                 bl, par, factor, n = preflight_concurrency(base, args.concurrency, probe, preg)
@@ -892,8 +1237,19 @@ def main():
             except Exception as e:
                 print(f"  preflight probe failed ({e}); proceeding (use --skip-server-check to silence)")
     if "chat" in stages:
-        run_stage("chat", select_chat_models(reg, args.tiers, args.versions, args.include_custom),
-                  lambda m, r: run_chat(base, m, r, args.max_tokens))
+        chat_models = select_chat_models(reg, args.tiers, args.versions, args.include_custom)
+        try:
+            served = {m.get("key"): m for m in get_json(base, "/api/chat/models").get("models", [])}
+        except Exception:
+            served = {}
+        jobs = []
+        for m in chat_models:
+            routes = chat_routes(m, args.region_scope, served.get(m["key"]), srv["home_models"])
+            if args.geo_scope == "pinned":
+                routes = [r for r in routes if r["kind"].startswith("pinned")]
+            jobs += [(m, r) for r in routes]
+        run_stage("chat", chat_models, lambda m, rt: run_chat_route(base, reg, m, rt, args.max_tokens),
+                  jobs=jobs)
     if "image" in stages:
         run_stage("image", select_image_models(reg, args.include_custom),
                   lambda m, r: run_image(base, m, r))
@@ -921,8 +1277,9 @@ def main():
         print(f"  {name:6s}: {st['passed']} PASS / {st['failed']} FAIL"
               + (f" | {len(le)} LOG-ERROR line(s)!" if le else " | log clean"))
         for row in st["rows"]:
-            if row["status"] == "FAIL":
-                print(f"     FAIL {row['model']} @ {row['region']}: {row['detail']}")
+            if row["status"] in ("FAIL", "WARN"):
+                print(f"     {row['status']} {row['model']} [{row.get('route', '')}] "
+                      f"{row.get('model_id') or ''} @ {row['region']}: {row['detail']}")
         for ln in le[:20]:
             print(f"     LOG-ERROR: {ln}")
     print(f"  TOTAL : {total_p} PASS / {total_f} FAIL")

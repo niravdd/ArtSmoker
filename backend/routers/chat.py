@@ -482,6 +482,7 @@ async def list_chat_models():
         mid = registry.get("categories", {}).get(cat_name, {}).get("current", "")
         if mid:
             active_cat_ids.add(mid)
+    active_cat_bases = {strip_geo_prefix(c) for c in active_cat_ids}
 
     # 1. chat_models (discovered text LLMs — the comprehensive source)
     from backend.services.model_registry import _lifecycle_usable
@@ -495,14 +496,12 @@ async def list_chat_models():
             continue
         seen_labels.add(norm_label)
 
-        # Check if this model is also an active category model (by partial ID match)
-        is_active = mid in active_cat_ids or any(mid in cid or cid in mid for cid in active_cat_ids)
-        # Use the inference profile ID if this model matches a category
+        # Active category model = the SAME foundation model (any profile prefix).
+        # Never a substring match: 'claude-sonnet-5' is a prefix of 'claude-sonnet-5-5'.
+        # The entry's own id is served — the Sync pins it (profile + Region), so a
+        # category on another profile of the model never swaps the id shown here.
+        is_active = strip_geo_prefix(mid) in active_cat_bases
         effective_id = mid
-        for cid in active_cat_ids:
-            if mid in cid or strip_geo_prefix(cid) in mid:
-                effective_id = cid  # Use the category's inference profile ID
-                break
 
         models.append({
             "key": key,
@@ -528,7 +527,7 @@ async def list_chat_models():
         if not mid:
             continue
         # Check if any discovered model already covers this
-        already_covered = any(m["model_id"] == mid for m in models)
+        already_covered = any(strip_geo_prefix(m["model_id"]) == strip_geo_prefix(mid) for m in models)
         if already_covered:
             continue
         norm = (cat.get("label", cat_name)).lower().strip()
@@ -540,7 +539,7 @@ async def list_chat_models():
         # Category IDs like "us.anthropic.claude-sonnet-4-6" should match discovered
         # "us.anthropic.claude-sonnet-4-5-20250929-v1:0" (same family, different version).
         import re as _re
-        cat_regions = [cat.get("region", "us-west-2")]
+        cat_regions = [cat.get("region") or settings.aws_region_models]
         cat_vision = False
         cat_ctx = 200000
         # Extract family: "claude-sonnet" from "us.anthropic.claude-sonnet-4-6-v1"
@@ -562,7 +561,7 @@ async def list_chat_models():
             "label": cat.get("label", cat_name),
             "model_id": mid,
             "provider": cat.get("provider", ""),
-            "region": cat.get("region", "us-west-2"),
+            "region": cat.get("region") or settings.aws_region_models,
             "available_regions": cat_regions,
             "has_vision": cat_vision,
             "streaming_supported": True,
@@ -599,6 +598,10 @@ async def list_chat_models():
 
     # Sort: active LLMs first, then by provider + label
     models.sort(key=lambda m: (0 if m.get("is_active_llm") else 1, m.get("provider", ""), m.get("label", "")))
+    # Foundation-model id (no profile geo) — a saved session whose id was later
+    # re-pinned (us. → global.) still resolves to its model in Chat Studio.
+    for m in models:
+        m["base_model_id"] = strip_geo_prefix(m.get("model_id", ""))
 
     return {"models": models}
 
@@ -938,19 +941,29 @@ def _load_session(session_id: str) -> dict | None:
 
 
 def _resolve_chat_region(model_id: str) -> str:
-    """Find the best region for a chat model from the registry."""
-    from backend.services.model_registry import get_registry
+    """The Region to invoke a chat model from when the client sent none.
+
+    Resolved by foundation model, so any profile id (us./global./eu./…) of a
+    registered model finds it. The pinned Region serves the pinned id; another
+    profile of the same model needs a Region that profile covers (a geo profile
+    only routes from its own geography). Falls back to the home Region."""
+    from backend.config import settings
+    from backend.services.model_registry import get_registry, find_chat_model
     registry = get_registry()
+    home = settings.aws_region_models
 
-    # Check chat_models
-    for key, cfg in registry.get("chat_models", {}).items():
-        if cfg.get("model_id") == model_id:
-            return cfg.get("region", "us-west-2")
-
-    # Check categories
-    for cat_name in ["fast_llm", "complex_llm", "fallback_llm"]:
-        cat = registry.get("categories", {}).get(cat_name, {})
-        if cat.get("current") == model_id:
-            return cat.get("region", "us-west-2")
-
-    return "us-west-2"
+    cfg = find_chat_model(model_id)
+    if not cfg:
+        for cat_name in ["fast_llm", "complex_llm", "fallback_llm"]:
+            cat = registry.get("categories", {}).get(cat_name, {})
+            if cat.get("current") == model_id:
+                return cat.get("region") or home
+        return home
+    pinned = cfg.get("region") or home
+    if cfg.get("model_id") == model_id:
+        return pinned
+    usable = _usable_regions(model_id, cfg.get("available_regions") or [pinned],
+                             registry.get("inference_profiles", {}))
+    if pinned in usable:
+        return pinned
+    return home if home in usable else (usable[0] if usable else pinned)

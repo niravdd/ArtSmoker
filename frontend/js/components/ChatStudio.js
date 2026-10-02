@@ -366,6 +366,7 @@
         // nosemgrep
         dd.innerHTML = html`${rows}`;
 
+        _selectedModelId = _resolveModelId(_selectedModelId);
         // If no selection yet, auto-select first model
         if (!_selectedModelId && _models.length) {
             _selectedModelId = _models[0].model_id;
@@ -387,6 +388,16 @@
         }
 
         _updateRegionPicker();
+    }
+
+    // A session saved on one inference profile (e.g. us.<model>) still maps to
+    // its model after the Sync re-pins it (global.<model>): match the
+    // foundation id the server reports, never just the exact profile id.
+    function _resolveModelId(id) {
+        if (!id || _models.some(m => m.model_id === id)) return id;
+        const twin = _models.find(m => m.base_model_id &&
+            (id === m.base_model_id || id.endsWith('.' + m.base_model_id)));
+        return twin ? twin.model_id : id;
     }
 
     function _getSelectedModel() {
@@ -580,13 +591,13 @@
 
             // Update custom model dropdown selection
             if (session.model_id) {
-                _selectedModelId = session.model_id;
-                const selected = _models.find(m => m.model_id === session.model_id);
+                _selectedModelId = _resolveModelId(session.model_id);
+                const selected = _models.find(m => m.model_id === _selectedModelId);
                 const label = _container.querySelector('#cs-model-label');
                 if (label && selected) label.textContent = selected.label;
                 // Update highlight in dropdown
                 _container.querySelectorAll('.cs-model-item').forEach(el => {
-                    el.classList.toggle('bg-brand-accent/15', el.dataset.modelId === session.model_id);
+                    el.classList.toggle('bg-brand-accent/15', el.dataset.modelId === _selectedModelId);
                 });
             }
             const temp = _container.querySelector('#cs-temperature');

@@ -1080,7 +1080,7 @@ def find_chat_model(model_id: str, chat_models: dict | None = None) -> dict | No
         return None
     cms = chat_models if chat_models is not None else (_registry.get("chat_models") or {})
     for cfg in cms.values():
-        if cfg.get("model_id") == mid or cfg.get("model_arn", "").endswith(mid):
+        if cfg.get("model_id") == mid or (cfg.get("model_arn") or "").endswith(mid):
             return cfg
     geos = inference_profile_geos()
     base = strip_geo_prefix(mid, geos)
@@ -1104,9 +1104,10 @@ def get_llm_model_id(complexity: str) -> str:
 
 def get_llm_region(complexity: str) -> str:
     """Get the AWS region for the given LLM complexity."""
+    from backend.config import settings
     if complexity == "complex":
-        return get_category("complex_llm").get("region", "us-west-2")
-    return get_category("fast_llm").get("region", "us-west-2")
+        return get_category("complex_llm").get("region") or settings.aws_region_models
+    return get_category("fast_llm").get("region") or settings.aws_region_models
 
 
 def get_fallback_model_id() -> str:
@@ -1204,7 +1205,8 @@ def get_image_model_id(key: str) -> str:
 
 def get_image_model_region(key: str) -> str:
     """Get the AWS region for an image model."""
-    return get_image_model(key).get("region", "us-east-1")
+    from backend.config import settings
+    return get_image_model(key).get("region") or settings.aws_region_images
 
 
 def get_prompt_limit(key: str) -> int:

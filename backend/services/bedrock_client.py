@@ -349,7 +349,7 @@ def validate_aws_credentials() -> dict:
         img_keys = get_enabled_image_model_keys_sorted()
         if img_keys:
             img_cfg = get_image_model(img_keys[0])
-            img_region = img_cfg.get("region", "us-east-1")
+            img_region = img_cfg.get("region") or settings.aws_region_images
             img_model_id = img_cfg.get("model_id", "")
             client = _get_client(img_region)
             # Light check — just confirm we can reach the model endpoint
@@ -522,11 +522,13 @@ def record_model_eol(model_id: str) -> None:
     thread/process-safe, so it's excluded going forward. Self-learned when AWS
     reports the model retired at invoke time (the listing can lag)."""
     try:
-        from backend.services.model_registry import registry_transaction
+        from backend.services.model_registry import registry_transaction, strip_geo_prefix
+        base = strip_geo_prefix(model_id)  # the model is retired, whatever profile was called
         with registry_transaction() as reg:
             for section in ("chat_models", "image_models", "video_models"):
                 for cfg in (reg.get(section) or {}).values():
-                    if cfg.get("model_id") == model_id or cfg.get("model_arn", "").endswith(model_id):
+                    if (strip_geo_prefix(cfg.get("model_id") or "") == base
+                            or (cfg.get("model_arn") or "").endswith(base)):
                         cfg["lifecycle_status"] = "EOL"
                         cfg["enabled"] = False
                         logger.info("Lifecycle: recorded EOL + disabled %s (self-learned)", model_id)
@@ -661,6 +663,8 @@ def invoke_llm(
     images: list[bytes] | None = None,
     max_tokens: int = 4096,
     temperature: float = 0.7,
+    model_id: str | None = None,
+    region: str | None = None,
 ) -> str:
     """Invoke an LLM via Bedrock Converse API.
 
@@ -675,11 +679,16 @@ def invoke_llm(
         images: Optional list of PNG image bytes to include as vision input.
         max_tokens: Max response tokens.
         temperature: Sampling temperature.
+        model_id / region: An explicit model (and its Region) instead of the
+            category's — e.g. the model the user picked for a template enhance.
 
     Returns:
         The text response from the LLM.
     """
-    model_id, region = _pick_llm_model(complexity)
+    if model_id:
+        region = region or _pick_llm_model(complexity)[1]
+    else:
+        model_id, region = _pick_llm_model(complexity)
 
     # Route by the model's resolved invoke path (Converse-first; Mantle only for
     # models Converse can't reach — e.g. OpenAI GPT-5.x via Responses, Claude

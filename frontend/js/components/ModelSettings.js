@@ -666,17 +666,31 @@
             })}`;
         },
 
+        // Strip an inference-profile geo prefix (`global.`, `us.`, `eu.`, …) —
+        // geos come from the registry's discovered inference_profiles, never a
+        // hardcoded list, so a newly offered geo strips the same way.
+        _stripGeo(id) {
+            const mid = id || '';
+            const dot = mid.indexOf('.');
+            if (dot <= 0) return mid;
+            const geos = new Set();
+            Object.values(this._registry?.inference_profiles || {})
+                .forEach(profs => Object.keys(profs || {}).forEach(g => geos.add(g)));
+            return geos.has(mid.slice(0, dot)) ? mid.slice(dot + 1) : mid;
+        },
+
         _renderCategory(name, cat) {
             if (!cat) return '';
             const chatModels = this._registry?.chat_models || {};
             const currentId = cat.current || '';
             // Match the category's current model to a chat_models entry by EXACT
-            // id (modulo the us. inference-profile prefix). The old code matched
-            // by "family" (everything before the first digit), so e.g. the
-            // current opus-4-8 matched the FIRST "claude" entry encountered —
+            // foundation model (modulo ANY inference-profile geo prefix — us./
+            // global./eu./apac./… as discovered in the registry). The old code
+            // matched by "family" (everything before the first digit), so e.g.
+            // the current opus-4-8 matched the FIRST "claude" entry encountered —
             // showing a stale older Opus/Sonnet label even though current was the
             // newest. Exact match only; no family fuzz.
-            const bare = (id) => (id || '').replace(/^us\./, '');
+            const bare = (id) => this._stripGeo(id);
             const isExact = (mid) => mid === currentId || bare(mid) === bare(currentId);
 
             // Build options grouped by provider
@@ -781,7 +795,7 @@
             // Build model options filtered to ONLY models matching this entry's purpose
             const imgModels = this._registry?.image_models || {};
             const currentId = m.model_id || '';
-            const familyOf = (id) => (id || '').replace(/^us\./, '').split('.').pop().replace(/-\d.*/, '').toLowerCase();
+            const familyOf = (id) => this._stripGeo(id).split('.').pop().replace(/-\d.*/, '').toLowerCase();
             const currentFamily = familyOf(currentId);
 
             // Determine which purposes match this post-processing entry

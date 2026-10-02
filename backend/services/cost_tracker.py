@@ -249,7 +249,8 @@ def _registry_llm_price(model_id: str, region: str | None = None,
         # that never enter chat_models (speech-only input) but get token prices
         # stamped by the same AWS Sync pricing pass.
         for cat in (get_registry().get("categories", {}) or {}).values():
-            if isinstance(cat, dict) and cat.get("current") == model_id:
+            if isinstance(cat, dict) and (cat.get("current") == model_id or (
+                    base and base_model_id(cat.get("current") or "") == base)):
                 p = _priced(cat)
                 if p: return p
     except Exception:

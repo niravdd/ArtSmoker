@@ -351,11 +351,14 @@ async def enhance_template(name: str, body: TemplateEnhanceRequest):
         current_text=current_text,
     )
 
+    from backend.routers.chat import _resolve_chat_region
     try:
         improved = invoke_llm(
             enhance_prompt,
             model_id=body.model_id,
-            region_override=body.region or "us-west-2",
+            # The picked model's own route (its pinned Region / a Region its
+            # profile covers) — never an assumed home Region.
+            region=body.region or _resolve_chat_region(body.model_id),
             max_tokens=4000,
             temperature=0.3,
         ).strip()
@@ -625,15 +628,21 @@ def _has_geo_prefix(mid: str) -> bool:
     return _strip_geo_prefix(mid) != (mid or "")
 
 
-def _profile_prefix_for_region(region: str) -> str:
-    """The inference-profile geo prefix to use when invoking from ``region``.
+def _profile_prefix_for_region(region: str, profile_map: dict | None = None) -> str:
+    """Fallback prefix for a profile-only model the discovered map doesn't list.
 
-    ``us.`` in US Regions (what Claude et al. already rely on); the region-agnostic
-    ``global.`` everywhere else — a ``us.*`` id paired with a non-US Region fails
-    with "invalid model identifier" (this is what pinned the OpenAI gpt-5.x entries
-    discovered in APAC). ``global.`` routes from any commercial Region.
+    Nothing is known about THIS model's profiles, so take the geo whose profiles
+    (for other models) cover ``region`` — the configured residency geo when it is
+    one of them — learned from the discovered map, never from the Region's name.
+    A geo profile covering its own Region is the safest guess (``global.`` isn't
+    offered for every model); ``global.`` only when no geo is known for the Region.
+    The next Sync's pin post-pass re-derives it once the model's profiles appear.
     """
-    return "us." if (region or "").startswith("us-") else "global."
+    geos = sorted(_region_geos(profile_map).get(region) or ())
+    pref = _preferred_residency_geo()
+    if pref in geos:
+        return pref + "."
+    return geos[0] + "." if geos else "global."
 
 
 def _discover_inference_profiles(bedrock_client) -> dict:
@@ -869,6 +878,18 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
     # within-geo tie-break — the residency rank + preferred geo always dominate.
     _heal("chat_models", profile_only=False, home=settings.aws_region_models)
     _heal("image_models", profile_only=True, home=settings.aws_region_images)
+    # Profile-based post-processing tools (upscale / background removal) are the
+    # same Bedrock models as their image_models twins — follow the twin's pin.
+    for cfg in (registry.get("post_processing", {}) or {}).values():
+        cur_id = cfg.get("model_id", "") if isinstance(cfg, dict) else ""
+        if not _has_geo_prefix(cur_id):
+            continue  # plain / SageMaker ids are admin-curated
+        base = _strip_geo_prefix(cur_id)
+        twin = next((c for c in (registry.get("image_models", {}) or {}).values()
+                     if _strip_geo_prefix(c.get("model_id", "")) == base), None)
+        if twin and twin.get("model_id") != cur_id:
+            cfg["model_id"], cfg["region"] = twin["model_id"], twin.get("region") or cfg.get("region")
+            healed += 1
     # Always report the outcome (even 0) — confirms the pass ran and how many
     # models it evaluated, so a no-op is distinguishable from "didn't run".
     posture = f"'{pref}' residency" if pref else "no residency constraint (global. preferred)"
@@ -1148,7 +1169,7 @@ async def auto_register_image_models(region: str):
             # Discovered profiles decide the prefix (_select_profile_prefix); fall back to the
             # region heuristic only when this model isn't in the profile map.
             sel = _select_profile_prefix(model_id, region, profile_map)
-            prefix = sel if sel is not None else _profile_prefix_for_region(region)
+            prefix = sel if sel is not None else _profile_prefix_for_region(region, profile_map)
             effective_id = prefix + model_id
         avail_profiles = sorted((profile_map.get(_normalize_model_id(model_id)) or {}).keys())
         residency_scope = _residency_scope(effective_id, model_id)
@@ -1447,7 +1468,7 @@ async def auto_register_image_models(region: str):
         effective_model_id = model_id
         if "INFERENCE_PROFILE" in inference_types and not _has_geo_prefix(model_id):
             sel = _select_profile_prefix(model_id, region, profile_map)
-            prefix = sel if sel is not None else _profile_prefix_for_region(region)
+            prefix = sel if sel is not None else _profile_prefix_for_region(region, profile_map)
             effective_model_id = prefix + model_id
 
         config = {
@@ -1924,8 +1945,11 @@ def _apply_llm_pricing(registry: dict, llm_pricing: dict) -> int:
         if not by_region and card and card.get("rates"):
             by_region, source = {"*": card["rates"]}, "model_card"
         if not by_region:
-            name = names.best(cm.get("label") or "", invoked, cm.get("provider") or "")
-            by_region = by_name.get(name, {}) if name else {}
+            # Tied names are one model listed twice — merge, the wider-coverage
+            # name winning a Region both price.
+            tied = names.matches(cm.get("label") or "", invoked, cm.get("provider") or "")
+            for n in sorted(tied, key=lambda n: len(by_name.get(n, {}))):
+                by_region = {**by_region, **by_name.get(n, {})}
             source = "price_list" if by_region else None
 
         rates = _pinned_rates(by_region, cm) if by_region else None
@@ -2054,9 +2078,11 @@ def _apply_media_pricing(registry: dict, official: dict) -> int:
                                                "source": "agreement_offer"}
                 per_region[r["region"]] = r["price"]
         if not per_region:
-            name = img_names.best(label, cfg.get("model_id") or "", cfg.get("provider") or "")
-            for k, v in (img_by_name.get(name) or {}).items() if name else ():
-                rest = k.split("|", 1)[1]
+            tied = img_names.matches(label, cfg.get("model_id") or "", cfg.get("provider") or "")
+            merged: dict = {}  # one model listed under tied names — wider coverage wins
+            for n in sorted(tied, key=lambda n: len(img_by_name.get(n) or {})):
+                merged.update((k.split("|", 1)[1], (n, v)) for k, v in (img_by_name.get(n) or {}).items())
+            for rest, (name, v) in merged.items():
                 if name != key:
                     img[f"{key}|{rest}"] = dict(v, model_name=key)
                 simple = "|" not in rest or (v.get("is_t2i") and v.get("quality") == "standard"
@@ -2077,14 +2103,18 @@ def _apply_media_pricing(registry: dict, official: dict) -> int:
     for key, cfg in (registry.get("video_models", {}) or {}).items():
         if not isinstance(cfg, dict) or cfg.get("model_source") in ("custom_hosted", "imported", "custom"):
             continue
-        name = vid_names.best(cfg.get("label") or "", cfg.get("model_id") or "", cfg.get("provider") or "")
-        per_region = {v["region"]: v for v in vid.values()
-                      if isinstance(v, dict) and name and v.get("model_name") == name}
+        tied = vid_names.matches(cfg.get("label") or "", cfg.get("model_id") or "", cfg.get("provider") or "")
+        coverage = {n: sum(1 for v in vid.values() if isinstance(v, dict) and v.get("model_name") == n)
+                    for n in tied}
+        per_region = {}  # one model listed under tied names — wider coverage wins
+        for n in sorted(tied, key=coverage.get):
+            per_region.update({v["region"]: v for v in vid.values()
+                               if isinstance(v, dict) and v.get("model_name") == n})
         if not per_region:
             unpriced.append(key)
             continue
         for region, v in per_region.items():
-            if name != key:
+            if v.get("model_name") != key:
                 vid[f"{key}|{region}"] = dict(v, model_name=key)
         pin = next((r for r in [cfg.get("region")] + list(cfg.get("available_regions") or [])
                     if r in per_region), None) or next(iter(per_region))
@@ -2126,8 +2156,9 @@ def _get_bedrock_regions() -> list[str]:
     except Exception as exc:
         logger.warning("Failed to discover Bedrock regions: %s", exc)
 
-    # Fallback: minimum known regions if dynamic discovery fails
-    return ["us-east-1", "us-west-2"]
+    # Fallback if dynamic discovery fails: the configured home Regions
+    from backend.config import settings
+    return sorted({settings.aws_region_models, settings.aws_region_images})
 
 
 def _account_enabled_regions() -> set[str] | None:
@@ -2168,8 +2199,9 @@ async def list_bedrock_regions():
     registry = get_registry()
     regions = registry.get("bedrock_regions", [])
     if not regions:
-        # First time — no regions cached yet. Return a minimal fallback.
-        regions = ["us-east-1", "us-west-2"]
+        # First time — no regions cached yet. Fall back to the configured home Regions.
+        from backend.config import settings
+        regions = sorted({settings.aws_region_models, settings.aws_region_images})
     return {"regions": regions, "count": len(regions)}
 
 
@@ -2363,30 +2395,45 @@ def _backfill_chat_lifecycle(registry: dict) -> int:
     cm = registry.get("chat_models", {})
     if not cm:
         return 0
-    try:
-        bedrock = boto3.Session().client("bedrock", region_name="us-east-1", config=_DISCOVERY_CONFIG)
-        summaries = bedrock.list_foundation_models().get("modelSummaries", [])
-    except Exception as exc:
-        logger.warning("Chat lifecycle backfill skipped (listing failed): %s", exc)
-        return 0
-    lc_map = {m.get("modelId", ""): _lifecycle_fields(m) for m in summaries if m.get("modelId")}
+    from backend.config import settings
+    # Listed per pinned Region (cached): a model offered only outside the home
+    # Region (an apac./eu. pin) is absent from the home Region's listing.
+    lc_by_region: dict = {}
 
-    def _canonical(mid: str) -> str:
-        return _strip_geo_prefix(mid)
+    def _lc_map(region: str) -> dict:
+        if region not in lc_by_region:
+            try:
+                bedrock = boto3.Session().client("bedrock", region_name=region, config=_DISCOVERY_CONFIG)
+                summaries = bedrock.list_foundation_models().get("modelSummaries", [])
+                lc_by_region[region] = {m.get("modelId", ""): _lifecycle_fields(m)
+                                        for m in summaries if m.get("modelId")}
+            except Exception as exc:
+                logger.warning("Chat lifecycle listing failed in %s: %s", region, exc)
+                lc_by_region[region] = {}
+        return lc_by_region[region]
 
-    updated = 0
-    for cfg in cm.values():
-        if not isinstance(cfg, dict):
-            continue
-        norm = _canonical(cfg.get("model_id", ""))
+    def _lookup(lc_map: dict, norm: str):
         fields = lc_map.get(norm)
         if fields is None:
             # Stored id may carry a context suffix (…-v1:0:200k) beyond the
             # canonical listing id (…-v1:0) — match on that boundary.
             for cid, f in lc_map.items():
                 if cid and norm.startswith(cid + ":"):
-                    fields = f
-                    break
+                    return f
+        return fields
+
+    if not _lc_map(settings.aws_region_models):
+        logger.warning("Chat lifecycle backfill skipped (listing failed)")
+        return 0
+
+    updated = 0
+    for cfg in cm.values():
+        if not isinstance(cfg, dict):
+            continue
+        norm = _strip_geo_prefix(cfg.get("model_id", ""))
+        fields = _lookup(_lc_map(settings.aws_region_models), norm)
+        if fields is None and cfg.get("region"):
+            fields = _lookup(_lc_map(cfg["region"]), norm)
         if not fields:
             continue
         if (cfg.get("lifecycle_status") != fields["lifecycle_status"]
@@ -2451,6 +2498,42 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
         ranked = _ranked(line)
         return ranked[-1] if ranked else None
 
+    def _route_region(model_cfg: dict, cur_region: str) -> str:
+        """Region for a category switching to ``model_cfg``'s pinned id: keep the
+        category's Region only if that id can be invoked from it (a geo profile
+        routes only from its own geography), else the model's pinned Region."""
+        from backend.routers.chat import _usable_regions
+        usable = _usable_regions(model_cfg.get("model_id", ""), model_cfg.get("available_regions") or [],
+                                 registry.get("inference_profiles", {}))
+        return cur_region if cur_region in usable else (model_cfg.get("region") or cur_region)
+
+    def _follow_repin(cat: dict, label: str) -> None:
+        """Keep a category on its model's CURRENT pin. The Sync re-pins chat
+        models (profile + Region); a category still holding another profile id of
+        the same foundation model follows it — not an upgrade, so this applies to
+        user-pinned categories too (the user picked the model, not the route)."""
+        cur_id = cat.get("current", "")
+        base = _strip_geo_prefix(cur_id)
+        twins = [c for c in chat_models.values() if c.get("model_id")
+                 and c.get("enabled", True) is not False
+                 and _strip_geo_prefix(c["model_id"]) == base] if cur_id else []
+        if not twins or any(c["model_id"] == cur_id for c in twins):
+            return
+        twin = twins[0]
+        cat["current"] = twin["model_id"]
+        cat["region"] = _route_region(twin, cat.get("region", ""))
+        msg = f"{label}: follows the model's current pin → {cat['current']} ({cat['region']})"
+        notices.append(msg)
+        logger.info(msg)
+        if progress:
+            progress(msg)
+
+    for cat_name, label in (("fast_llm", "Fast LLM"), ("complex_llm", "Complex LLM"),
+                            ("fallback_llm", "Fallback LLM")):
+        cat = (registry.get("categories", {}) or {}).get(cat_name)
+        if isinstance(cat, dict):
+            _follow_repin(cat, label)
+
     targets = (("fast_llm", "sonnet", "Fast LLM"), ("complex_llm", "opus", "Complex LLM"))
     for cat_name, line, label in targets:
         best = _newest(line)
@@ -2463,10 +2546,9 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
         cat = registry.setdefault("categories", {}).setdefault(cat_name, {})
         cur_id = cat.get("current", "")
 
-        # Preserve category region if the chosen model is offered there.
-        avail = cfg.get("available_regions", []) or []
+        # Preserve the category's Region if the chosen id can be invoked from it.
         cur_region = cat.get("region", "")
-        new_region = cur_region if cur_region in avail else cfg.get("region", cur_region)
+        new_region = _route_region(cfg, cur_region)
 
         if new_id == cur_id and new_region == cur_region:
             continue  # already on the newest — nothing to do
@@ -2512,9 +2594,7 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
             fb_id = fb_cfg.get("model_id", "")
             fb_cur = fb_cat.get("current", "")
             if fb_id and fb_id != fb_cur:
-                avail = fb_cfg.get("available_regions", []) or []
-                cur_region = fb_cat.get("region", "")
-                fb_region = cur_region if cur_region in avail else fb_cfg.get("region", cur_region)
+                fb_region = _route_region(fb_cfg, fb_cat.get("region", ""))
                 fb_cat["current"] = fb_id
                 fb_cat["region"] = fb_region
                 fb_cat["provider"] = fb_cfg.get("provider", "Anthropic") or "Anthropic"
@@ -2536,8 +2616,8 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
     # in Model Settings. This is fully generic — it keys off whatever tier token
     # appears in the model_id, with zero hardcoded model names.
     managed_tiers = {"sonnet", "opus"}  # tiers the auto-roll already places
-    assigned_ids = {
-        (registry.get("categories", {}).get(c, {}) or {}).get("current", "")
+    assigned_bases = {  # by foundation model — any profile of it counts as assigned
+        _strip_geo_prefix((registry.get("categories", {}).get(c, {}) or {}).get("current", ""))
         for c in ("fast_llm", "complex_llm", "fallback_llm", "voice")
     }
     seen_new_tiers = set()
@@ -2551,7 +2631,7 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
         tier = m.group(1) if m else None
         if not tier or tier in managed_tiers or tier in seen_new_tiers:
             continue
-        if cfg.get("model_id", "") in assigned_ids:
+        if _strip_geo_prefix(cfg.get("model_id", "")) in assigned_bases:
             continue  # already assigned to a category — not "new/unused"
         seen_new_tiers.add(tier)
         label = cfg.get("label") or cfg.get("model_id", "")
@@ -2591,9 +2671,11 @@ def _probe_and_record_temperature(model_id: str, region: str, registry: dict):
                 supports = False
             else:
                 return  # inconclusive — leave the entry untouched
-        # Record on every chat_models entry sharing this model_id.
+        # Record on every chat_models entry of this foundation model (a capability
+        # of the model, whichever profile was probed).
+        base = _strip_geo_prefix(model_id)
         for cfg in registry.get("chat_models", {}).values():
-            if cfg.get("model_id") == model_id:
+            if _strip_geo_prefix(cfg.get("model_id") or "") == base:
                 cfg["supports_temperature"] = supports
         logger.info("Param gate: %s supports_temperature=%s", model_id, supports)
     except Exception as exc:
@@ -3082,15 +3164,15 @@ def _find_base_model_in_registry(base_model_arn: str, registry: dict) -> dict | 
     for key, cfg in registry.get("image_models", {}).items():
         stored_id = cfg.get("model_id", "")
         stored_arn = cfg.get("model_arn", "")
-        # Match by model_id (with or without us. prefix), or by ARN
-        if stored_id in (base_model_id, f"us.{base_model_id}") or stored_arn == base_model_arn:
+        # Match by foundation model (any geo/global profile prefix), or by ARN
+        if _strip_geo_prefix(stored_id) == base_model_id or stored_arn == base_model_arn:
             return {**cfg, "_registry_key": key, "_model_type": "image"}
 
     # Search video_models
     for key, cfg in registry.get("video_models", {}).items():
         stored_id = cfg.get("model_id", "")
         stored_arn = cfg.get("model_arn", "")
-        if stored_id in (base_model_id, f"us.{base_model_id}") or stored_arn == base_model_arn:
+        if _strip_geo_prefix(stored_id) == base_model_id or stored_arn == base_model_arn:
             return {**cfg, "_registry_key": key, "_model_type": "video"}
 
     return None
