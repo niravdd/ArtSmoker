@@ -2833,9 +2833,10 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
             del chat[key]
             removed.append(mid)
             continue
-        if all(v == sv.LEGACY for v in res.values()):
-            # Legacy model this account stopped using → the existing per-account
-            # lifecycle exclusion (same record a failed chat call would leave).
+        if sv.LEGACY in res.values() and all(v not in (sv.OK, None) for v in res.values()):
+            # Legacy model this account stopped using (no Region answers it) → the
+            # existing per-account lifecycle exclusion (same record a failed chat
+            # call would leave).
             cfg["lifecycle_unavailable"] = {"reason": sv.LEGACY, "detected_at": now}
             legacy.append(mid)
             continue
