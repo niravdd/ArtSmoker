@@ -353,8 +353,10 @@ def promote_to_base():
                     for field in (*_USER_ONLY_FIELDS, *_RETIRED_FIELDS):
                         base_section[model_key].pop(field, None)
                     # Sync clears pricing it can no longer source (→ "unavailable");
-                    # update() alone would keep the stale base copy forever.
-                    for field in (_SYNC_CLEARABLE_PRICING_FIELDS if section in ("chat_models", "voice_models") else ()):
+                    # update() alone would keep the stale base copy forever. The
+                    # voice category carries its model's price (_copy_voice_price).
+                    for field in (_SYNC_CLEARABLE_PRICING_FIELDS
+                                  if section in ("chat_models", "voice_models", "categories") else ()):
                         if field not in promoted:
                             base_section[model_key].pop(field, None)
                 else:
