@@ -526,7 +526,7 @@ async def lift_art_direction(body: LiftArtDirectionRequest):
     /recompose-all. Locked batches are preserved by the client."""
     from backend.services.prompt_engineer import merge_art_direction_with_batch
     from backend.services.cost_tracker import reset_costs, get_total_cost
-    from backend.services.telemetry import track_collection_art_direction_edited
+    from backend.services.telemetry import track_collection_art_direction_lifted
 
     reset_costs()
     try:
@@ -536,7 +536,24 @@ async def lift_art_direction(body: LiftArtDirectionRequest):
         logger.exception("Collection lift-art-direction failed")
         raise HTTPException(502, detail=f"Lift failed: {exc}")
     finally:
-        track_collection_art_direction_edited(cost_usd=get_total_cost())
+        track_collection_art_direction_lifted(cost_usd=get_total_cost())
+
+
+class CollectionUiEventRequest(BaseModel):
+    event: str
+
+
+@router.post("/ui-event")
+async def collection_ui_event(body: CollectionUiEventRequest):
+    """Telemetry beacon for Collections UI actions that make no API call of their
+    own (every other Collections event is fired by its endpoint). Fixed allowlist —
+    a client can't send arbitrary event names."""
+    from backend.services import telemetry
+    track = {"mode_enabled": telemetry.track_collection_mode_enabled}.get(body.event)
+    if track is None:
+        raise HTTPException(400, detail="Unknown event")
+    track()
+    return {"tracked": True}
 
 
 class EstimateCollectionRequest(BaseModel):
@@ -730,7 +747,8 @@ async def generate_collection(body: GenerateCollectionRequest):
         completed_batches = 0
         hero_ref: str | None = None
         track_collection_generation(batches=total_batches, options=n_opts,
-                                    variations=n_vars, models=",".join(models))
+                                    variations=n_vars, models=",".join(models),
+                                    image_inspired=bool(body.reference_images))
         if hero_mode:
             track_collection_hero_anchor_used(batch_count=total_batches)
 

@@ -139,7 +139,6 @@
                                                                   sent_prompts: prev[e.slug]?.sent_prompts || [] }));
                 this._state.designCost += (r.cost || 0);
                 this._state.loaded = this._state.adChanged = false;   // re-aligned → no longer "as saved"
-                window.Telemetry?.track?.('collection_art_direction_edited', {});
                 this._render();
             } catch (e) { this._toast(e.message); } finally { this._setBusy(false); }
         },
@@ -155,7 +154,6 @@
                 });
                 e.model_agnostic_prompt = r.model_agnostic_prompt;
                 this._state.designCost += (r.cost || 0);
-                window.Telemetry?.track?.('collection_batch_regenerated', {});
                 this._render();
             } catch (err) { this._toast(err.message); } finally { this._setBusy(false); }
         },
@@ -177,7 +175,6 @@
                                                                   sent_prompts: locks[e.slug] ? sent[e.slug] : [] }));
                 this._state.designCost += (r.cost || 0);
                 this._state.loaded = this._state.adChanged = false;   // rebuilt → no longer "as saved"
-                window.Telemetry?.track?.('collection_roster_regenerated', {});
                 this._render();
             } catch (e) { this._toast(e.message); } finally { this._setBusy(false); }
         },
@@ -229,7 +226,6 @@
                 e.model_agnostic_prompt = r.model_agnostic_prompt || e.model_agnostic_prompt;
                 e.concept = concept;
                 this._state.designCost += (r.cost || 0);
-                window.Telemetry?.track?.('collection_batch_regenerated', { via: 'ad_controller' });
                 this._render();
                 // Opt-in: lift this refined direction into the SHARED art direction.
                 if (window.confirm(t('collection.ad_lift_confirm'))) {
@@ -266,7 +262,6 @@
                     });
                     this._state.designCost += (rr.cost || 0);
                 }
-                window.Telemetry?.track?.('collection_art_direction_lifted', {});
                 this._render();
             } catch (err) { this._toast(err.message); } finally { this._setBusy(false); }
         },

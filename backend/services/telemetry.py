@@ -168,13 +168,23 @@ def track_collection_art_direction_edited(cost_usd: float = 0):
     _track("collection_studio.art_direction_edited", cost_usd=0)
     _collection_cost(cost_usd, "recompose_all")
 
+def track_collection_art_direction_lifted(cost_usd: float = 0):
+    _track("collection_studio.art_direction_lifted", cost_usd=0)
+    _collection_cost(cost_usd, "lift_art_direction")
+
+def track_collection_mode_enabled():
+    # UI-only (the Collections toggle makes no API call); sent by the client beacon.
+    _track("collection_studio.mode_enabled", cost_usd=0)
+
 def track_collection_batch_regenerated(cost_usd: float = 0):
     _track("collection_studio.batch_regenerated", cost_usd=0)
     _collection_cost(cost_usd, "batch_regenerate")
 
-def track_collection_generation(batches: int = 0, options: int = 1, variations: int = 1, models: str = ""):
+def track_collection_generation(batches: int = 0, options: int = 1, variations: int = 1, models: str = "",
+                                image_inspired: bool = False):
     _track("collection_studio.generate", cost_usd=0, batches=batches, options=options,
-           variations=variations, num_images=batches * options * variations, models=models)
+           variations=variations, num_images=batches * options * variations, models=models,
+           image_inspired=image_inspired)
 
 def track_collection_generation_complete(success: int = 0, partial: int = 0, cost_usd: float = 0):
     _track("collection_studio.generate_complete", cost_usd=0, success=success, partial=partial)

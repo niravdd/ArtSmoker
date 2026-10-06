@@ -3423,7 +3423,6 @@
             // Fresh run: the set's results fill the results area Batch by Batch.
             this._beginCollectionRun(design.collectionId);
             try {
-                window.Telemetry?.track?.('collection_generation_started', { batches: (design.roster || []).length });
                 await API.collections.generateStream({
                     collection_id: design.collectionId, name: design.name || 'Collection',
                     raw_ask: editor.getUserText().trim(),
@@ -3620,8 +3619,6 @@
             this._generating = true;
             this._beginCollectionRun(design.collectionId);
             try {
-                window.Telemetry?.track?.('collection_generation_started',
-                    { batches: (design.roster || []).length, image_inspired: true });
                 await API.collections.generateStream({
                     collection_id: design.collectionId, name: design.name || 'Collection',
                     raw_ask: design.prompt || '',

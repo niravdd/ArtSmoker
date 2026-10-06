@@ -612,7 +612,7 @@
             this._step3Collection?.classList.remove('hidden');
             this._collectionSummaryEl?.classList.add('hidden');
             this._collectionStep3Hint?.classList.remove('hidden');
-            window.Telemetry?.track?.('collection_mode_enabled', {});
+            API.collections.uiEvent('mode_enabled').catch(() => {});   // telemetry only — never blocks the UI
             this._notifyCollectionState();   // disables Generate until a design is accepted
             // Recommend the genre-appropriate guiding fields for THIS prompt and seed
             // Step 2 with a blank guided scaffold ("World: ", "Era: ", "Palette: ",

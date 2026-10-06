@@ -261,6 +261,7 @@
             regenerateRoster(data) { return request('/api/collections/regenerate-roster', { method: 'POST', body: data }); },
             recomposeAll(data) { return request('/api/collections/recompose-all', { method: 'POST', body: data }); },
             liftArtDirection(data) { return request('/api/collections/lift-art-direction', { method: 'POST', body: data }); },
+            uiEvent(event) { return request('/api/collections/ui-event', { method: 'POST', body: { event } }); },
             list() { return request('/api/collections', { method: 'GET' }); },
             get(id) { return request(`/api/collections/${id}`, { method: 'GET' }); },
             estimate(data) { return request('/api/collections/estimate', { method: 'POST', body: data }); },
