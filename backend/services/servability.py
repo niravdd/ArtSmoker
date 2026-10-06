@@ -33,7 +33,9 @@ NOT_SERVED = {"not_found", "unsupported"}
 
 # Bedrock ValidationException wording for "this id isn't invocable here" (as
 # opposed to a bad request parameter, which says nothing about the Region).
-_UNSUPPORTED_HINTS = ("model identifier", "on-demand throughput")
+# "doesn't support the model" = not a Converse model at all (e.g. a speech-to-
+# speech model listed with TEXT modalities; it needs the bidirectional stream).
+_UNSUPPORTED_HINTS = ("model identifier", "on-demand throughput", "doesn't support the model")
 # Wording for a Region that won't run the model for THIS account (its data-
 # retention mode isn't offered there) — the model works elsewhere, so the Region
 # is skipped but the model is kept.

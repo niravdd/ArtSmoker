@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-10-02T07:24:54.729372+00:00",
+  "last_updated": "2026-10-06T01:58:09.701092+00:00",
   "api_compatibility": {
     "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'. Per rule, 'mantle_base' selects the Mantle base path for the OpenAI SDK (/v1 for most; /openai/v1 for openai/xai/google) \u2014 the two paths serve DISJOINT model sets, verified live 2026-09-07.",
     "api_priority": [
@@ -3525,7 +3525,7 @@
     "qwen3_next_80b_a3b": {
       "label": "Qwen3 Next 80B A3B",
       "model_id": "qwen.qwen3-next-80b-a3b",
-      "region": "us-west-2",
+      "region": "us-east-1",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3567,8 +3567,8 @@
       "token_pricing": {
         "source": "price_list",
         "rates": {
-          "input_per_1k": 0.00014,
-          "output_per_1k": 0.0012
+          "output_per_1k": 0.0012,
+          "input_per_1k": 0.00014
         },
         "by_region": {
           "ap-south-1": {
@@ -5573,215 +5573,6 @@
         "us-east-1",
         "us-east-2",
         "us-west-2"
-      ]
-    },
-    "pegasus_1_2_v1": {
-      "label": "Pegasus v1.2",
-      "model_id": "global.twelvelabs.pegasus-1-2-v1:0",
-      "region": "us-west-2",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "TwelveLabs",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/twelvelabs.pegasus-1-2-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-runtime"
-      ],
-      "apis": [
-        "converse"
-      ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse",
-      "lifecycle_status": "ACTIVE",
-      "legacy_time": "",
-      "end_of_life_time": "",
-      "residency_scope": "global",
-      "inference_profiles": [
-        "apac",
-        "eu",
-        "global",
-        "us"
-      ],
-      "input_price_per_1k": 0.0,
-      "output_price_per_1k": 0.0075,
-      "token_pricing": {
-        "source": "agreement_offer",
-        "rates": {
-          "output_per_1k": 0.0075,
-          "global_output_per_1k": 0.0075,
-          "input_per_1k": 0.0,
-          "global_input_per_1k": 0.0
-        },
-        "by_region": {
-          "geo:EU": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "us-west-2": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "ap-northeast-2": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "us-east-1": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "us-west-1": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "us-east-2": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "eu-central-1": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "eu-north-1": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "eu-west-3": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "eu-west-2": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "eu-south-1": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "eu-south-2": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "eu-central-2": {
-            "output_per_1k": 0.0075,
-            "global_output_per_1k": 0.0075,
-            "input_per_1k": 0.0,
-            "global_input_per_1k": 0.0
-          },
-          "ca-central-1": {
-            "global_output_per_1k": 0.0075
-          },
-          "ca-west-1": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-northeast-3": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-southeast-4": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-northeast-1": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-southeast-1": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-southeast-2": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-south-1": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-south-2": {
-            "global_output_per_1k": 0.0075
-          },
-          "me-south-1": {
-            "global_output_per_1k": 0.0075
-          },
-          "af-south-1": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-southeast-7": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-southeast-3": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-southeast-5": {
-            "global_output_per_1k": 0.0075
-          },
-          "ap-east-2": {
-            "global_output_per_1k": 0.0075
-          },
-          "me-central-1": {
-            "global_output_per_1k": 0.0075
-          },
-          "il-central-1": {
-            "global_output_per_1k": 0.0075
-          },
-          "sa-east-1": {
-            "global_output_per_1k": 0.0075
-          },
-          "mx-central-1": {
-            "global_output_per_1k": 0.0075
-          }
-        }
-      },
-      "unit_pricing": {
-        "video_input_second": 0.00049,
-        "global_video_input_second": 0.00049
-      },
-      "on_demand_regions": [
-        "ap-northeast-2",
-        "us-east-1"
       ]
     },
     "devstral_2_123b": {
@@ -9873,47 +9664,6 @@
         "us-west-2"
       ]
     },
-    "rerank_v1": {
-      "label": "Rerank 1.0",
-      "model_id": "amazon.rerank-v1:0",
-      "region": "us-west-2",
-      "available_regions": [
-        "ap-northeast-1",
-        "ca-central-1",
-        "eu-central-1",
-        "us-west-2"
-      ],
-      "provider": "Amazon",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.rerank-v1:0",
-      "has_vision": false,
-      "streaming_supported": false,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-runtime"
-      ],
-      "apis": [
-        "converse"
-      ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse",
-      "residency_scope": "in-region",
-      "inference_profiles": [],
-      "lifecycle_status": "ACTIVE",
-      "legacy_time": "",
-      "end_of_life_time": "",
-      "on_demand_regions": [
-        "ap-northeast-1",
-        "ca-central-1",
-        "eu-central-1",
-        "us-west-2"
-      ]
-    },
     "nova_pro_v1": {
       "label": "Nova Pro",
       "model_id": "us.amazon.nova-pro-v1:0",
@@ -10606,49 +10356,6 @@
         "sa-east-1"
       ],
       "supports_temperature": true
-    },
-    "rerank_v3_5": {
-      "label": "Rerank 3.5",
-      "model_id": "cohere.rerank-v3-5:0",
-      "region": "us-west-2",
-      "available_regions": [
-        "ap-northeast-1",
-        "ca-central-1",
-        "eu-central-1",
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Cohere",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/cohere.rerank-v3-5:0",
-      "has_vision": false,
-      "streaming_supported": false,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-runtime"
-      ],
-      "apis": [
-        "converse"
-      ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse",
-      "lifecycle_status": "ACTIVE",
-      "legacy_time": "",
-      "end_of_life_time": "",
-      "residency_scope": "in-region",
-      "inference_profiles": [],
-      "on_demand_regions": [
-        "ap-northeast-1",
-        "ca-central-1",
-        "eu-central-1",
-        "us-east-1",
-        "us-west-2"
-      ]
     },
     "claude_3_7_sonnet_20250219_v1": {
       "label": "Claude 3.7 Sonnet",
@@ -13324,7 +13031,6 @@
           }
         }
       },
-      "mantle_base": "/openai/v1",
       "on_demand_regions": [],
       "mantle_regions": [
         "us-west-2"
@@ -13688,7 +13394,7 @@
     "glm_4_6": {
       "label": "zai.glm-4.6",
       "model_id": "zai.glm-4.6",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [],
       "provider": "Z.AI",
       "model_source": "foundation",
@@ -14042,7 +13748,7 @@
     "qwen3_next_80b_a3b_instruct": {
       "label": "qwen.qwen3-next-80b-a3b-instruct",
       "model_id": "qwen.qwen3-next-80b-a3b-instruct",
-      "region": "us-west-2",
+      "region": "us-east-1",
       "available_regions": [],
       "provider": "Qwen",
       "model_source": "foundation",
@@ -14068,8 +13774,8 @@
       "token_pricing": {
         "source": "price_list",
         "rates": {
-          "input_per_1k": 0.00014,
-          "output_per_1k": 0.0012
+          "output_per_1k": 0.0012,
+          "input_per_1k": 0.00014
         },
         "by_region": {
           "sa-east-1": {
@@ -14354,8 +14060,7 @@
         "us-east-1",
         "us-east-2",
         "us-west-2"
-      ],
-      "mantle_base": "/openai/v1"
+      ]
     },
     "v3_1": {
       "label": "deepseek.v3.1",
@@ -15917,10 +15622,10 @@
           "global_input_per_1k": 0.002,
           "global_output_per_1k": 0.01,
           "long_global_input_per_1k": 0.004,
-          "long_global_output_per_1k": 0.002,
+          "long_global_output_per_1k": 0.015,
           "output_per_1k": 0.011,
           "long_input_per_1k": 0.0044,
-          "long_output_per_1k": 0.0022
+          "long_output_per_1k": 0.0165
         },
         "long_context_threshold_tokens": 272000
       },

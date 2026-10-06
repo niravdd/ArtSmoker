@@ -834,14 +834,15 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
     def _heal(section: str, profile_only: bool, home: str):
         nonlocal healed
         for key, cfg in (registry.get(section, {}) or {}).items():
-            # Mantle-ONLY models carry no runtime Region, so the region scan leaves
-            # available_regions empty → the check below skips them. Dual models
+            # Mantle-ONLY models carry no runtime Region (available_regions is
+            # empty) → pinned among the Regions whose Mantle lists them. Dual models
             # (bedrock-mantle + bedrock-runtime) DO get scanned Regions and are
             # residency-pinned on their runtime Region like any other.
             avail = cfg.get("available_regions") or []
             if cfg.get("invoke_endpoint") == "bedrock-mantle" and cfg.get("mantle_regions"):
                 # Served by Mantle → only Regions whose Mantle catalog lists it.
-                avail = [r for r in avail if r in cfg["mantle_regions"]]
+                avail = [r for r in avail if r in cfg["mantle_regions"]] if avail \
+                    else list(cfg["mantle_regions"])
             if not avail:
                 continue
             cur_id = cfg.get("model_id", "")
@@ -871,7 +872,7 @@ def _resolve_residency_pins(registry: dict, progress=None) -> int:
                 apis = derive_model_apis(
                     new_id, cfg.get("provider", ""),
                     on_mantle="bedrock-mantle" in (cfg.get("endpoints") or []),
-                    on_runtime=True,
+                    on_runtime="bedrock-runtime" in (cfg.get("endpoints") or ["bedrock-runtime"]),
                 )
                 cfg["apis"] = apis
                 cfg["invoke_endpoint"], cfg["invoke_api"] = resolve_invoke_path(apis)
@@ -2831,6 +2832,15 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
     cat_bases = {_strip_geo_prefix((c or {}).get("current", ""))
                  for c in (registry.get("categories", {}) or {}).values() if isinstance(c, dict)}
     home = settings.aws_region_models
+    # A pin on a dead Region moves to a live one: in the residency geo (when set),
+    # then home, then a Region in home's geography, then by name.
+    region_geos = _region_geos(pmap)
+    residency = _preferred_residency_geo(registry)
+
+    def _repin_rank(r):
+        return (bool(residency) and not _region_in_geo(r, residency, region_geos), r != home,
+                not (region_geos.get(r, set()) & region_geos.get(home, set())), r)
+
     removed, repinned, legacy, marked = [], [], [], 0
     for key, by_id in per_model.items():
         cfg = chat[key]
@@ -2866,9 +2876,9 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
             marked += sum(len(m) for m in records.values())
         else:
             cfg.pop("unservable_regions", None)
-        live = sorted(r for r in res if r not in marks)
+        live = [r for r in res if r not in marks]
         if cfg.get("region") in marks and live:
-            cfg["region"] = home if home in live else live[0]
+            cfg["region"] = min(live, key=_repin_rank)
             repinned.append(f"{mid}→{cfg['region']}")
     for mid in removed:
         logger.info("Region check: %s isn't served in any Region — not registered", mid)
@@ -3088,12 +3098,6 @@ def _run_refresh_all_regions():
         # Custom-hosted models are EXEMPT — they don't use Bedrock regions.
         registry = get_registry()
 
-        # Auditable net-new log: names the models registered fresh this Sync. With
-        # batch-write mode these now persist, so a steady-state re-Sync should log 0.
-        if new_model_ids:
-            logger.info("Sync: %d net-new model(s) this run: %s",
-                        len(new_model_ids), ", ".join(sorted(new_model_ids)))
-
         # Step 4b: Reconcile the bedrock-mantle catalog FIRST (before pruning) —
         # mark which discovered models are ALSO on Mantle, and add Mantle-only
         # models (e.g. OpenAI GPT-5.x, Claude Mythos) that never appear in the
@@ -3157,10 +3161,22 @@ def _run_refresh_all_regions():
         # Step 4c-quater: Which Regions actually answer each chat model (some list a
         # model yet hang on it). Records dead Regions per account, moves pins off
         # them, and drops models no Region serves. After pinning, before pricing.
+        dropped: set = set()
         try:
-            _probe_chat_servability(registry, _progress)
+            probe = _probe_chat_servability(registry, _progress)
+            dropped = {_strip_geo_prefix(m) for m in probe.get("removed") or []}
         except Exception as exc:
             logger.warning("Region check skipped: %s", exc)
+
+        # Auditable net-new log: names the models registered fresh this Sync. A model
+        # dropped above (no Region serves it) is re-listed by AWS every Sync but never
+        # kept, so it isn't new — a steady-state re-Sync should log 0.
+        dropped_new = {m for m in new_model_ids if _strip_geo_prefix(m) in dropped}
+        new_model_ids -= dropped_new
+        total_new = max(0, total_new - len(dropped_new))
+        if new_model_ids:
+            logger.info("Sync: %d net-new model(s) this run: %s",
+                        len(new_model_ids), ", ".join(sorted(new_model_ids)))
 
         # Step 4d: Prune — disable models not found in any region this scan.
         disabled = []
