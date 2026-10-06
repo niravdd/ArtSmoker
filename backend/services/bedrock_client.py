@@ -314,7 +314,8 @@ def validate_aws_credentials() -> dict:
             for _attempt in range(_LLM_PROBE_RETRY_ATTEMPTS + 1):
                 try:
                     if _endpoint == "bedrock-mantle":
-                        _invoke_llm_mantle(_id, _api, "hi", max_tokens=1, region=_region)
+                        # 16 = the Responses API's minimum output budget
+                        _invoke_llm_mantle(_id, _api, "hi", max_tokens=16, region=_region)
                         _probe_endpoint = "bedrock-mantle"
                     else:
                         _client = _get_client(_region)
@@ -564,55 +565,67 @@ def _invoke_llm_mantle(
     """Invoke an LLM over the bedrock-mantle endpoint (Chat Completions /
     Responses / Messages), converting our prompt+images to the right shape.
 
-    Isolated from the Converse path; reached only when a model's resolved
-    invoke_endpoint is bedrock-mantle. Cost tracking mirrors the Converse path
-    where usage is available.
+    Reached only when a model's resolved invoke_endpoint is bedrock-mantle. Tries
+    the routes in the same order as Chat Studio (mantle_invocation_candidates:
+    the last-answering route, the matrix route, then the fallbacks) — each base
+    path (/v1, /openai/v1) serves a different set of models, so one fixed route
+    can't reach them all. ``invoke_api`` is kept for callers; the route list
+    decides. Cost tracking mirrors the Converse path.
     """
+    import openai
+    import requests
     from backend.services import mantle_client as mc
+    from backend.services.model_registry import find_chat_model
+
+    provider = (find_chat_model(model_id) or {}).get("provider", "")
+    temp = temperature if _model_supports_temperature(model_id) else None
+
+    content = ([{"image": {"source": {"bytes": img}}} for img in images] + [{"text": prompt}]
+               if images else prompt)
+
+    def _call(base_path: str, route: str, usage: dict) -> str:
+        messages = mc.route_messages([{"role": "user", "content": content}], route, system)
+        if route == "messages":
+            return mc.invoke_messages(
+                model_id, messages,
+                region=region, system=system, max_tokens=max_tokens,
+                temperature=temp, usage_out=usage,
+            )
+        if route == "responses":
+            return mc.invoke_responses(
+                model_id, messages, region=region, max_output_tokens=max_tokens,
+                usage_out=usage, base_path=base_path,
+            )
+        return mc.invoke_chat_completions(
+            model_id, messages, region=region, max_tokens=max_tokens,
+            temperature=temp, usage_out=usage, base_path=base_path,
+        )
 
     # Capture token usage so Mantle-routed model inference (GPT-5.x, Mythos, …) is
-    # cost-tracked exactly like the Converse path — previously the usage object was
-    # discarded and all Mantle spend was silently recorded as $0.
+    # cost-tracked exactly like the Converse path.
     usage: dict = {}
-
-    # Build the user content. OpenAI (chat/responses) and Anthropic (messages)
-    # use different content shapes for images.
-    if invoke_api == "messages":
-        content: list[dict] = []
-        for img in (images or []):
-            content.append({
-                "type": "image",
-                "source": {"type": "base64", "media_type": _img_mime(img),
-                           "data": base64.b64encode(img).decode()},
-            })
-        content.append({"type": "text", "text": prompt})
-        text = mc.invoke_messages(
-            model_id, [{"role": "user", "content": content}],
-            region=region, system=system, max_tokens=max_tokens,
-            temperature=temperature, usage_out=usage,
-        )
+    first_err = None
+    timed_out = False
+    for idx, (base_path, route) in enumerate(mc.mantle_invocation_candidates(model_id, provider)):
+        usage.clear()
+        try:
+            text = _call(base_path, route, usage)
+        except mc.MantleAccessError:
+            raise  # no token / no permission — every route would fail the same way
+        except Exception as exc:
+            first_err = first_err or exc
+            timed_out = timed_out or isinstance(exc, (openai.APITimeoutError, requests.Timeout))
+            logger.debug("Mantle %s %s %s failed: %s", model_id, base_path, route, str(exc)[:120])
+            continue
+        if idx > 0:
+            mc.record_mantle_route(model_id, provider, base_path, route)
+        break
     else:
-        # OpenAI-style content parts (chat_completions + responses).
-        parts: list[dict] = []
-        for img in (images or []):
-            b64 = base64.b64encode(img).decode()
-            parts.append({"type": "image_url",
-                          "image_url": {"url": f"data:{_img_mime(img)};base64,{b64}"}})
-        parts.append({"type": "text", "text": prompt})
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": parts if images else prompt})
-        if invoke_api == "responses":
-            text = mc.invoke_responses(
-                model_id, messages, region=region, max_output_tokens=max_tokens,
-                usage_out=usage,
-            )
-        else:  # chat_completions
-            text = mc.invoke_chat_completions(
-                model_id, messages, region=region, max_tokens=max_tokens,
-                temperature=temperature, usage_out=usage,
-            )
+        if timed_out:
+            # No route answered and the Region hung: skip it until the next Sync.
+            from backend.services.servability import mark_region_unservable
+            mark_region_unservable(model_id, mc.mantle_region_for(region))
+        raise first_err or RuntimeError(f"Mantle: no route for {model_id}")
 
     # Record cost from captured usage (mirrors the Converse path).
     try:
@@ -620,7 +633,7 @@ def _invoke_llm_mantle(
         out_tok = int(usage.get("output_tokens", 0) or 0)
         if in_tok or out_tok:
             from backend.services.cost_tracker import add_cost, compute_llm_cost
-            cost = compute_llm_cost(model_id, in_tok, out_tok, region=region)
+            cost = compute_llm_cost(model_id, in_tok, out_tok, region=mc.mantle_region_for(region))
             if cost > 0:
                 add_cost("llm", cost, f"{model_id} (mantle): {in_tok} in, {out_tok} out")
     except Exception as e:
@@ -685,10 +698,19 @@ def invoke_llm(
     Returns:
         The text response from the LLM.
     """
+    from backend.routers.chat import _resolve_chat_region
+    from backend.services.model_registry import find_chat_model
+    from backend.services.servability import unservable_for
     if model_id:
-        region = region or _pick_llm_model(complexity)[1]
+        # An explicit model without a Region → that model's own Region (as Chat
+        # Studio picks it), not the category model's, which it may not be in.
+        region = region or _resolve_chat_region(model_id)
     else:
         model_id, region = _pick_llm_model(complexity)
+    # A Region recorded as not answering this id (services/servability.py) → the
+    # same Region choice Chat Studio makes, instead of hanging there again.
+    if region in unservable_for(find_chat_model(model_id) or {}, model_id):
+        region = _resolve_chat_region(model_id)
 
     # Route by the model's resolved invoke path (Converse-first; Mantle only for
     # models Converse can't reach — e.g. OpenAI GPT-5.x via Responses, Claude

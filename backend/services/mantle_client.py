@@ -26,6 +26,7 @@ region to the nearest supported one so a us-west-2-centric deployment still
 works.
 """
 
+import base64
 import logging
 import os
 import threading
@@ -171,7 +172,7 @@ def _permission_denied_error(region: str, exc: Exception) -> "MantleAccessError"
     return MantleAccessError(f"{_MANTLE_ACCESS_HELP} (region {region}; detail: {detail[:160]})")
 
 
-def _mantle_call(region: str, fn):
+def _mantle_call(region: str, fn, base_path: str = "/v1"):
     """Run a Mantle call, retrying ONCE with a freshly-derived token on auth error.
 
     ``fn(client)`` performs the actual request. On the first 401/403 we discard
@@ -187,7 +188,7 @@ def _mantle_call(region: str, fn):
     """
     m_region = mantle_region_for(region)
     try:
-        return fn(_build_client(m_region))
+        return fn(_build_client(m_region, base_path=base_path))
     except Exception as exc:
         if not _is_auth_error(exc):
             raise
@@ -199,7 +200,7 @@ def _mantle_call(region: str, fn):
             raise MantleAccessError(_MANTLE_ACCESS_HELP)
         logger.info("Mantle auth failed for %s — retrying with a freshly derived token", m_region)
         try:
-            return fn(_build_client(m_region, token=fresh))
+            return fn(_build_client(m_region, token=fresh, base_path=base_path))
         except Exception as exc2:
             # Fresh token still denied → real permission/Marketplace gap, not staleness.
             if _is_auth_error(exc2):
@@ -285,39 +286,85 @@ def mantle_base_for(model_id: str, provider: str = "") -> str:
     return (compat.get("default", {}) or {}).get("mantle_base") or "/v1"
 
 
+def _matrix_route(model_id: str, provider: str) -> tuple:
+    """The (base_path, route) the api_compatibility matrix gives a Mantle model."""
+    return (mantle_base_for(model_id, provider), resolve_invoke_path(
+        derive_model_apis(model_id, provider, on_mantle=True, on_runtime=False))[1])
+
+
 def mantle_invocation_candidates(model_id: str, provider: str, route: str = "") -> list[tuple]:
-    """Ordered (base_path, route) combos to try for a Mantle model. The registry-
-    derived (base, route) is FIRST; the remaining known combos follow as a self-
-    healing fallback so a model whose stored routing is stale — or a brand-new
-    provider not yet in the matrix — still resolves. Forward + backward compatible:
-    the fast path is one attempt; discovery only kicks in on failure."""
-    primary_base = mantle_base_for(model_id, provider)
-    primary_route = route or resolve_invoke_path(
-        derive_model_apis(model_id, provider, on_mantle=True, on_runtime=False))[1]
-    combos = [(primary_base, primary_route)]
-    # Fallback universe (each real Mantle route × each base), minus the primary.
+    """Ordered (base_path, route) combos to try for a Mantle model: the route that
+    last answered (``mantle_route``, recorded by record_mantle_route) first, then
+    the matrix route, then every other known combo as a self-healing fallback, so
+    a stale route — or a brand-new provider not yet in the matrix — still
+    resolves. Chat Studio, invoke_llm and the Sync probe all use this order."""
+    from backend.services.model_registry import find_chat_model
+    learned = (find_chat_model(model_id) or {}).get("mantle_route") or {}
+    primary_base, primary_route = _matrix_route(model_id, provider)
+    combos = []
+    if learned.get("base") in MANTLE_BASE_PATHS and learned.get("api"):
+        combos.append((learned["base"], learned["api"]))
+    if (primary_base, route or primary_route) not in combos:
+        combos.append((primary_base, route or primary_route))
+    # Fallback universe (each real Mantle route × each base), minus those above.
+    # Messages has one URL (/anthropic/v1/messages) whatever the base, so it's tried once.
     for b in MANTLE_BASE_PATHS:
         for r in ("chat_completions", "responses", "messages"):
-            if (b, r) not in combos:
+            if (b, r) not in combos and not (r == "messages" and any(c[1] == r for c in combos)):
                 combos.append((b, r))
     return combos
 
 
-def record_mantle_route(model_id: str, base_path: str, route: str) -> None:
-    """Persist the working (mantle_base, invoke_api) for a model (thread/process-
-    safe), so the self-healed combo becomes the fast path next time. Registry-
-    driven, self-learned — no code edit when Mantle routing shifts."""
+def record_mantle_route(model_id: str, provider: str, base_path: str, route: str) -> None:
+    """Remember (per account, user.json) the Mantle route that answered after the
+    first-tried one failed, so it's tried first next time. When the matrix route
+    answers again the record is cleared — the matrix stays the default."""
+    from datetime import datetime, timezone
+    from backend.services.model_registry import set_chat_mantle_route
     try:
-        from backend.services.model_registry import find_chat_model, registry_transaction
-        with registry_transaction() as reg:
-            cfg = find_chat_model(model_id, reg.get("chat_models") or {})
-            if cfg is not None:
-                cfg["mantle_base"] = base_path
-                cfg["invoke_api"] = route
-                cfg["invoke_endpoint"] = "bedrock-mantle"
-        logger.info("Mantle route learned for %s → %s %s", model_id, base_path, route)
+        if (base_path, route) == _matrix_route(model_id, provider):
+            set_chat_mantle_route(model_id, None)
+            logger.info("Mantle route for %s back on the matrix route %s %s", model_id, base_path, route)
+        elif set_chat_mantle_route(model_id, {"base": base_path, "api": route,
+                                              "learned_at": datetime.now(timezone.utc).isoformat()}):
+            logger.info("Mantle route learned for %s → %s %s", model_id, base_path, route)
     except Exception:
         logger.debug("Could not record Mantle route for %s", model_id, exc_info=True)
+
+
+# ── Message shaping (one chat history → each Mantle API's format) ───────────
+
+def _image_part(route: str, data: bytes) -> dict:
+    from backend.services.bedrock_client import _img_mime
+    mime, b64 = _img_mime(data), base64.b64encode(data).decode()
+    if route == "messages":
+        return {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}}
+    if route == "responses":
+        return {"type": "input_image", "image_url": f"data:{mime};base64,{b64}"}
+    return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
+
+
+def route_messages(messages: list[dict], route: str, system: str = "") -> list[dict]:
+    """Chat messages in the shape ``route`` takes. ``content`` is a string or a
+    list of Converse blocks ({text} / {image: {format, source: {bytes}}}, bytes
+    raw or base64 — what Chat Studio sends). ``system`` becomes a system message,
+    except on Messages, which takes it as a separate field."""
+    text_type = "input_text" if route == "responses" else "text"
+    out = [{"role": "system", "content": system}] if system and route != "messages" else []
+    for m in messages:
+        role, content = m.get("role", "user"), m.get("content", "")
+        if isinstance(content, list):
+            parts = []
+            for block in content:
+                img = (block.get("image") or {}).get("source", {}).get("bytes")
+                if img is not None and role == "user":
+                    parts.append(_image_part(route, base64.b64decode(img) if isinstance(img, str) else img))
+                elif block.get("text"):
+                    parts.append({"type": text_type, "text": block["text"]})
+            # Only user turns carry images; other roles take plain text everywhere.
+            content = parts if role == "user" else "".join(p["text"] for p in parts if "text" in p)
+        out.append({"role": role, "content": content})
+    return out
 
 
 # ── Invokers (one per Mantle API surface) ───────────────────────────────────
@@ -346,6 +393,7 @@ def invoke_chat_completions(
     temperature: float | None = None,
     extra: dict | None = None,
     usage_out: dict | None = None,
+    base_path: str = "/v1",
 ) -> str:
     """OpenAI Chat Completions on Mantle. ``messages`` are OpenAI-format
     ({role, content}). Returns the assistant text. If ``usage_out`` is provided,
@@ -361,7 +409,7 @@ def invoke_chat_completions(
         _capture_usage(usage_out, getattr(resp, "usage", None))
         return resp.choices[0].message.content or ""
 
-    return _mantle_call(region or settings.aws_region_models, _do)
+    return _mantle_call(region or settings.aws_region_models, _do, base_path)
 
 
 def invoke_responses(
@@ -373,6 +421,7 @@ def invoke_responses(
     store: bool = False,
     extra: dict | None = None,
     usage_out: dict | None = None,
+    base_path: str = "/v1",
 ) -> str:
     """OpenAI Responses API on Mantle (required by frontier models e.g. GPT-5.x).
 
@@ -396,7 +445,7 @@ def invoke_responses(
         # output_text is the SDK's convenience aggregation of text output items.
         return getattr(resp, "output_text", "") or ""
 
-    return _mantle_call(region or settings.aws_region_models, _do)
+    return _mantle_call(region or settings.aws_region_models, _do, base_path)
 
 
 def invoke_messages(

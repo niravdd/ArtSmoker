@@ -1,5 +1,6 @@
 """Chat Studio router — multi-model LLM chat with streaming, sessions, and cost tracking."""
 
+import base64
 import json
 import logging
 import time
@@ -57,6 +58,21 @@ class CompactRequest(BaseModel):
     keep_recent: int = 6  # Keep last N messages verbatim
 
 
+def _converse_blocks(content: list) -> list:
+    """Converse content blocks with any base64-string ``source.bytes`` (how the
+    browser sends attachments over JSON) decoded to raw bytes — boto3 base64-
+    encodes the field itself, so a string would reach the model encoded twice."""
+    out = []
+    for block in content:
+        block = dict(block)
+        for kind, val in block.items():
+            src = val.get("source") if isinstance(val, dict) else None
+            if isinstance(src, dict) and isinstance(src.get("bytes"), str):
+                block[kind] = {**val, "source": {**src, "bytes": base64.b64decode(src["bytes"])}}
+        out.append(block)
+    return out
+
+
 # ── Mantle streaming (OpenAI-compatible endpoint) ───────────────────────────
 
 def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, invoke_api: str):
@@ -73,14 +89,6 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
 
     def sse(data: dict) -> str:
         return f"data: {json.dumps(data, default=str)}\n\n"
-
-    # Normalize messages to OpenAI shape (role/content strings; structured
-    # content is passed through). System prompt becomes a system message.
-    msgs = []
-    if req.system_prompt and invoke_api != "messages":
-        msgs.append({"role": "system", "content": req.system_prompt})
-    for m in req.messages:
-        msgs.append({"role": m.get("role", "user"), "content": m.get("content", "")})
 
     # Provider (for the registry-driven Mantle base/route lookup).
     from backend.services.model_registry import find_chat_model
@@ -99,6 +107,8 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
         # Per-route openers. Each returns an iterator of text pieces; usage is
         # captured into `usage` as it streams. Raise on an unsupported combo.
         def _open(base_path, route):
+            # The history (Converse blocks for images) in this route's format.
+            msgs = mc.route_messages(req.messages, route, req.system_prompt or "")
             client = mc._get_openai_client(region, base_path)
             if route == "responses":
                 # NON-streaming: some Mantle Responses models (e.g. reasoning models
@@ -131,7 +141,7 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
             if route == "messages":
                 _u = {}
                 text = mc.invoke_messages(
-                    model_id, [{"role": m["role"], "content": m["content"]} for m in msgs],
+                    model_id, msgs,
                     region=region, system=req.system_prompt or "",
                     max_tokens=req.max_tokens, temperature=req.temperature, usage_out=_u)
                 usage["in"] = _u.get("input_tokens", 0)
@@ -140,12 +150,9 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
             return iter([])
 
         try:
-            # Try the registry-derived (base, route) first; self-heal through the
-            # remaining combos if it's stale/unsupported, and LEARN the winner so
-            # the fast path is correct next time (forward + backward compatible).
-            # Derive the primary (base, route) FRESH from the matrix (not the stored
-            # invoke_api, which may be stale) so a corrected rule takes effect without
-            # a re-Sync; the self-heal fallback covers anything the matrix misses.
+            # Last-answering route first, then the matrix route (derived fresh, not
+            # the stored invoke_api, so a corrected rule needs no re-Sync), then the
+            # self-heal fallbacks; a non-first winner is remembered for next time.
             candidates = mc.mantle_invocation_candidates(model_id, provider)
             committed = False
             used = None
@@ -158,7 +165,7 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
                             committed = True
                             used = (base_path, route)
                             if idx > 0:  # self-healed to a non-primary combo → persist it
-                                mc.record_mantle_route(model_id, base_path, route)
+                                mc.record_mantle_route(model_id, provider, base_path, route)
                         if piece:
                             full += piece
                             yield sse({"type": "delta", "text": piece})
@@ -250,7 +257,7 @@ async def chat_stream(req: ChatMessageRequest):
             converse_messages.append({"role": role, "content": [{"text": content}]})
         elif isinstance(content, list):
             # Already structured (e.g., with images)
-            converse_messages.append({"role": role, "content": content})
+            converse_messages.append({"role": role, "content": _converse_blocks(content)})
 
     # Registry-driven param gate: omit `temperature` for models that reject it
     # (newer Claude/GPT tiers deprecate it). Same gate the generation path uses;

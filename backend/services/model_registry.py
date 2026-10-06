@@ -290,7 +290,10 @@ def registry_transaction():
 
 # Fields per model that are user-specific and should NOT be promoted to the base file
 _USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready", "lifecycle_unavailable",
-                     "unservable_regions"}
+                     "unservable_regions", "mantle_route"}
+# Fields no code reads any more; promote_to_base drops them from base.
+# mantle_base: the old learned Mantle base path, replaced by mantle_route.
+_RETIRED_FIELDS = ("mantle_base",)
 # Chat-model price fields owned by the Sync (_apply_llm_pricing): when it drops
 # them, promote_to_base must drop them from base as well. `pricing_source` (a
 # hand-stamped price) is dropped once AWS publishes an official one.
@@ -336,6 +339,8 @@ def promote_to_base():
             for model_key, model_data in merged[section].items():
                 if not isinstance(model_data, dict):
                     continue
+                for field in _RETIRED_FIELDS:
+                    model_data.pop(field, None)
                 promoted = {k: v for k, v in model_data.items() if k not in _USER_ONLY_FIELDS}
                 # Custom-hosted deployed instances are user-specific — never promote
                 if promoted.get("model_source") == "custom_hosted":
@@ -345,7 +350,7 @@ def promote_to_base():
                     continue
                 if model_key in base_section and isinstance(base_section[model_key], dict):
                     base_section[model_key].update(promoted)
-                    for field in _USER_ONLY_FIELDS:
+                    for field in (*_USER_ONLY_FIELDS, *_RETIRED_FIELDS):
                         base_section[model_key].pop(field, None)
                     # Sync clears pricing it can no longer source (→ "unavailable");
                     # update() alone would keep the stale base copy forever.
@@ -1358,6 +1363,36 @@ def mark_chat_region_unservable(model_id: str, kind: str, region: str, info: dic
     cfg["unservable_regions"] = marks                                   # live cache
     _save_user_pref("chat_models", key, "unservable_regions", marks)    # persist to user.json
     return True
+
+@_registry_write
+def set_chat_mantle_route(model_id: str, route: dict | None) -> bool:
+    """Record (PER-USER, in user.json) the Mantle (base, api) that last answered
+    ``model_id`` — tried first next time (mantle_client.mantle_invocation_candidates).
+    ``None`` clears it, when the matrix route answered again. False if the model
+    is unknown."""
+    chat = _registry.get("chat_models", {})
+    cfg = find_chat_model(model_id, chat)
+    key = next((k for k, v in chat.items() if v is cfg), None)
+    if key is None:
+        return False
+    if route:
+        cfg["mantle_route"] = route                                     # live cache
+        _save_user_pref("chat_models", key, "mantle_route", route)      # persist to user.json
+        return True
+    cfg.pop("mantle_route", None)
+    prefs = {}
+    if _USER_PREFS_PATH.exists():
+        try:
+            prefs = json.loads(_USER_PREFS_PATH.read_text())
+        except Exception:
+            prefs = {}
+    entry = (prefs.get("chat_models") or {}).get(key)
+    if isinstance(entry, dict) and entry.pop("mantle_route", None) is not None:
+        if not entry:
+            del prefs["chat_models"][key]
+        atomic_write_text(_USER_PREFS_PATH, json.dumps(prefs, indent=2, default=str))
+    return True
+
 
 def get_video_model_keys_sorted() -> list[str]:
     """Return enabled video model keys sorted by label."""
