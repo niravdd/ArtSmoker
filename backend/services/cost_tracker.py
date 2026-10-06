@@ -392,3 +392,40 @@ def compute_llm_cost(model_id: str, input_tokens: int, output_tokens: int,
     input_cost = (input_tokens / 1_000_000) * pricing["input_per_mtok"]
     output_cost = (output_tokens / 1_000_000) * pricing["output_per_mtok"]
     return round(input_cost + output_cost, 6)
+
+
+def voice_token_cost(model_id: str, region: str | None, usage: dict) -> float | None:
+    """Cost of one speech-model (Nova Sonic) session from its usage breakdown.
+
+    `usage` = {speech_input, text_input, speech_output, text_output} tokens.
+    Speech and text tokens bill at different official rates (speech_*_per_1k vs
+    input/output_per_1k, stamped onto voice_models by AWS Sync — SPEC §14).
+    None when any used dimension has no recorded rate — never a borrowed or
+    partial price ("pricing unavailable")."""
+    try:
+        from backend.services.model_registry import find_chat_model, get_category, get_registry
+        from backend.services.official_pricing import rates_for_region
+        reg = get_registry()
+        cfg = find_chat_model(model_id, reg.get("voice_models") or {})
+        if not cfg:
+            cat = get_category("voice")
+            cfg = cat if cat.get("current") == model_id else None
+        tp = (cfg or {}).get("token_pricing") or {}
+        rates = (rates_for_region(tp.get("by_region") or {}, region) if region else None) or tp.get("rates") or {}
+        if not rates and cfg and (cfg.get("input_price_per_1k") or cfg.get("output_price_per_1k")):
+            rates = {"input_per_1k": cfg.get("input_price_per_1k"),
+                     "output_per_1k": cfg.get("output_price_per_1k")}
+        total = 0.0
+        for dim, field in (("speech_input", "speech_input_per_1k"), ("text_input", "input_per_1k"),
+                           ("speech_output", "speech_output_per_1k"), ("text_output", "output_per_1k")):
+            n = usage.get(dim) or 0
+            if not n:
+                continue
+            rate = rates.get(field)
+            if rate is None:
+                return None
+            total += n / 1000 * rate
+        return round(total, 6) if total > 0 else None
+    except Exception:
+        logger.debug("voice_token_cost failed", exc_info=True)
+        return None

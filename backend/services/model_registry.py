@@ -26,8 +26,8 @@ def _registry_write(fn):
     model_registry.user.json, plus promote_to_base which also touches the
     git-tracked base file) is wrapped so a concurrent collaborator on a shared
     host can't lost-update the file. Paired with atomic_write_text at each write
-    site, a reader never sees a partial file. Leaf writers must NOT call one
-    another (the lock is non-reentrant) — verified: none do.
+    site, a reader never sees a partial file. The lock is reentrant (safe_write
+    _WriteLock), so a writer may call another (e.g. → _save_user_pref).
     """
     @wraps(fn)
     def _wrapped(*args, **kwargs):
@@ -98,8 +98,8 @@ def _deep_merge_runtime(runtime: dict) -> int:
     Returns count of entries merged.
     """
     # Sections that contain dict-of-models (merge at model level)
-    MODEL_SECTIONS = {"image_models", "video_models", "chat_models", "post_processing",
-                      "utility_models", "categories"}
+    MODEL_SECTIONS = {"image_models", "video_models", "chat_models", "voice_models",
+                      "post_processing", "utility_models", "categories"}
     # Nested catalog sections: merge the 'models' sub-dict at model level
     CATALOG_SECTIONS = {"custom_model_catalog"}
     count = 0
@@ -327,8 +327,8 @@ def promote_to_base():
     for _uonly in _USER_ONLY_SECTIONS:
         base.pop(_uonly, None)
 
-    MODEL_SECTIONS = {"image_models", "video_models", "chat_models", "post_processing",
-                      "utility_models", "categories"}
+    MODEL_SECTIONS = {"image_models", "video_models", "chat_models", "voice_models",
+                      "post_processing", "utility_models", "categories"}
 
     # Step 1: Update base file with discovered data (strip user-only fields)
     for section in list(merged.keys()):
@@ -354,7 +354,7 @@ def promote_to_base():
                         base_section[model_key].pop(field, None)
                     # Sync clears pricing it can no longer source (→ "unavailable");
                     # update() alone would keep the stale base copy forever.
-                    for field in (_SYNC_CLEARABLE_PRICING_FIELDS if section == "chat_models" else ()):
+                    for field in (_SYNC_CLEARABLE_PRICING_FIELDS if section in ("chat_models", "voice_models") else ()):
                         if field not in promoted:
                             base_section[model_key].pop(field, None)
                 else:
@@ -366,7 +366,7 @@ def promote_to_base():
 
             # Clean up: remove custom_hosted (user-specific) and regionless
             # (deprecated) entries from base, then deduplicate by model_id
-            if section in ("image_models", "video_models", "chat_models"):
+            if section in ("image_models", "video_models", "chat_models", "voice_models"):
                 for k in list(base_section.keys()):
                     v = base_section[k]
                     if v.get("model_source") == "custom_hosted":
@@ -909,14 +909,13 @@ _DEFAULT_CATEGORIES = {
         "description": "Fallback on AccessDeniedException from primary models",
     },
     "voice": {
-        # nova-sonic-v1 hits END OF LIFE 2026-09-14 — default to Sonic 2.0
-        # (the registry's stored category already points here; this code
-        # default only matters if the category is ever missing).
+        # Bootstrap only (used if the category is ever missing): every AWS Sync
+        # rolls it to the newest ACTIVE model of its family in voice_models.
         "current": "amazon.nova-2-sonic-v1:0",
         "region": "us-east-1",
         "provider": "Amazon",
         "api_type": "bidirectional_stream",
-        "label": "Voice (Nova Sonic 2.0)",
+        "label": "Voice Transcription",
         "description": "Speech-to-text transcription via bidirectional streaming",
     },
 }
@@ -1349,16 +1348,20 @@ def mark_lifecycle_unavailable(section: str, key: str, reason: str = "legacy_acc
 
 
 
+@_registry_write
 def mark_chat_region_unservable(model_id: str, kind: str, region: str, info: dict) -> bool:
     """Record (PER-USER, in user.json) that ``region`` didn't answer ``model_id``
     (id kind ``kind`` — see services/servability.py), so Chat Studio stops offering
-    it and auto-routing picks another Region. False if the model is unknown."""
+    it and auto-routing picks another Region. False if the model is unknown.
+    Merged into the record on disk (user-only field), so marks another worker
+    wrote meanwhile aren't lost."""
     chat = _registry.get("chat_models", {})
     cfg = find_chat_model(model_id, chat)
     key = next((k for k, v in chat.items() if v is cfg), None)
     if key is None:
         return False
-    marks = dict(cfg.get("unservable_regions") or {})
+    entry = (_read_user_prefs_raw().get("chat_models") or {}).get(key) or {}
+    marks = dict(entry.get("unservable_regions") or {})
     marks[kind] = {**(marks.get(kind) or {}), region: info}
     cfg["unservable_regions"] = marks                                   # live cache
     _save_user_pref("chat_models", key, "unservable_regions", marks)    # persist to user.json
@@ -1380,12 +1383,7 @@ def set_chat_mantle_route(model_id: str, route: dict | None) -> bool:
         _save_user_pref("chat_models", key, "mantle_route", route)      # persist to user.json
         return True
     cfg.pop("mantle_route", None)
-    prefs = {}
-    if _USER_PREFS_PATH.exists():
-        try:
-            prefs = json.loads(_USER_PREFS_PATH.read_text())
-        except Exception:
-            prefs = {}
+    prefs = _read_user_prefs_raw()
     entry = (prefs.get("chat_models") or {}).get(key)
     if isinstance(entry, dict) and entry.pop("mantle_route", None) is not None:
         if not entry:

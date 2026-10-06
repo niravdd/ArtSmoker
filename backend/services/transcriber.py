@@ -1,5 +1,6 @@
-"""Voice transcription service — Amazon Nova Sonic 2.0 speech-to-text via
-Bedrock's InvokeModelWithBidirectionalStream API.
+"""Voice transcription service — Amazon Nova Sonic speech-to-text via
+Bedrock's InvokeModelWithBidirectionalStream API. The model is the registry's
+`voice` category (AWS Sync rolls it to the newest ACTIVE Sonic version).
 
 boto3 has NO bidirectional-streaming support, so this uses the experimental
 Smithy-based SDK (`aws_sdk_bedrock_runtime`, async). Credentials are bridged
@@ -157,6 +158,8 @@ async def _sonic_transcribe(
 
     transcript_parts: list[str] = []
     in_tokens = out_tokens = 0
+    # Per-modality totals (speech and text tokens bill at different rates).
+    usage: dict[str, int] = {}
     user_done = asyncio.Event()
 
     async def reader():
@@ -192,6 +195,12 @@ async def _sonic_transcribe(
                 ue = evt["usageEvent"]
                 in_tokens = ue.get("totalInputTokens", in_tokens) or in_tokens
                 out_tokens = ue.get("totalOutputTokens", out_tokens) or out_tokens
+                tot = (ue.get("details") or {}).get("total") or {}
+                for side in ("input", "output"):
+                    for kind in ("speech", "text"):
+                        n = (tot.get(side) or {}).get(f"{kind}Tokens")
+                        if n is not None:
+                            usage[f"{kind}_{side}"] = n
             elif "completionEnd" in evt:
                 user_done.set()
                 break
@@ -246,7 +255,11 @@ async def _sonic_transcribe(
             pass
 
     transcript = " ".join(p.strip() for p in transcript_parts if p.strip()).strip()
-    return (transcript or None), in_tokens, out_tokens
+    if not usage and (in_tokens or out_tokens):
+        # No per-modality breakdown: transcription input is speech, its USER
+        # transcript + reply are text.
+        usage = {"speech_input": in_tokens, "text_output": out_tokens}
+    return (transcript or None), in_tokens, out_tokens, usage
 
 
 async def _attempt_streaming_transcription(
@@ -257,8 +270,11 @@ async def _attempt_streaming_transcription(
     from backend.services.model_registry import get_category
 
     voice_cat = get_category("voice")
-    model_id = voice_cat.get("current", "amazon.nova-2-sonic-v1:0")  # registry-first
+    model_id = voice_cat.get("current")  # registry-driven (category backfilled on load)
     region = voice_cat.get("region") or settings.aws_region_images
+    if not model_id:
+        logger.warning("No voice category model configured — transcription unavailable.")
+        return None
 
     try:
         pcm, sample_rate = _pcm_from_wav(audio_bytes)
@@ -274,7 +290,7 @@ async def _attempt_streaming_transcription(
             "Nova Sonic transcription: model=%s region=%s pcm=%dB @%dHz",
             model_id, region, len(pcm), sample_rate,
         )
-        transcript, in_tokens, out_tokens = await _sonic_transcribe(
+        transcript, in_tokens, out_tokens, usage = await _sonic_transcribe(
             pcm, sample_rate, model_id, region)
     except ImportError:
         logger.warning(
@@ -299,18 +315,18 @@ async def _attempt_streaming_transcription(
 
     logger.info("Nova Sonic transcription complete: %d chars, usage %d in / %d out",
                 len(transcript), in_tokens, out_tokens)
-    # Cost: ONLY from the registry's own price for this model — never a
-    # generic-default fallback (that would fabricate a wrong rate).
-    if in_tokens or out_tokens:
+    # Cost: ONLY from the registry's own speech/text rates for this model —
+    # never a generic-default or another version's rate (that would fabricate
+    # a wrong price); unpriced → no cost line ("pricing unavailable").
+    if usage:
         try:
-            from backend.services.cost_tracker import _registry_llm_price, add_cost
-            price = _registry_llm_price(model_id, region, in_tokens)
-            if price:
-                cost = round((in_tokens / 1e6) * price.get("input_per_mtok", 0)
-                             + (out_tokens / 1e6) * price.get("output_per_mtok", 0), 6)
-                if cost > 0:
-                    add_cost("transcription", cost,
-                             f"{model_id}: {in_tokens} in, {out_tokens} out")
+            from backend.services.cost_tracker import add_cost, voice_token_cost
+            cost = voice_token_cost(model_id, region, usage)
+            if cost:
+                add_cost("transcription", cost, f"{model_id}: " + ", ".join(
+                    f"{v} {k.replace('_', ' ')}" for k, v in sorted(usage.items()) if v))
+            else:
+                logger.info("No official price recorded for %s — transcription cost unavailable", model_id)
         except Exception:
             logger.debug("Transcription cost tracking skipped", exc_info=True)
     return transcript

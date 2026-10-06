@@ -19,6 +19,8 @@ Token rate sets are flat dicts in USD per 1K tokens:
   input_per_1k / output_per_1k                — standard, in-Region or Geo profile
   global_input_per_1k / global_output_per_1k  — standard, Global profile
   long_[global_]input_per_1k / …output_per_1k — above the long-context threshold
+  speech_input_per_1k / speech_output_per_1k  — speech tokens of a speech model
+                                                (Nova Sonic bills speech and text apart)
 Flex / Priority / Batch / Reserved / cache tiers are not recorded: ArtSmoker
 never requests them, so they can't apply to its calls.
 """
@@ -185,6 +187,9 @@ def _put_rate(rates: dict, field: str, per_1k: float) -> None:
 
 
 _ID_STEM_RE = re.compile(r"^[A-Z]{2,4}\d-(?P<stem>.+?)(?:-mantle)?-(?:input|output)-tokens", re.I)
+# A speech model's usagetypes name the token kind ('USE1-NovaSonic2.0-speech-
+# input-tokens' / '…-text-input-tokens'); speech is billed at its own rate.
+_SPEECH_DIM_RE = re.compile(r"-speech-(?:input|output)-tokens", re.I)
 
 
 def price_list_token_rates(products: list[dict]) -> dict:
@@ -208,6 +213,9 @@ def price_list_token_rates(products: list[dict]) -> dict:
         if not cls or not region or not _is_standard_on_demand(attrs):
             continue
         field = _rate_field(*cls)
+        if _SPEECH_DIM_RE.search(usage):
+            # Its own field — sharing input_per_1k let the cheaper text row win.
+            field = f"speech_{field}"
         id_m = _ID_STEM_RE.match(usage)
         model_id = id_m.group("stem").lower() if id_m and "." in id_m.group("stem") else ""
         for unit, price in on_demand_dimensions(pd):

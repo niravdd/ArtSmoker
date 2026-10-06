@@ -709,7 +709,7 @@ def excluded_routes(cfg: dict) -> list[dict]:
         geo = _geo_of(mid)
         universe = set(profiles_for(mid).get(geo) or ()) & avail if geo and geo != "global" else avail
         if mantle:
-            universe &= set(mc.MANTLE_REGIONS)  # elsewhere a call is remapped, not probed
+            universe &= mc.known_mantle_regions()  # elsewhere a call is remapped, not probed
         dead = dead_regions(cfg, mid)
         for r in sorted(universe - set(valid_regions(cfg, mid))):
             why = (dead.get(r) or {}).get("reason") if r in dead else \

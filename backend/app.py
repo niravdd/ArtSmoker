@@ -459,7 +459,8 @@ async def lifespan(app: FastAPI):
                     # models + per-image / per-second prices onto image + video models
                     # (after the scan populated available_regions).
                     try:
-                        from backend.routers.admin import _sync_official_pricing
+                        from backend.routers.admin import _settle_voice_models, _sync_official_pricing
+                        _settle_voice_models(registry)  # each voice model gets a Region it's offered in
                         _sync_progress("Applying official Amazon Bedrock pricing...")
                         if _sync_official_pricing(registry):
                             _reg_save()

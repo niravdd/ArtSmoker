@@ -1010,9 +1010,11 @@ def _resolve_chat_region(model_id: str) -> str:
     registered model finds it. The pinned Region serves the pinned id; another
     profile of the same model needs a Region that profile covers (a geo profile
     only routes from its own geography). A Region recorded as not answering the
-    id is skipped (services/servability.py). Falls back to the home Region."""
+    id is skipped (services/servability.py); the replacement is ranked by
+    ``_rank_replacement_regions`` (residency geo, then home — never out of the
+    residency geo). With no usable Region the pin is kept."""
     from backend.config import settings
-    from backend.services.model_registry import get_registry, find_chat_model
+    from backend.services.model_registry import get_registry, find_chat_model, strip_geo_prefix
     registry = get_registry()
     home = settings.aws_region_models
 
@@ -1025,6 +1027,9 @@ def _resolve_chat_region(model_id: str) -> str:
         return home
     pinned = cfg.get("region") or home
     usable = _model_usable_regions(model_id, cfg, registry.get("inference_profiles", {}))
-    if pinned in usable or (cfg.get("model_id") == model_id and not usable):
+    if pinned in usable:
         return pinned
-    return home if home in usable else (usable[0] if usable else pinned)
+    from backend.routers.admin import _rank_replacement_regions
+    geo_profile = strip_geo_prefix(model_id) != model_id and not model_id.startswith("global.")
+    ranked = _rank_replacement_regions(usable, pinned, registry, keep_residency=not geo_profile)
+    return ranked[0] if ranked else pinned

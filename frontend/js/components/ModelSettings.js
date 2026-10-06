@@ -681,7 +681,8 @@
 
         _renderCategory(name, cat) {
             if (!cat) return '';
-            const chatModels = this._registry?.chat_models || {};
+            // Voice offers the speech-to-speech models (voice_models), never chat LLMs.
+            const chatModels = (name === 'voice' ? this._registry?.voice_models : this._registry?.chat_models) || {};
             const currentId = cat.current || '';
             // Match the category's current model to a chat_models entry by EXACT
             // foundation model (modulo ANY inference-profile geo prefix — us./

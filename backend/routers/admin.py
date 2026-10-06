@@ -764,6 +764,32 @@ def _preferred_residency_geo(registry: dict | None = None) -> str:
     return ""
 
 
+def _rank_replacement_regions(regions, pinned: str, registry: dict,
+                              keep_residency: bool = True) -> list:
+    """Regions to use instead of ``pinned`` when it doesn't answer, best first.
+    Shared by the Sync re-pin and chat's runtime routing.
+
+    Order: the residency geo (when set), the home Region (config.py), a Region in
+    home's geography, then by name. A pin inside the residency geo is never moved
+    out of it — no Region there may answer right now, but that can be temporary
+    and residency is a deliberate setting — so the caller keeps ``pinned``.
+    ``keep_residency=False`` when the id itself fixes the geography (a geo
+    profile the caller asked for explicitly routes only from its own Regions)."""
+    from backend.config import settings
+    home = settings.aws_region_models
+    region_geos = _region_geos(registry.get("inference_profiles", {}) or {})
+    residency = _preferred_residency_geo(registry)
+
+    def in_geo(r):
+        return bool(residency) and _region_in_geo(r, residency, region_geos)
+
+    cands = [r for r in dict.fromkeys(regions) if r != pinned]
+    if keep_residency and residency and in_geo(pinned):
+        cands = [r for r in cands if in_geo(r)]
+    return sorted(cands, key=lambda r: (bool(residency) and not in_geo(r), r != home,
+                                        not (region_geos.get(r, set()) & region_geos.get(home, set())), r))
+
+
 def _resolve_residency_pins(registry: dict, progress=None) -> int:
     """Self-healing pin post-pass: re-derive every chat model's pin (``region`` +
     ``model_id`` prefix) from the profiles discovered this Sync, independent of
@@ -992,6 +1018,105 @@ def _lifecycle_fields(m: dict) -> dict:
         "legacy_time": _iso(lc.get("legacyTime")),
         "end_of_life_time": _iso(lc.get("endOfLifeTime")),
     }
+
+
+def _voice_family(cfg: dict) -> tuple:
+    """(provider, name words without version numbers) — 'Nova 2 Sonic' and
+    'Nova 2.5 Sonic' are one family, so the voice category can follow it."""
+    words = [w for w in _re.split(r"[^a-z0-9.]+", (cfg.get("label") or "").lower())
+             if w and not _re.fullmatch(r"v?[\d.]+", w)]
+    return (cfg.get("provider") or "").lower(), tuple(words)
+
+
+def _voice_version(cfg: dict) -> tuple:
+    """Version from the model name ('Nova 2.5 Sonic' → (2, 5)); () when unnumbered."""
+    m = _re.search(r"(?<![a-z0-9])v?(\d+(?:\.\d+)*)(?![a-z0-9])", (cfg.get("label") or "").lower())
+    return tuple(int(p) for p in m.group(1).split(".")) if m else ()
+
+
+def _register_voice_model(m: dict, region: str, registry: dict, registered: list) -> None:
+    """Record a speech-to-speech model (SPEECH output — Nova Sonic) under
+    `voice_models`. It is invoked over a bidirectional stream, never Converse,
+    so it must not enter chat_models. One entry per model id; Regions merge
+    across the per-Region scan (reset at the start of each Sync)."""
+    model_id = m.get("modelId", "")
+    inference_types = m.get("inferenceTypesSupported", [])
+    if not model_id or not _invocable(inference_types):
+        return
+    lc = m.get("modelLifecycle", {}) or {}
+    start = lc.get("startOfLifeTime")
+    voice_models = registry.setdefault("voice_models", {})
+    key = _chat_model_key(model_id)
+    entry = voice_models.get(key)
+    if entry is None:
+        entry = voice_models[key] = {
+            "label": m.get("modelName", model_id),
+            "model_id": model_id,
+            "provider": m.get("providerName", ""),
+            "region": "",  # chosen once every Region is scanned (_settle_voice_models)
+            "available_regions": [],
+            "on_demand_regions": [],
+            "model_source": "foundation",
+            "api_type": "bidirectional_stream",
+        }
+        registered.append({"key": key, "model_id": model_id, "label": entry["label"],
+                           "region": region, "purpose": "voice", "media": "speech"})
+    entry.update({
+        "label": m.get("modelName", entry.get("label") or model_id),
+        "model_arn": m.get("modelArn", entry.get("model_arn", "")),
+        "inference_types": inference_types,
+        "input_modalities": m.get("inputModalities", []),
+        "output_modalities": m.get("outputModalities", []),
+        "streaming_supported": m.get("responseStreamingSupported", False),
+        **_lifecycle_fields(m),
+    })
+    if start:
+        entry["start_of_life_time"] = start.isoformat() if hasattr(start, "isoformat") else str(start)
+    entry["available_regions"] = sorted(set(entry.get("available_regions") or []) | {region})
+    if "ON_DEMAND" in inference_types:
+        entry["on_demand_regions"] = sorted(set(entry.get("on_demand_regions") or []) | {region})
+
+
+_VOICE_PRICE_FIELDS = ("input_price_per_1k", "output_price_per_1k", "token_pricing")
+
+
+def _copy_voice_price(cat: dict, vm: dict) -> None:
+    """The voice category carries its model's price (one source: voice_models);
+    a model with no official price leaves the category unpriced, never stale."""
+    for fld in _VOICE_PRICE_FIELDS:
+        if fld in vm:
+            cat[fld] = vm[fld]
+        else:
+            cat.pop(fld, None)
+
+
+def _settle_voice_models(registry: dict) -> list:
+    """After the Region scan: disable voice models no Region lists any more
+    (re-enabled once one does) and give each a Region it is offered in. A Region still offered is kept; a new or
+    withdrawn one is chosen like any re-pin (residency, home, home's geography).
+    Returns the keys disabled."""
+    disabled = []
+    for key, cfg in (registry.get("voice_models", {}) or {}).items():
+        if not isinstance(cfg, dict):
+            continue
+        offered = cfg.get("on_demand_regions") or cfg.get("available_regions") or []
+        if not offered:
+            if cfg.get("enabled", True):
+                cfg["enabled"] = False
+                disabled.append(key)
+            continue
+        # Only this pass disables a voice model (there is no UI toggle), so one
+        # AWS offers again comes back.
+        if cfg.get("enabled") is False:
+            cfg["enabled"] = True
+        if cfg.get("region") not in offered:
+            ranked = _rank_replacement_regions(offered, cfg.get("region") or "", registry)
+            if ranked:
+                cfg["region"] = ranked[0]
+            else:
+                logger.info("Voice model %s: not offered in the residency geo any more — "
+                            "Region %s kept", key, cfg.get("region"))
+    return disabled
 
 
 def _deduplicate_models(models: list[dict]) -> list[dict]:
@@ -1291,6 +1416,13 @@ async def auto_register_image_models(region: str):
         is_image = "IMAGE" in output
         is_video = "VIDEO" in output
         is_text = "TEXT" in output and "TEXT" in inp
+
+        # ── Speech-to-speech models (Nova Sonic) → voice_models ──────
+        # Checked first: Nova 2.5 Sonic also takes and returns TEXT, but it is
+        # a bidirectional-stream model, never a Converse chat model.
+        if "SPEECH" in output:
+            _register_voice_model(m, region, registry, registered)
+            continue
 
         # ── Text/LLM models → chat_models registry ───────────────────
         if is_text and not is_image and not is_video:
@@ -1832,7 +1964,7 @@ def _official_pricing_model_ids(registry: dict) -> set:
     imported models (SageMaker / ARNs) are excluded: they're priced per hour."""
     from backend.services.official_pricing import base_model_id
     ids = set()
-    for section in ("chat_models", "image_models", "video_models"):
+    for section in ("chat_models", "image_models", "video_models", "voice_models"):
         for cfg in (registry.get(section, {}) or {}).values():
             if not isinstance(cfg, dict) or cfg.get("model_source") in ("custom_hosted", "imported", "custom"):
                 continue
@@ -1883,7 +2015,7 @@ def _fetch_llm_pricing(registry: dict | None = None) -> dict:
                 len(tokens["by_name"]), len(tokens["by_id"]), len(offers), len(cards))
     # Vendor names for name matching — learned from the Price List and the
     # registry's own models (ListFoundationModels providers), never a fixed list.
-    models = [cfg for section in ("chat_models", "image_models", "video_models")
+    models = [cfg for section in ("chat_models", "voice_models", "image_models", "video_models")
               for cfg in ((registry or {}).get(section, {}) or {}).values()]
     return {"by_name": tokens["by_name"], "by_id": tokens["by_id"], "codes": codes,
             "offers": offers, "cards": cards, "vendors": op.vendor_names(products, models)}
@@ -2004,33 +2136,40 @@ def _apply_llm_pricing(registry: dict, llm_pricing: dict) -> int:
         logger.info("No official token price for %d chat model(s) (not in the Price List, "
                     "rate cards or model cards): %s", len(unpriced), ", ".join(sorted(unpriced)))
 
-    # Voice category (Nova Sonic): speech-input models never enter chat_models
-    # (the sync filter requires TEXT input), so stamp the token price onto the
-    # category entry itself — _registry_llm_price checks categories as its last
-    # step, which prices voice transcription (image_studio.voice_input.cost).
+    # Voice models (Nova Sonic, SPEECH output) are priced by name like chat
+    # models. NameIndex requires the version digits to agree, so a model AWS
+    # hasn't priced yet reads "pricing unavailable" instead of borrowing an older
+    # version's rates. Speech and text tokens bill at their own rates (speech_*
+    # fields); input/output_price_per_1k are the text rates, for display.
+    voice_unpriced = []
+    for key, vm in (registry.get("voice_models", {}) or {}).items():
+        by_region = {}
+        tied = names.matches(vm.get("label") or "", vm.get("model_id") or "", vm.get("provider") or "")
+        for n in sorted(tied, key=lambda n: len(by_name.get(n, {}))):
+            by_region = {**by_region, **by_name.get(n, {})}
+        rates = _pinned_rates(by_region, vm) if by_region else None
+        if not rates:
+            for fld in _VOICE_PRICE_FIELDS:
+                vm.pop(fld, None)
+            voice_unpriced.append(key)
+            continue
+        tp = {"source": "price_list", "rates": rates}
+        if len({json.dumps(v, sort_keys=True) for v in by_region.values()}) > 1:
+            tp["by_region"] = by_region
+        vm["token_pricing"] = tp
+        vm["input_price_per_1k"] = rates.get("input_per_1k", 0)
+        vm["output_price_per_1k"] = rates.get("output_per_1k", 0)
+        priced += 1
+    if voice_unpriced:
+        logger.info("No official price yet for voice model(s): %s", ", ".join(sorted(voice_unpriced)))
+
+    # The voice category carries its model's price (one source: voice_models).
     voice = (registry.get("categories", {}) or {}).get("voice")
     if isinstance(voice, dict) and voice.get("current"):
-        # Normalize the FULL model id (keep the ":0" version digit): e.g.
-        # "amazon.nova-2-sonic-v1:0" → {amazon,nova,2,sonic,v1,0}, so the
-        # Price List's "Nova Sonic 2.0" ({nova,sonic,2,0}) is a subset.
-        vtok = set(op.norm_name(voice["current"]).split())
-        # BEST match (most tokens), not first: "Nova Sonic" and "Nova Sonic 2.0"
-        # are both subsets of nova-2-sonic-v1 — the longer name is the right one.
-        best = None
-        for pname, byreg in by_name.items():
-            ptok = set(op.norm_name(pname).split())
-            if ptok and ptok.issubset(vtok) and (best is None or len(ptok) > len(best[0])):
-                best = (ptok, byreg)
-        if best:
-            byreg = best[1]
-            px = op.rates_for_region(byreg, voice.get("region")) or next(iter(byreg.values()), None)
-            io = op.pick_token_rate(px, voice["current"]) if px else None
-            if not io and px:
-                io = (px.get("input_per_1k", px.get("global_input_per_1k", 0)),
-                      px.get("output_per_1k", px.get("global_output_per_1k", 0)))
-            if io and (io[0] or io[1]):
-                voice["input_price_per_1k"], voice["output_price_per_1k"] = io
-                priced += 1
+        from backend.services.model_registry import find_chat_model  # any model section
+        vm = find_chat_model(voice["current"], registry.get("voice_models") or {})
+        if vm is not None:
+            _copy_voice_price(voice, vm)
     return priced
 
 
@@ -2275,7 +2414,7 @@ def _reconcile_mantle_models(registry: dict, scan_regions: list | None = None) -
     from concurrent.futures import ThreadPoolExecutor
     from backend.services.mantle_client import (
         mantle_available, list_mantle_models, derive_model_apis,
-        resolve_invoke_path, mantle_region_for, MANTLE_REGIONS,
+        resolve_invoke_path, mantle_region_for, known_mantle_regions,
     )
 
     if not mantle_available():
@@ -2284,20 +2423,32 @@ def _reconcile_mantle_models(registry: dict, scan_regions: list | None = None) -
 
     # The Mantle catalog differs by Region (a model listed in one Region can 404 in
     # another), so list every Mantle Region and record where each model is served.
+    # Every other scanned Region is tried too (AWS has no list of Mantle Regions),
+    # so a Region that gains Mantle is found; one without it just lists nothing.
     region = mantle_region_for(None)
-    mantle_regions = sorted(r for r in MANTLE_REGIONS
-                            if scan_regions is None or r in scan_regions or r == region)
+    known = known_mantle_regions()
+    mantle_regions = sorted({r for r in known if scan_regions is None or r in scan_regions}
+                            | set(scan_regions or ()) | {region})
     with ThreadPoolExecutor(max_workers=min(8, len(mantle_regions) or 1)) as pool:
-        listings = dict(zip(mantle_regions, pool.map(list_mantle_models, mantle_regions)))
+        listings = dict(zip(mantle_regions, pool.map(
+            lambda r: list_mantle_models(r, exact=r not in known), mantle_regions)))
     if not listings.get(region):
         return 0  # home listing failed → keep the recorded Mantle data
+    # A Region whose listing was inconclusive (None: timeout, 5xx, …) may only be
+    # unreachable for now — its models keep the Region they were recorded in.
+    inconclusive = {r for r, ids in listings.items() if ids is None}
     served_in: dict[str, set] = {}
     for r, ids in listings.items():
-        for mid in ids:
+        for mid in ids or ():
             served_in.setdefault(_normalize_model_id(mid), set()).add(r)
-    mantle_ids = sorted({mid for ids in listings.values() for mid in ids})
+    mantle_ids = sorted({mid for ids in listings.values() for mid in ids or ()})
+    if inconclusive:
+        logger.info("Mantle: listing inconclusive in %s — earlier records kept",
+                    ", ".join(sorted(inconclusive)))
 
     chat_models = registry.setdefault("chat_models", {})
+    kept = {k: set(cfg.get("mantle_regions") or ()) & inconclusive
+            for k, cfg in chat_models.items() if isinstance(cfg, dict)}
 
     # Index existing entries by their bare model_id (strip us. profile prefix)
     # so we can match Mantle IDs (which are bare, e.g. "openai.gpt-5.4") against
@@ -2310,8 +2461,19 @@ def _reconcile_mantle_models(registry: dict, scan_regions: list | None = None) -
     for k, cfg in chat_models.items():
         by_norm[_normalize_model_id(cfg.get("model_id", ""))] = k
 
+    # Vendor display names as AWS lists them (ListFoundationModels providerName),
+    # learned from the runtime-listed models; the table below only covers a
+    # vendor with no runtime-listed model yet (display text, not routing).
+    learned_providers = {}
+    for cfg in chat_models.values():
+        if isinstance(cfg, dict) and cfg.get("provider") and "bedrock-runtime" in (cfg.get("endpoints") or []):
+            learned_providers.setdefault(
+                _strip_geo_prefix(cfg.get("model_id", "")).split(".")[0].lower(), cfg["provider"])
+
     def _provider_from_id(mid: str) -> str:
         head = mid.split(".")[0].lower()
+        if head in learned_providers:
+            return learned_providers[head]
         return {"openai": "OpenAI", "anthropic": "Anthropic", "meta": "Meta",
                 "mistral": "Mistral AI", "deepseek": "DeepSeek", "qwen": "Qwen",
                 "zai": "Z.AI", "google": "Google", "nvidia": "NVIDIA",
@@ -2327,11 +2489,18 @@ def _reconcile_mantle_models(registry: dict, scan_regions: list | None = None) -
         base = _re2.sub(r"-\d{4}-\d{2}-\d{2}$", "", mid)
         return base != mid and base in _id_set
 
-    def _pin_mantle_region(cfg: dict, served: list) -> None:
-        # A Mantle-served model's pin must be a Region whose Mantle lists it.
+    def _pin_mantle_region(key: str, cfg: dict, served: list) -> None:
+        # A Mantle-served model's pin must be a Region whose Mantle lists it —
+        # chosen like any re-pin (residency geo kept, then home, home's geo).
+        served = sorted(set(served) | kept.get(key, set()))
         cfg["mantle_regions"] = served
         if cfg.get("invoke_endpoint") == "bedrock-mantle" and served and cfg.get("region") not in served:
-            cfg["region"] = region if region in served else served[0]
+            ranked = _rank_replacement_regions(served, cfg.get("region") or "", registry)
+            if ranked:
+                cfg["region"] = ranked[0]
+            else:
+                logger.info("Mantle: %s isn't listed in the residency geo — pin %s kept",
+                            cfg.get("model_id"), cfg.get("region"))
 
     for cfg in chat_models.values():
         cfg.pop("mantle_regions", None)  # re-derived below from this Sync's listings
@@ -2352,7 +2521,7 @@ def _reconcile_mantle_models(registry: dict, scan_regions: list | None = None) -
             cfg["apis"] = derive_model_apis(cfg.get("model_id", mid), provider,
                                             on_mantle=True, on_runtime=on_runtime)
             cfg["invoke_endpoint"], cfg["invoke_api"] = resolve_invoke_path(cfg["apis"])
-            _pin_mantle_region(cfg, served)
+            _pin_mantle_region(existing_key, cfg, served)
             reconciled += 1
         else:
             # Mantle-only model — add a fresh entry (shared keymaker; version-safe).
@@ -2363,7 +2532,7 @@ def _reconcile_mantle_models(registry: dict, scan_regions: list | None = None) -
             by_norm[_normalize_model_id(mid)] = key  # so dated aliases/dupes match this
             apis = derive_model_apis(mid, provider, on_mantle=True, on_runtime=False)
             inv_ep, inv_api = resolve_invoke_path(apis)
-            pin = region if region in served or not served else served[0]
+            pin = (_rank_replacement_regions(served, "", registry) or [region])[0] if served else region
             chat_models[key] = {
                 "label": mid,
                 "model_id": mid,
@@ -2384,8 +2553,12 @@ def _reconcile_mantle_models(registry: dict, scan_regions: list | None = None) -
                 "invoke_endpoint": inv_ep,
                 "invoke_api": inv_api,
             }
-            _pin_mantle_region(chat_models[key], served)
+            _pin_mantle_region(key, chat_models[key], served)
             reconciled += 1
+    # Recorded only in Regions that were inconclusive this Sync → keep that record.
+    for k, regs in kept.items():
+        if regs and k in chat_models and "mantle_regions" not in chat_models[k]:
+            chat_models[k]["mantle_regions"] = sorted(regs)
     logger.info("Mantle reconciliation: %d model(s) (of %d listed across %d Regions)",
                 reconciled, len(mantle_ids), sum(1 for ids in listings.values() if ids))
     return reconciled
@@ -2549,9 +2722,13 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
     def _route_region(model_cfg: dict, cur_region: str) -> str:
         """Region for a category switching to ``model_cfg``'s pinned id: keep the
         category's Region only if that id can be invoked from it (a geo profile
-        routes only from its own geography), else the model's pinned Region."""
+        routes only from its own geography), else the model's pinned Region.
+        Routing coverage only — Regions marked as not answering are ignored here
+        (that can be temporary; runtime routing skips them per call), so a mark
+        never moves a category's Region."""
         from backend.routers.chat import _model_usable_regions
-        usable = _model_usable_regions(model_cfg.get("model_id", ""), model_cfg,
+        coverage = {k: v for k, v in model_cfg.items() if k != "unservable_regions"}
+        usable = _model_usable_regions(model_cfg.get("model_id", ""), coverage,
                                        registry.get("inference_profiles", {}))
         return cur_region if cur_region in usable else (model_cfg.get("region") or cur_region)
 
@@ -2654,6 +2831,8 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
                 if progress:
                     progress(msg)
 
+    _auto_roll_voice_category(registry, notices, progress)
+
     # ── New-tier discovery (generic; not locked to Sonnet/Opus) ──────────────
     # Auto-roll only manages the KNOWN tiers above (Sonnet→fast, Opus→fallback,
     # Opus→complex) — deliberately, so a brand-new tier is never SILENTLY swapped
@@ -2692,6 +2871,64 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
             progress(msg)
 
     return notices
+
+
+def _auto_roll_voice_category(registry: dict, notices: list, progress=None) -> None:
+    """Keep the voice category on the newest ACTIVE model of its family
+    (provider + name without the version — 'Nova 2 Sonic' → 'Nova 2.5 Sonic'),
+    newest by the version in its name, then its start of life. Respects a user
+    pin (notice only). The category keeps its Region when the model is offered
+    there; otherwise one is chosen like any re-pin, and a model not offered in
+    the residency geo isn't switched to. Copies the model's price."""
+    from backend.services.model_registry import find_chat_model
+    voice_models = registry.get("voice_models", {}) or {}
+    cat = (registry.get("categories", {}) or {}).get("voice")
+    if not isinstance(cat, dict) or not voice_models:
+        return
+    cur_id = cat.get("current", "")
+    cur = find_chat_model(cur_id, voice_models) if cur_id else None
+    usable = [c for c in voice_models.values() if isinstance(c, dict)
+              and c.get("enabled", True) is not False and c.get("on_demand_regions")]
+    pool = [c for c in usable if cur is None or _voice_family(c) == _voice_family(cur)]
+    active = [c for c in pool if (c.get("lifecycle_status") or "ACTIVE").upper() == "ACTIVE"]
+    best = max(active or pool, key=lambda c: (_voice_version(c), c.get("start_of_life_time") or ""),
+               default=None)
+    if best is None:
+        return
+
+    def _say(msg):
+        notices.append(msg)
+        logger.info(msg)
+        if progress:
+            progress(msg)
+
+    cur_ok = cur is not None and cur in usable and (cur.get("lifecycle_status") or "ACTIVE").upper() == "ACTIVE"
+    switch = best is not cur and (not cur_ok or _voice_version(best) > _voice_version(cur))
+    if switch and cat.get("pinned"):
+        _say(f"Voice: staying on pinned {cur_id} — newer {best.get('label')} ({best['model_id']}) "
+             f"is available (unpin in Model Settings to switch)")
+        switch = False
+    target = best if switch else cur
+    if target is None:
+        return
+    offered = target.get("on_demand_regions") or []
+    cur_region = cat.get("region", "")
+    region = cur_region if cur_region in offered else (
+        _rank_replacement_regions(offered, cur_region, registry) or [None])[0]
+    if region is None:
+        if switch:
+            _say(f"Voice: newer {best.get('label')} isn't offered in the residency geo "
+                 f"({cur_region}) — staying on {cur_id}")
+        return
+    if switch:
+        cat["current"] = best["model_id"]
+        cat["provider"] = best.get("provider") or cat.get("provider", "")
+        cat["api_type"] = best.get("api_type") or cat.get("api_type", "")
+        _say(f"Voice: auto-switched to newest {best.get('label')} → {best['model_id']} ({region})")
+    elif region != cur_region:
+        _say(f"Voice: {cur_id} isn't offered in {cur_region} any more → {region}")
+    cat["region"] = region
+    _copy_voice_price(cat, target)
 
 
 def _probe_and_record_temperature(model_id: str, region: str, registry: dict):
@@ -2785,8 +3022,9 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
     model yet hang on it or reject it, which no listing shows.
 
     Per model: dead Regions go to ``unservable_regions`` per id kind (replacing
-    the previous record, runtime marks included); a pin on a dead Region moves to
-    a live one (home first). A model that AWS reports not found / not served by
+    the previous record, runtime marks included); a pin on a Region that rejects
+    the model moves to a live one (_rank_replacement_regions; a timeout alone
+    keeps it). A model that AWS reports not found / not served by
     its pinned id in EVERY probed Region isn't kept at all — no Region can serve
     it; a Legacy model this account lost access to gets the per-account lifecycle mark.
     If most probes fail, the problem is the environment (network, credentials),
@@ -2831,16 +3069,6 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     cat_bases = {_strip_geo_prefix((c or {}).get("current", ""))
                  for c in (registry.get("categories", {}) or {}).values() if isinstance(c, dict)}
-    home = settings.aws_region_models
-    # A pin on a dead Region moves to a live one: in the residency geo (when set),
-    # then home, then a Region in home's geography, then by name.
-    region_geos = _region_geos(pmap)
-    residency = _preferred_residency_geo(registry)
-
-    def _repin_rank(r):
-        return (bool(residency) and not _region_in_geo(r, residency, region_geos), r != home,
-                not (region_geos.get(r, set()) & region_geos.get(home, set())), r)
-
     removed, repinned, legacy, marked = [], [], [], 0
     for key, by_id in per_model.items():
         cfg = chat[key]
@@ -2876,10 +3104,20 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
             marked += sum(len(m) for m in records.values())
         else:
             cfg.pop("unservable_regions", None)
-        live = [r for r in res if r not in marks]
-        if cfg.get("region") in marks and live:
-            cfg["region"] = min(live, key=_repin_rank)
-            repinned.append(f"{mid}→{cfg['region']}")
+        # A pin on a Region that rejects the model moves to a live one (ranked by
+        # _rank_replacement_regions — never out of the residency geo). A timeout
+        # alone doesn't move it: it can be temporary, and runtime routing already
+        # skips a Region marked dead until the next Sync re-probes it.
+        pin_mark = marks.get(cfg.get("region")) or {}
+        if pin_mark and pin_mark.get("reason") != sv.TIMEOUT:
+            live = _rank_replacement_regions([r for r in res if r not in marks],
+                                             cfg.get("region"), registry)
+            if live:
+                cfg["region"] = live[0]
+                repinned.append(f"{mid}→{cfg['region']}")
+            else:
+                logger.info("Region check: %s doesn't answer in %s and no other allowed "
+                            "Region does — pin kept", mid, cfg.get("region"))
     for mid in removed:
         logger.info("Region check: %s isn't served in any Region — not registered", mid)
     msg = (f"Region check: {len(results)} routes, {marked} not answering; "
@@ -3032,6 +3270,8 @@ def _run_refresh_all_regions():
             registry["chat_models"][key]["available_regions"] = []
             if "on_demand_regions" in registry["chat_models"][key]:
                 registry["chat_models"][key]["on_demand_regions"] = []
+        for cfg in (registry.get("voice_models", {}) or {}).values():
+            cfg["available_regions"], cfg["on_demand_regions"] = [], []
 
         # Step 3: Scan each ENABLED region for foundation + custom + imported models
         _progress(f"Scanning {len(scan_regions)} enabled regions for available models...")
@@ -3214,6 +3454,7 @@ def _run_refresh_all_regions():
                 registry["video_models"][key]["enabled"] = False
                 disabled.append(key)
                 logger.debug("Disabled video model %s — no longer found in any region", key)
+        disabled += _settle_voice_models(registry)
 
         # Step 4e: Official pricing (SPEC §14) — token prices onto chat_models,
         # per-image / per-second prices onto image + video models. Runs AFTER the

@@ -20,10 +20,11 @@ credentials via ``aws_bedrock_token_generator.provide_token`` — nothing is
 stored. If a token is supplied out-of-band via ``AWS_BEARER_TOKEN_BEDROCK`` we
 use that instead. Token values are NEVER logged.
 
-Regions: Mantle is not available in every region. ``MANTLE_REGIONS`` lists the
-supported set (from the AWS docs); ``mantle_region_for`` maps an arbitrary
-region to the nearest supported one so a us-west-2-centric deployment still
-works.
+Regions: Mantle is not available in every region. ``known_mantle_regions`` =
+every Region an AWS Sync found a Mantle catalog in (the Sync tries every
+account-enabled Region, so a Region AWS adds is picked up), or a cold-start
+seed before the first Sync; ``mantle_region_for`` maps an arbitrary region to a supported one in the
+same geography where possible.
 """
 
 import base64
@@ -36,31 +37,46 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Regions where the bedrock-mantle endpoint is offered (AWS docs, 2026-06).
-# Keep as a plain set so it's easy to extend; the Sync can refresh nothing here
-# (AWS has no programmatic list), so this is the source of truth for routing.
-MANTLE_REGIONS = {
+# COLD-START bootstrap only (AWS docs, 2026-06) — never a limit, and never
+# needs editing. AWS has no API that lists Mantle Regions, so every AWS Sync
+# lists the Mantle catalog in EVERY account-enabled Region and records where
+# each model answered (chat_models[*].mantle_regions). Once a Sync has recorded
+# any, that record is the list (a Region AWS adds appears, one it withdraws
+# drops out); this set is used only before the first Sync.
+_SEED_MANTLE_REGIONS = {
     "us-east-1", "us-east-2", "us-west-2",
     "ap-southeast-3", "ap-south-1", "ap-southeast-2", "ap-northeast-1",
     "eu-central-1", "eu-west-1", "eu-west-2", "eu-south-1", "eu-north-1",
     "sa-east-1", "us-gov-west-1",
 }
 
-# Fallback when the caller's region has no Mantle endpoint. us-west-2 matches
-# this app's default model region (settings.aws_region_models).
-_MANTLE_FALLBACK_REGION = "us-west-2"
+def known_mantle_regions() -> set:
+    """Regions with a Mantle endpoint: every Region the last Sync found a Mantle
+    catalog in (a Region whose listing was inconclusive keeps its earlier
+    record — see the Sync's _reconcile_mantle_models), else the cold-start seed."""
+    try:
+        from backend.services.model_registry import get_registry
+        found = {r for cfg in (get_registry().get("chat_models") or {}).values()
+                 for r in (cfg.get("mantle_regions") or ())}
+    except Exception:
+        found = set()
+    return found or set(_SEED_MANTLE_REGIONS)
 
 
 def mantle_region_for(region: str | None) -> str:
     """Map an arbitrary AWS region to a Mantle-supported region.
 
-    If the region itself supports Mantle, use it; otherwise fall back so a
-    deployment configured for a non-Mantle region can still reach frontier
+    If the region itself supports Mantle, use it; otherwise a Mantle Region in the
+    same geography (name prefix), then the home Region (settings.aws_region_models),
+    so a deployment configured for a non-Mantle region can still reach frontier
     models. Logged once per distinct miss so the operator can see the remap.
     """
-    if region and region in MANTLE_REGIONS:
+    known = known_mantle_regions()
+    if region and region in known:
         return region
-    fallback = _MANTLE_FALLBACK_REGION if _MANTLE_FALLBACK_REGION in MANTLE_REGIONS else "us-east-1"
+    home = settings.aws_region_models
+    geo = (region or home or "").split("-")[0]
+    fallback = min(known, key=lambda r: (r.split("-")[0] != geo, r != home, r))
     if region and region not in _mantle_region_for_warned:
         _mantle_region_for_warned.add(region)
         logger.info("Mantle not offered in %s — routing Mantle calls to %s", region, fallback)
@@ -233,7 +249,8 @@ def _base_url(region: str, base_path: str = "/v1") -> str:
     return f"https://bedrock-mantle.{region}.api.aws{base_path}"
 
 
-def _build_client(region: str, token: str | None = None, base_path: str = "/v1"):
+def _build_client(region: str, token: str | None = None, base_path: str = "/v1",
+                  timeout: float = 90.0):
     """Build a fresh OpenAI client for the Mantle endpoint in ``region``.
 
     Not cached: the bearer token rotates, and the OpenAI client captures the
@@ -257,7 +274,7 @@ def _build_client(region: str, token: str | None = None, base_path: str = "/v1")
         )
     # Bounded timeout so an unresponsive route can't hang a request forever
     # (some models accept a request on the wrong route and never respond).
-    return OpenAI(api_key=tok, base_url=_base_url(region, base_path), timeout=90.0, max_retries=0)
+    return OpenAI(api_key=tok, base_url=_base_url(region, base_path), timeout=timeout, max_retries=0)
 
 
 # Mantle uses BARE model ids — it doesn't understand Bedrock geo/inference-profile
@@ -647,11 +664,29 @@ def resolve_invoke_path(apis: list[str]) -> tuple[str, str]:
     return "bedrock-runtime", "converse"
 
 
-def list_mantle_models(region: str | None = None) -> list[str]:
-    """List model IDs available on the Mantle endpoint (used by Sync). Empty on error."""
+def list_mantle_models(region: str | None = None, exact: bool = False) -> list[str] | None:
+    """List model IDs available on the Mantle endpoint (used by Sync).
+
+    ``[]`` = no Mantle there: an empty catalog, or the endpoint's hostname
+    doesn't resolve (AWS publishes DNS for every endpoint it runs). ``None`` =
+    inconclusive (timeout, throttling, 5xx, auth) — may be temporary, so the
+    Sync keeps what it recorded for that Region. ``exact`` lists THAT Region's
+    endpoint (no remap, quiet on failure) — the Sync uses it to find Mantle in
+    Regions outside the known set."""
+    import socket
     try:
-        client = _get_openai_client(region or settings.aws_region_models)
+        if exact:
+            client = _build_client(region, timeout=20.0)
+        else:
+            client = _get_openai_client(region or settings.aws_region_models)
         return [m.id for m in client.models.list().data]
     except Exception as exc:
-        logger.warning("Mantle models.list failed: %s", str(exc)[:200])
-        return []
+        cause, depth = exc, 0
+        while cause is not None and depth < 8:
+            if isinstance(cause, socket.gaierror):
+                logger.debug("No Mantle endpoint in %s", region)
+                return []
+            cause, depth = cause.__cause__ or cause.__context__, depth + 1
+        (logger.debug if exact else logger.warning)(
+            "Mantle models.list failed%s: %s", f" in {region}" if exact else "", str(exc)[:200])
+        return None

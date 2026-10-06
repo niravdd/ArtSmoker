@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 PROBE_TIMEOUT_S = 20.0
 PROBE_MAX_TOKENS = 16    # the Responses API rejects fewer than 16 output tokens
 OK = "ok"
+TIMEOUT = "timeout"  # may be temporary — skipped, but never moves a pin or drops a model
 LEGACY = "legacy_access_denied"  # per account → lifecycle_unavailable, not a Region fact
 # Reasons where AWS itself says the model can't be invoked there (any account).
 # A model with only these, in every Region, is not registered at all.
@@ -101,7 +102,7 @@ def _probe_converse(model_id: str, region: str) -> str | None:
             return OK
         except (ReadTimeoutError, ConnectTimeoutError):
             if attempt == 2:
-                return "timeout"
+                return TIMEOUT
         except ClientError as exc:
             from backend.services.model_registry import is_legacy_unavailable_error
             code = (exc.response or {}).get("Error", {}).get("Code", "")
@@ -152,7 +153,7 @@ def _probe_mantle(model_id: str, provider: str, region: str) -> str | None:
                 return OK
             except (openai.APITimeoutError, requests.Timeout):
                 if attempt == 2:
-                    reasons.add("timeout")  # hung — chat moves on to the next route too
+                    reasons.add(TIMEOUT)  # hung — chat moves on to the next route too
             except openai.NotFoundError:
                 reasons.add("not_found")
                 break
@@ -177,8 +178,8 @@ def _probe_mantle(model_id: str, provider: str, region: str) -> str | None:
             except Exception:
                 reasons.add(None)
                 break
-    if "timeout" in reasons:
-        return "timeout"  # no route answered and one hung — chat would hang here too
+    if TIMEOUT in reasons:
+        return TIMEOUT  # no route answered and one hung — chat would hang here too
     if None in reasons or not reasons:
         return None
     return "access_denied" if "access_denied" in reasons else "not_found"
@@ -197,7 +198,7 @@ def probe_region(model_id: str, cfg: dict, region: str) -> str | None:
         return None
 
 
-def mark_region_unservable(model_id: str, region: str, reason: str = "timeout") -> None:
+def mark_region_unservable(model_id: str, region: str, reason: str = TIMEOUT) -> None:
     """Record (per account, user.json) that ``region`` didn't answer ``model_id``,
     so pickers and auto-routing skip it until the next Sync re-probes."""
     from backend.services.model_registry import mark_chat_region_unservable
