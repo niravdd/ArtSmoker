@@ -762,7 +762,7 @@ If there is only one option, the options row is hidden. If there is only one var
 **Bedrock client** (`backend/services/bedrock_client.py`):
 - Lazy-initialized boto3 clients keyed by region with connection pooling (10 max pool connections).
 - Adaptive retry configuration (3 max attempts).
-- `invoke_llm(prompt, system, complexity, images, max_tokens, temperature)` — routes to Sonnet or Opus based on complexity parameter. Uses the Bedrock **Converse API** (supports text + vision inputs).
+- `invoke_llm(prompt, system, complexity, images, max_tokens, temperature, model_id, region)` — routes to the `fast_llm` / `complex_llm` category model by `complexity`, or to an explicit `model_id` (e.g. the model picked for a template enhance). An explicit model with no `region` resolves its Region the way Chat Studio does (`chat._resolve_chat_region` — the pinned Region, else one the id can be served from), never the category model's Region; a Region recorded as not answering the id (§4.11 *Per-Region servability*) is swapped the same way. Uses the Bedrock **Converse API** (text + vision), or Mantle for Mantle-only models (below).
 - `invoke_image_model(model_key, prompt, ...)` — generic image model invoker. Reads format family from the registry to build the request body dynamically. Handles all image services: text-to-image, inpainting, outpainting, erase, search & replace, recolor, style transfer, upscale, and remove background — with zero model-specific code.
 - `_dimensions_to_aspect_ratio(width, height)` — maps pixel dimensions to the closest Stability AI supported aspect ratio.
 - `_set_nested(obj, path, value)` / `_get_nested(obj, path)` — dot-notation helpers for building/reading nested request/response bodies.
@@ -775,7 +775,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 **Inference-param gating** (`_model_supports_temperature` / `_build_inference_config`): Newer Claude tiers (e.g. Opus 4.8) reject the `temperature` Converse param. The gate is **registry-driven** — it reads `supports_temperature` (or `temperature` in `deprecated_params[]`) off the model's `chat_models` entry and omits the param accordingly, with a minimal built-in heuristic only as a last resort when the registry is silent. No hardcoded model lists; new models that deprecate a param work with zero code change once Sync records the capability.
 
-**Auto-roll on Sync** (`_auto_roll_llm_categories`): On every AWS Sync the `fast_llm` and `complex_llm` categories are smartly re-pointed to the newest available Claude — newest **Sonnet** → fast, newest **Opus** → complex (version parsed from the model ID, preferring `us.` cross-region inference profiles, ACTIVE over LEGACY, keeping the category's region when the model is offered there). `fallback_llm` rolls to the **second-newest Sonnet** (one version behind `fast_llm`) so the AccessDenied safety net is a genuinely different yet still-current model rather than a clone of the primary; it degrades to the newest Sonnet if only one version exists. This keeps non-technical users off deprecated models automatically (auto-switch + a logged notice). A manual category pick in Model Settings sets `pinned: true`, which the auto-roll respects — it then only *notifies* that a newer model exists rather than overriding the choice. The roll also probes the chosen model once and records its `supports_temperature` so the param gate above stays self-correcting.
+**Auto-roll on Sync** (`_auto_roll_llm_categories`): On every AWS Sync the `fast_llm` and `complex_llm` categories are smartly re-pointed to the newest available Claude — newest **Sonnet** → fast, newest **Opus** → complex (version parsed from the model ID, preferring cross-region inference profiles — any geo or `global.` — ACTIVE over LEGACY, keeping the category's region when the model is offered there). `fallback_llm` rolls to the **second-newest Sonnet** (one version behind `fast_llm`) so the AccessDenied safety net is a genuinely different yet still-current model rather than a clone of the primary; it degrades to the newest Sonnet if only one version exists. This keeps non-technical users off deprecated models automatically (auto-switch + a logged notice). A manual category pick in Model Settings sets `pinned: true`, which the auto-roll respects — it then only *notifies* that a newer model exists rather than overriding the choice. The roll also probes the chosen model once and records its `supports_temperature` so the param gate above stays self-correcting.
 
 #### Two inference endpoints: `bedrock-runtime` (Converse) and `bedrock-mantle`
 
@@ -786,9 +786,13 @@ Amazon Bedrock exposes **two** inference endpoints, and a model may be reachable
 | `bedrock-runtime.{region}.amazonaws.com` | InvokeModel, **Converse**/ConverseStream | ✅ yes | AWS SigV4 (existing creds) | `bedrock_client.py` |
 | `bedrock-mantle.{region}.api.aws` | **Chat Completions**, **Responses** (OpenAI-compatible), **Messages** (Anthropic) | ❌ no — HTTP/OpenAI SDK | **Bedrock bearer token** | `mantle_client.py` |
 
-Why both matter: the newest **frontier models are Mantle-only** — OpenAI **GPT-5.x** are Responses-API-only; some new Claude variants (e.g. Mythos) are Messages-only — so they cannot be reached via Converse at all. Conversely, Converse keeps capabilities Mantle lacks (Guardrails, `us.` cross-region inference profiles, structured outputs) and needs no extra token.
+Why both matter: the newest **frontier models are Mantle-only** — OpenAI **GPT-5.x** are Responses-API-only; some new Claude variants (e.g. Mythos) are Messages-only — so they cannot be reached via Converse at all. Conversely, Converse keeps capabilities Mantle lacks (Guardrails, cross-region inference profiles, structured outputs) and needs no extra token.
 
 **Routing policy — Converse-first, Mantle only when required.** Each `chat_models` entry carries (stamped by Sync, see §4.11): `endpoints[]` (which endpoints list the model), `apis[]` (which APIs it supports), and a resolved **`invoke_endpoint`** + **`invoke_api`** chosen by priority **`converse` > `chat_completions` > `responses` > `messages`** (`mantle_client.resolve_invoke_path`). So Claude/most models stay on the rock-solid boto3 Converse path; Mantle is used only for models Converse can't reach. `invoke_llm` and the Chat Studio stream both branch on the resolved `invoke_endpoint`: runtime → existing boto3 path (unchanged); mantle → `mantle_client` (`_invoke_llm_mantle` / `_chat_stream_mantle`). The startup probe (§7.5) honors the same resolution.
+
+**Mantle route order — one list for every caller** (`mantle_client.mantle_invocation_candidates`). A Mantle "route" is a (base path, API) pair. The two OpenAI-compatible base paths serve **disjoint** model sets — `/v1` (e.g. Qwen, GLM, DeepSeek, Kimi) and `/openai/v1` (e.g. OpenAI, xAI, Google) — while Messages has one URL (`/anthropic/v1/messages`) whatever the base. The `api_compatibility` matrix (base registry) gives each provider's base + API. Callers try, in order: (1) the **learned route** — `mantle_route` `{base, api, learned_at}` on the chat entry, recorded per account in `model_registry.user.json` when a non-first route answered (`record_mantle_route`); (2) the **matrix route**, derived fresh on every call (so a corrected matrix rule needs no re-Sync); (3) every other base × API combo as a self-healing fallback (Messages tried once). When the matrix route answers again the learned record is **cleared**, so the matrix stays the default. Chat Studio (`_chat_stream_mantle`), `invoke_llm` (`_invoke_llm_mantle`) and the Sync servability probe all walk this same list. `MantleAccessError` (no Mantle permission) stops the walk immediately; if every route fails and one timed out, the Region is marked not-answering for that id (§4.11). The retired `mantle_base` field (the old learned base path, superseded by `mantle_route`) is dropped from the base registry by `promote_to_base` (`_RETIRED_FIELDS`).
+
+**Message shaping** (`mantle_client.route_messages`). Chat Studio sends one history format: `content` is a string or a list of **Converse blocks** (`{text}` / `{image: {format, source: {bytes}}}`, the bytes base64 text because JSON can't carry raw bytes). Each Mantle API gets it in its own shape — Chat Completions `image_url` data-URL parts, Responses `input_text` / `input_image` parts, Messages `{type: image, source: {type: base64}}` blocks with `system` as a separate field; non-user turns are flattened to text. `invoke_llm` builds the same Converse-shaped content from its `images`, so both callers share one converter. On the Converse path, `chat._converse_blocks` decodes base64-string `source.bytes` to raw bytes first — boto3 base64-encodes the field itself, and a string would reach the model encoded twice ("Could not process image").
 
 **Mantle auth** (`mantle_client.get_bedrock_token`): Mantle uses a **Bedrock bearer token**, not SigV4. By default a **short-term token** (≤12h, inherits the caller's IAM permissions) is derived from the active AWS credentials via `aws-bedrock-token-generator` — **nothing is stored**, and it's cached per-region + refreshed in-process (8h TTL, inside the ≤12h lifetime). An explicit `AWS_BEARER_TOKEN_BEDROCK` env var takes precedence if set (an operator-owned override). Token values are never logged. If neither the SDK nor a token is available, Mantle is cleanly reported unavailable and the Converse path is unaffected. Mantle is not offered in every region; `mantle_region_for` maps an arbitrary region to the nearest supported one (default fallback `us-west-2`).
 
@@ -808,7 +812,7 @@ Why both matter: the newest **frontier models are Mantle-only** — OpenAI **GPT
 | Luma Ray v2.0 | `luma.ray-v2:0` | us-west-2 | Video generation (Luma AI) |
 | Nova Sonic | `amazon.nova-2-sonic-v1:0` | us-east-1 | Speech-to-text |
 
-> Note: Claude and Stability AI post-processing model IDs use **US inference profiles** (e.g. `us.anthropic.claude-*` for the current Sonnet/Opus, `us.stability.stable-image-remove-background-v1:0`, `us.stability.stable-creative-upscale-v1:0`) rather than full versioned model IDs. The Claude tiers auto-roll to the newest Sonnet/Opus on Sync, so the concrete IDs change over time. Stable Diffusion 3.5 Large and Stable Image Ultra use **direct model IDs** (not inference profiles).
+> Note: Claude and Stability AI post-processing model IDs are **cross-region inference-profile ids** (`<geo>.<provider>.<model>` — e.g. `global.anthropic.claude-*` for the current Sonnet/Opus, `us.stability.stable-image-remove-background-v1:0`) rather than plain in-Region ids. Which profile each model is pinned to is chosen by AWS Sync (§4.11 *Inference profiles & residency pinning*) — `global.` where offered unless a residency is configured — and the Claude tiers auto-roll to the newest Sonnet/Opus, so the concrete IDs change over time. Stable Diffusion 3.5 Large and Stable Image Ultra use **direct model IDs** (not inference profiles).
 
 > Note: Stability AI generation models (Stable Diffusion 3.5 Large, Stable Image Ultra) use **aspect ratios** instead of exact pixel dimensions. The backend provides a `_dimensions_to_aspect_ratio()` helper that maps width×height to the closest supported ratio: 1:1, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4, 21:9, 9:21.
 
@@ -865,7 +869,7 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 
    Each category stores: `current` (the model ID), `region`, `provider`, `api_type`, `label`, `description`, and optionally `pinned` (bool). `fast_llm`/`complex_llm` are **auto-rolled to the newest Sonnet/Opus on every Sync** (see §4.8 *Auto-roll on Sync*); setting `pinned: true` — which happens automatically when a user manually picks a model in Model Settings — opts a category out of auto-roll (it's then only notified of newer models, never overridden).
 
-5. **Chat models** (`chat_models`): Discovered LLM models available for Chat Studio. Keyed by internal name (e.g. `claude_sonnet_4_6`, `llama_3_3_70b`, `gpt_5_4`). Each entry stores: `label`, `model_id`, `provider`, `available_regions`, `context_window`, `supports_vision`, `supports_streaming`, `input_price_per_1k`, `output_price_per_1k`, `model_source` (`foundation`, `custom`, `imported`), and optionally `supports_temperature` (recorded by the Sync auto-roll's one-time probe — drives the inference-param gate in §4.8). It also carries the **endpoint/API routing** fields (§4.8): `endpoints[]` (`bedrock-runtime` and/or `bedrock-mantle`), `apis[]` (`converse`/`invoke`/`chat_completions`/`responses`/`messages`), and the resolved `invoke_endpoint` + `invoke_api` the app actually uses (Converse-first). All of these are user-overridable in `.user.json`. Custom and imported models inherit `format_family` from their base model.
+5. **Chat models** (`chat_models`): Discovered LLM models available for Chat Studio. Keyed by internal name (e.g. `claude_sonnet_4_6`, `llama_3_3_70b`, `gpt_5_4`). Each entry stores: `label`, `model_id` (the pinned id — see *Inference profiles & residency pinning* below), `region` (the pinned Region), `provider`, `available_regions`, `max_context_tokens`, `has_vision`, `streaming_supported`, `input_price_per_1k`, `output_price_per_1k` + `token_pricing` (official rate sets, §14), `model_source` (`foundation`, `custom`, `imported`), and optionally `supports_temperature` (recorded by Sync's one-time probe — drives the inference-param gate in §4.8). It also carries the **endpoint/API routing** fields (§4.8): `endpoints[]` (`bedrock-runtime` and/or `bedrock-mantle`), `apis[]` (`converse`/`invoke`/`chat_completions`/`responses`/`messages`), and the resolved `invoke_endpoint` + `invoke_api` the app actually uses (Converse-first); the **routing-scope** fields `inference_profiles[]` (geos AWS offers for the model), `residency_scope` (`global` / `geo:<geo>` / `in-region`), `on_demand_regions[]` (Regions serving the plain id on demand) and `mantle_regions[]` (Regions whose Mantle lists the model); and the **per-account** fields `unservable_regions`, `mantle_route` and `lifecycle_unavailable`, which are *user-only* (`_USER_ONLY_FIELDS` — kept in `.user.json`, never promoted to base, because they describe this AWS account, not the model). Custom and imported models inherit `format_family` from their base model.
 
 6. **Image models** (`image_models`): Keyed by internal name (e.g. `sd35_large`, `stable_image_ultra`). Each entry stores:
    - `label` — human-readable display name
@@ -888,15 +892,46 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 **Generic invoker** (`backend/services/bedrock_client.py: invoke_image_model()`): Reads the model's format family from the registry, constructs the request body dynamically using dot-path helpers (`_set_nested`, `_get_nested`, `_deep_merge`), applies quality overrides, gets the Bedrock client for the model's region (with `region_override` support), invokes, and parses the response. No per-model invoke functions needed — any model with a registered format family works.
 
 **Auto-discovery** (`POST /api/admin/discover/refresh-all`):
-1. Discovers all Bedrock-supported regions from AWS
-2. Fetches per-image pricing from the AWS Pricing API
+1. Discovers all Bedrock-supported regions from AWS, filtered to the Regions **enabled** for the account
+2. Fetches per-image, SageMaker-instance, video and S3 infra pricing
 3. Resets all `available_regions` to empty (prunes stale data)
-4. Scans each region — registers new text-to-image, video, and chat models, updates `available_regions` for existing models
+4. Scans each region — registers new text-to-image, video, and chat models, updates `available_regions` (and `on_demand_regions`) for existing models, and **discovers the inference profiles** (`ListInferenceProfiles`, SYSTEM_DEFINED) into the top-level `inference_profiles` map
 5. Discovers custom models via `ListCustomModels`, `ListImportedModels`, `ListCustomModelDeployments`, and `ListProvisionedModelThroughputs` — custom models inherit format family from their base model
-6. Disables models no longer found in any region
-7. Backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming support)
-8. **Reconciles the `bedrock-mantle` catalog** (`_reconcile_mantle_models`): queries the Mantle `models.list`, marks discovered runtime models that are *also* on Mantle, and adds **Mantle-only** models (OpenAI GPT-5.x, Claude Mythos, GLM/Grok, …) as new `chat_models` entries — stamping `endpoints[]`/`apis[]`/`invoke_endpoint`/`invoke_api` on every entry (derived from provider/family heuristics grounded in the AWS API-compatibility matrix; dated aliases like `gpt-5.4-2026-03-05` are de-duped against their undated base). Skipped cleanly if Mantle is unavailable.
-9. **Auto-rolls** `fast_llm`/`complex_llm` to the newest discovered Sonnet/Opus (respecting `pinned` categories), recording each rolled model's `supports_temperature` (see §4.8 *Auto-roll on Sync*)
+6. **Reconciles the `bedrock-mantle` catalog** (`_reconcile_mantle_models`): queries the Mantle `models.list` in every Mantle Region, records `mantle_regions` per model, marks discovered runtime models that are *also* on Mantle, and adds **Mantle-only** models (OpenAI GPT-5.x, Claude Mythos, GLM/Grok, …) as new `chat_models` entries — stamping `endpoints[]`/`apis[]`/`invoke_endpoint`/`invoke_api` on every entry (from the AWS API-compatibility matrix; dated aliases like `gpt-5.4-2026-03-05` are de-duped against their undated base). Skipped cleanly if Mantle is unavailable.
+7. **Pin post-pass** (`_resolve_residency_pins`) — re-derives every chat model's pinned id + Region (below)
+8. Backfills routing, lifecycle (Legacy/EOL) and `supports_temperature`
+9. **Per-Region servability probe** (`_probe_chat_servability`, below) — records the Regions that don't answer and moves pins off them
+10. Disables models no longer found in any region
+11. **Official pricing** (`_sync_official_pricing`, §14) — token rates onto `chat_models`, per-image / per-second rates onto image and video models
+12. **Auto-rolls** `fast_llm`/`complex_llm` to the newest discovered Sonnet/Opus (respecting `pinned` categories), recording each rolled model's `supports_temperature` (see §4.8 *Auto-roll on Sync*)
+
+#### Inference profiles & residency pinning
+
+Amazon Bedrock serves many models through **cross-region inference profiles** — `<geo>.<provider>.<model>` ids (`us.`, `eu.`, `apac.`, `jp.`, …: requests stay inside that geography) and a `global.` profile (routes worldwide, often at a lower Global rate). The registry's top-level `inference_profiles` map is `{normalized base id: {geo: [Regions the profile routes from]}}`, discovered by Sync — **no geo, vendor or Region list is hardcoded**; a new geo AWS adds is picked up with no code change.
+
+Every lookup — capabilities, temperature gate, pricing, Region pickers, routing — resolves by **foundation model** (`strip_geo_prefix`), so any profile id AWS offers works for any model, not just the pinned one. The pin is only the **default route**. The pin post-pass evaluates every Region the model was found in and ranks:
+
+- **No residency constraint (default, `preferred_residency_geo = ""`)**: `global.` where offered → a geo profile → a plain in-Region id. Ties prefer a Region in the home Region's geography (`aws_region_models`), then the home Region, then name order.
+- **`preferred_residency_geo` set** (`ARTSMOKER_PREFERRED_RESIDENCY_GEO`, a *discovered* geo; `global` or an unknown value is ignored): an in-geo profile or Region → another geo profile → a plain in-Region id elsewhere → `global.` last. Only for deployments whose data must stay in one geography.
+
+The post-pass is self-healing: it heals drift (e.g. a stale `us.` id pinned on a non-US Region) and is deterministic rather than an accident of scan order. Mantle-only models (no runtime Region) are pinned among their `mantle_regions` the same way, so a pin moved off a dead home Region returns once home answers again.
+
+#### Per-Region servability (`backend/services/servability.py`)
+
+A Region can list a model — and a profile can cover the Region — yet **never answer** it: the request hangs until the read timeout, or AWS rejects it as not found / not served there. No listing shows this, so Sync step 9 sends every enabled chat model a 16-token request **by every id it can be called by** (pinned id, every other profile, the plain id where served on demand) **in every Region that id routes from** (~1,300 routes, 24 in parallel, 20 s timeout, one retry on a timeout). Converse models are probed via Converse; Mantle models walk the shared Mantle route order (§4.8).
+
+Results per Region: `ok`, or a reason — `timeout`, `not_found`, `unsupported` (the id isn't invocable there), `not_available` (the account's data-retention mode isn't offered there), `access_denied`, `legacy_access_denied`; or *inconclusive* (throttling, 5xx, credentials — says nothing about the Region). They are recorded per **id kind** (`global` / a geo / `""` for a plain id — a Region dead for one profile can serve another):
+
+```
+unservable_regions = {<id kind>: {<Region>: {"reason", "detected_at"}}}   # user-only (.user.json)
+```
+
+- Each Sync **replaces** the record (runtime marks included); an inconclusive probe keeps what was known.
+- A pin on a dead Region **moves** to a live one: in the residency geo (when set) → home → a Region in home's geography → name order.
+- A model AWS reports `not_found`/`unsupported` by its pinned id in **every** probed Region is not registered at all (unless an LLM category uses it). That includes models the listing reports with TEXT modalities that Converse rejects outright ("This action doesn't support the model") — rerank, video-understanding and speech-to-speech models (Nova Sonic needs the bidirectional stream). AWS lists them again every Sync, so a model dropped this way is **not counted as new** (Sync result `total_new`, the net-new log). A Legacy model this account lost access to in every Region gets `lifecycle_unavailable` instead.
+- If most probes fail the problem is the environment (network, credentials), not the models: the previous record is kept and nothing is removed.
+
+**Runtime marks**: between Syncs, a chat request that times out (Converse read timeout, or every Mantle route failed with one hanging) records its Region via `mark_region_unservable`. Chat Studio's Region picker (`chat._model_usable_regions` → `usable_regions` in `GET /api/chat/models`), auto-routing (`_resolve_chat_region`) and `invoke_llm` all skip recorded Regions; a request that names a recorded Region is re-routed rather than hanging again.
 
 This is the **only** operation that calls AWS discovery/pricing APIs. All other operations read from the cached registry file.
 
@@ -940,10 +975,13 @@ model_registry.json          (git-tracked, source of truth)
 ├── bedrock_regions          ← discovered by Sync from AWS
 └── image_pricing            ← fetched by Sync from AWS
 
-model_registry.user.json     (gitignored, user preferences only)
+model_registry.user.json     (gitignored, user preferences + per-account facts)
 ├── image_models.X.enabled   ← user disabled this model
 ├── categories.fast_llm      ← user's LLM category choice
-└── video_models.Y.enabled   ← user disabled this model
+├── video_models.Y.enabled   ← user disabled this model
+├── chat_models.Z.unservable_regions    ← Regions that don't answer (Sync probe + runtime)
+├── chat_models.Z.mantle_route          ← last-answering Mantle route (when not the matrix one)
+└── chat_models.Z.lifecycle_unavailable ← Legacy model this account can no longer use
 
 prompt_templates.json        (git-tracked, runtime source of truth)
 └── 28 default templates     ← code _DEFAULTS backfills any missing on load
@@ -1809,6 +1847,8 @@ The IAM principal (user, role, or SSO session) needs the following permissions:
 | `bedrock:GetAsyncInvoke` | Poll video generation job status |
 | `bedrock:ListAsyncInvokes` | List video generation jobs |
 | `bedrock:ListFoundationModels` | Foundation model discovery (Sync from AWS) |
+| `bedrock:ListInferenceProfiles` | Cross-region inference-profile discovery (Sync) — drives residency pinning and per-profile routing (§4.11). Without it every model is pinned to a plain in-Region id |
+| `bedrock:ListFoundationModelAgreementOffers` | Official rate cards for Marketplace-sold models (Anthropic, OpenAI frontier, Stability, Luma, …) during Sync (§14). Optional — without it those models fall back to the Price List / model cards, else show "pricing unavailable" |
 | `bedrock:ListCustomModels` | Discover fine-tuned custom models in your account |
 | `bedrock:ListImportedModels` | Discover imported models in your account |
 | `bedrock:GetCustomModel` | Read custom model details (base model, status) |
@@ -1823,7 +1863,7 @@ The IAM principal (user, role, or SSO session) needs the following permissions:
 | `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models (incl. Mantle-hosted third-party models) |
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
 | `sts:GetCallerIdentity` | Startup credential validation; also underpins the locally-signed Mantle bearer token |
-| `pricing:GetProducts` | Fetch model pricing during Sync from AWS (optional) |
+| `pricing:GetProducts` | AWS Price List API — model, SageMaker and video pricing during Sync from AWS (optional) |
 
 > **Amazon Bedrock Mantle (frontier models):** The `bedrock-mantle` endpoint authenticates with a short-term **bearer token** that ArtSmoker derives locally from these same credentials (nothing stored) — so no extra *token* setup is needed, but the identity must hold **Mantle inference permission**. The simplest grant is the AWS managed policy **`AmazonBedrockMantleInferenceAccess`** (read + `CreateInference` + bearer-token calls) or **`AmazonBedrockMantleFullAccess`**. Third-party Mantle models additionally rely on the `aws-marketplace:*` permissions above. If this is missing, only Mantle-only models are affected — everything on the Converse endpoint keeps working.
 
@@ -1844,6 +1884,8 @@ For a scoped IAM policy:
         "bedrock:GetAsyncInvoke",
         "bedrock:ListAsyncInvokes",
         "bedrock:ListFoundationModels",
+        "bedrock:ListInferenceProfiles",
+        "bedrock:ListFoundationModelAgreementOffers",
         "bedrock:ListCustomModels",
         "bedrock:ListImportedModels",
         "bedrock:GetCustomModel",
@@ -2212,6 +2254,25 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 21. **Test custom confirmation dialogs**: Click "Sync from AWS" — verify a styled modal appears (not a browser confirm popup). Same for delete operations.
 22. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`, `/api/chat/*`, `/api/video/*`).
 
+### Automated end-to-end harness (`tools/sanity_test.py`)
+
+Real-HTTP checks against a running server, every model and route read from the registry (nothing hardcoded) — run it after a Sync or a routing change:
+
+```bash
+.venv/bin/python3 tools/sanity_test.py --base-url http://127.0.0.1:8000            # all default stages
+.venv/bin/python3 tools/sanity_test.py --stages chat,llm --geo-scope pinned --region-scope pinned   # quick pass
+```
+
+| Stage | Checks |
+|-------|--------|
+| `registry` | No invocations: every pin, LLM category and Chat Studio entry is an id the app can invoke from a Region that serves it; pin posture follows the residency setting; Region pickers match; models with no official price are WARNs |
+| `chat` | Chat Studio stream by every id a model can be called by (pinned, each geo / `global.` profile, plain, no Region) from every Region it routes from — asserting the id invoked, the Region used and the cost billed at that route's official rate. Plus **content checks** on the pinned id (system-prompt codeword, multi-turn follow-up, image for vision models): the reply must show the model received them; a model that declines one is a WARN |
+| `excluded` | In-process: the Regions Sync recorded as dead (`unservable_regions`) still don't answer — one that now does is a FAIL (or a WARN for a recorded timeout) |
+| `llm` | In-process `invoke_llm` per model with no Region (the app's own Region choice), with an image for vision models, and per `fast_llm` / `complex_llm` category |
+| `image` / `video` / `collections` | One generation per model through the public API (`collections` is opt-in via `--stages`) |
+
+`--geo-scope` / `--region-scope pinned` limit routes to the pinned id / one Region. An AWS 5xx or throttle is retried once (noted in the row). The report goes to `tools/sanity_report.json`; the server log is scanned for new error lines per stage.
+
 <a id="13-aws-bedrock-pricing--cost-breakdown"></a>
 
 <a id="14-aws-bedrock-pricing--cost-breakdown"></a>
@@ -2227,7 +2288,7 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 > - **Image per-unit** — `_fetch_image_pricing` → `image_pricing` (per model|region|quality|size). Resolved by `cost_tracker.resolve_image_price(cfg, key, region, quality)` — the SAME resolver the Model Settings pricing endpoint uses (single source of truth). The AWS Pricing API only returns per-image prices for Nova Canvas; other providers (Stability) fall back to the registry-recorded `base_price_usd`.
 > - **SageMaker instance hourly rates** — `_fetch_sagemaker_pricing` (`ServiceCode=AmazonSageMaker`, `component=Hosting`) → `sagemaker_pricing` (per instance|region); resolved by `custom_models.get_instance_hourly_rate(instance, catalog_key, region)` (synced per-region → any synced region → catalog seed → **on-demand Pricing-API fetch cached in-memory**), driving all compute-cost math (3D, async 2D, keep-warm). Sync also refreshes `custom_model_catalog.gpu_instances[*].cost_per_hour_usd` from this table so the deploy UI can't drift.
 > - **Video per-second** — `_fetch_video_pricing` → `video_pricing` (per model|region, Nova Reel); resolved by `resolve_video_price_per_sec` (registry → `base_price_per_second_usd`). Luma Ray isn't in the API → uses the registry value.
-> - **LLM per-token** — `_fetch_llm_pricing` → `_apply_llm_pricing` stamps `input_price_per_1k`/`output_price_per_1k` (and, when they vary by region, a `token_pricing_by_region` map) onto each matched `chat_models` entry. `cost_tracker.compute_llm_cost(model, in, out, region)` reads these registry prices **ONLY** (region-aware); an unpriced model returns `0.0` ("pricing unavailable") — **no hardcoded fallback**.
+> - **LLM per-token** — `_sync_official_pricing` (`backend/services/official_pricing.py`) records only **official AWS sources**: (1) the **AWS Price List API** (`pricing:GetProducts`, service codes `AmazonBedrock`, `AmazonBedrockService`, `AmazonBedrockFoundationModels` — the same data the public pricing page renders); (2) **agreement-offer rate cards** (`bedrock:ListFoundationModelAgreementOffers`) — what AWS bills Marketplace-sold models by, keyed by exact model id; (3) the **Bedrock User Guide model cards** — In-Region / Geo / Global tables and the long-context threshold no API exposes. A row counts only if it is a **standard on-demand** token price (a *positive* rule: the words allowed after the direction phrase are the profile scope, the long-context band and "standard" — batch / flex / priority / cache / any future tier is rejected by default rather than deny-listed). Vendors and geos are discovered from the data, not hardcoded. Each `chat_models` entry gets `token_pricing` = `{rates, by_region: {Region \| geo:<GEO> \| *: {input_per_1k, output_per_1k, global_input_per_1k, global_output_per_1k, long_…}}}` plus the pinned-route `input_price_per_1k`/`output_price_per_1k`. `cost_tracker.compute_llm_cost(model, in, out, region)` reads these registry prices **ONLY**, for the Region actually invoked and the id's scope (Global rate for a `global.` id, regional otherwise, each falling back to the other); an unpriced model returns `0.0` ("pricing unavailable") — **no hardcoded fallback**.
 > - **Curated provider prices** — `provider_price_defaults` (base registry) holds published per-unit prices for models the Pricing API can't return (Stability image services, Luma video), relocated OUT of code so nothing is hardcoded.
 > - **S3 infra** — `_record_infra_pricing` seeds standard per-region S3 request/transfer rates into `infra_pricing`; `cost_tracker._get_infra_pricing` reads the registry only.
 >

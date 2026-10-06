@@ -34,6 +34,20 @@ id where on-demand is supported, and each id with NO Region (server must route
 it). Each call asserts: the id invoked, a Region that id can be served from, and
 the cost billed at the registry's official rate for THAT route (Global vs
 regional). A pass that needed the server's temperature self-heal is a FAIL.
+CONTENT checks (pinned id, pinned + home Region): a system-prompt codeword, a
+multi-turn follow-up, and — for vision models — a red-disc image sent exactly as
+Chat Studio sends it; the reply must show the model received each (a model that
+declines the check is a WARN). An AWS 5xx / throttle is retried once (noted in
+the row) — it says nothing about the route.
+
+EXCLUDED stage (in-process probes): every Region the server hides an id from
+(recorded as not answering, or not listed as serving it) is re-probed. FAIL = it
+answers (a working Region is hidden); WARN = a recorded timeout answers now.
+
+LLM stage (in-process): invoke_llm — the path prompt enhancement, templates and
+collections use — per selected model (no Region: resolved like Chat Studio), with
+an image for vision models, and per LLM category. No HTTP route reaches it without
+a long, costly generation, so the harness calls the server's own function.
 
 REGISTRY stage (no invocations): pins are offered profiles in covered Regions that
 answer (Regions the Sync probe recorded as not answering are excluded),
@@ -47,6 +61,7 @@ USAGE
   python3 tools/sanity_test.py --region-scope pinned   # one Region per route
   python3 tools/sanity_test.py --geo-scope pinned      # chat: pinned id only
   python3 tools/sanity_test.py --stages registry       # static consistency only
+  python3 tools/sanity_test.py --stages excluded,llm   # hidden Regions + invoke_llm
   python3 tools/sanity_test.py --tiers 2 --versions 2  # selection depth (0 0 = every model)
   python3 tools/sanity_test.py --limit 5               # smoke-test the harness itself
   python3 tools/sanity_test.py --base-url http://127.0.0.1:8000
@@ -431,6 +446,12 @@ def chat_routes(cfg: dict, scope: str, served: dict | None, home: str) -> list[d
         expect_auto = ([cfg["region"]] if mid == pinned and cfg.get("region") in regions
                        else regions)
         out.append({"id": mid, "kind": kind + "/auto", "region": None, "expect": expect_auto})
+    # Content checks (system prompt, multi-turn, vision) on the pinned id from the
+    # pinned and home Regions — the routes users hit by default.
+    checks = [c for c in CONTENT_CHECKS if c != "vision" or cfg.get("has_vision")]
+    for r in sorted({r for r in (cfg.get("region"), home) if r in pin_regions}) or pin_regions[:1]:
+        out += [{"id": pinned, "kind": f"check:{c}", "region": r, "expect": [r], "check": c}
+                for c in checks]
     return out
 
 
@@ -469,6 +490,58 @@ def expected_llm_cost(reg: dict, mid: str, region: str, tin: int, tout: int):
 
 # ── Stage runners (drive the real endpoints) ─────────────────────────────────
 CHAT_PROMPT = [{"role": "user", "content": "Reply with exactly one word: OK"}]
+
+
+# A red disc on white, not a solid fill: Nova 2 reads a uniform image as blank
+# ("black"/"white") on every route, even via raw Converse.
+VISION_PROMPT = "What colour is the circle? Reply with one word."
+
+
+def _vision_png(size=128) -> bytes:
+    import io
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (size, size), (255, 255, 255))
+    ImageDraw.Draw(img).ellipse((size // 4, size // 4, size * 3 // 4, size * 3 // 4), fill=(255, 0, 0))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _vision_messages():
+    import base64
+    # Exactly what Chat Studio sends for an attachment: a Converse image block
+    # whose bytes are base64 text (JSON can't carry raw bytes).
+    return [{"role": "user", "content": [
+        {"image": {"format": "png", "source": {"bytes": base64.b64encode(_vision_png()).decode()}}},
+        {"text": VISION_PROMPT}]}]
+
+
+# Beyond "it answered": does the request's content reach the model on this route?
+# Each check's reply must contain `expect` (case-insensitive). The multiturn check
+# asks for arithmetic on the earlier turn, not recall of what the user said:
+# small models refuse "what did I tell you" questions as memory or privacy issues.
+CONTENT_CHECKS = {
+    "system": {"what": "system prompt ignored", "expect": "pineapple",
+               "system": "Whatever the user says, reply with only the codeword PINEAPPLE.",
+               "messages": lambda: [{"role": "user", "content": "Say something."}]},
+    "multiturn": {"what": "earlier turns lost", "expect": "42",
+                  "messages": lambda: [
+                      {"role": "user", "content": "Think of the number 41. Reply OK."},
+                      {"role": "assistant", "content": "OK, I'm thinking of 41."},
+                      {"role": "user", "content": "Add one to that number. "
+                                                  "Reply with just the result."}]},
+    "vision": {"what": "image not seen", "expect": "red", "messages": _vision_messages},
+}
+
+# AWS-side transient failures (5xx / throttling / model warming): retried once,
+# since they say nothing about whether the route is wired correctly.
+TRANSIENT_ERROR = re.compile(r"ServiceUnavailable|InternalServer|Throttl|ModelNotReady|"
+                             r"too many requests|\b50[0234]\b", re.I)
+TRANSIENT_RETRY_DELAY_S = 5
+# A content check the model declined (over-cautious refusal) says the request
+# reached it, not that the route dropped content: WARN, not FAIL.
+REFUSAL = re.compile(r"^\W*(sorry|i'm sorry|i am sorry|i can(no|')t|i'm (not able|unable)|"
+                     r"i am (not able|unable))\b", re.I)
 IMAGE_PROMPT = "a single red apple on a plain white background, product photo"
 VIDEO_PROMPT = "a calm ocean wave rolling onto a sandy beach at sunrise"
 
@@ -517,7 +590,8 @@ def _restart_recommendation(base, want):
 MANTLE_ROUTE_TIMEOUT_S = 90
 
 
-def run_chat(base, model, region, max_tokens, timeout=None, model_id=None):
+def run_chat(base, model, region, max_tokens, timeout=None, model_id=None,
+             messages=None, system_prompt=""):
     # 90s: past the server's 60s Bedrock read timeout, so a stalled model surfaces
     # as the server's own error (logged inside this stage), and slow REASONING
     # models (grok, kimi-thinking) aren't flagged as hangs. A Mantle model gets
@@ -529,27 +603,28 @@ def run_chat(base, model, region, max_tokens, timeout=None, model_id=None):
         timeout = (2 * MANTLE_ROUTE_TIMEOUT_S + 20 if model.get("invoke_endpoint") == "bedrock-mantle"
                    else 90)
     payload = {
-        "model_id": model_id or model["model_id"], "region": region, "messages": CHAT_PROMPT,
-        "system_prompt": "", "temperature": 0.7, "max_tokens": max_tokens,
+        "model_id": model_id or model["model_id"], "region": region,
+        "messages": messages or CHAT_PROMPT, "system_prompt": system_prompt,
+        "temperature": 0.7, "max_tokens": max_tokens,
     }
     try:
         events = post_sse(base, "/api/chat/stream", payload, timeout=timeout)
     except (TimeoutError, OSError) as e:
         # A geo-pinned id sent to a non-matching region often HANGS (Bedrock accepts
         # but never responds) rather than erroring — bound it and report clearly.
-        return False, f"timeout/no-response after {timeout}s ({type(e).__name__}) — region likely can't serve this id", None
+        return False, f"timeout/no-response after {timeout}s ({type(e).__name__}) — region likely can't serve this id", None, ""
     err = next((e for e in events if e.get("type") == "error"), None)
     blocked = next((e for e in events if e.get("type") == "content_blocked"), None)
     meta = next((e for e in events if e.get("type") == "metadata"), None)
     text = "".join(e.get("text", "") for e in events if e.get("type") == "delta")
     got_stop = any(e.get("type") == "stop" for e in events)
     if err:
-        return False, f"error: {err.get('detail', '')[:120]}", meta
+        return False, f"error: {err.get('detail', '')[:120]}", meta, text
     if blocked:
-        return False, "content_blocked", meta
+        return False, "content_blocked", meta, text
     if text.strip() or got_stop:
-        return True, (text.strip()[:60] or "(stop, no text)"), meta
-    return False, f"no output ({len(events)} events)", meta
+        return True, (text.strip()[:60] or "(stop, no text)"), meta, text
+    return False, f"no output ({len(events)} events)", meta, text
 
 
 def run_chat_route(base, reg, model, route, max_tokens):
@@ -559,9 +634,22 @@ def run_chat_route(base, reg, model, route, max_tokens):
     route (Global rate for global., regional otherwise)."""
     if route.get("skip"):
         return None, f"SKIP {route['skip']}"
-    ok, detail, meta = run_chat(base, model, route["region"], max_tokens, model_id=route["id"])
+    check = CONTENT_CHECKS.get(route.get("check") or "")
+    kw = {"messages": check["messages"](), "system_prompt": check.get("system", "")} if check else {}
+    ok, detail, meta, text = run_chat(base, model, route["region"], max_tokens, model_id=route["id"], **kw)
+    retried = ""
+    if not ok and TRANSIENT_ERROR.search(detail):
+        # An AWS-side 5xx/throttle says nothing about the route — retry it once.
+        retried = f" (retried after: {detail[:60]})"
+        time.sleep(TRANSIENT_RETRY_DELAY_S)
+        ok, detail, meta, text = run_chat(base, model, route["region"], max_tokens,
+                                          model_id=route["id"], **kw)
     if not ok:
-        return False, detail
+        return False, detail + retried
+    if check and check["expect"] not in text.lower():
+        if REFUSAL.match(text):
+            return "WARN", f"{detail} | model declined the {route['check']} check (not a routing fault){retried}"
+        return False, f"{detail} | {check['what']}: reply lacks '{check['expect']}'{retried}"
     if not meta:
         return False, f"{detail} | no metadata event (tokens/cost/route not reported)"
     problems = []
@@ -585,8 +673,115 @@ def run_chat_route(base, reg, model, route, max_tokens):
     else:
         note = f"${cost:.6f}"
     if problems:
-        return False, f"{detail} | " + "; ".join(problems)
-    return True, f"{detail} | {used} {tin}+{tout} tok {note}"
+        return False, f"{detail} | " + "; ".join(problems) + retried
+    return True, f"{detail} | {used} {tin}+{tout} tok {note}{retried}"
+
+
+# ── In-process stages (no HTTP route reaches these paths cheaply) ────────────
+def _backend():
+    """The server's own modules, imported once on the main thread (a threaded
+    first import of the openai SDK can deadlock)."""
+    if "backend" not in _REG_CACHE:
+        sys.path.insert(0, str(ROOT))
+        import openai  # noqa: F401
+        from backend.services import bedrock_client, mantle_client, servability
+        from backend.services.model_registry import get_registry
+        get_registry()
+        _REG_CACHE["backend"] = (bedrock_client, mantle_client, servability)
+    return _REG_CACHE["backend"]
+
+
+def excluded_routes(cfg: dict) -> list[dict]:
+    """Regions the server WON'T route each of this model's ids to — the ones a
+    Region picker hides: recorded as not answering (unservable_regions), or not
+    listed as serving it (mantle_regions / on_demand_regions). Each is re-probed
+    to prove the exclusion still holds."""
+    _, mc, _ = _backend()
+    pinned = cfg.get("model_id", "")
+    base = _strip_geo(pinned)
+    avail = set(cfg.get("available_regions") or ([cfg["region"]] if cfg.get("region") else []))
+    mantle = cfg.get("invoke_endpoint") == "bedrock-mantle"
+    ids = {pinned} | {f"{g}.{base}" for g in profiles_for(pinned)}
+    if "ON_DEMAND" in (cfg.get("inference_types") or []):
+        ids.add(base)
+    out = []
+    for mid in sorted(ids):
+        geo = _geo_of(mid)
+        universe = set(profiles_for(mid).get(geo) or ()) & avail if geo and geo != "global" else avail
+        if mantle:
+            universe &= set(mc.MANTLE_REGIONS)  # elsewhere a call is remapped, not probed
+        dead = dead_regions(cfg, mid)
+        for r in sorted(universe - set(valid_regions(cfg, mid))):
+            why = (dead.get(r) or {}).get("reason") if r in dead else \
+                ("not in mantle_regions" if mantle else "not in on_demand_regions")
+            out.append({"id": mid, "kind": "excluded:" + (geo or "in-region"), "region": r,
+                        "why": why or "recorded"})
+    return out
+
+
+def run_excluded(cfg, route):
+    """PASS: the hidden Region still doesn't answer. FAIL: it answers — the
+    server hides a working Region. WARN: a timeout-recorded Region answers now
+    (intermittent; the next Sync re-probes it). SKIP: probe inconclusive."""
+    _, _, sv = _backend()
+    got = sv.probe_region(route["id"], cfg, route["region"])
+    if got is None:
+        return None, f"probe inconclusive (excluded: {route['why']})"
+    if got != sv.OK:
+        return True, f"still unservable ({got}); excluded: {route['why']}"
+    if route["why"] == "timeout":
+        return "WARN", "answers now — recorded timeout was intermittent (next Sync re-probes)"
+    return False, f"ANSWERS — but the server excludes it ({route['why']})"
+
+
+def llm_jobs(reg: dict, chat_models: list[dict]) -> list[tuple]:
+    """invoke_llm — the path every in-app LLM step uses (prompt enhancement,
+    templates, collections) — per selected model with no Region (resolved like
+    Chat Studio) plus vision where supported, and per LLM category."""
+    jobs = []
+    for m in chat_models:
+        jobs.append((m, {"id": m["model_id"], "kind": "invoke_llm", "region": None}))
+        if m.get("has_vision"):
+            jobs.append((m, {"id": m["model_id"], "kind": "invoke_llm:vision", "region": None,
+                             "check": "vision"}))
+    for name, cat in sorted((reg.get("categories") or {}).items()):
+        if name.endswith("_llm") and name != "fallback_llm" and cat.get("current"):
+            cm = next((c for c in (reg.get("chat_models") or {}).values()
+                       if c.get("model_id") == cat["current"]), {})
+            jobs.append(({**cm, "key": name, "label": f"category {name}", "model_id": cat["current"]},
+                         {"id": cat["current"], "kind": "invoke_llm:category", "region": None,
+                          "complexity": name.removesuffix("_llm")}))
+    return jobs
+
+
+def run_llm(model, job, max_tokens):
+    bc, _, _ = _backend()
+    kw = {"max_tokens": max_tokens}
+    if job.get("check") == "vision":
+        kw["images"] = [_vision_png()]
+        prompt, expect = VISION_PROMPT, "red"
+    else:
+        prompt, expect = CHAT_PROMPT[0]["content"], ""
+    if job.get("complexity"):
+        kw["complexity"] = job["complexity"]
+    else:
+        kw["model_id"] = job["id"]
+    retried = ""
+    for attempt in (1, 2):
+        try:
+            text = bc.invoke_llm(prompt, **kw) or ""
+            break
+        except Exception as e:
+            err = f"{type(e).__name__}: {str(e)[:120]}"
+            if attempt == 2 or not TRANSIENT_ERROR.search(err):
+                return False, err + retried
+            retried = f" (retried after: {err[:60]})"
+            time.sleep(TRANSIENT_RETRY_DELAY_S)
+    if not text.strip():
+        return False, "empty reply" + retried
+    if expect and expect not in text.lower():
+        return False, f"{text.strip()[:60]} | image not seen: reply lacks '{expect}'{retried}"
+    return True, text.strip()[:60] + retried
 
 
 def run_image(base, model, region):
@@ -1145,8 +1340,8 @@ def registry_checks(base, reg) -> list[dict]:
 def main():
     ap = argparse.ArgumentParser(description="ArtSmoker end-to-end sanity harness")
     ap.add_argument("--base-url", default="http://127.0.0.1:8000")
-    ap.add_argument("--stages", default="registry,chat,image,video",
-                    help="comma list of: registry,chat,image,video,collections")
+    ap.add_argument("--stages", default="registry,chat,excluded,llm,image,video",
+                    help="comma list of: registry,chat,excluded,llm,image,video,collections")
     ap.add_argument("--region-scope", choices=("all", "pinned"), default="all",
                     help="every Region each route can be served from, or one per route")
     ap.add_argument("--geo-scope", choices=("all", "pinned"), default="all",
@@ -1216,7 +1411,7 @@ def main():
             except Exception as e:
                 ok, detail = False, f"{type(e).__name__}: {str(e)[:120]}"
             dt = time.time() - t0
-            status = "SKIP" if ok is None else ("PASS" if ok else "FAIL")
+            status = "SKIP" if ok is None else "WARN" if ok == "WARN" else ("PASS" if ok else "FAIL")
             rows[idx] = {"model": m.get("label", m["key"]), "model_id": mid,
                          "key": m["key"], "region": region or "auto",
                          "route": route["kind"] if route else "pinned",
@@ -1312,10 +1507,18 @@ def main():
         for m in chat_models:
             routes = chat_routes(m, args.region_scope, served.get(m["key"]), srv["home_models"])
             if args.geo_scope == "pinned":
-                routes = [r for r in routes if r["kind"].startswith("pinned")]
+                routes = [r for r in routes if r["kind"].startswith(("pinned", "check:"))]
             jobs += [(m, r) for r in routes]
         run_stage("chat", chat_models, lambda m, rt: run_chat_route(base, reg, m, rt, args.max_tokens),
                   jobs=jobs)
+    if {"excluded", "llm"} & set(stages):
+        _backend()  # in-process: the server's own modules, imported on this thread
+        sel = select_chat_models(reg, args.tiers, args.versions, args.include_custom)
+    if "excluded" in stages:
+        run_stage("excluded", sel, run_excluded,
+                  jobs=[(m, rt) for m in sel for rt in excluded_routes(m)])
+    if "llm" in stages:
+        run_stage("llm", sel, lambda m, job: run_llm(m, job, args.max_tokens), jobs=llm_jobs(reg, sel))
     if "image" in stages:
         run_stage("image", select_image_models(reg, args.include_custom),
                   lambda m, r: run_image(base, m, r))
