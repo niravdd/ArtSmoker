@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-10-06T01:58:09.701092+00:00",
+  "last_updated": "2026-10-06T03:40:14.415826+00:00",
   "api_compatibility": {
     "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'. Per rule, 'mantle_base' selects the Mantle base path for the OpenAI SDK (/v1 for most; /openai/v1 for openai/xai/google) \u2014 the two paths serve DISJOINT model sets, verified live 2026-09-07.",
     "api_priority": [
@@ -176,12 +176,10 @@
     "voice": {
       "label": "Voice Transcription",
       "description": "Speech-to-text for voice input.",
-      "current": "amazon.nova-2-sonic-v1:0",
+      "current": "amazon.nova-2-5-sonic",
       "region": "us-east-1",
       "provider": "Amazon",
-      "api_type": "streaming",
-      "input_price_per_1k": 0.00033,
-      "output_price_per_1k": 0.00275
+      "api_type": "bidirectional_stream"
     }
   },
   "image_models": {
@@ -2668,7 +2666,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -3246,7 +3246,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -3372,7 +3374,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-2",
@@ -3510,7 +3514,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -4005,7 +4011,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-2",
@@ -4137,7 +4145,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -4625,7 +4635,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -4755,7 +4767,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -4881,7 +4895,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -5207,7 +5223,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -5333,7 +5351,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-1",
@@ -5565,7 +5585,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-2",
@@ -5693,7 +5715,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -5823,7 +5847,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -5961,7 +5987,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -6091,7 +6119,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -6217,7 +6247,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-1",
@@ -6703,7 +6735,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-1",
@@ -6828,7 +6862,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -6954,7 +6990,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -7084,7 +7122,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-2",
@@ -7222,7 +7262,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -7348,7 +7390,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-1",
@@ -7975,7 +8019,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -8101,7 +8147,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -8698,7 +8746,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-2",
@@ -8933,7 +8983,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -9170,7 +9222,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-1",
@@ -9652,7 +9706,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -11041,7 +11097,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -11303,7 +11361,9 @@
       ],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -12256,7 +12316,9 @@
         "eu-west-2"
       ],
       "mantle_regions": [
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "eu-north-1",
         "eu-west-1",
         "us-east-1"
@@ -12520,6 +12582,7 @@
         "ap-northeast-2"
       ],
       "mantle_regions": [
+        "ap-northeast-2",
         "ap-south-1",
         "eu-north-1",
         "eu-west-1",
@@ -13339,7 +13402,9 @@
       },
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-2",
@@ -13417,7 +13482,9 @@
       "inference_profiles": [],
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -13638,7 +13705,9 @@
       },
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -13735,7 +13804,9 @@
       },
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-2",
@@ -13830,7 +13901,9 @@
       },
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -13927,7 +14000,9 @@
       },
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-central-1",
         "eu-north-1",
@@ -14147,7 +14222,9 @@
       },
       "mantle_regions": [
         "ap-northeast-1",
+        "ap-northeast-2",
         "ap-south-1",
+        "ap-southeast-1",
         "ap-southeast-2",
         "eu-north-1",
         "eu-west-2",
@@ -20236,6 +20313,118 @@
         "us-east-2",
         "us-west-2"
       ]
+    }
+  },
+  "voice_models": {
+    "nova_2_sonic_v1": {
+      "label": "Nova 2 Sonic",
+      "model_id": "amazon.nova-2-sonic-v1:0",
+      "provider": "Amazon",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "eu-north-1",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "on_demand_regions": [
+        "ap-northeast-1",
+        "eu-north-1",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "model_source": "foundation",
+      "api_type": "bidirectional_stream",
+      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/amazon.nova-2-sonic-v1:0",
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "input_modalities": [
+        "SPEECH"
+      ],
+      "output_modalities": [
+        "SPEECH",
+        "TEXT"
+      ],
+      "streaming_supported": true,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "start_of_life_time": "2025-12-02T18:00:00+00:00",
+      "token_pricing": {
+        "source": "price_list",
+        "rates": {
+          "input_per_1k": 0.000319,
+          "speech_output_per_1k": 0.012,
+          "output_per_1k": 0.002651,
+          "speech_input_per_1k": 0.003
+        },
+        "by_region": {
+          "us-west-2": {
+            "input_per_1k": 0.000319,
+            "speech_output_per_1k": 0.012,
+            "output_per_1k": 0.002651,
+            "speech_input_per_1k": 0.003
+          },
+          "us-east-1": {
+            "output_per_1k": 0.00275,
+            "input_per_1k": 0.00033,
+            "speech_input_per_1k": 0.003,
+            "speech_output_per_1k": 0.012
+          },
+          "eu-north-1": {
+            "speech_output_per_1k": 0.01165,
+            "speech_input_per_1k": 0.00291,
+            "input_per_1k": 0.000363,
+            "output_per_1k": 0.002992
+          },
+          "ap-northeast-1": {
+            "speech_input_per_1k": 0.00363,
+            "speech_output_per_1k": 0.01452,
+            "output_per_1k": 0.003311,
+            "input_per_1k": 0.000396
+          }
+        }
+      },
+      "input_price_per_1k": 0.000319,
+      "output_price_per_1k": 0.002651
+    },
+    "nova_2_5_sonic": {
+      "label": "Nova 2.5 Sonic",
+      "model_id": "amazon.nova-2-5-sonic",
+      "provider": "Amazon",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "eu-north-1",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "on_demand_regions": [
+        "ap-northeast-1",
+        "eu-north-1",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "model_source": "foundation",
+      "api_type": "bidirectional_stream",
+      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/amazon.nova-2-5-sonic",
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "input_modalities": [
+        "SPEECH",
+        "TEXT"
+      ],
+      "output_modalities": [
+        "SPEECH",
+        "TEXT"
+      ],
+      "streaming_supported": true,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "start_of_life_time": "2026-09-30T00:00:00+00:00"
     }
   }
 }
