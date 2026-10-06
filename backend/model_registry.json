@@ -17263,6 +17263,10 @@
           "rmbg": {
             "type": "huggingface",
             "repo_id": "briaai/RMBG-1.4"
+          },
+          "trellis2": {
+            "type": "huggingface",
+            "repo_id": "microsoft/TRELLIS.2-4B"
           }
         },
         "requirements": {
@@ -17386,6 +17390,18 @@
           "sdxl_vae": {
             "type": "huggingface",
             "repo_id": "madebyollin/sdxl-vae-fp16-fix"
+          },
+          "trellis2": {
+            "type": "huggingface",
+            "repo_id": "microsoft/TRELLIS.2-4B"
+          },
+          "hunyuan_paint": {
+            "type": "huggingface",
+            "repo_id": "tencent/Hunyuan3D-2.1"
+          },
+          "dinov2": {
+            "type": "huggingface",
+            "repo_id": "facebook/dinov2-giant"
           }
         },
         "requirements": {

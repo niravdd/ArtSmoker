@@ -2756,9 +2756,9 @@ def _texture_backend(input_data=None):
 def _load_hunyuan_paint(code_dir, hf_token):
     """Load the Hunyuan3D-Paint pipeline (second texturing backend).
 
-    Returns a Hunyuan3DPaintPipeline. Weights (tencent/Hunyuan3D-2.1 paint
-    subfolder + facebook/dinov2-giant) are pulled from HF at construction
-    (needs HF auth for the Tencent-licensed repo). Native ops (custom_rasterizer
+    Returns a Hunyuan3DPaintPipeline. Weights (the paint subfolder of
+    secondary_sources.hunyuan_paint + the secondary_sources.dinov2 vision
+    encoder) are pulled from HF at construction. Native ops (custom_rasterizer
     + mesh_inpaint_processor) must already be built — call _ensure_hunyuan_ops
     at load time first.
     """
@@ -2798,8 +2798,14 @@ def _load_hunyuan_paint(code_dir, hf_token):
     # (no os.chdir — that would race in a shared worker).
     conf.multiview_cfg_path = os.path.join(hy_dir, "cfgs", "hunyuan-paint-pbr.yaml")
     conf.realesrgan_ckpt_path = _hunyuan_realesrgan_path()
-    conf.multiview_pretrained_path = "tencent/Hunyuan3D-2.1"
-    conf.dino_ckpt_path = "facebook/dinov2-giant"
+    # Registry-driven repos (invoke_config.secondary_sources), with the known-good
+    # public repos as fallbacks.
+    _ss = _config.get("secondary_sources", {})
+    conf.multiview_pretrained_path = (_ss.get("hunyuan_paint", {}).get("repo_id")
+                                      or "tencent/Hunyuan3D-2.1")
+    conf.dino_ckpt_path = _ss.get("dinov2", {}).get("repo_id") or "facebook/dinov2-giant"
+    logger.info("Hunyuan3D-Paint repos: paint=%s, vision encoder=%s",
+                conf.multiview_pretrained_path, conf.dino_ckpt_path)
 
     t0 = _time.time()
     logger.info("Loading Hunyuan3D-Paint pipeline (paint backend)...")
@@ -2915,9 +2921,11 @@ def _load_texture_models(code_dir, hf_token):
     # invoke_config.secondary_sources (single source of truth), with the known-good
     # public repos as fallbacks. Operators can override/pin (revision) per deployment.
     _ss = _config.get("secondary_sources", {})
-    _vae_src = _ss.get("mvadapter_vae", {})
-    _base_src = _ss.get("mvadapter_base", {})
-    _adapter_src = _ss.get("mvadapter_adapter", {})
+    # Catalog keys: sdxl_vae / sdxl_base / mv_adapter (the mvadapter_* names are
+    # still read, for any invoke_config written with them).
+    _vae_src = _ss.get("sdxl_vae") or _ss.get("mvadapter_vae") or {}
+    _base_src = _ss.get("sdxl_base") or _ss.get("mvadapter_base") or {}
+    _adapter_src = _ss.get("mv_adapter") or _ss.get("mvadapter_adapter") or {}
     _vae_repo = _vae_src.get("repo_id") or "madebyollin/sdxl-vae-fp16-fix"
     _base_repo = _base_src.get("repo_id") or "stabilityai/stable-diffusion-xl-base-1.0"
     _adapter_repo = _adapter_src.get("repo_id") or "huanngzh/mv-adapter"
