@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 PROBE_TIMEOUT_S = 20.0
 PROBE_MAX_TOKENS = 16    # the Responses API rejects fewer than 16 output tokens
 OK = "ok"
-TIMEOUT = "timeout"  # may be temporary — skipped, but never moves a pin or drops a model
+TIMEOUT = "timeout"  # may be temporary — skipped and the pin moves (back next Sync), never drops a model
 LEGACY = "legacy_access_denied"  # per account → lifecycle_unavailable, not a Region fact
 # Reasons where AWS itself says the model can't be invoked there (any account).
 # A model with only these, in every Region, is not registered at all.

@@ -3022,9 +3022,9 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
     model yet hang on it or reject it, which no listing shows.
 
     Per model: dead Regions go to ``unservable_regions`` per id kind (replacing
-    the previous record, runtime marks included); a pin on a Region that rejects
-    the model moves to a live one (_rank_replacement_regions; a timeout alone
-    keeps it). A model that AWS reports not found / not served by
+    the previous record, runtime marks included); a pin on a Region that doesn't
+    answer moves to a live one (_rank_replacement_regions — never out of the
+    residency geo). A model that AWS reports not found / not served by
     its pinned id in EVERY probed Region isn't kept at all — no Region can serve
     it; a Legacy model this account lost access to gets the per-account lifecycle mark.
     If most probes fail, the problem is the environment (network, credentials),
@@ -3104,12 +3104,11 @@ def _probe_chat_servability(registry: dict, progress=None) -> dict:
             marked += sum(len(m) for m in records.values())
         else:
             cfg.pop("unservable_regions", None)
-        # A pin on a Region that rejects the model moves to a live one (ranked by
-        # _rank_replacement_regions — never out of the residency geo). A timeout
-        # alone doesn't move it: it can be temporary, and runtime routing already
-        # skips a Region marked dead until the next Sync re-probes it.
-        pin_mark = marks.get(cfg.get("region")) or {}
-        if pin_mark and pin_mark.get("reason") != sv.TIMEOUT:
+        # A pin on a Region that doesn't answer (rejects or hangs) moves to a live
+        # one (ranked by _rank_replacement_regions — never out of the residency
+        # geo). Not permanent: the pin post-pass re-derives every pin each Sync,
+        # so it returns once that Region answers again.
+        if marks.get(cfg.get("region")):
             live = _rank_replacement_regions([r for r in res if r not in marks],
                                              cfg.get("region"), registry)
             if live:
