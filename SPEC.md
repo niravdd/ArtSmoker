@@ -1563,7 +1563,7 @@ The pins are the commits the validated, S3-cached wheels were compiled from (202
 | Backend | License | Commercial | Key model dependencies | Gated repos |
 |---------|---------|------------|------------------------|-------------|
 | **TRELLIS.2** (default for new deploys) | MIT | ✅ Yes (with attribution) | `microsoft/TRELLIS.2-4B` (MIT), `facebook/dinov3-vitl16-pretrain-lvd1689m` (commercial-OK, **"Built with DINOv3" attribution required**), `ZhengPeng7/BiRefNet` (MIT, the actual background cutout) | `facebook/dinov3-…` |
-| **Hunyuan3D-Paint** | Tencent Hunyuan 3D 2.0 Community | ❌ Non-commercial | `tencent/Hunyuan3D-2.1` (Tencent, non-commercial), `facebook/dinov2-giant` (**CC-BY-NC-4.0, also non-commercial**), RealESRGAN x4 (MIT) | `tencent/Hunyuan3D-2.1` |
+| **Hunyuan3D-Paint** | Tencent Hunyuan 3D 2.0 Community | ❌ Non-commercial | `tencent/Hunyuan3D-2.1` (Tencent, non-commercial), `facebook/dinov2-giant` (Apache-2.0), RealESRGAN x4 (MIT) | — (none; `tencent/Hunyuan3D-2.1` is public as of 2026-10) |
 
 **Licensing is surfaced, not buried.** Each `texture_backends.options.<key>.license` block carries `name`, `url`, `commercial`, `attestation_required`, `key_terms[]`, `warnings[]`, and a structured `dependencies[]` array (each: `name`, `license`, `url`, `gated`, `commercial`, `role`). The deploy dialog (`ModelSettings.js`) renders the `dependencies[]` as a per-model table with commercial/gated badges and HuggingFace links, so the operator sees **exactly which models are pulled and under what terms** before agreeing. Gated repos additionally require accepting that model's license on HuggingFace (the stored HF token must belong to an account that has done so).
 
@@ -1577,7 +1577,7 @@ The full TRELLIS.2 pipeline lists `birefnet` / `rmbg` / `trellis2`. To repoint o
 
 **Gated-repo access pre-check (deploy dialog).** Rather than a vague "gated · accept on HF" badge, the deploy dialog calls `GET /api/custom-models/gated-access/{key}` (see §5.10), which probes **every** repo the deploy will pull (model source + dependencies) with the stored token via `huggingface_hub.auth_check`. It renders a per-repo ✓/✗ with the exact next step (accept this specific gate on HF, or add a token) and **blocks deploy** while a required repo is inaccessible — so a missing gate acceptance fails fast in the dialog instead of 10 minutes into a cold start. In practice this pinpoints the one genuinely-gated repo (e.g. `facebook/dinov3-…`) even when the model is broadly flagged `requires_hf_auth` but its other repos are public.
 
-**DINOv2 ≠ DINOv3** (a common confusion, called out explicitly): Hunyuan's image encoder is **DINOv2-giant (CC-BY-NC-4.0, non-commercial)**; TRELLIS.2's is **DINOv3 (commercial-OK, attribution required)**. They are different models with different licenses.
+**DINOv2 ≠ DINOv3** (a common confusion, called out explicitly): Hunyuan's image encoder is **DINOv2-giant (Apache-2.0** — Meta relicensed DINOv2 from CC-BY-NC in Aug 2023); TRELLIS.2's is **DINOv3 (commercial-OK, attribution required)**. They are different models with different licenses. Hunyuan3D-Paint stays **non-commercial** because of its own Tencent weights license.
 
 **Background-removal model (the cutout that actually runs).** ArtSmoker pre-cuts the input to an RGBA image before texturing; this cutout is produced by a **selectable** background remover, defaulting to the commercially-clean MIT option:
 

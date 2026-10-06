@@ -17460,7 +17460,7 @@
                   "Weights tencent/Hunyuan3D-2.1 \u2014 NON-COMMERCIAL community license",
                   "Excludes EU / UK / South Korea for commercial use",
                   "1M monthly-active-user cap; no military use",
-                  "Vision encoder is Meta DINOv2 (facebook/dinov2-giant) \u2014 CC-BY-NC-4.0, ALSO non-commercial",
+                  "Vision encoder is Meta DINOv2 (facebook/dinov2-giant) \u2014 Apache-2.0 (commercial use OK)",
                   "Super-resolution: RealESRGAN x4 (MIT)"
                 ],
                 "dependencies": [
@@ -17468,16 +17468,16 @@
                     "name": "tencent/Hunyuan3D-2.1",
                     "license": "Tencent Hunyuan 3D 2.0 Community (non-commercial)",
                     "url": "https://huggingface.co/tencent/Hunyuan3D-2.1",
-                    "gated": true,
+                    "gated": false,
                     "commercially_usable_outputs": false,
                     "role": "Multi-view PBR paint weights"
                   },
                   {
                     "name": "facebook/dinov2-giant",
-                    "license": "CC-BY-NC-4.0 (non-commercial)",
+                    "license": "Apache-2.0",
                     "url": "https://huggingface.co/facebook/dinov2-giant",
                     "gated": false,
-                    "commercially_usable_outputs": false,
+                    "commercially_usable_outputs": true,
                     "role": "Image/vision encoder"
                   },
                   {
@@ -17491,8 +17491,6 @@
                 ],
                 "warnings": [
                   "Not licensed for commercial use without a separate Tencent agreement.",
-                  "TWO non-commercial dependencies: Tencent Hunyuan3D-2.1 weights AND Meta DINOv2 (CC-BY-NC-4.0). Both restrict commercial use independently.",
-                  "tencent/Hunyuan3D-2.1 is a GATED HuggingFace repo \u2014 you must accept its license on HuggingFace before deploying.",
                   "You must confirm you hold a valid license or will use it within its non-commercial terms."
                 ]
               },
