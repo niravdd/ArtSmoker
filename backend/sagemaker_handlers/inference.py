@@ -1967,6 +1967,10 @@ def _load_image_to_3d(model_dir):
 # /nvdiffrast/ subfolder of this.
 _TEXTURE_DEPS_PREFIX = "artsmoker/custom-models/texture-deps"
 _NVDIFFRAST_WHEEL_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/nvdiffrast/"
+# Source build (only on a wheel-cache miss), pinned to the commit of the cached
+# nvdiffrast-0.4.0 wheel (2026-06-19) — a cache miss never builds a newer upstream.
+_NVDIFFRAST_REF = "253ac4fcea7de5f396371124af597e6cc957bfae"
+_NVDIFFRAST_SRC = f"git+https://github.com/NVlabs/nvdiffrast.git@{_NVDIFFRAST_REF}"
 # Cached native ops for the Hunyuan3D-Paint backend (built at load, like
 # nvdiffrast): the custom_rasterizer CUDA extension wheel and the
 # mesh_inpaint_processor pybind .so.
@@ -2028,22 +2032,25 @@ _TRELLIS2_DEPS_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/trellis2"
 # …) since CUDA-compiled wheels are NOT portable across GPU architectures.
 def _trellis2_wheel_prefix() -> str:
     return f"{_TRELLIS2_DEPS_PREFIX}/wheels/{_gpu_arch_tag()}/"
-_TRELLIS2_REPO_REF = "main"                      # pin if upstream churns
+# Every source build is PINNED to a commit, so a cold start never picks up an
+# untested upstream change. These are the commits the validated TRELLIS.2 builds
+# compiled (the S3-cached wheels, 2026-06-24/25; upstream had no later commits as
+# of 2026-10-06). To move a pin: test the new commit on a fresh endpoint AND delete
+# the arch wheel cache (_trellis2_wheel_prefix) — cached wheels aren't keyed by commit.
+_TRELLIS2_REPO_REF = "75fbf0183001ed9876c8dbb35de6b68552ee08bd"
 # o_voxel ships in-repo; cumesh + flexgemm are external git (per setup.sh).
 # CRITICAL: these MUST be cloned --recursive — CuMesh compiles its submodules
 # (cubvh, xatlas, eigen), and `pip install git+...` clones NON-recursively, so the
 # submodule sources are missing → a silently broken simplify/remesh that SHREDS
 # the mesh into thousands of fragments. TRELLIS.2's setup.sh clones --recursive
 # precisely for this. We clone to a local dir recursively, then pip-install the dir.
-_TRELLIS2_EXT_GIT = {
-    "cumesh": "https://github.com/JeffreyXiang/CuMesh.git",
-    "flex_gemm": "https://github.com/JeffreyXiang/FlexGEMM.git",
+_TRELLIS2_EXT_GIT = {  # name → (repo, pinned commit)
+    "cumesh": ("https://github.com/JeffreyXiang/CuMesh.git", "12289e1062f0603f2f0d0771b02e1395d247f26f"),
+    "flex_gemm": ("https://github.com/JeffreyXiang/FlexGEMM.git", "6dd94a859c26ee8246888502eada3dd8ad85532e"),
 }
-# NOTE: nvdiffrast is built by the SHARED _ensure_nvdiffrast (also used by the
-# working Hunyuan/MVPainter texturers) at HEAD. We deliberately do NOT pin it here
-# — changing the shared builder would disturb those validated paths. nvdiffrast is
-# JIT-compiled at runtime (arch auto-handled) and a low-probability contributor;
-# revisit pinning to v0.4.0 ONLY if the cumesh-submodule fix doesn't fully resolve.
+# nvdiffrast is built by the SHARED _ensure_nvdiffrast (also used by the
+# Hunyuan/MVPainter texturers), pinned to the commit of the cached v0.4.0 wheel
+# every texturer already installs (_NVDIFFRAST_REF).
 _trellis2_ops_bg = {"state": -1, "error": ""}
 _trellis2_ops_bg_lock = None
 # HF model repo (texturing checkpoints ~6.8 GB pulled at from_pretrained). The
@@ -2131,8 +2138,7 @@ def _ensure_nvdiffrast(blocking: bool = True) -> bool:
                     logger.info("Set CUDA_HOME=%s", p)
                     break
         subprocess.check_call(
-            ["pip", "install", "--no-build-isolation", "--no-deps",
-             "git+https://github.com/NVlabs/nvdiffrast.git"],
+            ["pip", "install", "--no-build-isolation", "--no-deps", _NVDIFFRAST_SRC],
             timeout=600, env={**os.environ},
         )
         import nvdiffrast  # noqa: F401
@@ -2148,7 +2154,7 @@ def _ensure_nvdiffrast(blocking: bool = True) -> bool:
                     os.makedirs(wheel_dir, exist_ok=True)
                     subprocess.check_call(
                         ["pip", "wheel", "--no-build-isolation", "--no-deps",
-                         "--wheel-dir", wheel_dir, "git+https://github.com/NVlabs/nvdiffrast.git"],
+                         "--wheel-dir", wheel_dir, _NVDIFFRAST_SRC],
                         timeout=600, env={**os.environ},
                     )
                     found = glob.glob(os.path.join(wheel_dir, "nvdiffrast*.whl"))
@@ -2164,6 +2170,31 @@ def _ensure_nvdiffrast(blocking: bool = True) -> bool:
         # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("nvdiffrast compilation failed: %s", e)
         raise ImportError(f"nvdiffrast unavailable — texture generation requires CUDA compilation: {e}")
+
+
+def _git_clone_pinned(url, ref, dest, env=None):
+    """Clone ``url`` at commit ``ref`` into ``dest``, submodules included (at the
+    commits that tree records). ``git clone --branch`` can't take a commit, so:
+    init → shallow fetch of the commit → checkout → submodules. If the host
+    refuses a fetch by commit, falls back to a clone of the default branch (the
+    pre-pin behaviour) with a warning, so a pin never blocks a deploy."""
+    import shutil
+    import subprocess
+    try:
+        shutil.rmtree(dest, ignore_errors=True)
+        for args, timeout in ((["init", "-q", dest], 60),
+                              (["-C", dest, "remote", "add", "origin", url], 60),
+                              (["-C", dest, "fetch", "-q", "--depth", "1", "origin", ref], 600),
+                              (["-C", dest, "checkout", "-q", "FETCH_HEAD"], 120),
+                              (["-C", dest, "submodule", "update", "-q", "--init", "--recursive"], 600)):
+            subprocess.check_call(["git", *args], timeout=timeout, env=env)
+        logger.info("Cloned %s @ %s (pinned) to %s", url, ref[:12], dest)
+    except Exception as e:
+        logger.warning("Pinned clone of %s @ %s failed (%s) — cloning the default branch instead",
+                       url, ref[:12], e)
+        shutil.rmtree(dest, ignore_errors=True)
+        subprocess.check_call(["git", "clone", "--depth", "1", "--recursive", url, dest],
+                              timeout=600, env=env)
 
 
 def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True, verify_import=True):
@@ -2285,10 +2316,7 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     if not os.path.isdir(os.path.join(_TRELLIS2_RUN_DIR, "trellis2")):
         os.makedirs(os.path.dirname(_TRELLIS2_RUN_DIR), exist_ok=True)
         env = {**os.environ, "GIT_LFS_SKIP_SMUDGE": "1"}
-        subprocess.check_call(["git", "clone", "--depth", "1", "--branch", _TRELLIS2_REPO_REF,
-                               "--recursive", _TRELLIS2_REPO, _TRELLIS2_RUN_DIR],
-                              timeout=600, env=env)
-        logger.info("Cloned TRELLIS.2 repo to %s", _TRELLIS2_RUN_DIR)
+        _git_clone_pinned(_TRELLIS2_REPO, _TRELLIS2_REPO_REF, _TRELLIS2_RUN_DIR, env=env)
     if _TRELLIS2_RUN_DIR not in _sys.path:
         _sys.path.insert(0, _TRELLIS2_RUN_DIR)
     # The fast-path above probed `import trellis2` while _TRELLIS2_RUN_DIR did NOT
@@ -2372,17 +2400,13 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     _ensure_nvdiffrast(blocking=True)
     # cumesh + flex_gemm: clone --recursive to a local dir (NOT `git+`, which skips
     # submodules → broken simplify → shredded mesh), then build from that dir.
-    def _recursive_clone(name, url):
+    def _recursive_clone(name, url, ref):
         dest = os.path.join("/tmp", f"trellis2_ext_{name}")  # nosec B108 -- container-only ephemeral scratch on SageMaker
         if not os.path.isdir(os.path.join(dest, ".git")):
-            import shutil as _sh
-            if os.path.isdir(dest):
-                _sh.rmtree(dest, ignore_errors=True)
-            subprocess.check_call(["git", "clone", "--recursive", "--depth", "1", url, dest], timeout=600)
-            logger.info("Cloned %s --recursive to %s", name, dest)
+            _git_clone_pinned(url, ref, dest)
         return dest
-    _flex_dir = _recursive_clone("flex_gemm", _TRELLIS2_EXT_GIT["flex_gemm"])
-    _cumesh_dir = _recursive_clone("cumesh", _TRELLIS2_EXT_GIT["cumesh"])
+    _flex_dir = _recursive_clone("flex_gemm", *_TRELLIS2_EXT_GIT["flex_gemm"])
+    _cumesh_dir = _recursive_clone("cumesh", *_TRELLIS2_EXT_GIT["cumesh"])
     _pip_install_build_cached("flex_gemm", _flex_dir, "flex_gemm", verify_import=False)
     _pip_install_build_cached("cumesh", _cumesh_dir, "cumesh", verify_import=False)
     _pip_install_build_cached("o_voxel", os.path.join(_TRELLIS2_RUN_DIR, "o-voxel"), "o_voxel", verify_import=False)
