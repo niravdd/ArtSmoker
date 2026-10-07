@@ -1855,7 +1855,6 @@ The tables below list every template by feature. **LLM** is the category the cal
 | `collection_merge_art_direction` | Collection — Lift Batch Direction into Shared Art Direction | Collections — Art Direction Controller (SPEC §18) | `{art_direction}`, `{batch_direction}` | fast | `prompt_engineer.py` + system prompt |
 | `collection_roster` | Collection — Roster Fan-out | Collections — decompose / regenerate roster (SPEC §18.4) | `{ask}`, `{art_direction}`, `{count_directive}`, `{count_rule}` | complex | `prompt_engineer.py` + system prompt |
 | `collection_batch_prompt` | Collection — Per-Batch Prompt | Collections — per-Batch prompt (SPEC §18.4) | `{art_direction}`, `{batch_name}`, `{batch_concept}`, `{asset_context}`, `{optimal_length}`, `{max_chars}` | fast | `prompt_engineer.py` + system prompt |
-| `collection_item_prompt` | Collection — Per-Piece Prompt | Collections — per-piece prompt (SPEC §18.4) | `{art_direction}`, `{item_name}`, `{item_concept}`, `{asset_context}`, `{optimal_length}`, `{max_chars}` | — (not referenced by the backend) | `—` + system prompt |
 
 ### 6.13 Admin Templates
 

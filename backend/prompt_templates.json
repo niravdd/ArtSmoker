@@ -398,22 +398,6 @@
     "text": "You are curating a COHESIVE SET of {count_directive} for one brief, all sharing a single art direction. Invent the ROSTER — the list of distinct pieces in the set.\n\n=== THE BRIEF ===\n\"{ask}\"\n\n=== SHARED ART DIRECTION (every piece follows this) ===\n{art_direction}\n\nRULES:\n1. If the brief implies a CANONICAL structure (a chess set, a deck of cards, a tarot deck, a zodiac, a squad), reproduce that structure faithfully — the right pieces, the right count — but REIMAGINE each piece creatively within the art direction (a Viking chess king = a jarl; a \"Death\" tarot = themed to this world). Never mechanize or literalize; keep it imaginative.\n2. Otherwise, INVENT a set of genuinely DISTINCT, non-repeating pieces that fit the brief and art direction.\n3. Every piece must be UNIQUE — different subject, silhouette, role. No near-duplicates.\n4. {count_rule}\n\nReturn a JSON array where each element is an object with:\n- \"name\": a short human title for the piece (e.g. \"White King\", \"The Navigator\")\n- \"slug\": a lowercase export-safe identifier, words joined by underscores (e.g. \"white_king\")\n- \"concept\": one vivid sentence describing THIS specific piece within the shared art direction\n\nReturn ONLY the JSON array.",
     "system_prompt": "You are a world-class creative director assembling a themed set. You return STRICT JSON only — an array of piece objects, no prose, no markdown. Be imaginative, never mechanical."
   },
-  "collection_item_prompt": {
-    "label": "Collection — Per-Piece Prompt",
-    "description": "Writes ONE model-agnostic image prompt for a single piece, obeying the shared art direction.",
-    "used_by": "Collections — per-piece prompt (SPEC §18.4)",
-    "variables": [
-      "{art_direction}",
-      "{item_name}",
-      "{item_concept}",
-      "{asset_context}",
-      "{optimal_length}",
-      "{max_chars}"
-    ],
-    "model": "fast LLM",
-    "text": "You are writing ONE image-generation prompt for a single piece in a cohesive set. The piece MUST clearly belong to the shared set while being its own distinct subject.\n\n=== SHARED ART DIRECTION (obey it precisely) ===\n{art_direction}\n\n=== THIS PIECE ===\nName: {item_name}\nConcept: {item_concept}\n\n=== ASSET TYPE ===\n{asset_context}\n\nWrite a SINGLE, self-contained, model-agnostic image prompt (approximately {optimal_length}, maximum {max_chars} characters) that:\n- Renders THIS piece specifically (its subject, role, silhouette).\n- Applies the shared art direction (medium, palette, materials, render, mood) so it visibly matches the rest of the set.\n- Is a vivid descriptive caption, not a command. Every word describes something visible.\n- Shows ONE complete subject in frame when the asset type calls for it (full subject, uncropped, clear margin on all sides).\n\nOutput ONLY the prompt text (optionally a final line prefixed \"NEGATIVE:\" for exclusions). No preamble, no quotes, no explanation.",
-    "system_prompt": "You write vivid, self-contained, model-agnostic image prompts for one piece of a cohesive set. Output ONLY the prompt text. No markdown, no preamble, no quotes."
-  },
   "collection_batch_prompt": {
     "label": "Collection — Per-Batch Prompt",
     "description": "Writes ONE model-agnostic image prompt for a single Batch (one piece of the set), obeying the shared art direction.",
