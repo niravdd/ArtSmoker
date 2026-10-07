@@ -625,11 +625,11 @@ def _ensure_poller():
     pending = [j for j in _jobs.values() if j["status"] in (PENDING, GENERATING)]
     if pending:
         logger.info("Async job poller started — watching %d in-progress job(s) (%s); polling S3 every "
-                    "30s to download + finalize each output as it lands",
+                    "10s to download + finalize each output as it lands",
                     len(pending), ", ".join(str(j.get("job_id", "?")) for j in pending))
     else:
         logger.info("Async job poller started — no in-progress jobs; idle-watching, will finalize "
-                    "any new job's output from S3 every 30s")
+                    "any new job's output from S3 every 10s")
 
 
 def stop_poller():
