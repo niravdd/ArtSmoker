@@ -1533,8 +1533,11 @@ s3://your-bucket/
 ├── artsmoker/custom-models/
 │   ├── inference-input/{endpoint}/   ← Async inference input payloads
 │   └── inference-output/{key}/       ← Async inference results
-└── artsmoker/async-jobs/*.json       ← Persisted async job state (1-day S3 lifecycle expiry)
+├── artsmoker/async-jobs/*.json       ← Persisted async job state (1-day S3 lifecycle expiry)
+└── artsmoker/3d-jobs/*.json          ← Persisted 3D job state (1-day S3 lifecycle expiry)
 ```
+
+The `inference-input/` and `inference-output/` prefixes have **no** lifecycle rule. The pollers delete a job's input and output when the job is finalized (§5.11). A 3D output retained after an unexpected failure stays until it's removed manually.
 
 ### 5.10.1 Image-to-3D: Two Pipelines, Texture Backends & Dependency Licensing
 
@@ -1663,6 +1666,38 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 **Cross-region endpoints:** a deployment may carry an explicit `deployment.region` (and optional `deployment.s3_bucket`) in the registry — set automatically by the deployer on every new deploy. The invoker (realtime + async submit + async input upload) and the job poller resolve their AWS clients per-endpoint from these fields, falling back to the home region (`aws_region_models`) when absent. Async jobs carry their `region`, so polling, downloads, and resubmission all hit the correct regional S3/SageMaker even when an endpoint lives outside the home region (e.g. deployed to us-east-2 during a us-west-2 capacity drought).
 
 **Readiness detection:** Two-pass CloudWatch log scan: (1) `filter_log_events` with "loaded in" pattern scans entire log history server-side (catches model load even after hours of pings), (2) `get_log_events` tail for progress/error detection. Readiness is persisted to the registry (`deployment.model_ready=True`) so it survives server restarts without re-scanning logs.
+
+#### 3D job lifecycle (`generate_3d.py`)
+
+3D jobs use their own tracker (`_3d_jobs`), poller (`_3d_poll_loop`, every 15 s while jobs are in progress) and persisted records (`artsmoker/3d-jobs/{job_id}.json`). `_check_3d_job` is the single finalizer, shared by the poller and `GET /api/generate/3d/status/{job_id}`.
+
+**States.** `submitted` → `generating` → `complete` | `failed`. Only the finalizer moves a job to a terminal state.
+
+**Finalization sequence** (`_finalize_3d_job`):
+1. **Locate.** `head_object` on the job's output. If it isn't there yet, the job stays `generating`. The finalizer then checks the failure marker, and the shared job record for a terminal state set by another process.
+2. **Download** the output and check its length against `ContentLength`.
+3. **Parse** the handler's JSON and decode the base64 GLB.
+4. **Save.** The GLB is written atomically (`atomic_write_bytes`). Its variant is written to `metadata.json` inside `asset_write_lock`.
+5. **Verify.** The metadata must list a variant with this `job_id`, and its GLB file must exist at the recorded size (`_saved_variant_for_job`).
+6. **Complete.** The job is marked `complete` and persisted. Only then are its S3 input and output deleted (`_cleanup_3d_s3_artifacts`).
+
+**Error handling.** Errors are classified by whether retrying can succeed:
+
+| Class | Examples | Handling |
+|---|---|---|
+| Transient (network / service) | No connectivity, connect or read timeout, a stream closed mid-download, a body shorter than `ContentLength`, missing or expired credentials, throttling, S3 5xx (`_is_transient_s3_error`) | Job stays `generating`; S3 input/output untouched; retried on the next poll, without limit (`_defer_3d_finalize`) |
+| Local storage | `OSError` while writing the GLB or metadata, or a failed verify (step 5) | Same as transient |
+| Unusable output | A complete download that isn't valid JSON or base64, or carries no mesh | `failed`; S3 artifacts deleted, since a retry can't change the content |
+| Unexpected | Any other exception, e.g. a request-validation or code error | Retried `_3D_FINALIZE_MAX_UNEXPECTED` (3) times, then `failed`, with the S3 output **kept** for inspection |
+
+**Invariant.** A job's S3 output is deleted only after its result is verified on disk, or once the output is known to be unusable. No other failure path deletes it.
+
+**Concurrency.** Finalization runs under `_3d_finalize_lock()`, a cross-process file lock (`named_write_lock("3d_finalize")`, §17). So one host's server processes and threads finalize jobs one at a time. On acquiring the lock, a process that finds the job already saved by another process (its variant on disk) adopts that result instead of downloading again (`_adopt_peer_finalized`).
+
+**Restart recovery** (`load_persisted_3d_jobs`):
+- **Terminal records** are pruned from S3 and kept in memory for status lookups.
+- **In-progress records** are restored whenever S3 holds the job's output or failure marker, at any age. A record is pruned only when it is older than `_3D_JOB_MAX_AGE_H` (8 h) **and** S3 has neither. The limit covers the longest an async request can run: SageMaker's default 6 h `RequestTTLSeconds` queue, plus up to 1 h `InvocationTimeoutSeconds`, plus margin.
+- **If S3 can't be checked**, the record is restored.
 
 ### 5.12 Admin (Model Management)
 
@@ -2824,7 +2859,7 @@ ArtSmoker is designed to run **multi-worker** in production (`gunicorn -w 2 …`
 
 There is **no in-memory cache** of a gallery asset's `metadata.json` — every writer does a fresh `store.load_generation_metadata()` → modify → `atomic_write_text` **inside** `asset_write_lock(asset_id)`. So it is inherently a correct cross-worker read-modify-write; the in-memory copy can never drift because there isn't one. Writers that hold this lock: the sync edit save (`/api/generate/edit`), the async edit completion (`async_jobs`), and the 3D finalize / set-default / source-review / commit-source / version-delete paths. The model and S3 calls happen **outside** the lock — only fast local file ops run under it, so different assets never contend and same-asset edits don't stall on generation. Result: N concurrent "create a new version" requests on one asset produce a gapless `1..N+1` sequence — no lost version, no duplicate version number.
 
-Lock ordering: the only nested order is `_3d_finalize_lock → asset_write_lock`; the 2D writers take only `asset_write_lock`, so there is no reverse path and no deadlock.
+Lock ordering: the only nested order is `_3d_finalize_lock() → asset_write_lock`; the 2D writers take only `asset_write_lock`, so there is no reverse path and no deadlock. `_3d_finalize_lock()` is itself cross-process (`named_write_lock("3d_finalize")`, §5.11), so 3D finalizes are serialized across worker processes too.
 
 ### 17.4 Registry & prompt transactions
 

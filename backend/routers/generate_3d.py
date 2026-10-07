@@ -24,9 +24,21 @@ import threading as _threading
 # In-memory job tracker for 3D generation
 _3d_jobs: dict[str, dict] = {}
 
-# Serializes finalization so the frontend-driven /status route and the
-# server-side poller can't both download + save the same job's GLB at once.
-_3d_finalize_lock = _threading.Lock()
+# Serializes finalization so no two callers download + save the same job's GLB at
+# once: the frontend-driven /status route, the server-side poller, AND another
+# server process on this host (multi-worker gunicorn, a second server). An OS file
+# lock (safe_write.named_write_lock, reentrant per thread), not just a thread lock.
+def _3d_finalize_lock():
+    from backend.services.safe_write import named_write_lock
+    return named_write_lock("3d_finalize")
+
+# How long after submit a 3D job's output can still land in S3: SageMaker async
+# keeps a request queued up to RequestTTLSeconds (we don't override the 6 h
+# default), then runs it for up to InvocationTimeoutSeconds (≤ 1 h). Plus margin.
+_3D_JOB_MAX_AGE_H = 8
+# An unexpected (non-network, non-disk) error while finalizing is retried this many
+# times before the job is marked failed — its S3 output is kept either way.
+_3D_FINALIZE_MAX_UNEXPECTED = 3
 
 # S3 prefix for persisted 3D jobs — kept SEPARATE from the 2D async-jobs prefix
 # (artsmoker/async-jobs/) so the two systems never read each other's records.
@@ -93,6 +105,19 @@ def _persist_3d_job(job: dict) -> None:
         logger.debug("Failed to persist 3D job %s: %s", job.get("job_id"), e)
 
 
+def _persisted_3d_job(job_id: str, s3=None) -> dict | None:
+    """The job's record as last persisted to S3 (by any server process), or None."""
+    try:
+        bucket = get_deployment_s3_bucket()
+        if not bucket:
+            return None
+        s3 = s3 or boto3.client("s3", region_name=_get_region())
+        body = s3.get_object(Bucket=bucket, Key=f"{_3D_JOBS_S3_PREFIX}{job_id}.json")["Body"].read()
+        return json.loads(body)
+    except Exception:
+        return None
+
+
 def _delete_persisted_3d_job(job_id: str) -> None:
     """Remove a persisted 3D job from S3 (after terminal cleanup)."""
     try:
@@ -105,13 +130,28 @@ def _delete_persisted_3d_job(job_id: str) -> None:
         logger.debug("Failed to delete persisted 3D job %s: %s", job_id, e)
 
 
+def _3d_output_may_exist(job: dict, s3) -> bool:
+    """Whether S3 holds (or may hold) a result for this job: its output or its
+    failure marker. True when S3 can't be checked — a job is never dropped on a
+    guess."""
+    for key in (job.get("s3_key"), f"{job.get('s3_key')}.failure"):
+        try:
+            s3.head_object(Bucket=job["s3_bucket"], Key=key)
+            return True
+        except Exception as e:
+            if not ("404" in str(e) or "NoSuchKey" in str(e) or "Not Found" in str(e)):
+                return True
+    return False
+
+
 def load_persisted_3d_jobs() -> int:
     """Restore 3D jobs from S3 on startup (called from app startup).
 
     Loads in-progress jobs into _3d_jobs so they survive a server restart.
-    Prunes stale records: terminal (complete/failed) jobs and stuck jobs
-    (submitted/generating with no update for >2h) are deleted from S3 so
-    they don't accumulate — complements the 1-day S3 lifecycle rule.
+    Prunes stale records: terminal (complete/failed) jobs, and in-progress jobs
+    older than _3D_JOB_MAX_AGE_H with neither an output nor a failure marker in
+    S3, are deleted from S3 so they don't accumulate — complements the 1-day S3
+    lifecycle rule.
 
     Returns the number of ACTIVE (still in-progress) jobs restored, so the caller
     can start the poller only when there's work — no idle thread otherwise.
@@ -135,13 +175,16 @@ def load_persisted_3d_jobs() -> int:
             if not jid:
                 continue
             status = job.get("status", "")
-            # Prune terminal jobs and stuck non-terminal jobs (>2h old).
+            # Prune terminal jobs, and in-progress jobs that can never finish: past
+            # the longest a SageMaker async request can take AND nothing for them
+            # in S3. A job whose output (or failure marker) is there is restored
+            # however old, so a server that was off when it landed still saves it.
             stale = status in ("complete", "failed")
             if not stale:
                 try:
                     submitted = job.get("submitted_at", "")
                     age_h = (now - _dt.fromisoformat(submitted)).total_seconds() / 3600 if submitted else 0
-                    if age_h > 2:
+                    if age_h > _3D_JOB_MAX_AGE_H and not _3d_output_may_exist(job, s3):
                         stale = True
                 except Exception:
                     pass
@@ -1827,10 +1870,13 @@ def _check_3d_job(job: dict, s3=None) -> dict:
     if s3 is None:
         s3 = boto3.client("s3", region_name=_get_region())
 
-    # Serialize finalization across the /status route and the background poller.
-    # Re-check status after acquiring — the other caller may have just finished.
-    with _3d_finalize_lock:
+    # Serialize finalization across the /status route, the background poller and
+    # other server processes. Re-check after acquiring — another caller may have
+    # just finished: in this process (status) or in another one (its saved variant).
+    with _3d_finalize_lock():
         if job["status"] in ("complete", "failed"):
+            return job
+        if _adopt_peer_finalized(job, s3):
             return job
         return _finalize_3d_job(job, s3)
 
@@ -1913,8 +1959,128 @@ def _track_3d_completion(job: dict) -> None:
         logger.debug("3D completion tracking failed for %s: %s", job.get("job_id"), e)
 
 
+class _InvalidOutput(Exception):
+    """The output downloaded completely but isn't a usable model result."""
+
+
+class _TruncatedOutput(Exception):
+    """The output download ended early (fewer bytes than S3 reported)."""
+
+
+# S3 error codes that say nothing about the object — retry, never give up on it.
+# Includes expired credentials (a laptop's SSO session can lapse overnight).
+_TRANSIENT_S3_CODES = {"SlowDown", "Throttling", "ThrottlingException", "RequestTimeout",
+                       "RequestTimeTooSkewed", "InternalError", "ServiceUnavailable",
+                       "ExpiredToken", "ExpiredTokenException", "RequestExpired"}
+
+
+def _is_transient_s3_error(exc: Exception) -> bool:
+    """Whether an S3 call failed for a reason that may pass:
+    - any client-side botocore error: no network (host asleep or offline), a
+      timeout, a stream cut mid-download (a stalled body read surfaces as
+      ReadTimeoutError(endpoint_url=None)), missing/expired credentials — except
+      a malformed request, which is a code bug;
+    - an S3 reply of throttling, an expired token or a 5xx;
+    - a download that ended early."""
+    from botocore.exceptions import BotoCoreError, ClientError, ParamValidationError
+    if isinstance(exc, _TruncatedOutput):
+        return True
+    if isinstance(exc, ClientError):
+        err = exc.response.get("Error", {}) or {}
+        status = (exc.response.get("ResponseMetadata", {}) or {}).get("HTTPStatusCode") or 0
+        return err.get("Code") in _TRANSIENT_S3_CODES or status >= 500
+    return isinstance(exc, BotoCoreError) and not isinstance(exc, ParamValidationError)
+
+
+def _defer_3d_finalize(job: dict, exc: Exception, reason: str) -> dict:
+    """Leave the job in progress so the next poll retries — its S3 output and
+    input stay where they are. `reason` is "network" or "disk" (retried until it
+    works) or "unexpected" (retried _3D_FINALIZE_MAX_UNEXPECTED times, then the
+    job is marked failed — still without deleting its output)."""
+    job_id = job["job_id"]
+    job["finalize_attempts"] = job.get("finalize_attempts", 0) + 1
+    job["last_finalize_error"] = f"{reason}: {exc}"[:500]
+    if reason == "unexpected":
+        job["finalize_unexpected"] = job.get("finalize_unexpected", 0) + 1
+        if job["finalize_unexpected"] >= _3D_FINALIZE_MAX_UNEXPECTED:
+            logger.error("3D job %s: saving its output failed %d times (%s) — marked failed. "
+                         "The output is kept in S3 (s3://%s/%s) for recovery.",
+                         job_id, job["finalize_unexpected"], exc, job["s3_bucket"], job["s3_key"],
+                         exc_info=exc)
+            job["status"] = "failed"
+            job["error"] = str(exc)[:500]
+            _persist_3d_job(job)
+            return {"job_id": job_id, "status": "failed", "asset_id": job["asset_id"],
+                    "version": job["version"], "error": job["error"]}
+        logger.warning("3D job %s: unexpected error saving its output (attempt %d of %d), will "
+                       "retry: %s", job_id, job["finalize_unexpected"], _3D_FINALIZE_MAX_UNEXPECTED,
+                       exc, exc_info=exc)
+    elif job["finalize_attempts"] == 1 or job["finalize_attempts"] % 20 == 0:
+        logger.warning("3D job %s: output is ready but couldn't be saved yet (%s error, attempt "
+                       "%d) — will retry; the output stays in S3: %s",
+                       job_id, reason, job["finalize_attempts"], exc)
+    job["status"] = "generating"
+    _persist_3d_job(job)
+    return {"job_id": job_id, "status": "generating", "asset_id": job["asset_id"],
+            "version": job["version"]}
+
+
+def _cleanup_3d_s3_artifacts(job: dict, s3) -> None:
+    """Delete a job's S3 output + input (best-effort). Only after its GLB is
+    saved and verified, or when its output is unusable."""
+    try:
+        s3.delete_object(Bucket=job["s3_bucket"], Key=job["s3_key"])
+        if job.get("input_location"):
+            inp_parts = job["input_location"].replace("s3://", "").split("/", 1)
+            if len(inp_parts) == 2:
+                s3.delete_object(Bucket=inp_parts[0], Key=inp_parts[1])
+    except Exception:
+        pass
+
+
+def _saved_variant_for_job(job: dict) -> dict | None:
+    """The 3D variant this job saved, if it's on disk: the asset's metadata lists a
+    variant with this job_id AND its GLB file exists at the recorded size."""
+    meta = store.load_generation_metadata(job["asset_id"]) or {}
+    vbucket = (meta.get("three_d") or {}).get(f"v{job['version']}") or {}
+    for v in vbucket.get("variants") or []:
+        if v.get("job_id") != job["job_id"] or not v.get("glb_filename"):
+            continue
+        path = store.generated_asset_dir(job["asset_id"]) / v["glb_filename"]
+        size = v.get("size_bytes")
+        if path.is_file() and (not size or path.stat().st_size == size):
+            return v
+    return None
+
+
+def _adopt_peer_finalized(job: dict, s3) -> bool:
+    """If another server process already saved this job (same host, shared data
+    dir), take its result instead of downloading again. Caller holds
+    _3d_finalize_lock()."""
+    try:
+        variant = _saved_variant_for_job(job)
+    except Exception:
+        return False
+    if variant is None:
+        return False
+    job.update(status="complete", completed_at=datetime.now(timezone.utc).isoformat(),
+               glb_url=variant.get("glb_url"), variant_id=variant.get("variant_id"),
+               size_bytes=variant.get("size_bytes"), vertices=variant.get("vertices"),
+               faces=variant.get("faces"), pipeline=variant.get("pipeline"),
+               created_at=variant.get("created_at"))
+    logger.info("3D job %s was already saved by another server process — using its result", job["job_id"])
+    _persist_3d_job(job)
+    _cleanup_3d_s3_artifacts(job, s3)
+    return True
+
+
 def _finalize_3d_job(job: dict, s3) -> dict:
-    """S3 poll + finalize body for one 3D job. Caller holds _3d_finalize_lock."""
+    """S3 poll + finalize body for one 3D job. Caller holds _3d_finalize_lock().
+
+    Never loses a finished result: a download or save that fails for a reason
+    that may pass (network, disk) leaves the job in progress with its S3 output
+    intact, and the output is deleted only after the GLB and its metadata are
+    verified on disk (or when the output itself is unusable)."""
     job_id = job["job_id"]
     try:
         s3.head_object(Bucket=job["s3_bucket"], Key=job["s3_key"])
@@ -1937,6 +2103,12 @@ def _finalize_3d_job(job: dict, s3) -> dict:
                 }
             except Exception:
                 pass
+            # No output: another server process may have finished this job and
+            # removed it — take its terminal state from the shared job record.
+            peer = _persisted_3d_job(job_id, s3)
+            if peer and peer.get("status") in ("complete", "failed"):
+                job.update(peer)
+                return job
             job["status"] = "generating"
             return {
                 "job_id": job_id,
@@ -1953,13 +2125,25 @@ def _finalize_3d_job(job: dict, s3) -> dict:
             "version": job["version"],
         }
 
-    # Output exists — download and save GLB
+    # Output exists — download it. A download that fails for a reason that may pass
+    # (host asleep or offline, timeout, stream cut, throttling) leaves the job in
+    # progress with its output in S3, and the next poll retries.
     try:
         response = s3.get_object(Bucket=job["s3_bucket"], Key=job["s3_key"])
         output_bytes = response["Body"].read()
+        expected = response.get("ContentLength")
+        if isinstance(expected, int) and len(output_bytes) != expected:
+            raise _TruncatedOutput(f"downloaded {len(output_bytes)} of {expected} bytes")
+    except Exception as exc:
+        return _defer_3d_finalize(job, exc, "network" if _is_transient_s3_error(exc) else "unexpected")
 
+    # Save the GLB
+    try:
         # Parse the output (handler returns JSON with base64 GLB)
-        output_data = json.loads(output_bytes.decode("utf-8"))
+        try:
+            output_data = json.loads(output_bytes.decode("utf-8"))
+        except ValueError as exc:
+            raise _InvalidOutput(f"output is not valid JSON: {exc}") from exc
         glb_b64 = output_data.get("mesh") or output_data.get("glb") or output_data.get("output")
         if not glb_b64:
             job["status"] = "failed"
@@ -1973,7 +2157,10 @@ def _finalize_3d_job(job: dict, s3) -> dict:
                 "error": "No mesh data in model output",
             }
 
-        glb_bytes = base64.b64decode(glb_b64)
+        try:
+            glb_bytes = base64.b64decode(glb_b64)
+        except ValueError as exc:
+            raise _InvalidOutput(f"mesh is not valid base64: {exc}") from exc
         version = job["version"]
         asset_id = job["asset_id"]
 
@@ -2055,7 +2242,8 @@ def _finalize_3d_job(job: dict, s3) -> dict:
         # Per-variant GLB file (addressable directly) + the version's default
         # file (asset_3d_v{N}.glb, plus asset_3d.glb for v1 — the legacy route).
         variant_filename = f"asset_3d_v{version}__{vid}.glb"
-        (asset_dir / variant_filename).write_bytes(glb_bytes)
+        from backend.services.safe_write import atomic_write_bytes
+        atomic_write_bytes(asset_dir / variant_filename, glb_bytes)
 
         variant = {
             "variant_id": vid,
@@ -2134,6 +2322,11 @@ def _finalize_3d_job(job: dict, s3) -> dict:
         except Exception:
             pass
 
+        # The S3 output is deleted below — first make sure the result is really on
+        # disk: the metadata lists this job's variant and its GLB has every byte.
+        if _saved_variant_for_job(job) is None:
+            raise OSError(f"3D result for job {job_id} is not durable on disk ({variant_filename})")
+
         # Update job status
         job["status"] = "complete"
         job["completed_at"] = datetime.now(timezone.utc).isoformat()
@@ -2158,16 +2351,10 @@ def _finalize_3d_job(job: dict, s3) -> dict:
         except Exception:
             pass
 
-        # Persist terminal state, then clean up S3 artifacts (output + input)
+        # Persist terminal state, then clean up S3 artifacts (output + input) —
+        # only now that the GLB and its metadata are verified on disk.
         _persist_3d_job(job)
-        try:
-            s3.delete_object(Bucket=job["s3_bucket"], Key=job["s3_key"])
-            if job.get("input_location"):
-                inp_parts = job["input_location"].replace("s3://", "").split("/", 1)
-                if len(inp_parts) == 2:
-                    s3.delete_object(Bucket=inp_parts[0], Key=inp_parts[1])
-        except Exception:
-            pass
+        _cleanup_3d_s3_artifacts(job, s3)
 
         return {
             "job_id": job_id,
@@ -2180,20 +2367,13 @@ def _finalize_3d_job(job: dict, s3) -> dict:
             "faces": faces,
         }
 
-    except Exception as exc:
+    except _InvalidOutput as exc:
+        # The output downloaded completely and can't be used — retrying can't help.
         logger.error("Failed to process 3D output for job %s: %s", job_id, exc)
         job["status"] = "failed"
         job["error"] = str(exc)[:500]
         _persist_3d_job(job)
-        # Clean up S3 artifacts even on failure
-        try:
-            s3.delete_object(Bucket=job["s3_bucket"], Key=job["s3_key"])
-            if job.get("input_location"):
-                inp_parts = job["input_location"].replace("s3://", "").split("/", 1)
-                if len(inp_parts) == 2:
-                    s3.delete_object(Bucket=inp_parts[0], Key=inp_parts[1])
-        except Exception:
-            pass
+        _cleanup_3d_s3_artifacts(job, s3)
         return {
             "job_id": job_id,
             "status": "failed",
@@ -2201,6 +2381,15 @@ def _finalize_3d_job(job: dict, s3) -> dict:
             "version": job["version"],
             "error": str(exc)[:500],
         }
+    except Exception as exc:
+        # Anything else must not cost the result: keep the S3 output and retry.
+        if _is_transient_s3_error(exc):
+            reason = "network"
+        elif isinstance(exc, OSError):
+            reason = "disk"
+        else:
+            reason = "unexpected"
+        return _defer_3d_finalize(job, exc, reason)
 
 
 @router.get("/status/{job_id}")
