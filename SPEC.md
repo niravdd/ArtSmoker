@@ -2177,6 +2177,8 @@ requests>=2.31                 # Anthropic Messages API over the Mantle endpoint
 vtracer>=1.0.0a3               # Local PNG → true-vector SVG tracing (Config + convert_file API)
 rembg[cpu]>=2.0.65             # Local background removal (u2net weights, CPU via onnxruntime)
 coacd>=1.0.5                   # Convex decomposition for optional 3D-export collision proxies
+trimesh>=4.0                   # 3D export: GLB load, mesh merge, convex-hull collision, texture packing
+scipy>=1.11                    # trimesh's convex hull (scipy.spatial.ConvexHull)
 aws_sdk_bedrock_runtime>=0.11.0  # Nova Sonic bidirectional streaming (boto3 has no duplex streams)
 smithy-http[awscrt]>=0.5.0     # CRT HTTP transport for the SDK above (duplex event streaming)
 ```
