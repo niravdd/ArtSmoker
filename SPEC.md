@@ -60,7 +60,7 @@
   - [7.4 Verifying Access](#74-verifying-access)
   - [7.5 Startup Validation](#75-startup-validation)
 - [8. Security Model](#8-security-model)
-- [9. Application Bootstrap (main.py)](#9-application-bootstrap-mainpy)
+- [9. Application Bootstrap (app.py)](#9-application-bootstrap-apppy)
 - [10. Dependencies (requirements.txt)](#10-dependencies-requirementstxt)
 - [11. Frontend Design System](#11-frontend-design-system)
 - [12. Configuration](#12-configuration)
@@ -85,6 +85,8 @@
   - [17.4 Registry & prompt transactions](#174-registry--prompt-transactions)
   - [17.5 Batch-Sync exceptions](#175-batch-sync-exceptions)
   - [17.6 File logging](#176-file-logging)
+- [18. Collections (Set Generation)](#18-collections-set-generation)
+- [19. Disclaimer](#19-disclaimer)
 
 ---
 
@@ -174,101 +176,114 @@ Storage (Local filesystem + S3)
 
 ## 3. Project Structure
 
+Tracked files, with each module's role as stated in its own docstring / header.
+
 ```
 ArtSmoker/
 ├── backend/
-│   ├── main.py                    # FastAPI app, CORS, lifespan, static mount
-│   ├── config.py                  # AWS config, model IDs, paths, defaults
-│   ├── model_registry.json        # Persisted model configuration (LLMs, image models, post-processing)
-│   ├── prompt_templates.json      # Persisted editable LLM directive prompts (28 templates)
+│   ├── app.py                     # FastAPI application: lifespan/startup, middleware, routers, app-level routes, static mount
+│   ├── main.py                    # Entry point — stable import target (re-exports `app`) + cross-platform supervisor (`python -m backend.main`)
+│   ├── config.py                  # Settings (pydantic-settings, `ARTSMOKER_` env prefix, `.env`), paths, APP_VERSION
+│   ├── model_registry.json        # Base model registry (git-tracked; written by AWS Sync via promote_to_base)
+│   ├── prompt_templates.json      # Editable LLM directive prompts (runtime source of truth, §6)
+│   ├── requirements.txt           # Python dependencies (§10)
 │   ├── routers/
-│   │   ├── styles.py              # Style profile CRUD + directory import + analysis
-│   │   ├── generate.py            # Two-level asset generation (options × variations) + image editing
-│   │   ├── video.py               # Video generation (async), job polling, MP4/thumbnail serving, revisions
-│   │   ├── transcribe.py          # Voice transcription endpoint
-│   │   ├── refine.py              # Prompt refinement preview endpoint
-│   │   ├── gallery.py             # Generated asset browsing + file serving + versioned assets
-│   │   ├── browse.py              # Server-side file/S3 browser + S3 bucket creation
-│   │   ├── typestudio.py          # Type Studio: text overlay, font serving, AI layout
-│   │   ├── chat.py                # Chat Studio: LLM chat streaming, sessions, export, context compaction
-│   │   ├── custom_deploy.py       # Custom model deploy/teardown/status/redeploy API (SageMaker)
-│   │   └── admin.py               # Model registry admin API + Bedrock discovery (image + video + chat) + video settings
+│   │   ├── styles.py              # Style profiles: CRUD, reference images, directory/S3 import, analysis
+│   │   ├── generate.py            # Image generation pipeline (options × variations, all-models), editing, moderation
+│   │   ├── generate_3d.py         # Image-to-3D on SageMaker (TripoSG + texture backend, or full TRELLIS.2), 3D jobs, engine export
+│   │   ├── refine.py              # Prompt refinement, Prompt Designer decompose/recompose, asset-type classify, translate preview
+│   │   ├── transcribe.py          # Audio → text (Nova Sonic)
+│   │   ├── gallery.py             # Browse, filter, serve and version generated assets; import; export & cutouts
+│   │   ├── browse.py              # Server-side local + S3 browser, bucket creation
+│   │   ├── typestudio.py          # Type Studio: text onto images / standalone text graphics
+│   │   ├── video.py               # Video generation, job management, serving
+│   │   ├── chat.py                # Chat Studio: multi-model streaming chat, sessions, cost tracking
+│   │   ├── collections.py         # Collections (Set Generation) API — §18
+│   │   ├── custom_deploy.py       # Self-hosted custom models: deploy / teardown / status / HF token
+│   │   └── admin.py               # Model registry management, Bedrock discovery (AWS Sync), templates, video settings
 │   ├── services/
-│   │   ├── model_registry.py      # Model registry manager: loads/saves model_registry.json, provides config to system
-│   │   ├── video_generator.py     # Video generation: async Bedrock invoke, S3 download, ffmpeg thumbnails
-│   │   ├── style_analyzer.py      # Two-phase style analysis: Sonnet cohesion check → Opus full analysis (includes _smart_sample())
-│   │   ├── prompt_engineer.py     # Claude Sonnet/Opus: prompt refinement + concept generation
-│   │   ├── image_generator.py     # Generic image invoker via registry format families
-│   │   ├── post_processor.py      # Registry-driven: bg removal, upscale (by model purpose); vtracer/potrace: SVG
-│   │   ├── transcriber.py         # Nova Sonic: bidirectional streaming speech-to-text
-│   │   ├── texture_extractor.py   # glTF/GLB texture extraction (base64, binary chunks, external refs)
-│   │   ├── import_dedup.py        # Smart deduplication for directory imports (rotation variants, animation frames, folder priority)
-│   │   ├── cost_tracker.py        # Request-scoped cost accumulator: tracks LLM tokens + image model prices
-│   │   ├── prompt_translator.py   # Auto-detect language (Unicode heuristic + LLM fallback), translate to English
-│   │   ├── prompt_templates.py    # Editable LLM directive prompts: load, save, validate variables, reset, enhance
-│   │   ├── bedrock_client.py      # Shared Bedrock client: invoke_llm (with system prompt), invoke_image_model (generic)
-│   │   ├── sagemaker_deployer.py  # SageMaker endpoint lifecycle: create, teardown, readiness, auto-scaling
-│   │   ├── sagemaker_invoker.py   # SageMaker inference: invoke_endpoint_async/realtime, S3 input upload
-│   │   ├── async_jobs.py          # Async job tracker: S3 poller, resubmission, persistence, lifecycle
-│   │   ├── custom_models.py       # Custom model catalog: reads custom_model_catalog from registry
-│   │   ├── model_detector.py      # HuggingFace model auto-detection: infers library, loader, config from repo
-│   │   └── auto_update.py         # Version-gated git pull, registry self-healing on startup
+│   │   ├── model_registry.py      # Model registry: layered load/save, transactions, lookups
+│   │   ├── bedrock_client.py      # Shared Bedrock client: invoke_llm, invoke_image_model, startup validation, permission monitor
+│   │   ├── mantle_client.py       # Amazon Bedrock Mantle client (OpenAI-compatible + Anthropic Messages APIs)
+│   │   ├── servability.py         # Per-Region chat-model servability (which Regions answer a model)
+│   │   ├── official_pricing.py    # Official Amazon Bedrock pricing sources (§14)
+│   │   ├── cost_tracker.py        # Request-scoped cost tracking (registry prices only)
+│   │   ├── prompt_engineer.py     # Prompt refinement, concept generation, Collections prompt steps
+│   │   ├── prompt_templates.py    # Editable directive prompts: load, validate, save, reset
+│   │   ├── prompt_translator.py   # Language detection + translation to English
+│   │   ├── style_analyzer.py      # Two-phase style analysis (cohesion check → full vision analysis), hints
+│   │   ├── reference_analyzer.py  # Reference-image intent analysis ("Inspired by the reference")
+│   │   ├── reference_models.py    # Reference-guided generation: deployed-model discovery and gating
+│   │   ├── image_generator.py     # Routes generation to the Bedrock image model via the registry-driven invoker, with throttling retries
+│   │   ├── instruction_outpaint.py # Outpaint for mask-free instruction editors (pre-pad + blend-back)
+│   │   ├── post_processor.py      # Background removal, upscaling, SVG conversion
+│   │   ├── video_generator.py     # Async Bedrock video invocation, S3, thumbnails
+│   │   ├── transcriber.py         # Nova Sonic speech-to-text (bidirectional stream)
+│   │   ├── texture_extractor.py   # Embedded-texture extraction from glTF/GLB
+│   │   ├── import_dedup.py        # Deduplication + prioritization for style reference imports
+│   │   ├── mesh_export.py         # GLB → FBX / USD export via a headless Blender subprocess
+│   │   ├── blender/convert.py     # Converter script run inside Blender's bundled Python
+│   │   ├── custom_models.py       # Custom model catalog (from the registry) + instance hourly rates
+│   │   ├── model_detector.py      # HuggingFace repo → model configuration auto-detection
+│   │   ├── sagemaker_deployer.py  # SageMaker endpoint lifecycle: deploy, readiness, auto-scaling, teardown
+│   │   ├── sagemaker_invoker.py   # SageMaker inference (realtime + async)
+│   │   ├── async_jobs.py          # Async 2D jobs: S3 poller, resubmission, persistence
+│   │   ├── collection_store.py    # Collections persistence (master record + summary index)
+│   │   ├── safe_write.py          # Atomic writes + cross-process write locks (§17)
+│   │   ├── asset_locks.py         # Per-asset metadata write lock (§17.3)
+│   │   ├── notices.py             # Durable, dismissible user notices
+│   │   ├── auto_update.py         # Version-gated self-update (git or zip) + restart control
+│   │   ├── telemetry.py           # Anonymous usage tracking via PulseBoard
+│   │   └── pulseboard.py          # Zero-dependency PulseBoard telemetry client
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update models
-│   │   ├── generation_request.py  # GenerationRequest, AssetType, ImageModel enums
+│   │   ├── generation_request.py  # GenerationRequest, AssetType, ImageModel
 │   │   └── generation_result.py   # GenerationResult, OptionResult, VariantResult, GalleryItem
-│   ├── sagemaker_handlers/
-│   │   └── inference.py           # Universal SageMaker handler (packaged in model.tar.gz for endpoints)
 │   ├── storage/
-│   │   └── local_store.py         # Local filesystem storage (S3-compatible interface)
-│   └── requirements.txt
-├── frontend/
-│   ├── index.html                 # Single-page app entry
-│   ├── css/
-│   │   └── styles.css             # Tailwind + custom styles
-│   ├── js/
-│   │   ├── app.js                 # Main app logic, routing, showConfirm(), language switcher
-│   │   ├── i18n/
-│   │   │   ├── i18n.js            # Core: t() function, language switching, reverse lookup, translateView()
-│   │   │   ├── en.json            # English (base) — 817+ translation keys
-│   │   │   ├── ja.json            # Japanese
-│   │   │   ├── zh.json            # Simplified Chinese
-│   │   │   ├── ko.json            # Korean
-│   │   │   ├── fr.json            # French
-│   │   │   ├── es.json            # Spanish
-│   │   │   ├── hi.json            # Hindi
-│   │   │   └── ru.json            # Russian
-│   │   ├── components/
-│   │   │   ├── StyleLibrary.js    # Style profile browser + uploader
-│   │   │   ├── ImageStudio.js     # 2D Image Studio: two-tier generation UI (options + variations)
-│   │   │   ├── VideoStudio.js     # Video Studio: text-to-video generation, job polling, video player
-│   │   │   ├── ChatStudio.js      # Chat Studio: multi-model LLM chat with streaming, sessions, vision
-│   │   │   ├── TypeStudio.js      # Type Studio: text overlay system (on-image + standalone)
-│   │   │   ├── VoiceInput.js      # Voice recording + transcription
-│   │   │   ├── PromptEditor.js    # Text input with inline LLM refinement
-│   │   │   ├── PromptDesigner.js  # Visual decomposition editor with Lock/Vary toggles per field
-│   │   │   ├── Gallery.js         # Unified gallery: images + videos, media filter, type filter
-│   │   │   ├── AssetViewer.js     # Full-size image preview + zoom/pan + edit + versioning
-│   │   │   └── ModelSettings.js   # Model registry admin UI: 7 tabs (Image/Video/Chat/Type/Shared Studio, Templates, JSON)
-│   │   └── services/
-│   │       └── api.js             # Backend API client
-│   └── (no build step — served as static files by FastAPI)
-├── data/
-│   ├── styles/                    # User-uploaded style profiles + reference images
-│   ├── generated/                 # Output image assets (PNG + SVG + metadata + versions)
-│   ├── video/                     # Video assets (MP4 + thumbnails + job metadata)
-│   └── chat/                      # Chat sessions (JSON per session)
-├── api-samples/                   # Standalone API client examples (Python, Node.js, Go, Rust)
-│   ├── imageGen_python.py         # Full-featured Python client with style management + generation
-│   ├── imageGen_node.js           # Node.js equivalent
-│   ├── imageGen_go.go             # Go equivalent
-│   ├── imageGen_rust.rs           # Rust equivalent
-│   └── skill.md                   # AI IDE integration guide (references SPEC.md + /docs)
-├── .gitattributes                 # Marks generated SVGs as binary (secret scanner false-positive prevention)
-├── .github/
-│   └── secret_scanning.yml        # Excludes data/ and *.svg from GitHub secret scanning
-├── SPEC.md                        # This file — full project specification
-└── README.md                      # Quick-start guide
+│   │   └── local_store.py         # Local filesystem storage with an S3-compatible interface
+│   └── sagemaker_handlers/
+│       ├── inference.py           # Universal SageMaker inference handler (packaged into model.tar.gz)
+│       ├── requirements.txt       # Container-side Python dependencies
+│       └── bundled_packages/      # Vendored upstream code: hy3dpaint, mvadapter, stablex, triposg
+├── frontend/                      # No build step — served as static files by FastAPI
+│   ├── index.html                 # Single-page app entry (Tailwind CDN config, fonts, script order)
+│   ├── favicon.svg
+│   ├── css/styles.css             # Design tokens (:root) + component classes (§11)
+│   └── js/
+│       ├── app.js                 # Router (DOM-caching views), global helpers, language switcher
+│       ├── html.js                # Safe HTML templating (html`` / raw / escapeHtml)
+│       ├── services/api.js        # Backend API client
+│       ├── i18n/
+│       │   ├── i18n.js            # t(), language loading, DOM translation
+│       │   └── en.json            # English (source of truth) + de, es, fr, hi, ja, ko, ru, zh
+│       └── components/
+│           ├── ImageStudio.js     # 2D Image Studio
+│           ├── PromptEditor.js    # Step 1–3 prompt editor (incl. Collection mode entry)
+│           ├── PromptDesigner.js  # Prompt Designer modal (Lock/Vary decomposition editor)
+│           ├── ReferenceStudio.js # Reference-guided tab (match / remix / inspired)
+│           ├── CollectionDesigner.js    # Collection Designer (§18.3)
+│           ├── CollectionAssetViewer.js # Collection Asset Viewer (§18.8)
+│           ├── AssetViewer.js     # Asset preview, edit, versions, export & cutouts, 3D
+│           ├── Gallery.js         # Unified gallery (images, videos, 3D, collections)
+│           ├── StyleLibrary.js    # Style profiles + reference uploads
+│           ├── TypeStudio.js      # Text overlays
+│           ├── VideoStudio.js     # Video generation
+│           ├── ChatStudio.js      # Multi-model chat
+│           ├── VoiceInput.js      # Recording + transcription
+│           └── ModelSettings.js   # Model Settings modal (§4.11)
+├── data/                          # Runtime data: styles/, images/, video/, chat/, collections/, fonts/ (bundled OFL fonts)
+├── tools/sanity_test.py           # Real-HTTP end-to-end harness (§13)
+├── scripts/
+│   ├── push-both.sh               # Keep the GitHub and GitLab remotes in sync
+│   ├── compute-sri.sh             # Print the Subresource Integrity attribute for a CDN URL
+│   └── prefix_i18n_keys.py        # Namespace i18n call-site keys (MODULE.FEATURE.* format)
+├── api-samples/                   # Standalone API clients (Python, Node.js, Go, Rust) + skill.md
+├── docs/images/                   # README screenshots
+├── .github/secret_scanning.yml    # Secret-scanning exclusions
+├── .gitattributes                 # Git attributes for SVG files (binary / linguist-vendored)
+├── .gitleaks.toml / .grype.yaml / .semgrepignore / pyproject.toml  # Security-scan configuration (gitleaks, grype, semgrep, bandit)
+├── SPEC.md                        # This specification
+└── README.md (+ de, es, fr, hi, ja, ko, ru, zh translations)
 ```
 
 ## 4. Detailed Component Design
@@ -355,9 +370,9 @@ The generation system produces images across two dimensions:
 
 **Multi-model mode** (`all_models: true`): Generates with multiple models instead of a single model. The frontend sends `selected_models: ["sd35_large", "stable_image_ultra", ...]` — a list of specific model keys chosen via the checkbox dropdown. If `selected_models` is not provided (backward compat), all enabled models are used. Each model becomes an "option" with configurable variations. Models run independently — no shared canary, no cooperative cancellation. Moderation blocks on one model don't affect others. The pipeline is handled by `_run_all_models_generation()` in `generate.py`.
 
-- Models are ordered by moderation strictness (least strict first: SD 3.5 Large → Stable Image Ultra → Stable Image Core) for optimal throughput.
+- Models are ordered by their registry `moderation_strictness`, least strict first (`get_enabled_image_model_keys_sorted`). Custom-hosted (async) models are then moved to the front, so their SageMaker submissions start (and trigger scale-out) while the Bedrock models run.
 - **Same prompt mode** (default): One prompt refined once, sent to all models for direct comparison.
-- **Model-optimized mode** (`model_optimized_prompts: true`): Prompt is refined separately per model (e.g., SD 3.5 Large gets quality boosters, Qwen-Image gets text-rendering cues).
+- **Model-optimized mode** (`model_optimized_prompts: true`): Prompt is refined separately per model, each with its own registry `prompt_guidance`.
 - Per-model results include `status` ("success", "moderation_blocked", "error"), `status_detail` (error message), and the specific `image_model`/`model_label` used.
 - SSE events include `model_status` (per-model as each completes) and `all_models_summary` (in the `complete` event).
 - Per-variant `metadata.json` stores the actual model used (`image_model`, `model_label`, `all_models: true`).
@@ -366,48 +381,40 @@ The generation system produces images across two dimensions:
 User prompt: "hospital building"
          |
          v
-    [Decomposition — Claude Sonnet/Opus]
-    Always runs (even when user skips Prompt Designer). Produces structured
-    `decomposed_data` with {value, source} tagged fields per attribute.
-    Source is "user" (sacred/locked — preserved exactly) or "inferred"
-    (variable — may be freely varied across concepts). Style guidance is
-    baked into decomposition, not re-injected later.
+    [Prompt Designer — optional, user-initiated]
+    Decomposition (LLM, /api/refine-prompt/decompose) runs ONLY when the
+    user opens the Designer. It produces `decomposed_data` with
+    {value, source} tagged fields; source is "user" (locked — preserved
+    exactly) or "inferred" (may be varied across concepts). Style guidance
+    is baked into the decomposition. The visual editor has Lock/Vary
+    toggles per field; Asset Type + Style selectors sync with the main page
+    and re-decompose on change. Step 2 (`recomposed_prompt`) is a
+    deterministic flat join of the edited fields — no LLM call.
          |
          v
-    [Prompt Designer — optional interactive step]
-    Visual editor with Lock/Vary toggles (locked/fixed or randomise)
-    per decomposed field. Asset Type + Style selectors sync with main
-    page and trigger re-decompose on change.
-         |
-         v
-    [Concept Generation — Claude Opus (complex)]
-    Uses locked/variable sections instead of flat recomposed text.
-    Locked fields are preserved verbatim; variable fields are creatively
-    varied across concepts. `optimal_prompt_words` per model controls
-    target length (30-80 words for HunyuanImage,
-    120 for SD 3.5 Large). If num_options > 1: generate_concept_prompts()
-    produces N distinctly different enhanced prompts as a JSON array.
-    If num_options == 1: refine_prompt() (Claude Sonnet, fast) produces
-    a single enhanced prompt. Marketing banners use refine_marketing_prompt()
-    (Claude Opus, complex).
-    Claude extracts exclusions to a separate "NEGATIVE:" line during enhancement.
-         |
-         v
-    [Model-Specific Prompt Enhancement]
-    Prompt is restructured as a descriptive CAPTION (not a command) per target model,
-    with model-specific guidance applied during the enhancement step:
-    - SD 3.5 Large: quality boosters (masterpiece, best quality), style tokens, 2000 chars
-    - Stable Image Ultra: photorealistic quality boosters, 2000 chars
-    - Stable Image Core: quality boosters, fast tier, 2000 chars
-    - HunyuanImage: concise descriptive prompts (30-80 words), CoT reasoning model
-    Negative prompt parsed by _parse_negative_prompt() and passed through pipeline.
+    [Enhancement — ONE LLM pass, model-specific]
+    Input: the Step-2 text when the Designer was used, else the raw prompt.
+    With decomposed data, locked fields are preserved verbatim and variable
+    fields are varied across concepts.
+    - num_options > 1: generate_concept_prompts() (complex_llm) → N distinctly
+      different enhanced prompts as a JSON array
+    - num_options == 1: refine_prompt() (fast_llm) → one enhanced prompt;
+      marketing banners use refine_marketing_prompt() (complex_llm)
+    The prompt is written as a descriptive CAPTION (not a command) for the
+    target model, using that model's registry guidance:
+    - `optimal_prompt_words` sets the target length (e.g. 120 for
+      SD 3.5 Large, 55 for HunyuanImage 3.0); `prompt_limit` caps the characters
+    - `prompt_guidance` (the model's registry entry, else
+      `_DEFAULT_MODEL_INSTRUCTIONS`) adds model-specific instructions
+    Exclusions go to a separate "NEGATIVE:" line, parsed by
+    _parse_negative_prompt() and passed through the pipeline.
          |
          v
     For each enhanced prompt, generate num_variations images in parallel:
          |
          v
     [Image Generation — Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, or a self-hosted model]
-    Input: enhanced prompt + negative prompt + random seed per variation
+    Input: enhanced prompt + negative prompt + the slot's derived seed (§4.6 Seed)
     Output: PNG image (default 1024x1024)
          |
          v
@@ -452,16 +459,16 @@ User prompt: "hospital building"
 | Stable Image Ultra | 2000 |
 | Stable Image Core | 2000 |
 
-The active limit is passed to all prompt refinement functions (`refine_prompt()`, `refine_marketing_prompt()`, `generate_concept_prompts()`) and adjusts automatically when the user switches models. Stable Diffusion 3.5 Large and Stable Image Ultra get 2x richer prompts with more room for detail, composition, and quality directives. A hard truncation fallback (breaking on word boundaries) still applies per model.
+The active limit is passed to all prompt refinement functions (`refine_prompt()`, `refine_marketing_prompt()`, `generate_concept_prompts()`) and adjusts automatically when the user switches models. If the LLM's output still exceeds the limit, it is truncated on a word boundary.
 
-**Model-optimized prompt engineering**: Prompts are written as descriptive **captions**, not imperative commands, following the structure recommended by [AWS Nova Canvas documentation](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html): Subject, Environment, Pose/Action, Lighting, Camera angle, Style. Negation words ("no", "not", "without", "DO NOT") are removed from the main prompt — exclusions are separated into a dedicated negative prompt instead. Model-specific instructions are injected per target model:
+**Model-optimized prompt engineering**: Prompts are written as descriptive **captions**, not imperative commands, following the structure recommended by [AWS Nova Canvas documentation](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html): Subject, Environment, Pose/Action, Lighting, Camera angle, Style. Negation words ("no", "not", "without", "DO NOT") are removed from the main prompt — exclusions are separated into a dedicated negative prompt instead. Model-specific instructions come from each model's registry entry (`prompt_guidance`, `optimal_prompt_words`, `prompt_limit` / `max_prompt_length`, `supports_negative_prompt`) — no per-model prompt rules live in code. For example:
 
-| Model | Prompt Style | Key Optimizations |
-|-------|-------------|-------------------|
-| Stable Diffusion 3.5 Large | Rich caption with boosters | Quality boosters (masterpiece, best quality), style tokens (concept art, artstation), 2000 char limit |
-| Stable Image Ultra | Photorealistic caption | Photorealistic quality boosters, cinematic lighting descriptors, 2000 char limit |
-| Stable Image Core | Concise caption with boosters | Quality boosters, fast tier, 2000 char limit |
-| HunyuanImage 3.0 | Concise descriptive | Short prompts (30-80 words) for CoT reasoning model, no quality boosters needed |
+| Model | `prompt_limit` | `optimal_prompt_words` | Guidance (summary of `prompt_guidance`) |
+|-------|---------------|------------------------|------------------------------------------|
+| Stable Diffusion 3.5 Large | 2000 | 120 | Rich natural-language description (~60–120 words); quality comes from specific, vivid detail rather than quality-token prefixes; exclusions go in the NEGATIVE line |
+| Stable Image Ultra | 2000 | 120 | Same as SD 3.5 Large |
+| Stable Image Core 1.0 | 2000 | 100 | Same as SD 3.5 Large |
+| HunyuanImage 3.0 (self-hosted) | 2000 (`max_prompt_length`) | 55 | Natural 30–80 words, subject first; no negative prompt. The deployment runs the base checkpoint in plain text-to-image mode, so prompts arrive already enhanced by ArtSmoker's pipeline |
 
 **Negative prompt support**: All Stability image models receive a negative prompt parameter alongside the main prompt. Negative prompts are extracted through multiple mechanisms:
 
@@ -516,7 +523,7 @@ The rewrite is tested via canary image generation (up to 3 attempts with iterati
 
 All prompts are stored in metadata: `original_prompt` (what the user typed), `prompt` (what was sent to the image model), `negative_prompt`, and `moderation_original` (pre-rewrite prompt when a rewrite was accepted). This provides full audit trail for every generated asset.
 
-Non-retriable errors (content moderation, policy blocks) are detected and skip the retry loop entirely. The generic image model invoker (`invoke_image_model`) returns the actual error message from the model instead of crashing with a `KeyError` on missing image data.
+Non-retriable errors (content moderation, policy blocks) are detected and skip the retry loop entirely. When a model response carries no image data, the generic image model invoker (`invoke_image_model`) returns the model's own error message.
 
 **Canary request and batch cancellation**: Before dispatching the full parallel batch, the system generates a single "canary" image first using the first option's prompt. The canary counts as option 0, variation 0 (`o0_v0`) — if it passes, it becomes the first variant in the results (not wasted). If the canary is blocked by content moderation, the entire batch stops immediately — costing only 1 wasted API call instead of N×M×3 (options × variations × retry attempts). If the canary passes, the remaining tasks dispatch in parallel with a shared `threading.Event` cancel flag. If any task in the parallel batch encounters a non-retriable moderation error, it sets the cancel flag and all remaining tasks skip their API calls. When a batch is partially completed then blocked, **already-generated variants are cleaned up** (deleted from disk) so the user doesn't see orphaned partial results. This two-phase approach (canary + cooperative cancellation) minimizes wasted API spend on prompts that will be rejected across the board.
 
@@ -593,7 +600,12 @@ This ensures that if the original style profile is later deleted or modified, th
 
 - **Where**: every studio prompt surface — Image Studio Step 1 (via PromptEditor), the Image Inspiration instruction (Step 2), Video Studio prompt, and Type Studio per-line mics. All use the ONE reusable `VoiceInput` component (or, for Type Studio's inline mics, the same `API.transcribe` choke point).
 - **Capture + conversion (browser)**: `MediaRecorder` records WebM/Opus, then `VoiceInput.toWav16k` decodes and resamples it in-browser (WebAudio `OfflineAudioContext`) to the **16 kHz 16-bit mono PCM WAV** Nova Sonic requires — no server-side transcoder (no ffmpeg). The conversion runs inside `API.transcribe`, so every recorder benefits; on conversion failure the original blob is sent and the backend falls back gracefully.
-- **Backend streaming** (`transcriber.py`): boto3 has NO bidirectional-stream support, so this uses the experimental Smithy-based SDK (`aws_sdk_bedrock_runtime`, async) with the **AWSCRT transport** (the default aiohttp transport can't do duplex event streaming) and credentials bridged from the app's boto3 session (same chain: env/profile/SSO/role). Protocol specifics learned the hard way: the first content block MUST be SYSTEM-role text; Sonic detects end-of-speech via VAD, so pre-recorded audio gets **2 s of trailing silence appended** and the audio content block **stays open until the transcript arrives** (closing it and going quiet trips Sonic's 55 s idle timeout). The transcript is the **USER-role** `textOutput` (Sonic's ASR of the input); the assistant's spoken reply is discarded. Model/region come from the registry `categories.voice`, which AWS Sync keeps on the newest ACTIVE Nova Sonic in `voice_models` (§4.11) — e.g. `amazon.nova-2-sonic-v1:0` → `amazon.nova-2-5-sonic` (Nova 2.5 Sonic, same protocol). A user pick pins it.
+- **Backend streaming** (`transcriber.py`): boto3 has NO bidirectional-stream support, so this uses the experimental Smithy-based SDK (`aws_sdk_bedrock_runtime`, async) with the **AWSCRT transport** (the default aiohttp transport can't do duplex event streaming) and credentials bridged from the app's boto3 session (same chain: env/profile/SSO/role). Protocol requirements:
+  - The first content block MUST be SYSTEM-role text.
+  - Sonic detects end-of-speech via VAD, so pre-recorded audio gets **2 s of trailing silence appended**.
+  - The audio content block **stays open until the transcript arrives**. Closing it and going quiet trips Sonic's 55 s idle timeout.
+  - The transcript is the **USER-role** `textOutput` (Sonic's ASR of the input). The assistant's spoken reply is discarded.
+- **Model and Region** come from the registry `categories.voice`. AWS Sync keeps it on the newest ACTIVE Nova Sonic in `voice_models` (§4.11). Nova 2 Sonic and Nova 2.5 Sonic use the same protocol, so the transcriber has no version-specific code. A user pick pins it.
 - **Cost**: the stream's `usageEvent` breakdown (`details.total.{input,output}.{speechTokens,textTokens}` — the system prompt is text input, the audio is speech input) × the model's official rates in `voice_models` (`cost_tracker.voice_token_cost`; speech tokens bill ~9× text, §14.1). A model AWS hasn't priced yet (or a used dimension with no rate) records no cost ("pricing unavailable"), never another version's rate → `add_cost("transcription", …)` → the `image_studio.voice_input.cost` telemetry event. Measured ~$0.0002–0.0005 per short dictation.
 - IAM: `bedrock:InvokeModelWithBidirectionalStream` (documented in the README permission set; the feature degrades to a recognizable placeholder without it).
 - Transcribed text is appended to the target prompt field for user review/editing.
@@ -631,11 +643,11 @@ Clean, modern single-page application served as static files mounted at `/` by F
 - **Left sidebar** (progressive disclosure layout):
   - **Art Style** selector, **Asset Type** selector.
   - **Image Model** multi-select checkbox dropdown — populated dynamically from the registry (`GET /api/admin/models/image-options`), not hardcoded. Checkboxes allow selecting any combination of models; "All Available Models" toggle at the bottom selects/deselects all. Minimum 1 model required — auto-selects first model on close if empty. Below the dropdown, a smart **summary line** shows the active configuration: `us-east-1 · Premium · $0.06/img` for single model, or `3 models × 2 options × 2 variations = 12 images (~$2.40)` for multi-model. Cost estimate updates live as models are checked/unchecked.
-  - **Dimensions** (size presets: 512×512, 768×768, 1024×1024, 1024×576, 576×1024, 1280×720). Every size label — presets, model-declared `supported_sizes`, and appended custom sizes — is prefixed with a language-neutral orientation glyph (■ square, ▭ landscape, ▯ portrait; no i18n needed). **Full-body framing nudge:** when the asset type is `character` or `game_asset` and a landscape size is selected, a hint under the select recommends portrait/square (a wide canvas geometrically forces upper-body crops on a standing figure — verified 2026-07/09). Purely advisory — an explicit user choice is never overridden; the head-to-toe framing itself is enforced by the `image_asset_type_context` template directives (verified landing full-body on SD3.5 Large + Stable Image Ultra at 9:16).
-  - **Advanced** (collapsible `<details>` section): **Quality** dropdown — shows quality tiers when the model supports them (no current model exposes tiers, so this shows "Default"; the mechanism remains for any future model with `quality_options`). **Region** dropdown — shows the model's available regions sorted cheapest-first, with per-image pricing. "Auto" selects the cheapest. Quality and region changes update the summary line and pricing.
+  - **Dimensions** (size presets: 512×512, 768×768, 1024×1024, 1024×576, 576×1024, 1280×720). Every size label — presets, model-declared `supported_sizes`, and appended custom sizes — is prefixed with a language-neutral orientation glyph (■ square, ▭ landscape, ▯ portrait; no i18n needed). **Full-body framing nudge:** when the asset type is `character` or `game_asset` and a landscape size is selected, a hint under the select recommends portrait/square (a wide canvas geometrically forces upper-body crops on a standing figure). Purely advisory — an explicit user choice is never overridden; the head-to-toe framing itself comes from the `image_asset_type_context` template directives.
+  - **Advanced** (collapsible `<details>` section): **Quality** dropdown — lists the model's `quality_options` tiers, with its `default_quality` pre-selected and marked "(Default)"; a model without tiers shows a single "Default (no tiers)" entry. **Region** dropdown — shows the model's available regions sorted cheapest-first, with per-image pricing. "Auto" selects the cheapest. Quality and region changes update the summary line and pricing.
   - **Cost estimate**: `Est. cost: ~$1.50 (25 images × $0.06)` — updates dynamically based on model, quality, region, options, and variations.
   - **Options** count (1-5), **Variations** count (1-5).
-  - **Seed** (visible number field below Options × Variations, not hidden in Advanced): pre-populated with a FRESH client-generated random value on every page load (nothing persisted — no server call, no localStorage), with a 🎲 re-roll button. Loading a Gallery batch sets the field to that batch's ACTUAL base seed, and the after-generation strategy (Auto-step by default) then applies to it like any other run. Sent as `GenerationRequest.seed` (0 … 2³¹−1, pydantic-validated; blank = server-random, the legacy behavior). The backend NEVER overrides a provided seed: each (option, variation) slot derives a deterministic distinct seed via `_derive_seed(base, oi, vi, n_vars)` = `(base + oi·n_vars + vi) mod 2³¹` — so o0_v0 ≡ base, the same base + settings reproduce the same batch byte-for-byte **given identical final prompts** (a reused/pre-composed enhanced prompt; freshly LLM-written concept prompts are nondeterministic between runs, so the seeds repeat but the images differ — E2E byte-identity verified on SD3.5 with `pre_composed=true`), and in an all-models run the same (concept, variation) slot shares its seed across models for comparable outputs. **Saved-concept reuse closes the multi-option gap:** `GenerationRequest.saved_concept_prompts` (`{model_key: [final prompt per option]}`) makes the backend skip concept generation entirely and run the supplied prompts verbatim (single-model AND all-models paths). The frontend sends it only for an UNCHANGED re-run of a reloaded batch — `loadBatch` stashes the batch's stored per-option `enhanced_prompt`s (grouped via `model_map` for all-models; partial batches are not stashed), and at generate time the stash is attached only when the user prompt, composed prompt, options count, and model set all still match. Net semantics: **reloaded batch + no changes + Keep = pixel-exact repeat of the whole batch; any change (or a fresh batch) = fresh AI concepts.** Every asset's metadata records its own final seed (shown in the AssetViewer Metadata tab); `GET /api/gallery/batch/{id}` returns the batch base seed (root) + per-variant seeds, and Image Studio restores the base on load — **clicking any option/variant result anchors the seed field to that image's seed** ("branch from this one"). Loading a batch no longer disables the Upscale toggle (the old lock blocked regenerating with upscale and was never released). An **after-generation mode select** next to the field (deliberately NOT persisted — a page reload always resets to the Auto-step default) controls what the seed does when a run completes: **Auto-step** (default — advances by that run's options × variations, i.e. one past the highest derived slot, so consecutive runs never reuse a slot yet each stays reproducible from its own recorded base), **Keep** (exact repeat — pixel-exact only when the final prompts are also unchanged), or **Re-roll** (new random base per batch). A visible hint line under the row states what the active mode does. The step is computed from the SUBMITTED seed, not the field (result-clicks may have re-anchored it).
+  - **Seed** (visible number field below Options × Variations, not hidden in Advanced): pre-populated with a FRESH client-generated random value on every page load (nothing persisted — no server call, no localStorage), with a 🎲 re-roll button. Loading a Gallery batch sets the field to that batch's ACTUAL base seed, and the after-generation strategy (Auto-step by default) then applies to it like any other run. Sent as `GenerationRequest.seed` (0 … 2³¹−1, pydantic-validated; blank = server-random). The backend NEVER overrides a provided seed: each (option, variation) slot derives a deterministic distinct seed via `_derive_seed(base, oi, vi, n_vars)` = `(base + oi·n_vars + vi) mod 2³¹` — so o0_v0 ≡ base, the same base + settings reproduce the same batch byte-for-byte **given identical final prompts** (a reused/pre-composed enhanced prompt; freshly LLM-written concept prompts are nondeterministic between runs, so the seeds repeat but the images differ), and in an all-models run the same (concept, variation) slot shares its seed across models for comparable outputs. **Saved-concept reuse closes the multi-option gap:** `GenerationRequest.saved_concept_prompts` (`{model_key: [final prompt per option]}`) makes the backend skip concept generation entirely and run the supplied prompts verbatim (single-model AND all-models paths). The frontend sends it only for an UNCHANGED re-run of a reloaded batch — `loadBatch` stashes the batch's stored per-option `enhanced_prompt`s (grouped via `model_map` for all-models; partial batches are not stashed), and at generate time the stash is attached only when the user prompt, composed prompt, options count, and model set all still match. Net semantics: **reloaded batch + no changes + Keep = pixel-exact repeat of the whole batch; any change (or a fresh batch) = fresh AI concepts.** Every asset's metadata records its own final seed (shown in the AssetViewer Metadata tab); `GET /api/gallery/batch/{id}` returns the batch base seed (root) + per-variant seeds, and Image Studio restores the base on load — **clicking any option/variant result anchors the seed field to that image's seed** ("branch from this one"). Loading a batch leaves every processing toggle (including Upscale) available for the next run. An **after-generation mode select** next to the field (deliberately NOT persisted — a page reload always resets to the Auto-step default) controls what the seed does when a run completes: **Auto-step** (default — advances by that run's options × variations, i.e. one past the highest derived slot, so consecutive runs never reuse a slot yet each stays reproducible from its own recorded base), **Keep** (exact repeat — pixel-exact only when the final prompts are also unchanged), or **Re-roll** (new random base per batch). A visible hint line under the row states what the active mode does. The step is computed from the SUBMITTED seed, not the field (result-clicks may have re-anchored it).
   - When **multiple models** are selected: a "Model-optimized prompts" toggle appears, and info text shows the model count, total images, and estimated cost.
   - **"Model Settings"** button opens the Model Registry admin UI (see [4.11 Model Registry](#411-model-registry)).
 - **Processing options**: Toggle switches for Remove Background, SVG Conversion (on by default), Upscale, and **Prompt Pre-Check** (pre-screens prompts via Claude Sonnet before image generation). Options row is placed **below** the prompt areas (images grouped together). Before generation these are labeled **"Pre-Processing"** (applied during generation). After generation completes, the label switches to **"Post-Processing"** and an **"Apply to Current Results"** button appears, allowing users to re-apply processing to the existing generated images without re-generating (calls `POST /api/generate/post-process`).
@@ -645,7 +657,7 @@ Clean, modern single-page application served as static files mounted at `/` by F
   - **Auto-enhancement on Generate**: If the user clicks Generate without previewing, the backend **automatically enhances** the prompt and shows the result in the composed area via SSE (`prompts_ready` event). The button is for pre-review only — generation always works without it.
   - **Composed prompt area** (green-tinted, below): Displays the AI-composed generation prompt. This is what gets sent to the image model.
   - **Flow**: If a composed prompt exists, it is sent directly (no double-refinement). If not, the backend auto-refines during generation. Editing the original prompt clears the composed area.
-  - **Prompt Editor DOM fix**: `document.contains()` check ensures the textarea is in the live DOM after view reset, preventing stale references.
+  - **Live-DOM check**: `ImageStudio._ensurePromptEditor()` reuses the PromptEditor only while its textarea is still in the live DOM (`document.contains()`). After a view reset the old editor's DOM is gone, so the stale reference is cleared and a new PromptEditor is created in `#prompt-editor-container`.
   - **Prompt info section**: After generation, shows: original prompt, AI-improved prompt, **negative prompt** (red-labeled "exclusions sent to model", hidden when empty), and concept prompts for full lineage visibility.
   - Voice input and `loadBatch(batchId)` restore a previous batch from the Gallery into the 2D Image Studio view. `ensurePromptEditor()` is called on show/loadBatch for robust initialization. The loadBatch navigation uses a yield-then-poll pattern: sets the hash, yields to let the `hashchange` event fire, polls for a DOM element (up to 10s), then adds a 200ms settling delay to let `init()`/`onShow()` finish before writing batch data into the DOM. For partial batches (where some variants were deleted from Gallery), the toast shows "X of Y images remaining (Z deleted)" instead of the normal batch summary.
 - **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge (or model name in "All Models" mode), and a truncated concept prompt. In "All Models" mode, the header changes to "Models — comparison across image models", and blocked/failed models show a semi-transparent overlay badge ("Blocked — moderation" or "Failed"). Click to select an option — the **"Generated prompt — Option N"** (or **"Generated prompt — Stable Diffusion 3.5 Large"**) section updates with the exact prompt and negative prompt used for that option.
@@ -730,7 +742,7 @@ If there is only one option, the options row is hidden. If there is only one var
   - **Instruction-editor outpaint (pre-pad + blend-back)**: mask-free editors regenerate the whole frame at the input's size — they cannot grow a canvas, and a naive "extend the image" instruction makes them *reframe* (pan/crop) and lose content. For Extend/Outpaint on an `image_edit` model, the backend **pre-pads** the source canvas by the requested pixels (new bands filled with edge-average colour + noise), instructs the model to *"replace ONLY the blurry unfinished band"*, resizes the (resolution-bucketed) result back to the padded canvas, and **blends the original pixels back over the original region** with a feathered seam — so the existing image is preserved pixel-exact and only the new band is generated (`backend/services/instruction_outpaint.py`; applied on both the sync and async completion paths).
   - **AI "Generate Prompt" button** (per-mode, model-aware): reads the current image + its original generation prompt and suggests an edit instruction for the active mode via `POST /api/generate/suggest-edit-prompt`. The suggestion is tailored to the selected editor — a **descriptive caption** for Stability edit models and an **imperative instruction** for a Qwen-Image-Edit instruction editor (model-awareness is derived from the registry, not hardcoded). It can also flag `suggest_outpaint` for Extend/Outpaint mode.
   - **Replace original** checkbox (default: checked) — replaces the source image in-place. Uncheck to save as a new gallery asset instead. Metadata records the `source_image_id` and `edit_type` for provenance.
-- **Export & Cutouts tab** — per-version export artefacts: a background-removed transparent **PNG cutout**, a **no-background SVG** (vector trace of the cutout), and a **with-background SVG**. Background removal method is user-selectable per run: `local` (free, on-device rembg/u2net — Apache-2.0 weights, one-time download, CPU) or `bedrock` (paid Amazon Bedrock SD remover). One bg-removal produces the cutout; the no-bg SVG is a free local vtracer trace of it. **The cutout is ONE shared artefact** — the same file the 3D workflow uses (`asset_v{N}__cutout.png`): a cutout made by 3D source-prep shows here (and vice-versa), and the operation (`remove_background` of the version image) is never done twice for the same version/method. A version that is **already background-free** (a 3D source-prep commit or a `remove_background` edit — `_version_is_bg_free`) IS its own cutout, so no removal or extra file is created; the version image is served directly. Regenerating with a different method replaces the cutout. Legacy per-tab files (`asset__nobg_v{N}.*`) are still read for pre-unification assets. API: `GET /{id}/export-status`, `POST /{id}/export-variants` (`{method, version}`), `GET /{id}/cutout-png/{v}`, `GET /{id}/cutout-svg/{v}`. The method + cost are recorded in `meta["cutouts"]`. (vtracer runs in a **crash-isolated subprocess** — kept as defense-in-depth. The earlier CPython-3.14 kwargs segfault in the 0.6.x wheels is resolved by pinning **vtracer ≥ 1.0.0a3** (the pyo3-0.26/abi3 V1.0 rewrite, new `Config` + `convert_file` API; the child auto-detects the new vs legacy API); tuned params now trace cleanly, so the subprocess only ever falls back to no-params → CLI on a genuinely stale/legacy env.)
+- **Export & Cutouts tab** — per-version export artefacts: a background-removed transparent **PNG cutout**, a **no-background SVG** (vector trace of the cutout), and a **with-background SVG**. Background removal method is user-selectable per run: `local` (free, on-device rembg/u2net — Apache-2.0 weights, one-time download, CPU) or `bedrock` (paid Amazon Bedrock SD remover). One bg-removal produces the cutout; the no-bg SVG is a free local vtracer trace of it. **The cutout is ONE shared artefact** — the same file the 3D workflow uses (`asset_v{N}__cutout.png`): a cutout made by 3D source-prep shows here (and vice-versa), and the operation (`remove_background` of the version image) is never done twice for the same version/method. A version that is **already background-free** (a 3D source-prep commit or a `remove_background` edit — `_version_is_bg_free`) IS its own cutout, so no removal or extra file is created; the version image is served directly. Regenerating with a different method replaces the cutout. Per-tab files from the earlier layout (`asset__nobg_v{N}.*`) are also read. API: `GET /{id}/export-status`, `POST /{id}/export-variants` (`{method, version}`), `GET /{id}/cutout-png/{v}`, `GET /{id}/cutout-svg/{v}`. The method + cost are recorded in `meta["cutouts"]`. vtracer runs in a **crash-isolated subprocess** (`post_processor._run_vtracer_child`). `backend/requirements.txt` pins **vtracer ≥ 1.0.0a3** (the pyo3-0.26/abi3 build with the `vtracer.Config` + `convert_file` API); the child script uses that API when present, else the legacy `convert_image_to_svg_py`. Each conversion tries the tuned parameters (`_VTRACER_PARAMS`) first, then vtracer's built-in defaults. The vtracer CLI is used only when the Python package isn't installed.
 - **Metadata tab** — full prompt lineage: original prompt → AI-improved prompt → generation prompt → negative prompt (amber-styled). Plus style (from `style_snapshot` fallback), asset type, image model (reads `model_label` from metadata), dimensions, seed, batch ID, option/variation, IP status, filename, created date. Adapts for Type Studio assets. For edit versions, the record distinguishes the **user's typed prompt** (`prompt`) from the **machine-built instruction actually sent** (`edit_prompt_sent` — set when search-folding, removal-transform, or the outpaint instruction builder rewrote it).
 - **Info bar model tags (per-version provenance)** — the tag under the image always names the **original generator**; when the *viewed* version is an edit made by a different model, a second tag names that editor ("· this edit"). Tags re-render on every version-bar switch, tracking the viewed version — not the asset's latest.
 - **Per-version delete (version bar)** — a "Delete version" button removes ONLY the currently-viewed version (see the `DELETE /{id}/version/{v}` row in §5 for full semantics: tombstone, sparse numbering, promotion, last-version → whole-asset). The confirm dialog warns specially when it's the last version. On success the viewer switches to the promoted/previous version; if the whole asset was removed it navigates to the next/previous gallery item, or closes when none remain. Tombstoned versions never render as pills. Partial file-removal failures surface as a warning toast (metadata stays consistent; leftovers are orphans, not corruption).
@@ -773,7 +785,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 **Model fallback**: On `AccessDeniedException` from the primary LLM model, the system automatically falls back to the `fallback_llm` category model.
 
-**Inference-param gating** (`_model_supports_temperature` / `_build_inference_config`): Newer Claude tiers (e.g. Opus 4.8) reject the `temperature` Converse param. The gate is **registry-driven** — it reads `supports_temperature` (or `temperature` in `deprecated_params[]`) off the model's `chat_models` entry and omits the param accordingly, with a minimal built-in heuristic only as a last resort when the registry is silent. No hardcoded model lists; new models that deprecate a param work with zero code change once Sync records the capability.
+**Inference-param gating** (`_model_supports_temperature` / `_build_inference_config`): Newer Claude tiers (e.g. Opus 4.8) reject the `temperature` Converse param. The gate is **registry-driven** — it reads `supports_temperature` (or `temperature` in `deprecated_params[]`) off the model's `chat_models` entry and omits the param accordingly. When the registry is silent (a model not yet synced) temperature is sent; if the model rejects it, the caller records `supports_temperature: false` and retries once. There are no hardcoded model lists.
 
 **Auto-roll on Sync** (`_auto_roll_llm_categories`): On every AWS Sync the `fast_llm` and `complex_llm` categories are smartly re-pointed to the newest available Claude — newest **Sonnet** → fast, newest **Opus** → complex (version parsed from the model ID, preferring cross-region inference profiles — any geo or `global.` — ACTIVE over LEGACY, keeping the category's region when the model is offered there). `fallback_llm` rolls to the **second-newest Sonnet** (one version behind `fast_llm`) so the AccessDenied safety net is a genuinely different yet still-current model rather than a clone of the primary; it degrades to the newest Sonnet if only one version exists. This keeps non-technical users off deprecated models automatically (auto-switch + a logged notice). A manual category pick in Model Settings sets `pinned: true`, which the auto-roll respects — it then only *notifies* that a newer model exists rather than overriding the choice. The roll also probes the chosen model once and records its `supports_temperature` so the param gate above stays self-correcting.
 
@@ -788,9 +800,9 @@ Amazon Bedrock exposes **two** inference endpoints, and a model may be reachable
 
 Why both matter: the newest **frontier models are Mantle-only** — OpenAI **GPT-5.x** are Responses-API-only; some new Claude variants (e.g. Mythos) are Messages-only — so they cannot be reached via Converse at all. Conversely, Converse keeps capabilities Mantle lacks (Guardrails, cross-region inference profiles, structured outputs) and needs no extra token.
 
-**Routing policy — Converse-first, Mantle only when required.** Each `chat_models` entry carries (stamped by Sync, see §4.11): `endpoints[]` (which endpoints list the model), `apis[]` (which APIs it supports), and a resolved **`invoke_endpoint`** + **`invoke_api`** chosen by priority **`converse` > `chat_completions` > `responses` > `messages`** (`mantle_client.resolve_invoke_path`). So Claude/most models stay on the rock-solid boto3 Converse path; Mantle is used only for models Converse can't reach. `invoke_llm` and the Chat Studio stream both branch on the resolved `invoke_endpoint`: runtime → existing boto3 path (unchanged); mantle → `mantle_client` (`_invoke_llm_mantle` / `_chat_stream_mantle`). The startup probe (§7.5) honors the same resolution.
+**Routing policy — Converse-first, Mantle only when required.** Each `chat_models` entry carries (stamped by Sync, see §4.11): `endpoints[]` (which endpoints list the model), `apis[]` (which APIs it supports), and a resolved **`invoke_endpoint`** + **`invoke_api`** chosen by priority **`converse` > `chat_completions` > `responses` > `messages`** (`mantle_client.resolve_invoke_path`). So Claude/most models stay on the rock-solid boto3 Converse path; Mantle is used only for models Converse can't reach. `invoke_llm` and the Chat Studio stream both branch on the resolved `invoke_endpoint`: runtime → the boto3 Converse path; mantle → `mantle_client` (`_invoke_llm_mantle` / `_chat_stream_mantle`). The startup probe (§7.5) honors the same resolution.
 
-**Mantle route order — one list for every caller** (`mantle_client.mantle_invocation_candidates`). A Mantle "route" is a (base path, API) pair. The two OpenAI-compatible base paths serve **disjoint** model sets — `/v1` (e.g. Qwen, GLM, DeepSeek, Kimi) and `/openai/v1` (e.g. OpenAI, xAI, Google) — while Messages has one URL (`/anthropic/v1/messages`) whatever the base. The `api_compatibility` matrix (base registry) gives each provider's base + API. Callers try, in order: (1) the **learned route** — `mantle_route` `{base, api, learned_at}` on the chat entry, recorded per account in `model_registry.user.json` when a non-first route answered (`record_mantle_route`); (2) the **matrix route**, derived fresh on every call (so a corrected matrix rule needs no re-Sync); (3) every other base × API combo as a self-healing fallback (Messages tried once). When the matrix route answers again the learned record is **cleared**, so the matrix stays the default. Chat Studio (`_chat_stream_mantle`), `invoke_llm` (`_invoke_llm_mantle`) and the Sync servability probe all walk this same list. `MantleAccessError` (no Mantle permission) stops the walk immediately; if every route fails and one timed out, the Region is marked not-answering for that id (§4.11). The retired `mantle_base` field (the old learned base path, superseded by `mantle_route`) is dropped from the base registry by `promote_to_base` (`_RETIRED_FIELDS`).
+**Mantle route order — one list for every caller** (`mantle_client.mantle_invocation_candidates`). A Mantle "route" is a (base path, API) pair. The two OpenAI-compatible base paths serve **disjoint** model sets — `/v1` (e.g. Qwen, GLM, DeepSeek, Kimi) and `/openai/v1` (e.g. OpenAI, xAI, Google) — while Messages has one URL (`/anthropic/v1/messages`) whatever the base. The `api_compatibility` matrix (base registry) gives each provider's base + API. Callers try, in order: (1) the **learned route** — `mantle_route` `{base, api, learned_at}` on the chat entry, recorded per account in `model_registry.user.json` when a non-first route answered (`record_mantle_route`); (2) the **matrix route**, derived fresh on every call (so a corrected matrix rule needs no re-Sync); (3) every other base × API combo as a self-healing fallback (Messages tried once). When the matrix route answers again the learned record is **cleared**, so the matrix stays the default. Chat Studio (`_chat_stream_mantle`), `invoke_llm` (`_invoke_llm_mantle`) and the Sync servability probe all walk this same list. `MantleAccessError` (no Mantle permission) stops the walk immediately; if every route fails and one timed out, the Region is marked not-answering for that id (§4.11). Fields no longer used by the schema (`_RETIRED_FIELDS`, e.g. `mantle_base`) are stripped from the base registry by `promote_to_base`.
 
 **Message shaping** (`mantle_client.route_messages`). Chat Studio sends one history format: `content` is a string or a list of **Converse blocks** (`{text}` / `{image: {format, source: {bytes}}}`, the bytes base64 text because JSON can't carry raw bytes). Each Mantle API gets it in its own shape — Chat Completions `image_url` data-URL parts, Responses `input_text` / `input_image` parts, Messages `{type: image, source: {type: base64}}` blocks with `system` as a separate field; non-user turns are flattened to text. `invoke_llm` builds the same Converse-shaped content from its `images`, so both callers share one converter. On the Converse path, `chat._converse_blocks` decodes base64-string `source.bytes` to raw bytes first — boto3 base64-encodes the field itself, and a string would reach the model encoded twice ("Could not process image").
 
@@ -802,7 +814,7 @@ Why both matter: the newest **frontier models are Mantle-only** — OpenAI **GPT
 |-------|----|--------|---------|
 | Claude Sonnet | newest Sonnet on Sync | us-west-2 | Fast: prompt refinement, generation hints |
 | Claude Opus | newest Opus on Sync | us-west-2 | Complex: style analysis, concept generation, marketing copy |
-| Claude 3.5 Sonnet v2 (fallback) | `anthropic.claude-3-5-sonnet-20241022-v2:0` | us-west-2 | Fallback on access denied |
+| Claude Sonnet (fallback) | second-newest Sonnet on Sync | us-west-2 | Fallback on access denied |
 | Stability Remove BG | `us.stability.stable-image-remove-background-v1:0` | us-west-2 | Background removal |
 | Stability Upscale | `us.stability.stable-creative-upscale-v1:0` | us-west-2 | Image upscaling |
 | Stable Diffusion 3.5 Large | `stability.sd3-5-large-v1:0` | us-west-2 | Primary image generation |
@@ -855,9 +867,9 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 
 **Registry structure** (v2):
 
-1. **Format families** (`format_families`): Define request/response templates by provider. Each family specifies: `prompt_path`, `negative_prompt_path`, `seed_path`, `dimensions_mode` ("pixels" or "aspect_ratio"), `dimensions_paths`, `response_image_path`, and `body_template`. Currently 15 families covering all image services (`amazon_text_to_image`, `stability_text_to_image`, `amazon_inpainting`, `amazon_outpainting`, `stability_inpaint`, `stability_outpaint`, `stability_erase`, `stability_search_replace`, `stability_search_recolor`, `stability_control`, `stability_style_transfer`, `stability_remove_bg`, `stability_upscale`) and video generation (`nova_reel`, `luma_ray`). Adding a new provider or service means adding a format family — no code changes needed.
+1. **Format families** (`format_families`): Define request/response templates by provider. Each family specifies: `prompt_path`, `negative_prompt_path`, `seed_path`, `dimensions_mode` ("pixels" or "aspect_ratio"), `dimensions_paths`, `response_image_path`, and `body_template`. Families cover all image services (`amazon_text_to_image`, `stability_text_to_image`, `amazon_inpainting`, `amazon_outpainting`, `stability_inpaint`, `stability_outpaint`, `stability_erase`, `stability_search_replace`, `stability_search_recolor`, `stability_control`, `stability_style_transfer`, `stability_remove_bg`, `stability_upscale`) video generation (`nova_reel`, `luma_ray`), and self-hosted SageMaker invocation (`sagemaker_async`, `sagemaker_realtime`). Adding a new provider or service means adding a format family — no code changes needed.
 
-2. **Bedrock regions** (`bedrock_regions`): Cached list of all AWS regions supporting Bedrock (currently 33). Discovered dynamically during refresh-all via `boto3.Session().get_available_regions("bedrock")`. Read from cache for all other operations — zero AWS calls.
+2. **Bedrock regions** (`bedrock_regions`): Cached list of all AWS regions supporting Bedrock. Discovered dynamically during refresh-all via `boto3.Session().get_available_regions("bedrock")`. Read from cache for all other operations — zero AWS calls.
 
 3. **Image pricing** (`image_pricing`): Per-model, per-region, per-quality pricing data from the AWS Pricing API. Fetched during refresh-all only. Keyed by `model_name|region|quality|size`. Used to display cost estimates in the UI and sort regions by cheapest-first.
 
@@ -871,7 +883,7 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 
 5. **Chat models** (`chat_models`): Discovered LLM models available for Chat Studio. Keyed by internal name (e.g. `claude_sonnet_4_6`, `llama_3_3_70b`, `gpt_5_4`). Each entry stores: `label`, `model_id` (the pinned id — see *Inference profiles & residency pinning* below), `region` (the pinned Region), `provider`, `available_regions`, `max_context_tokens`, `has_vision`, `streaming_supported`, `input_price_per_1k`, `output_price_per_1k` + `token_pricing` (official rate sets, §14), `model_source` (`foundation`, `custom`, `imported`), and optionally `supports_temperature` (recorded by Sync's one-time probe — drives the inference-param gate in §4.8). It also carries the **endpoint/API routing** fields (§4.8): `endpoints[]` (`bedrock-runtime` and/or `bedrock-mantle`), `apis[]` (`converse`/`invoke`/`chat_completions`/`responses`/`messages`), and the resolved `invoke_endpoint` + `invoke_api` the app actually uses (Converse-first); the **routing-scope** fields `inference_profiles[]` (geos AWS offers for the model), `residency_scope` (`global` / `geo:<geo>` / `in-region`), `on_demand_regions[]` (Regions serving the plain id on demand) and `mantle_regions[]` (Regions whose Mantle lists the model); and the **per-account** fields `unservable_regions`, `mantle_route` and `lifecycle_unavailable`, which are *user-only* (`_USER_ONLY_FIELDS` — kept in `.user.json`, never promoted to base, because they describe this AWS account, not the model). Custom and imported models inherit `format_family` from their base model.
 
-   **Voice models** (`voice_models`): speech-to-speech models (SPEECH output — Nova Sonic). They're invoked over the bidirectional stream, never Converse, so they never enter `chat_models` (Nova 2.5 Sonic also lists TEXT in/out — the SPEECH check runs first). Each stores `label`, `model_id`, `provider`, `region`, `available_regions`, `on_demand_regions`, lifecycle fields, `start_of_life_time`, `api_type: bidirectional_stream`, and the official `token_pricing` (speech + text rates, §14). The Sync resets their Regions, re-derives them from the scan, disables one no Region offers (re-enabled when one does) and re-pins like any model (residency geo kept, then home).
+   **Voice models** (`voice_models`): speech-to-speech models (SPEECH output — Nova Sonic). They're invoked over the bidirectional stream, never Converse, so they never enter `chat_models`. A model listing SPEECH output is a voice model even if it also lists TEXT (the SPEECH check runs first). Each stores `label`, `model_id`, `provider`, `region`, `available_regions`, `on_demand_regions`, lifecycle fields, `start_of_life_time`, `api_type: bidirectional_stream`, and the official `token_pricing` (speech + text rates, §14). The Sync resets their Regions, re-derives them from the scan, disables one no Region offers (re-enabled when one does) and re-pins like any model (residency geo kept, then home).
 
 6. **Image models** (`image_models`): Keyed by internal name (e.g. `sd35_large`, `stable_image_ultra`). Each entry stores:
    - `label` — human-readable display name
@@ -916,11 +928,11 @@ Every lookup — capabilities, temperature gate, pricing, Region pickers, routin
 - **No residency constraint (default, `preferred_residency_geo = ""`)**: `global.` where offered → a geo profile → a plain in-Region id. Ties prefer a Region in the home Region's geography (`aws_region_models`), then the home Region, then name order.
 - **`preferred_residency_geo` set** (`ARTSMOKER_PREFERRED_RESIDENCY_GEO`, a *discovered* geo; `global` or an unknown value is ignored): an in-geo profile or Region → another geo profile → a plain in-Region id elsewhere → `global.` last. Only for deployments whose data must stay in one geography.
 
-The post-pass is self-healing: it heals drift (e.g. a stale `us.` id pinned on a non-US Region) and is deterministic rather than an accident of scan order. Mantle-only models (no runtime Region) are pinned among their `mantle_regions` the same way, so a pin moved off a dead home Region returns once home answers again.
+The post-pass is deterministic (independent of Region scan order) and re-derives every pin each Sync, so an inconsistent pin (e.g. a `us.` id on a non-US Region) is corrected. Mantle-only models (no runtime Region) are pinned among their `mantle_regions` the same way, so a pin moved off a dead home Region returns once home answers again.
 
 #### Per-Region servability (`backend/services/servability.py`)
 
-A Region can list a model — and a profile can cover the Region — yet **never answer** it: the request hangs until the read timeout, or AWS rejects it as not found / not served there. No listing shows this, so Sync step 9 sends every enabled chat model a 16-token request **by every id it can be called by** (pinned id, every other profile, the plain id where served on demand) **in every Region that id routes from** (~1,300 routes, 24 in parallel, 20 s timeout, one retry on a timeout). Converse models are probed via Converse; Mantle models walk the shared Mantle route order (§4.8).
+A Region can list a model — and a profile can cover the Region — yet **never answer** it: the request hangs until the read timeout, or AWS rejects it as not found / not served there. No listing shows this, so Sync step 9 sends every enabled chat model a 16-token request **by every id it can be called by** (pinned id, every other profile, the plain id where served on demand) **in every Region that id routes from** (24 in parallel, 20 s timeout, one retry on a timeout). Converse models are probed via Converse; Mantle models walk the shared Mantle route order (§4.8).
 
 Results per Region: `ok`, or a reason — `timeout`, `not_found`, `unsupported` (the id isn't invocable there), `not_available` (the account's data-retention mode isn't offered there), `access_denied`, `legacy_access_denied`; or *inconclusive* (throttling, 5xx, credentials — says nothing about the Region). They are recorded per **id kind** (`global` / a geo / `""` for a plain id — a Region dead for one profile can serve another):
 
@@ -941,18 +953,19 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 
 **Frontend**: Model dropdowns are populated from the API on page load — `GET /api/admin/models/image-options` for Image Studio, `GET /api/admin/models/video-options` for Video Studio, and `GET /api/chat/models` for Chat Studio. LLM categories and post-processing use dropdown model pickers (not text fields) populated from discovered models. No hardcoded model lists in JavaScript.
 
-**Model Settings UI** (`ModelSettings.js`): A modal with 7 tabs organized by studio:
+**Model Settings UI** (`ModelSettings.js`): A modal with 8 tabs organized by studio:
 - **Image Studio** — image models, regions, quality tiers, prompt limits, moderation strictness. Models are grouped into **five collapsible sections** — Image Generation, Image Editing, Upscaling, Control & Style, Background — with each model carrying a small **role tag** (e.g. Inpaint, Outpaint, Instruction) so a section can hold several roles without one-model-per-section clutter. The mapping is data-driven (an unknown/future `model_purpose` falls back to its own trailing section — never hidden). A multi-mode instruction editor (e.g. Qwen-Image-Edit) is listed **once** with an **"Also covers"** line derived from its `capabilities` map, showing every edit mode it can serve. Deployed custom models surface here automatically (Sync/deploy copies `model_purpose` + `capabilities` from the catalog), each with its own enable/disable toggle. Entries within each section are sorted alphabetically.
 - **Video Studio** — video models, S3 bucket settings, regions, pricing
 - **Chat Studio** — discovered chat/LLM models with context window, vision support, pricing per 1K tokens
 - **Type Studio** — LLM model used for text layout generation
 - **Shared Studio** — cross-studio LLM categories (Fast/Complex/Fallback LLM, Voice), post-processing models
-- **Prompt Templates** — 28 editable LLM directive prompts organized by studio with two-level navigation
+- **Prompt Templates** — every editable LLM directive prompt, organized by studio with two-level navigation
 - **Registry JSON** — raw JSON editor for the full model registry
+- **Maintenance** — server-side tools (e.g. "Update Blender" for the managed headless Blender used by 3D exports, §5.10.3)
 
 All sections are collapsible with Show All / Hide All toggles. Clicking "Model Settings" in any studio opens the modal to the relevant tab. The modal is 72rem wide.
 
-**Searchable model dropdowns:** All model selection dropdowns (Image Studio, Chat Studio, LLM categories) support type-to-filter search. Models are grouped by provider with section headers. Typing narrows the list in real-time; clearing the search restores the full grouped list. All dropdowns expand to dynamic width when open (content-driven, not fixed). The Chat Studio model dropdown uses a custom scrollable container with max-height (replacing the native `<select>` which showed all models at once).
+**Searchable model dropdowns:** All model selection dropdowns (Image Studio, Chat Studio, LLM categories) support type-to-filter search. Models are grouped by provider with section headers. Typing narrows the list in real-time; clearing the search restores the full grouped list. All dropdowns expand to dynamic width when open (content-driven, not fixed). The Chat Studio model dropdown uses a custom scrollable container with max-height.
 
 **Custom Models tab:** Uses a two-level hierarchy — models are organized by Studio (Image, Video, Post-processing) and then by Category within each studio. Each model card shows deployment status, instance type, warm-up state, and action buttons (Deploy/Teardown/Redeploy).
 
@@ -968,7 +981,7 @@ Both the model registry and prompt templates use a two-file layered system that 
 
 ```
 model_registry.json          (git-tracked, source of truth)
-├── format_families          ← code defaults (15 families)
+├── format_families          ← code defaults (_DEFAULT_FORMAT_FAMILIES)
 ├── image_models             ← discovered by Sync from AWS
 ├── video_models             ← discovered by Sync from AWS
 ├── chat_models              ← discovered by Sync from AWS
@@ -986,7 +999,7 @@ model_registry.user.json     (gitignored, user preferences + per-account facts)
 └── chat_models.Z.lifecycle_unavailable ← Legacy model this account can no longer use
 
 prompt_templates.json        (git-tracked, runtime source of truth)
-└── 28 default templates     ← code _DEFAULTS backfills any missing on load
+└── default templates        ← code _DEFAULTS backfills any missing on load
 
 prompt_templates.user.json   (gitignored, user edits only)
 ├── chat_title_generate.text ← user customized this template
@@ -1005,7 +1018,11 @@ prompt_templates.user.json   (gitignored, user edits only)
 
 **First deployment auto-Sync**: On startup, the system checks for an `aws_account_discovered` timestamp in `model_registry.user.json` (gitignored). If missing (fresh deployment — models have never been discovered from this AWS account), a full Sync from AWS runs automatically after credential validation. This discovers all available models, pricing, and regions. Subsequent starts find the timestamp and skip auto-Sync. Since the timestamp is in the gitignored `.user.json`, fresh clones always trigger auto-Sync. Users can always Sync manually from Model Settings at any time.
 
-**Code defaults for self-healing**: If `model_registry.json` is deleted, the system regenerates it from code-defined defaults on startup: 3 base image models (SD 3.5 Large, Stable Image Ultra, Stable Image Core), 4 LLM categories, 15 format families, and 2 post-processing models. The auto-Sync then discovers and adds all remaining models from AWS.
+**Code defaults for self-healing**: If `model_registry.json` is deleted, the system regenerates it from code-defined defaults on startup:
+- the base image models (`_DEFAULT_IMAGE_MODELS`: SD 3.5 Large, Stable Image Ultra);
+- the LLM categories (`fast_llm`, `complex_llm`, `fallback_llm`, `voice`);
+- the format families (`_DEFAULT_FORMAT_FAMILIES`);
+- the post-processing models (`remove_background`, `upscale`). The auto-Sync then discovers and adds all remaining models from AWS.
 
 **Prompt templates**: `prompt_templates.json` (git-tracked) is the runtime source of truth. `_load()` reads it first; the code `_DEFAULTS` dict is a backfill/regeneration seed that only fills in templates **missing** from the JSON (never overwrites existing entries), so a fresh clone or a newly added template self-heals. User edits are stored in `prompt_templates.user.json` (gitignored) with only the changed `text` and/or `system_prompt` fields and are overlaid on top; reset restores the JSON default.
 
@@ -1082,7 +1099,7 @@ On failure, pre-screen returns `{likely_safe: true}` as a safe default (don't bl
 {
   "prompt": "the flagged prompt text",
   "error_message": "the error message returned by the image model",
-  "image_model": "stable_image_core",
+  "image_model": "stable_image_core_v1",
   "width": 512,
   "height": 512
 }
@@ -1093,7 +1110,7 @@ On failure, pre-screen returns `{likely_safe: true}` as a safe default (don't bl
 {
   "action": "switch_model",
   "working_model": "sd35_large",
-  "original_model": "stable_image_core",
+  "original_model": "stable_image_core_v1",
   "issues": ["weapon reference"],
   "explanation": "Your prompt works with a different model...",
   "rewritten_prompt": null,
@@ -1138,8 +1155,8 @@ Fields:
 - `pre_composed` (default false): If true, the prompt was already AI-composed via the "Preview Enhanced Prompt" button — the backend skips refinement and uses the prompt as-is.
 - `moderation_original` (optional, `str | None`): Stores the pre-moderation-rewrite prompt when the user accepted a moderation rewrite. Preserved in metadata for audit trail.
 - `style_id` (optional): Style profile to apply.
-- `asset_type` (default `game_asset`): One of `game_asset`, `marketing_banner`, `icon`, `character`, `environment`. Defined by the `AssetType` enum.
-- `image_model` (default `sd35_large`): Any valid key from the model registry (e.g. `sd35_large`, `stable_image_ultra`, `stable_image_core`). Validated against the registry at runtime — not limited to a fixed enum. New models added via auto-discovery are accepted without code changes.
+- `asset_type` (default `photorealistic`): One of `photorealistic`, `game_asset`, `marketing_banner`, `icon`, `character`, `environment`. Defined by the `AssetType` enum.
+- `image_model` (default `sd35_large`): Any valid key from the model registry (e.g. `sd35_large`, `stable_image_ultra`, `stable_image_core_v1`). Validated against the registry at runtime — not limited to a fixed enum. New models added via auto-discovery are accepted without code changes.
 - `quality` (optional, `str | None`): Quality tier override (e.g. `"standard"`, `"premium"`). If null, uses the model's `default_quality` from the registry. Only relevant for models with `quality_options`.
 - `region` (optional, `str | None`): Region override for the model. If null, uses the model's default `region` from the registry. Must be one of the model's `available_regions`.
 - `width` / `height` (default 1024): Output dimensions in pixels.
@@ -1170,17 +1187,18 @@ Fields:
 The image generation pipeline transforms the user's idea through four stages:
 
 1. **User Prompt** — the user's raw text input (Step 1 textarea). Always preserved, never overwritten by the system.
-2. **Decomposed Data** — structured JSON with `subject`, `scene`, `composition`, `lighting`, `style` (including color palette). Each field is a `{value, source}` tagged object where `source` is `"user"` (sacred/locked — preserved exactly across concepts) or `"inferred"` (variable — may be freely varied). Style guidance is baked into decomposition, not re-injected later. This is the intermediate representation produced by `/api/refine-prompt/decompose` and edited in the Prompt Designer (Step 2). Stored in metadata as `decomposed_data`. Decomposition always runs (even when the user skips Prompt Designer), providing structured data for concept generation.
-3. **Recomposed Prompt** — flat text rebuilt from the decomposed components by `/api/refine-prompt/recompose`, now split into locked (user-sourced) and variable (inferred) sections for concept generation. Stored in metadata as `recomposed_prompt`. Model-specific prompt guidance is **not** applied at this stage.
-4. **Enhanced AI Prompt** — model-specific optimized prompt generated by the LLM from the locked/variable sections + model guidance. Target length controlled by `optimal_prompt_words` per model (30-80 for HunyuanImage, 120 for SD 3.5 Large). This is what actually gets sent to the image model. Stored in metadata as `enhanced_prompt`. Each option gets its own enhanced prompt (via `generate_concept_prompts` for N×M mode).
+2. **Decomposed Data** — structured JSON with `subject`, `scene`, `composition`, `lighting`, `style` (including color palette). Each field is a `{value, source}` tagged object where `source` is `"user"` (sacred/locked — preserved exactly across concepts) or `"inferred"` (variable — may be freely varied). Style guidance is baked into decomposition, not re-injected later. This is the intermediate representation produced by `/api/refine-prompt/decompose` and edited in the Prompt Designer (Step 2). Stored in metadata as `decomposed_data`. Decomposition runs only when the user opens the Prompt Designer; a plain Generate has no decomposed data.
+3. **Recomposed Prompt** — a deterministic flat join of the (edited) decomposed fields, built without an LLM call (`PromptEditor._consolidateDesigner` in the browser; `_consolidate_decomposed` on the server). It is the Step-2 text and the recorded source of the Step-3 prompt, stored in metadata as `recomposed_prompt`. It is empty when the Designer wasn't used. Model-specific prompt guidance is **not** applied at this stage. (`/api/refine-prompt/recompose` also offers an LLM recomposition of structured components as an API.)
+4. **Enhanced AI Prompt** — the model-specific prompt from the single enhancement pass: the LLM rewrites the Step-2 text (or the raw prompt) with the model's guidance, keeping locked fields and varying the rest. Target length controlled by `optimal_prompt_words` per model (30-80 for HunyuanImage, 120 for SD 3.5 Large). This is what actually gets sent to the image model. Stored in metadata as `enhanced_prompt`. Each option gets its own enhanced prompt (via `generate_concept_prompts` for N×M mode).
 
-All three derived levels (`decomposed_data`, `recomposed_prompt`, `enhanced_prompt`) are persisted to `metadata.json` alongside the original `prompt`.
+The derived levels (`decomposed_data` and `recomposed_prompt` when the Designer was used, and always `enhanced_prompt`) are persisted to `metadata.json` alongside the original `prompt`.
 
 **Generation flows:**
 
-- **1×1 (single option, single variation)**: decompose → recompose (locked/variable) → enhance (1 enhanced prompt) → 1 image
-- **N×M (multiple options/variations)**: decompose → recompose (locked/variable) → enhance (N enhanced prompts via `generate_concept_prompts`, locked sections preserved, variable sections varied) → N options × M variations (different seeds per variation)
-- **Skip Steps 2/3**: Generate auto-enhances the user prompt server-side (decompose + recompose + enhance happen internally — decompose always runs even when Prompt Designer is skipped)
+- **1×1 (single option, single variation)**: enhance once (`refine_prompt`) → 1 image
+- **N×M (multiple options/variations)**: enhance once into N concept prompts (`generate_concept_prompts`; with Designer data, locked fields preserved and variable fields varied) → N options × M variations (a derived seed per variation)
+- **With the Prompt Designer**: decompose → edit → Step 2 consolidation (no LLM) → ONE enhance → the Step-3 prompt is sent pre-composed (`pre_composed: true`), so the backend does not enhance again
+- **Skip Steps 2/3**: Generate makes the single enhancement pass server-side on the raw prompt — no decomposition
 
 **Prompt Designer flow:**
 
@@ -1209,9 +1227,9 @@ The 2D Image Studio uses a guided 3-step workflow:
    - Color palette shown as named swatches with hex values and usage descriptions
    - Style Library hints are incorporated if a style is selected — baked into decomposition
    - Info footer explains the lock/vary behavior below the action buttons
-   - "Generate Enhanced Prompt" → sends edited components to `/api/refine-prompt/recompose` → recomposed prompt (with locked/variable sections) shown in Step 2, then enhanced with model guidance → Enhanced AI Prompt appears in Step 3
+   - "Generate Enhanced Prompt" → the edited fields are consolidated into the Step-2 text in the browser (no LLM), then enhanced once via `/api/refine-prompt/` with the model's guidance → the Enhanced AI Prompt appears in Step 3
 
-3. **Step 3 — Enhanced Prompt Preview** *(optional)* (Enhanced AI Prompt): Shows the model-specific enhanced prompt that the image model will receive. Generated from the recomposed prompt + model guidance. Editable before generating.
+3. **Step 3 — Enhanced Prompt Preview** *(optional)* (Enhanced AI Prompt): Shows the model-specific enhanced prompt that the image model will receive, produced by the single enhancement pass. Editable before generating.
 
 **Generate** works at any point — Steps 2 and 3 are optional. If skipped, Generate auto-enhances the prompt server-side.
 
@@ -1219,7 +1237,7 @@ The 2D Image Studio uses a guided 3-step workflow:
 - Each model can have `prompt_guidance` in its registry invoke config — LLM instructions for writing prompts optimized for that model's architecture
 - Models declare `supports_negative_prompt: true/false` — templates conditionally include/skip NEGATIVE: line. FLUX models skip negative prompts entirely; the LLM focuses all effort on the positive caption
 - FLUX.2 guidance targets 60-100 word concise prompts (not verbose 300+ word descriptions that dilute signal)
-- HunyuanImage 3.0 guidance targets 30-80 word concise prompts — the model has internal CoT reasoning, so shorter prompts with clear intent outperform verbose descriptions
+- HunyuanImage 3.0 guidance targets 30–80 word natural prompts with the subject first; the deployment runs the base checkpoint in plain text-to-image mode (no built-in prompt enhancement), so it receives the prompt ArtSmoker's pipeline already enhanced
 - The `image_refine_single` and `prompt_recompose` templates pass `{model_specific_instructions}` so the LLM adapts per model
 
 **Asset type classification** (`/api/refine-prompt/classify-asset-type`):
@@ -1310,7 +1328,7 @@ Uses an LLM to determine the best asset type for a prompt. Key distinction: a pe
 
 ### 5.8 Chat Studio
 
-A full-featured LLM chat interface running on the user's own AWS account. 80+ models from 16 providers, all discovered automatically via Sync from AWS.
+A full-featured LLM chat interface running on the user's own AWS account, offering every chat model AWS Sync discovers (all providers, Converse and Mantle).
 
 **Frontend features** (`ChatStudio.js`):
 - **Streaming responses** — real-time token-by-token rendering via Bedrock ConverseStream SSE
@@ -1333,7 +1351,7 @@ A full-featured LLM chat interface running on the user's own AWS account. 80+ mo
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/chat/stream` | Send messages to an LLM and stream the response via SSE (Bedrock ConverseStream). Returns events: delta (text chunks), metadata (tokens, cost, latency), stop, error. |
+| POST | `/api/chat/stream` | Send messages to an LLM and stream the response via SSE — Bedrock ConverseStream, or the model's Mantle route for Mantle-only models (§4.8). Returns events: delta (text chunks), metadata (tokens, cost, latency), stop, error. |
 | GET | `/api/chat/models` | List all available LLM models for chat. Aggregates from discovered chat_models, LLM categories, and custom/imported models. Includes per-model pricing, regions, context window, vision capability. |
 | POST | `/api/chat/sessions` | Create a new chat session. |
 | GET | `/api/chat/sessions` | List chat sessions, sorted by last activity. |
@@ -1384,7 +1402,7 @@ Invoker (sagemaker_invoker.py)
 Studios (Image, Video, Post-processing)
 ```
 
-**Registry-driven design:** All model behavior is defined by data in the catalog `invoke` section — no model-specific code paths anywhere. Adding a new model = adding a catalog entry. The universal inference handler (`sagemaker_handlers/inference.py`) reads configuration from environment variables set by the deployer from the catalog.
+**Registry-driven design:** All model behavior is defined by data in the catalog `invoke` section — no model-specific code paths anywhere. Adding a new model = adding a catalog entry. The universal inference handler (`sagemaker_handlers/inference.py`) reads its configuration from `invoke_config.json`, which the deployer writes from the catalog into `model.tar.gz`. SageMaker truncates long environment variables (~800 chars), so the `INVOKE_CONFIG` environment variable carries only a stripped backup.
 
 **Catalog invoke config** (drives everything):
 ```json
@@ -1430,7 +1448,7 @@ The same catalog entry works on any instance type — no per-instance configurat
 
 Each model's catalog entry specifies which optimizations to enable. The inference handler applies them automatically — no per-model code.
 
-**HuggingFace model loading:** The container uses `ARTSMOKER_HF_REPO` (not `HF_MODEL_ID`) so our inference handler controls loading with CPU offloading strategies from the catalog. The deployer sets `ARTSMOKER_HF_REPO` to the HuggingFace repo ID and `INVOKE_CONFIG` with the full invoke JSON. The inference handler reads these, downloads the model, and applies memory optimizations before serving. For gated models, the HF token is stored encrypted in **AWS Secrets Manager** (`artsmoker/hf-token`) — a single shared token for all gated models, managed via the UI button. The token is also passed as `HUGGING_FACE_HUB_TOKEN` env var to the container (read-only, visible only in the user's own AWS account via `sagemaker:DescribeModel`).
+**HuggingFace model loading:** The container uses `ARTSMOKER_HF_REPO` (not `HF_MODEL_ID`) so our inference handler controls loading with CPU offloading strategies from the catalog. The deployer sets `ARTSMOKER_HF_REPO` to the HuggingFace repo ID and packages the invoke config as `invoke_config.json`. The inference handler reads these, downloads the model, and applies memory optimizations before serving. For gated models, the HF token is stored encrypted in **AWS Secrets Manager** (`artsmoker/hf-token`) — a single shared token for all gated models, managed via the UI button. The token is also passed as `HUGGING_FACE_HUB_TOKEN` env var to the container (read-only, visible only in the user's own AWS account via `sagemaker:DescribeModel`).
 
 **Model bundles:** Lightweight models that share similar architectures (e.g., multiple LoRA adapters on the same base) can be deployed as a bundle on a single Amazon SageMaker endpoint. The inference handler loads the base model once and swaps adapters per request, reducing instance count and cost.
 
@@ -1438,7 +1456,7 @@ Each model's catalog entry specifies which optimizations to enable. The inferenc
 
 **Deployment types:**
 - **Async** (scale-to-zero): `AsyncInferenceConfig` with S3 output. Scales to zero instances when idle ($0 cost). Cold start from zero: 5-15 minutes (includes HF model download on first start). Input uploaded to S3, output polled from S3.
-- **Realtime** (always-on): Standard endpoint with `InitialInstanceCount=1`. Instant inference. Costs ~$1.21/hr continuously (ml.g5.xlarge). Instance pricing: g5.2xlarge $1.51/hr, g6e.4xlarge $3.76/hr, g7e.12xlarge $10.36/hr.
+- **Realtime** (always-on): Standard endpoint with `InitialInstanceCount=1`. Instant inference, billed at the instance's hourly rate continuously (rates from the registry's SageMaker pricing, §14).
 
 **Auto-scaling** (async endpoints): Dual scaling policy for true scale-to-zero:
 - **TargetTracking** — scales in to zero instances when no requests arrive (zero-cost idle)
@@ -1452,7 +1470,7 @@ This combination solves the cold-start-from-zero problem: TargetTracking alone c
 
 **S3 model cache:** After a successful model load, the handler saves pipeline components to S3 (`artsmoker/custom-models/{model_key}/model-cache/`) for faster cold starts. Cache behavior per component:
 - `.cache-info.json` — version fingerprint + per-component `preserved` flag. Fingerprint changes when model key, HF repo, catalog version, or quantization config changes → automatic cache invalidation.
-- **preserved=true** — NF4 packed uint8 weights with quantization metadata. Diffusers models (e.g., `Flux2Transformer2DModel`) write proper NF4 via `save_pretrained()`. Transformers models (e.g., `Mistral3ForConditionalGeneration`) may not preserve quant_state — handler verifies by inspecting safetensors for `bitsandbytes__*` keys before marking preserved. Workaround writes `quantization_config.json` manually (diffusers FrozenDict name-mangling bug). Fast path: loads directly to GPU, `pipe.to("cuda")`, ~30-60s/image inference.
+- **preserved=true** — NF4 packed uint8 weights with quantization metadata. Diffusers models (e.g., `Flux2Transformer2DModel`) write proper NF4 via `save_pretrained()`. Transformers models (e.g., `Mistral3ForConditionalGeneration`) may not preserve quant_state — handler verifies by inspecting safetensors for `bitsandbytes__*` keys before marking preserved. The handler writes `quantization_config.json` itself, because diffusers' `FrozenDict` serialization mangles the quantization-config key names. Fast path: loads directly to GPU, `pipe.to("cuda")`, ~30-60s/image inference.
 - **preserved=false** — bf16 weights without BnB metadata. Handler cleans stale quantization artifacts, re-quantizes to NF4 on GPU from local disk (~3 min per component vs ~3 min from HuggingFace).
 - Cache save runs in a background thread after `model_fn()` completes (does not block inference). Aborts if saved weights are corrupt (no BnB quant_state and not valid bf16).
 
@@ -1555,18 +1573,18 @@ Both take a single image and produce a GLB; the handler routes the job to whiche
 - CuMesh and FlexGEMM (`_TRELLIS2_EXT_GIT`, cloned with submodules at the commits the pinned tree records);
 - nvdiffrast (`_NVDIFFRAST_REF`, used only on a wheel-cache miss; shared with the other texturers).
 
-The pins are the commits the validated, S3-cached wheels were compiled from (2026-06). `_git_clone_pinned` does init → shallow fetch of the commit → checkout → submodules. If the host refuses a fetch by commit, it falls back to the default branch with a warning, so a pin never blocks a deploy. Moving a pin means two things: test the new commit on a fresh endpoint, and delete the per-arch wheel cache (`texture-deps/trellis2/wheels/{arch}/`), because cached wheels aren't keyed by commit.
+The pins match the commits the S3-cached wheels were compiled from. `_git_clone_pinned` does init → shallow fetch of the commit → checkout → submodules. If the host refuses a fetch by commit, it falls back to the default branch with a warning, so a pin never blocks a deploy. Moving a pin means two things: test the new commit on a fresh endpoint, and delete the per-arch wheel cache (`texture-deps/trellis2/wheels/{arch}/`), because cached wheels aren't keyed by commit.
 
 > **⚠️ nvdiffrast license (full TRELLIS.2 pipeline).** The mesh/PBR bake (`o_voxel.postprocess.to_glb`) **hard-imports `nvdiffrast`**, which is under the **NVIDIA Source Code License (1-Way Commercial) — non-commercial for general users**, *not* MIT. It is an internal dependency of upstream `o_voxel` and cannot be swapped without patching microsoft/TRELLIS.2, so the full image-to-3D pipeline currently carries a non-commercial rasterizer dependency — surfaced in the deploy dialog (`license_agreement.dependencies` + `warnings`). **Review before commercial use.** The separate **TripoSG + texture-backend** path is unaffected: its bake defaults to **Kaolin (Apache-2.0)** via `ARTSMOKER_RASTERIZER`.
 
-**Full-pipeline resourcing (measured).** The standalone TRELLIS.2 pipeline's baseline is **`ml.g5.2xlarge`** (`recommended_instance`; A10G 24 GB, 32 GiB RAM, ~**$1.52/hr**). A live image→3D run (2026-06-25) completed cleanly at peak **~4.78 GB VRAM** (of the A10G's 24 GB — ample headroom) in ~7.5 min, producing an ~18.8 MB PBR GLB; the CUDA exts (o_voxel/cumesh/flex_gemm) + xformers build and run on Ampere sm_86 via the arch-portable builder. It was chosen over `ml.g6e.xlarge` (L40S 48 GB) because that GPU is hugely over-provisioned for this workload at materially higher cost. `min_ram_gb: 28` is enforced and the handler logs a per-run `TRELLIS.2 RESOURCE PEAK` line (VRAM alloc/reserved + host RAM avail/total). `allowed_instances` still offers `g6e.xlarge`/`2xlarge`/`4xlarge` as headroom upsells. **Ground truth:** the live endpoint `artsmoker-trellis2-image-to-3d-2e8c` runs on `ml.g5.2xlarge` (async, InService).
+**Full-pipeline resourcing.** The standalone TRELLIS.2 pipeline's baseline is **`ml.g5.2xlarge`** (`recommended_instance`; A10G 24 GB, 32 GiB RAM). A measured image→3D run on it peaked at ~4.8 GB VRAM and took ~7.5 min, producing an ~18.8 MB PBR GLB. The CUDA extensions (o_voxel/cumesh/flex_gemm) and xformers build for the instance's GPU architecture (e.g. Ampere sm_86) via the arch-portable builder. The L40S family (`ml.g6e.*`, 48 GB) is over-provisioned for this workload at a higher cost, so it is offered only as a headroom option in `allowed_instances` (`g6e.xlarge`/`2xlarge`/`4xlarge`). `min_ram_gb: 28` is enforced, and the handler logs a per-run `TRELLIS.2 RESOURCE PEAK` line (VRAM alloc/reserved + host RAM avail/total).
 
 **Texture backends (TripoSG pipeline only).** The backend is chosen **per-deployment** (baked into the endpoint as `ARTSMOKER_TEXTURE_BACKEND`) from the catalog's `texture_backends.options`. Two are offered, each with a distinct license profile that is **disclosed in the deploy dialog and must be explicitly accepted** (`attestation_required`) before deployment proceeds.
 
 | Backend | License | Commercial | Key model dependencies | Gated repos |
 |---------|---------|------------|------------------------|-------------|
 | **TRELLIS.2** (default for new deploys) | MIT | ✅ Yes (with attribution) | `microsoft/TRELLIS.2-4B` (MIT), `facebook/dinov3-vitl16-pretrain-lvd1689m` (commercial-OK, **"Built with DINOv3" attribution required**), `ZhengPeng7/BiRefNet` (MIT, the actual background cutout) | `facebook/dinov3-…` |
-| **Hunyuan3D-Paint** | Tencent Hunyuan 3D 2.0 Community | ❌ Non-commercial | `tencent/Hunyuan3D-2.1` (Tencent, non-commercial), `facebook/dinov2-giant` (Apache-2.0), RealESRGAN x4 (MIT) | — (none; `tencent/Hunyuan3D-2.1` is public as of 2026-10) |
+| **Hunyuan3D-Paint** | Tencent Hunyuan 3D 2.0 Community | ❌ Non-commercial | `tencent/Hunyuan3D-2.1` (Tencent, non-commercial), `facebook/dinov2-giant` (Apache-2.0), RealESRGAN x4 (MIT) | — (none) |
 
 **Licensing is surfaced, not buried.** Each `texture_backends.options.<key>.license` block carries `name`, `url`, `commercial`, `attestation_required`, `key_terms[]`, `warnings[]`, and a structured `dependencies[]` array (each: `name`, `license`, `url`, `gated`, `commercial`, `role`). The deploy dialog (`ModelSettings.js`) renders the `dependencies[]` as a per-model table with commercial/gated badges and HuggingFace links, so the operator sees **exactly which models are pulled and under what terms** before agreeing. Gated repos additionally require accepting that model's license on HuggingFace (the stored HF token must belong to an account that has done so).
 
@@ -1578,9 +1596,9 @@ The pins are the commits the validated, S3-cached wheels were compiled from (202
 
 The full TRELLIS.2 pipeline lists `birefnet` / `rmbg` / `trellis2`. To repoint or pin a dependency, edit the catalog and redeploy; no handler change is needed.
 
-**Gated-repo access pre-check (deploy dialog).** Rather than a vague "gated · accept on HF" badge, the deploy dialog calls `GET /api/custom-models/gated-access/{key}` (see §5.10), which probes **every** repo the deploy will pull (model source + dependencies) with the stored token via `huggingface_hub.auth_check`. It renders a per-repo ✓/✗ with the exact next step (accept this specific gate on HF, or add a token) and **blocks deploy** while a required repo is inaccessible — so a missing gate acceptance fails fast in the dialog instead of 10 minutes into a cold start. In practice this pinpoints the one genuinely-gated repo (e.g. `facebook/dinov3-…`) even when the model is broadly flagged `requires_hf_auth` but its other repos are public.
+**Gated-repo access pre-check (deploy dialog).** The deploy dialog calls `GET /api/custom-models/gated-access/{key}` (see §5.10), which probes **every** repo the deploy will pull (model source + dependencies) with the stored token via `huggingface_hub.auth_check`. It renders a per-repo ✓/✗ with the exact next step (accept this specific gate on HF, or add a token) and **blocks deploy** while a required repo is inaccessible — so a missing gate acceptance fails fast in the dialog instead of 10 minutes into a cold start. In practice this pinpoints the one genuinely-gated repo (e.g. `facebook/dinov3-…`) even when the model is broadly flagged `requires_hf_auth` but its other repos are public.
 
-**DINOv2 ≠ DINOv3** (a common confusion, called out explicitly): Hunyuan's image encoder is **DINOv2-giant (Apache-2.0** — Meta relicensed DINOv2 from CC-BY-NC in Aug 2023); TRELLIS.2's is **DINOv3 (commercial-OK, attribution required)**. They are different models with different licenses. Hunyuan3D-Paint stays **non-commercial** because of its own Tencent weights license.
+**DINOv2 ≠ DINOv3** (a common confusion, called out explicitly): Hunyuan's image encoder is **DINOv2-giant (Apache-2.0)**; TRELLIS.2's is **DINOv3 (commercial-OK, attribution required)**. They are different models with different licenses. Hunyuan3D-Paint stays **non-commercial** because of its own Tencent weights license.
 
 **Background-removal model (the cutout that actually runs).** ArtSmoker pre-cuts the input to an RGBA image before texturing; this cutout is produced by a **selectable** background remover, defaulting to the commercially-clean MIT option:
 
@@ -1593,11 +1611,11 @@ Because BiRefNet (MIT) does the real cutout at equal/better quality, **RMBG is n
 
 **Pipeline selection & license consent at generate time (AssetViewer 3D tab).** `GET /api/generate/3d/instances` returns every deployed image-to-3D instance (both pipelines) enriched with `pipeline_type` (`triposg` | `trellis2_full`), the active license summary (`license_name`, `license_url`, `commercial`), the **deploy-time acceptance on record** (`license_accepted`, `license_accepted_at`), and `est_cost_usd` (= instance hourly rate × typical latency). The AssetViewer shows a **pipeline chooser only when more than one generator is deployed** (with exactly one, it's auto-selected); each option displays its est. cost + time and a license panel. Consent is **not re-prompted** at generate time — the binding attestation happens at deploy (see below); the panel instead states *"License accepted at deploy on `<date>`"* (or warns if no acceptance is on record). The chosen pipeline + the accepted license are persisted into the asset's metadata (`three_d_versions[].pipeline`: `pipeline_type`, `license_name`, `commercial`, `license_accepted_at`) for full provenance, shown back in the 3D tab's "Models & Tools Used".
 
-**Deploy-time acceptance (authoritative).** The Custom Models deploy dialog is where the user reads and accepts. For TripoSG it's the texture-backend `attestation_required` checkbox + dependency table; for the full TRELLIS.2 pipeline it's the model's `license_agreement` modal — which now also renders the structured `dependencies[]` table (same per-model name/license/commercial/gated/role breakdown). Acceptances are recorded in the user registry (`license_acceptances`, keyed by model/backend with a timestamp); the generate-time UI reads this to show the "accepted on `<date>`" status.
+**Deploy-time acceptance (authoritative).** The Custom Models deploy dialog is where the user reads and accepts. For TripoSG it's the texture-backend `attestation_required` checkbox + dependency table; for the full TRELLIS.2 pipeline it's the model's `license_agreement` modal — which also renders the structured `dependencies[]` table (same per-model name/license/commercial/gated/role breakdown). Acceptances are recorded in the user registry (`license_acceptances`, keyed by model/backend with a timestamp); the generate-time UI reads this to show the "accepted on `<date>`" status.
 
 > **GLB texture format note.** Generated GLBs encode their PBR atlas as **WebP** (`EXT_texture_webp`) to keep files compact (and within the SageMaker async response limit). This renders correctly in the in-app viewer (`model-viewer`), Blender 4.x, three.js, and modern Unity/Unreal glTF importers. macOS Preview/QuickLook converts GLB→USDZ and does **not** support WebP textures, so it renders the model black — a viewer limitation, not an asset defect. We intentionally keep WebP rather than degrade to PNG.
 >
-> **Timestamps** are written timezone-aware (`datetime.now(timezone.utc)` → `…+00:00`) so the frontend renders local time correctly. (A prior naive `utcnow().isoformat()` had no zone suffix and displayed the wrong time.)
+> **Timestamps** are written timezone-aware (`datetime.now(timezone.utc)` → `…+00:00`) so the frontend renders local time correctly (a naive timestamp without a zone suffix is parsed by browsers as local time).
 
 ### 5.10.2 Source Completion (Character/Asset → 3D)
 
@@ -1614,7 +1632,7 @@ The whole pre-check is skipped on retry and is purely a pre-submit gate — the 
 
 **Sidecar preparation (`POST /api/generate/3d/prepare-source`)** — prepares a version's 3D source via sidecar files (`asset_v{N}__cutout.png`, `asset_v{N}__source.png`) during the *experimentation* phase (unlimited Extend/Fill rounds, live preview + re-review) — these rounds are scratch and create no 2D versions. Ops: `cutout` (ensure the background-removed cutout exists — idempotent cache), `extend` (outpaint the cutout, re-strip, save as the prepared source), `inpaint` (mask-based fill on the prepared source), `reset`. The request's `bg_method` selects the background-removal method for the cutout/re-strip: `local` (default — free rembg; the 3D mesher only needs the background gone, not a feathered edge) or `bedrock` (paid). The 3D panel offers this as a dropdown. For `extend`, an optional `edit_model` may name an instruction editor (`model_purpose: image_edit`, e.g. Qwen-Image-Edit) — the extend then runs the same pre-pad + complete-the-band + blend-back recipe as the Edit tab, synchronously (`invoke_instruction_edit_sync` waits on the async endpoint and cleans up its S3 artifacts); the default remains the first enabled Bedrock outpainting model.
 
-**Commit-time versioning (`POST /api/generate/3d/commit-source`)** — on **"Use this for 3D"**, if the user actually improved the source (ran Extend/Fill), the prepared `__source` is materialized as a **new 2D version** (via the same archive → save → append-record → repoint-`current_version` path as the Edit tab, under the shared per-asset write lock, sparse max+1 numbering), and the viewer switches to it so any 3D generated attributes to **that** version — not the untouched Original. The committed image is already background-free, so its record carries `bg_free: true` and it's pre-cached as the version's `__cutout` (3D skips re-removal). No improvement made → no-op (`{committed: false}`). This resolves the prior confusion where improving the Original's source for 3D (a hidden sidecar) left the cropped Original showing a full-body 3D. **Rationale:** the improve-source experimentation stays frictionless (scratch rounds, no version churn), but the *committed* result becomes a first-class, visible version — aligning 3D attribution with a real 2D version.
+**Commit-time versioning (`POST /api/generate/3d/commit-source`)** — on **"Use this for 3D"**, if the user actually improved the source (ran Extend/Fill), the prepared `__source` is materialized as a **new 2D version** (via the same archive → save → append-record → repoint-`current_version` path as the Edit tab, under the shared per-asset write lock, sparse max+1 numbering), and the viewer switches to it so any 3D generated attributes to **that** version — not the untouched Original. The committed image is already background-free, so its record carries `bg_free: true` and it's pre-cached as the version's `__cutout` (3D skips re-removal). No improvement made → no-op (`{committed: false}`). **Rationale:** the improve-source experimentation stays frictionless (scratch rounds, no version churn), but the *committed* result becomes a first-class, visible version — aligning 3D attribution with a real 2D version.
 
 **3D input = the version CUTOUT (never a persistent `__source`).** Both `generate_3d` and the form's "SOURCE FOR 3D" preview (`GET /source-preview/{id}/{v}`, default `prepared=false`) use `_ensure_cutout` — the SAME artefact the Export tab shows — so the preview, the actual 3D input, and the Export cutout always match. The `__source` sidecar is transient, scoped to an *open* improve dialog: only `source-preview?prepared=true` (the dialog's live view) prefers it, and opening the review dialog first issues `op:reset` to drop any stale/uncommitted `__source` (and clears legacy pre-versioning sidecars), so a session always starts from the clean cutout. Committed improvements reach 3D via their new version's cutout, not `__source`.
 
@@ -1657,19 +1675,19 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 
 **Job resubmission:** SageMaker async endpoints silently drop queued jobs when instances scale to zero. The poller detects stale jobs (pending >15 min with no S3 output and endpoint at 0 instances) and resubmits them using the original S3 input file. The resubmission call itself triggers the `HasBacklogWithoutCapacity` CloudWatch alarm, forcing scale-from-zero. Max 3 resubmission attempts per job with 60-second cooldown between attempts. `endpoint_name` is stored per job and resolved via registry on resubmission (handles endpoint redeployment). All resubmission state persists to S3 (survives server restart). **Capacity-aware:** when the endpoint's `DesiredInstanceCount` > `CurrentInstanceCount` (scale-out requested but blocked — e.g. `InsufficientInstanceCapacity`), the job is treated as *progressing* and retries are NOT consumed — resubmitting cannot help until an instance actually lands.
 
-**Fast failure detection (`S3FailurePath`):** async endpoint configs set an `S3FailurePath` (`…/inference-failures/{model_key}/`); SageMaker writes the model's error body there when an inference fails, and the invoke response's `FailureLocation` is stored per job. The poller checks the failure artifact (plus the legacy `{output}.failure` convention) before the success output — a crashing job **fails in seconds with the model's real error** instead of sitting "generating" until the 15-minute stale timeout.
+**Fast failure detection (`S3FailurePath`):** async endpoint configs set an `S3FailurePath` (`…/inference-failures/{model_key}/`); SageMaker writes the model's error body there when an inference fails, and the invoke response's `FailureLocation` is stored per job. The poller checks the failure artifact (and the `{output}.failure` marker) before the success output — a crashing job **fails in seconds with the model's real error** instead of sitting "generating" until the 15-minute stale timeout.
 
-**Per-asset write locks (`asset_locks.py`):** the sync `/edit` versioned save and the async edit completion both read-modify-write the same asset's `metadata.json`. Both writers serialize on a shared per-asset `threading.Lock`, so simultaneous completions can never compute the same version number and clobber each other's records.
+**Per-asset write locks (`asset_locks.py`):** the sync `/edit` versioned save and the async edit completion both read-modify-write the same asset's `metadata.json`. Both writers serialize on the shared per-asset `asset_write_lock` (a thread lock plus a cross-process file lock, §17.3), so simultaneous completions can never compute the same version number and clobber each other's records.
 
 **Edit breadcrumbs:** every `/api/generate/edit` request logs a lifecycle trail under one short trace ID — `EDIT-START` (model, purpose, source, version, mask?) → `EDIT-DONE` (new version + cost) or `EDIT-FAIL` (error) or `EDIT-ASYNC` (handed to job N) — so "did my edit run, and what happened?" is a single grep.
 
-**Cross-region endpoints:** a deployment may carry an explicit `deployment.region` (and optional `deployment.s3_bucket`) in the registry — set automatically by the deployer on every new deploy. The invoker (realtime + async submit + async input upload) and the job poller resolve their AWS clients per-endpoint from these fields, falling back to the home region (`aws_region_models`) when absent. Async jobs carry their `region`, so polling, downloads, and resubmission all hit the correct regional S3/SageMaker even when an endpoint lives outside the home region (e.g. deployed to us-east-2 during a us-west-2 capacity drought).
+**Cross-region endpoints:** a deployment may carry an explicit `deployment.region` (and optional `deployment.s3_bucket`) in the registry — set automatically by the deployer on every new deploy. The invoker (realtime + async submit + async input upload) and the job poller resolve their AWS clients per-endpoint from these fields, falling back to the home region (`aws_region_models`) when absent. Async jobs carry their `region`, so polling, downloads, and resubmission all hit the correct regional S3/SageMaker even when an endpoint lives outside the home region (e.g. one placed in another Region for GPU capacity).
 
 **Readiness detection:** Two-pass CloudWatch log scan: (1) `filter_log_events` with "loaded in" pattern scans entire log history server-side (catches model load even after hours of pings), (2) `get_log_events` tail for progress/error detection. Readiness is persisted to the registry (`deployment.model_ready=True`) so it survives server restarts without re-scanning logs.
 
 #### 3D job lifecycle (`generate_3d.py`)
 
-3D jobs use their own tracker (`_3d_jobs`), poller (`_3d_poll_loop`, every 15 s while jobs are in progress) and persisted records (`artsmoker/3d-jobs/{job_id}.json`). `_check_3d_job` is the single finalizer, shared by the poller and `GET /api/generate/3d/status/{job_id}`.
+3D jobs use their own tracker (`_3d_jobs`), poller (`_3d_poll_loop`, every 15 s while jobs are in progress) and persisted records (`artsmoker/3d-jobs/{job_id}.json`). `_check_3d_job` is the single finalizer, shared by the poller and `GET /api/generate/3d/status/{job_id}`. A 3D submit always sets `InvocationTimeoutSeconds = min(3600, max(1800, typical_latency_seconds × 2))`, since a full image-to-3D run can take ~15–20 min.
 
 **States.** `submitted` → `generating` → `complete` | `failed`. Only the finalizer moves a job to a terminal state.
 
@@ -1719,7 +1737,7 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 | POST | `/api/admin/discover/refresh-all` | Full registry refresh: discovers regions, fetches pricing, scans all regions for foundation + custom + imported models, backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming, customizations), and auto-rolls `fast_llm`/`complex_llm` to the newest Sonnet/Opus (respecting pinned categories). Live progress is available via the `/api/sync-progress` SSE stream. |
 | POST | `/api/admin/discover/{region}/auto-register` | Scan a single region for foundation image + video models. Classifies by output modality (IMAGE → image registry, VIDEO → video registry). Custom/imported models are discovered separately during refresh-all. |
 | GET | `/api/admin/discover/{region}` | Raw model listing: image generators, video generators, text/LLM, vision models. |
-| GET | `/api/admin/templates` | Get all 28 prompt templates with metadata (description, variables, modified flag, group). |
+| GET | `/api/admin/templates` | Get all prompt templates with metadata (description, variables, modified flag, group). |
 | PATCH | `/api/admin/templates/{key}` | Update a template's content. Validates required variables are present — returns missing vars if not. |
 | POST | `/api/admin/templates/{key}/reset` | Reset a template to its default content. |
 | POST | `/api/admin/templates/reset-all` | Reset all templates to their defaults. |
@@ -1729,7 +1747,9 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/health` | Health check — returns `{status, version, aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`. |
+| GET | `/api/health` | Health check — returns `{version, boot_id, status ("ok"/"starting"), ready, sync_in_progress, sync_message, sync_error, notices, aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`. `boot_id` changes on every server start. |
+| POST | `/api/notices/{notice_id}/dismiss` | Mark a background notice as seen (`notice_id` = `all` dismisses every notice). Returns `{dismissed}`. |
+| GET | `/api/admin/check-update` | Check GitHub for a newer version without pulling (`git fetch` + compare). Returns `{current_version, latest_version, update_available, commits_behind}` (or `error`). |
 | GET | `/api/sync-progress` | SSE stream of live AWS-Sync progress (per-region log lines + running model counts, final `done` event). Powers the first-run "Setting Up" modal and the Custom Models "Sync with AWS" overlay. |
 | GET | `/api/update-status` | Auto-update / restart state for the frontend monitor and headless operators. Returns `{checking, restarting, restart_pending, staged_version, current_version, update_method ("git"\|"zip"), supervised, gunicorn_managed, restart_capable, disabled, message}`. |
 | POST | `/api/restart-server` | Single mode-aware restart control (operator button **and** the path auto-update converges on). Works across supervised / gunicorn / unmanaged topologies. Idempotent while a restart is in flight; returns 409 with `busy` reasons if the server is busy (a Sync or in-progress jobs) unless `{"force": true}`. Async jobs are advisory (they resume after restart). |
@@ -1739,92 +1759,117 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 
 ## 6. LLM Directive Prompts (Prompt Templates)
 
-ArtSmoker uses 28 directive prompts to guide LLM behavior across different features. All prompts are stored in `backend/prompt_templates.json` and are fully editable via the Model Settings UI (Prompt Templates tab) or the raw JSON editor.
+ArtSmoker uses directive prompts to guide LLM behavior across different features. All prompts are stored in `backend/prompt_templates.json` and are fully editable via the Model Settings UI (Prompt Templates tab) or the raw JSON editor.
 
-### 7.1 How Templates Work
+### 6.1 How Templates Work
 
-Each template is a named prompt with placeholder variables that get filled at runtime. The system loads the template, substitutes variables like `{user_prompt}`, `{model_name}`, `{style_section}`, and sends the result to the LLM.
+Each template is a named prompt with placeholder variables that get filled at runtime. The system loads the template, substitutes variables like `{user_prompt}`, `{model_name}`, `{style_section}`, and sends the result to the LLM. Each entry in `prompt_templates.json` carries `label`, `description`, `used_by`, `variables` (the placeholders that must stay in the text — enforced on save, §6.16), `model` (which LLM category it is written for), `text` (the user message), and optionally `system_prompt` (the steering channel sent separately).
 
-Templates are organized by the feature they serve:
+The tables below list every template by feature. **LLM** is the category the calling code invokes (`fast_llm` / `complex_llm`, §4.11 categories; `invoke_llm` defaults to fast); "injected" templates are text fragments merged into other prompts rather than sent on their own.
 
-### 7.2 Image Generation Templates
+### 6.2 Image Generation Templates
 
-| Template | File | Purpose | Variables | Model Used |
-|----------|------|---------|-----------|------------|
-| `image_refine_single` | `prompt_engineer.py` | Refine a single user prompt into a detailed image caption. Respects priority order: user intent > asset type > style. | `{user_prompt}`, `{model_name}`, `{model_specific_instructions}`, `{asset_context}`, `{style_section}`, `{max_chars}` | Opus or Sonnet |
-| `image_refine_marketing` | `prompt_engineer.py` | Marketing-banner-specific refinement with text-safe zones and cinematic composition. | `{user_prompt}`, `{style_section}`, `{max_chars}` | Opus |
-| `image_concepts_multi` | `prompt_engineer.py` | Generate 2-5 visually distinct creative concepts from one prompt. Returns JSON array. | `{user_prompt}`, `{num_options}`, `{asset_context}`, `{style_section}`, `{max_chars}` | Opus |
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `image_refine_single` | Image Prompt Refinement (Single) | Image Studio — single-model generation | `{user_prompt}`, `{model_name}`, `{model_specific_instructions}`, `{asset_context}`, `{style_section}`, `{max_chars}`, `{optimal_length}` | fast | `prompt_engineer.py` |
+| `image_concepts_multi` | Multi-Concept Generation | Image Studio — multi-option generation | `{user_prompt}`, `{num_options}`, `{asset_context}`, `{style_section}`, `{max_chars}`, `{optimal_length}`, `{locked_elements}`, `{variable_elements}`, `{model_guidance}` | complex | `prompt_engineer.py` |
+| `image_refine_marketing` | Marketing Banner Refinement | Image Studio — marketing banner asset type | `{user_prompt}`, `{style_section}`, `{max_chars}` | complex | `prompt_engineer.py` |
+| `image_asset_type_context` | Asset-Type Intent (content direction) | Image Studio — prompt refinement (prompt_engineer: refine_prompt / concepts / recompose), per asset type | — | — (text injected into other prompts) | `prompt_engineer.py` |
+| `image_style_section` | Style-Hints Framing (content direction) | Image Studio — prompt refinement, when a Style Library style is (or isn't) selected | `{generation_hints}` | — (text injected into other prompts) | `prompt_engineer.py` |
 
-**Key design principle:** User intent is king — the prompt explicitly instructs the LLM to prioritize the user's words over asset type defaults and style guidelines.
+**Key design principle:** user intent wins — the templates present asset-type and style guidance as defaults that the user's own words override (e.g. `image_refine_single`: "default guidance — user's words override this").
 
-### 7.3 Style Analysis Templates
+### 6.3 Style Analysis Templates
 
-| Template | File | Purpose | Variables | Model Used |
-|----------|------|---------|-----------|------------|
-| `style_analysis_full` | `style_analyzer.py` | Analyze reference images for visual attributes: perspective, palette, rendering, lighting, composition, line work. | `{user_guidance_section}` + reference images | Opus (vision) |
-| `style_hints_generation` | `style_analyzer.py` | Distill an analyzed style into a concise generation directive paragraph (max 200 words). | `{style_json}`, `{user_guidance_section}` | Sonnet |
-| `style_cohesion_check` | `style_analyzer.py` | Quick check: do reference images represent a single cohesive style or a diverse collection? Returns JSON with cohesion level. | Reference images | Sonnet (vision) |
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `style_analysis_full` | Style Analysis (Full) | Style Library — Analyze Style button | `{user_guidance_section}` | complex (vision) | `style_analyzer.py` |
+| `style_hints_generation` | Style Hints Generation | Style Library — after style analysis completes | `{style_json}`, `{user_guidance_section}` | fast | `style_analyzer.py` |
+| `style_cohesion_check` | Style Cohesion Check | Style Library — before full analysis | — | fast (vision) | `style_analyzer.py` |
 
-### 7.4 Content Moderation Templates
+### 6.4 Content Moderation Templates
 
-| Template | File | Purpose | Variables | Model Used |
-|----------|------|---------|-----------|------------|
-| `moderation_prescreen` | `generate.py` | Predict if a prompt will be blocked by the target model. Suggests alternative models if needed. Returns JSON. | `{prompt_for_screen}`, `{model_label}` | Sonnet |
-| `moderation_rewrite` | `generate.py` | Rewrite a blocked prompt to pass moderation while preserving creative intent. Handles IP references, violence, aggression. | `{original_prompt}`, issues list | Sonnet |
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `moderation_prescreen` | Content Moderation Pre-Screen | Image Studio — prompt pre-check toggle | `{prompt_for_screen}`, `{model_label}`, `{model_strictness}`, `{model_options}` | fast | `generate.py` |
+| `moderation_rewrite` | Content Moderation Rewrite | Image Studio — moderation dialog rewrite button | `{target_context}`, `{prompt_label}`, `{current_prompt}`, `{issues_text}` | fast | `generate.py` |
 
-### 7.4a Image-Editing Templates
+### 6.5 Image-Editing & Reference Templates
 
-| Template | File | Purpose | Variables | Model Used |
-|----------|------|---------|-----------|------------|
-| `edit_prompt_suggestion` | `generate.py` | Edit Prompt Suggestion (per-mode, model-aware) — reads the image + its original generation prompt and suggests an edit instruction for the active edit mode. Produces a descriptive caption for Stability edit models or an imperative instruction for a Qwen-Image-Edit instruction editor. Used by the AssetViewer Edit-tab "Generate Prompt" button (endpoint `generate.suggest_edit_prompt`). | `{original_prompt}`, `{mode}`, `{model_label}` + image | Sonnet (vision) |
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `edit_prompt_suggestion` | Edit Prompt Suggestion (per-mode, model-aware) | AssetViewer → Edit tab — Generate Prompt button (generate.suggest_edit_prompt) | `{mode}`, `{mode_intent}`, `{style_directive}`, `{source_prompt}`, `{asset_type}` | complex (vision) | `generate.py` + system prompt |
+| `inpaint_removal_transform` | Inpaint Removal → Fill Instruction | Image Studio Edit tab / AssetViewer — inpaint mode, removal-style prompts (generate.edit_image) | `{edit_prompt}` | fast | `generate.py` |
+| `reference_edit_instruction` | Reference Edit Instruction Shaping | Image Studio — Reference-guided tab, 'Match the reference' mode (generate._run_generation) | `{user_prompt}`, `{model_name}`, `{model_specific_instructions}`, `{max_chars}` | fast | `generate.py` + system prompt |
+| `reference_intent_extraction` | Reference-Image Intent Extraction | Image Studio — Reference-guided tab, 'Inspired by' mode (generate.analyze_reference) | `{user_prompt}`, `{num_images}`, `{asset_type}`, `{max_chars}`, `{num_options}` | complex (vision) | `reference_analyzer.py` + system prompt |
 
-### 7.5 Video Generation Templates
+### 6.6 Image-to-3D Templates
 
-| Template | File | Purpose | Variables | Model Used |
-|----------|------|---------|-----------|------------|
-| `video_enhance_prompt` | `video.py` | Enhance a user prompt with camera movements, lighting, temporal cues, and avoidance language (since video models have no negative prompt). | `{prompt}`, `{prompt_limit}`, `{model_guidance}`, `{optimal_length}` | Sonnet |
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `three_d_source_analysis` | 3D Source Completeness Analysis | 3D Generator — pre-submit source check (generate_3d.analyze_source) | `{asset_type}`, `{source_prompt}` | complex (vision) | `generate_3d.py` + system prompt |
 
-### 7.6 Type Studio Templates
+### 6.7 Video Generation Templates
 
-| Template | File | Purpose | Variables | Model Used |
-|----------|------|---------|-----------|------------|
-| `typestudio_layout` | `typestudio.py` | Design text layout with positions, fonts, sizes, colors, and effects for image overlay. Returns JSON array of layout options. | `{canvas_width}`, `{canvas_height}`, `{image_context}`, `{style_section}`, `{lines_desc}` | Opus or Sonnet |
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `video_enhance_prompt` | Video Prompt Enhancement | Video Studio — AI-enhance prompt toggle | `{user_prompt}` | fast | `video.py` + system prompt |
 
-### 7.7 Chat Studio Templates
+### 6.8 Type Studio Templates
 
-| Template | File | Purpose | Variables | Model Used |
-|----------|------|---------|-----------|------------|
-| `chat_context_compact` | `chat.py` | Summarize older messages to free context window space. Preserves key facts, decisions, and context. | `{convo_text}` | Sonnet |
-| `chat_title_generate` | `chat.py` | Auto-generate a 3-8 word session title from the first exchange. | `{user_message}`, `{assistant_snippet}` | Sonnet |
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `typestudio_layout` | Type Studio Text Layout | Type Studio — Suggest Layout button | `{canvas_width}`, `{canvas_height}`, `{image_context}`, `{style_section}`, `{lines_desc}`, `{output_instructions}` | user's choice (`llm_complexity`, default complex) | `typestudio.py` |
+| `typestudio_layout_output_multi` | Type Studio Output — Multiple Options | Type Studio — Suggest Layout, multi-option | `{num_options}`, `{layout_example}` | — (text injected into `typestudio_layout`) | `typestudio.py` |
+| `typestudio_layout_output_single` | Type Studio Output — Single Layout | Type Studio — Suggest Layout, single option | `{layout_example}` | — (text injected into `typestudio_layout`) | `typestudio.py` |
 
-### 7.8 Translation Templates
+### 6.9 Chat Studio Templates
 
-| Template | File | Purpose | Variables | Model Used |
-|----------|------|---------|-----------|------------|
-| `translate_detect_language` | `prompt_translator.py` | Detect language when Unicode heuristics are ambiguous (e.g. French vs Spanish). Returns 2-letter code. | `{text}` | Sonnet |
-| `translate_to_english` | `prompt_translator.py` | Translate non-English text to English, preserving meaning and technical terms. | `{text}`, `{lang_name}` | Sonnet |
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `chat_context_compact` | Chat Context Compaction | Chat Studio — Compact button | `{convo_text}` | fast | `chat.py` + system prompt |
+| `chat_title_generate` | Chat Session Title | Chat Studio — after first message exchange | `{user_message}`, `{assistant_snippet}` | fast | `chat.py` + system prompt |
 
-### 7.9 Prompt Designer Templates
+### 6.10 Translation Templates
 
-| Template | File | Purpose | Variables | Model Used |
-|----------|------|---------|-----------|------------|
-| `prompt_decompose` | `refine.py` | Decompose a user prompt into structured visual components (subject, scene, composition, lighting, style with color palette). | `{user_prompt}`, `{style_section}`, `{asset_context}` | Sonnet |
-| `prompt_recompose` | `refine.py` | Reassemble decomposed structured components into a flat recomposed prompt. Model-specific guidance is applied later during enhancement, not here. | `{structured_json}`, `{model_name}`, `{max_chars}` | Sonnet |
-| `asset_type_classify` | `refine.py` | Classify a prompt into the best asset type. Distinguishes character-focused vs scene-focused prompts even when both mention people. | `{user_prompt}` | Sonnet |
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `translate_detect_language` | Language Detection | Prompt translator — fallback detection | `{text}` | fast | `prompt_translator.py` + system prompt |
+| `translate_to_english` | Translation to English | Prompt translator — all studios except Chat | `{text}`, `{lang_name}` | fast | `prompt_translator.py` + system prompt |
 
-### 7.10 Admin Templates
+### 6.11 Prompt Designer Templates
 
-| Template | File | Purpose | Variables | Model Used |
-|----------|------|---------|-----------|------------|
-| `admin_template_enhance` | `admin.py` | Improve a prompt template via AI. | `{template_label}`, `{template_description}`, `{template_used_by}`, `{variable_list}`, `{user_instructions}`, `{current_text}` | User-selected |
-| `admin_template_fix_variables` | `admin.py` | Auto-insert missing variables into a user-edited template. | `{missing_variables}`, `{template_text}` | Sonnet |
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `prompt_decompose` | Prompt Decomposition | Image Studio — Prompt Designer modal | `{user_prompt}`, `{style_section}`, `{asset_context}`, `{model_name}`, `{model_specific_instructions}` | fast | `refine.py` + system prompt |
+| `prompt_recompose` | Prompt Recomposition | Image Studio — Prompt Designer modal — Generate button | `{structured_json}`, `{model_name}`, `{model_specific_instructions}`, `{max_chars}`, `{optimal_length}`, `{style_section}` | fast | `refine.py` + system prompt |
+| `asset_type_classify` | Asset Type Classification | Image Studio — before generation, to suggest the right asset type | `{user_prompt}` | fast | `refine.py` + system prompt |
 
-### 7.11 Editing Templates
+### 6.12 Collections Templates
+
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `collection_asset_type_classify` | Collection Asset Type Classification | Image Studio — Collections, on entering collection mode / designing an Image-Inspired set | `{user_prompt}` | fast | `refine.py` + system prompt |
+| `collection_art_direction_fields` | Collection — Recommend Art-Direction Fields | Collections — Art Direction scaffold (SPEC §18.4) | `{ask}` | fast (complex with reference images) | `prompt_engineer.py` + system prompt |
+| `collection_art_direction` | Collection — Shared Art Direction | Collections — decompose (SPEC §18.4) | `{ask}`, `{style_section}` | fast (complex with reference images) | `prompt_engineer.py` + system prompt |
+| `collection_merge_art_direction` | Collection — Lift Batch Direction into Shared Art Direction | Collections — Art Direction Controller (SPEC §18) | `{art_direction}`, `{batch_direction}` | fast | `prompt_engineer.py` + system prompt |
+| `collection_roster` | Collection — Roster Fan-out | Collections — decompose / regenerate roster (SPEC §18.4) | `{ask}`, `{art_direction}`, `{count_directive}`, `{count_rule}` | complex | `prompt_engineer.py` + system prompt |
+| `collection_batch_prompt` | Collection — Per-Batch Prompt | Collections — per-Batch prompt (SPEC §18.4) | `{art_direction}`, `{batch_name}`, `{batch_concept}`, `{asset_context}`, `{optimal_length}`, `{max_chars}` | fast | `prompt_engineer.py` + system prompt |
+| `collection_item_prompt` | Collection — Per-Piece Prompt | Collections — per-piece prompt (SPEC §18.4) | `{art_direction}`, `{item_name}`, `{item_concept}`, `{asset_context}`, `{optimal_length}`, `{max_chars}` | — (not referenced by the backend) | `—` + system prompt |
+
+### 6.13 Admin Templates
+
+| Template | Label | Used by | Required variables | LLM | Called from |
+|----------|-------|---------|--------------------|-----|-------------|
+| `admin_template_enhance` | Template Enhancement | Model Settings — Prompt Templates — Enhance with AI button | `{template_label}`, `{template_description}`, `{template_used_by}`, `{variable_list}`, `{user_instructions}`, `{current_text}` | user-selected model (`model_id`) | `admin.py` |
+| `admin_template_fix_variables` | Template Variable Auto-Fixer | Model Settings — Prompt Templates — Fix & Save button | `{missing_variables}`, `{template_text}` | fast | `admin.py` + system prompt |
+
+### 6.14 Editing Templates
 
 Users can edit any template via **Model Settings → Prompt Templates** tab.
 
 **Two-level navigation:**
-1. **"View All / Hide All"** toggles group sections (2D Image Studio, Style Library, Content Safety, Video Studio, Type Studio, Chat Studio, Translation)
+1. **"View All / Hide All"** toggles the group sections: Image Generation (including the Prompt Designer templates), Image Editing & Reference, Style Library, 3D & Video, Content Safety, and System & Utilities (translation, Chat Studio, Type Studio, admin)
 2. **"Expand editors / Collapse editors"** inside each group toggles the individual template text boxes
 
 Each template shows:
@@ -1835,9 +1880,9 @@ Each template shows:
 - **Enhance with AI** — select any LLM model to improve the template
 - **Reset to Default** — restore the original
 
-A **"Reset All"** action (`POST /api/admin/templates/reset-all`) restores every template to its code default at once. Templates are organized into groups covering all studios plus Content Safety, Translation, Prompt Designer, Reference/Editing, and Admin, with an "Other" catch-all so a newly added template always appears.
+A **"Reset All"** action (`POST /api/admin/templates/reset-all`) restores every template to its code default at once. Any template not assigned to a group (e.g. the Collections templates) appears in a catch-all "Other" group, so a newly added template always shows up.
 
-### 6.10 AI-Assisted Template Refinement
+### 6.15 AI-Assisted Template Refinement
 
 Users can ask an LLM to improve any template:
 
@@ -1850,7 +1895,7 @@ Users can ask an LLM to improve any template:
 
 **API**: `POST /api/admin/templates/{name}/enhance` with `{model_id, region, instructions}`.
 
-### 6.11 Variable Validation & Auto-Fix
+### 6.16 Variable Validation & Auto-Fix
 
 Templates use `{curly_brace}` variables that are substituted at runtime (e.g., `{user_prompt}` becomes the user's actual text). Removing a variable breaks the feature that uses the template.
 
@@ -1859,13 +1904,13 @@ Templates use `{curly_brace}` variables that are substituted at runtime (e.g., `
 2. If variables are missing, returns HTTP 400 with the list of missing variables
 3. Frontend shows a dialog explaining which variables are missing and why they matter
 4. User clicks **"Fix & Save"** — sends `{fix_variables: true}` to the API
-5. Backend calls the fast LLM (Claude Sonnet) to intelligently insert the missing variables in the right positions within the user's edited text
+5. Backend calls the fast LLM category (`fast_llm`, template `admin_template_fix_variables`) to insert the missing variables in the right positions within the user's edited text
 6. Backend validates the LLM's fix actually restored all variables
 7. If fix succeeds → saves. If fix fails → returns error with manual instructions.
 
 **Self-healing**: If `prompt_templates.json` is deleted, corrupted, or has missing templates, the service regenerates from code defaults on next load. User edits for existing templates are preserved; missing templates are added from defaults.
 
-**Storage**: `backend/prompt_templates.json` is the runtime source of truth. The `_DEFAULTS` dict in `backend/services/prompt_templates.py` is a backfill seed only — it fills in templates missing from the JSON on load but never overwrites existing entries. User edits are stored in `prompt_templates.user.json` and marked with `"modified": true`.
+**Storage**: `backend/prompt_templates.json` is the runtime source of truth. The `_DEFAULTS` dict in `backend/services/prompt_templates.py` is a backfill seed only — it fills in templates missing from the JSON on load but never overwrites existing entries. User edits are stored in `prompt_templates.user.json`; on load, every template with an override gets the runtime flag `modified: true` (not persisted).
 
 > [!WARNING]
 > Editing directive prompts changes how the AI behaves across the entire application. Test changes carefully. The variable validation prevents accidental breakage, but semantic changes to the instructions can still affect output quality.
@@ -2052,11 +2097,13 @@ aws sts get-caller-identity
 aws bedrock list-foundation-models --region us-east-1 \
   --query "modelSummaries[0].modelId" --output text
 
-# 3. Can you invoke a model? (bedrock:InvokeModel)
-aws bedrock-runtime invoke-model --region us-east-1 \
-  --model-id amazon.titan-image-generator-v2:0 \
+# 3. Can you invoke a model? (bedrock:InvokeModel) — Stable Diffusion 3.5 Large, the
+#    registry's default image model (same minimal body the app sends: prompt + output_format)
+aws bedrock-runtime invoke-model --region us-west-2 \
+  --model-id stability.sd3-5-large-v1:0 \
   --content-type application/json --accept application/json \
-  --body '{"textToImageParams":{"text":"test"},"imageGenerationConfig":{"numberOfImages":1,"width":512,"height":512}}' \
+  --cli-binary-format raw-in-base64-out \
+  --body '{"prompt":"test","output_format":"png"}' \
   /dev/null 2>&1 && echo "InvokeModel: OK" || echo "InvokeModel: FAILED"
 
 # 4. Can you list custom models? (bedrock:ListCustomModels — needed for custom model discovery)
@@ -2074,9 +2121,9 @@ On launch, ArtSmoker runs a lightweight **sanity check** (`validate_aws_credenti
 3. **Complex LLM** (`categories.complex_llm`) — a 1-token `Converse` call. Probing both tiers matters because they are usually different models with different access (and the complex tier is often a newer model that deprecates inference params — see below).
 4. **Image model** — a lightweight `InvokeModel` against the first enabled image model in the registry; a `ValidationException` still counts as success (the model was reached, only the dummy body was rejected).
 
-Each LLM probe builds its `inferenceConfig` through the same registry-driven gate used at runtime (`_build_inference_config` → `_model_supports_temperature`), so a model that deprecates `temperature` (e.g. Claude Opus 4.8) does **not** fail the probe. `_model_supports_temperature` reads `supports_temperature` / `deprecated_params` off the model's `chat_models` entry; only when the registry is silent does it fall back to a minimal built-in heuristic. Each probe also honors the model's **resolved invoke path** (§4.8): a Converse-routed model is probed with a 1-token `Converse` call on `bedrock-runtime`; a Mantle-only model (e.g. a `fast_llm`/`complex_llm` pointed at GPT-5.x) is probed with a 1-token call on its `bedrock-mantle` API — so the sanity check exercises exactly the path the app will use.
+Each LLM probe builds its `inferenceConfig` through the same registry-driven gate used at runtime (`_build_inference_config` → `_model_supports_temperature`), so a model that deprecates `temperature` (e.g. Claude Opus 4.8) does **not** fail the probe. `_model_supports_temperature` reads `supports_temperature` / `deprecated_params` off the model's `chat_models` entry; when the registry is silent it sends temperature (§4.8 *Inference-param gating*). Each probe also honors the model's **resolved invoke path** (§4.8): a Converse-routed model is probed with a 1-token `Converse` call on `bedrock-runtime`; a Mantle-only model (e.g. a `fast_llm`/`complex_llm` pointed at GPT-5.x) is probed with a 1-token call on its `bedrock-mantle` API — so the sanity check exercises exactly the path the app will use.
 
-The result records a `probes` list (`role`, `model_id`, `region`, `ok`). On success the console logs a concise multi-line message — *"Amazon Bedrock access verified — the IAM role can reach a representative sample of N model(s)…"* — followed by one `✓ <role> — <model_id> (<region>)` line per probe (kept short so it never overflows a typical console width). Results are also available at `GET /api/health`. If credentials are missing, a prominent error box explains what to configure. If some checks fail but credentials exist, a warning lists the failures — the app still starts (some features may be degraded).
+The result records a `probes` list (`role`, `model_id`, `region`, `ok`). On success the console logs one short line — `Amazon Bedrock access OK (<region>) — N models reachable: <short model ids>` (`multi-region` when the probes used several Regions). Results are also available at `GET /api/health`. If credentials are missing, a prominent error box explains what to configure. If some checks fail but credentials exist, a warning lists the failures — the app still starts (some features may be degraded).
 
 ## 8. Security Model
 
@@ -2098,14 +2145,14 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 1. **FastAPI app** with `title="ArtSmoker"`, `description="AI-Powered Game Asset Generation"`, and a `lifespan` handler.
 2. **Lifespan handler** (async context manager):
    - On startup: create data directories (`data/`, `data/styles/`, `data/images/`, `data/video/`, `data/chat/`) via `mkdir(parents=True, exist_ok=True)`.
-   - **Generated image assets live in `data/images/`** — each asset in its own `data/images/{asset_id}/` directory (`asset.png` + optional `asset.svg` + `metadata.json` + version files). Asset ids and the `{batch_id}_o{n}_v{m}` folder scheme are unchanged.
+   - **Generated image assets live in `data/images/`** — each asset in its own `data/images/{asset_id}/` directory (`asset.png` + optional `asset.svg` + `metadata.json` + version files), named by the `{batch_id}_o{n}_v{m}` asset-id scheme.
    - On startup: call `validate_aws_credentials()` from `bedrock_client.py` — stores result in a module-level `_aws_status` dict.
    - Log a prominent error box if credentials are missing, a warning if some Bedrock checks fail, or an info message if all checks pass.
 3. **Logging (console + optional file)** — custom `_ColorFormatter` (ANSI 256-color) on a `StreamHandler`: distinct colour per level, timestamps, applied to the root logger AND uvicorn's loggers (`uvicorn`, `uvicorn.error`, `uvicorn.access` — which have `propagate=False`) for consistent output. **File logging is ON by default** (`settings.log_to_file`; disable with `ARTSMOKER_LOG_TO_FILE=false`): `_setup_file_logging()` attaches an **append-only** `FileHandler` (plain, non-ANSI `_PlainFormatter`) to the root + uvicorn loggers, writing to `settings.log_file` (default `logs/artsmoker.log`; override `ARTSMOKER_LOG_FILE`). Every process appends to the same file (O_APPEND ⇒ line-safe across workers); each run is framed by a **SESSION START** banner (launched, version, pid, host, python, cwd, logfile) and a **SESSION SHUTDOWN** banner (stop time, duration) written from the FastAPI lifespan shutdown (reliable under uvicorn's signal handling; `atexit` fallback, idempotent). The active log path is echoed in the startup messages. See §17.
 4. **NoCacheStaticMiddleware** — custom `BaseHTTPMiddleware` that adds `Cache-Control: no-cache, no-store, must-revalidate` and `Pragma: no-cache` headers to all responses where the request path does NOT start with `/api/`. This ensures frontend static files are never cached during development.
 5. **CORS middleware** — `CORSMiddleware` with `allow_origins=["*"]`, `allow_credentials=True`, `allow_methods=["*"]`, `allow_headers=["*"]`. Development-mode open CORS.
-6. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, video, chat, admin — in that order.
-7. **Health check endpoint** (`GET /api/health`) — defined inline on `app`, returns `{status: "ok"|"degraded", aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`.
+6. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, video, chat, admin, generate_3d, custom_deploy, collections — in that order.
+7. **Health check endpoint** (`GET /api/health`) — defined inline on `app`, returns `{version, boot_id, status: "ok"|"starting", ready, sync_in_progress, sync_message, sync_error, notices, aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`.
 8. **Client log endpoint** (`POST /api/log`) — defined inline on `app`, receives `{level, message, context}`, logs as `[CLIENT] {message} | {context}` at the appropriate Python log level.
    - **Sync progress stream** (`GET /api/sync-progress`) — an SSE stream of live AWS-Sync progress, used by both the first-run "Setting Up" modal and the Custom Models "Sync with AWS" overlay. It tails `_server_state["sync_log"]`, emitting a `data:` event per new log line (with running model counts) and a final `done` event. Because the manual Sync button opens the stream a beat *before* its `refresh-all` POST flips `sync_in_progress` on, the generator first waits up to ~10s for the sync to start before concluding nothing is running — without this grace period the overlay would close immediately and show no live updates.
 9. **Static files mount** — `app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True))` mounted LAST so `/api/*` routes take priority. `FRONTEND_DIR` is `Path(__file__).resolve().parent.parent / "frontend"`. The `html=True` flag enables serving `index.html` for directory requests.
@@ -2127,7 +2174,14 @@ huggingface_hub>=0.23          # Custom-model weight downloads from HuggingFace
 openai>=1.50                   # Amazon Bedrock Mantle endpoint (OpenAI-compatible Chat Completions + Responses)
 aws-bedrock-token-generator>=1.0  # Short-term Bedrock bearer token for Mantle (derived from AWS creds)
 requests>=2.31                 # Anthropic Messages API over the Mantle endpoint
+vtracer>=1.0.0a3               # Local PNG → true-vector SVG tracing (Config + convert_file API)
+rembg[cpu]>=2.0.65             # Local background removal (u2net weights, CPU via onnxruntime)
+coacd>=1.0.5                   # Convex decomposition for optional 3D-export collision proxies
+aws_sdk_bedrock_runtime>=0.11.0  # Nova Sonic bidirectional streaming (boto3 has no duplex streams)
+smithy-http[awscrt]>=0.5.0     # CRT HTTP transport for the SDK above (duplex event streaming)
 ```
+
+This is the exact list in `backend/requirements.txt`.
 
 For multi-user, shared test, or production deployments, also install `gunicorn` (Linux/macOS only):
 ```
@@ -2220,17 +2274,18 @@ The frontend uses a dark theme with CSS custom properties. These values define t
 
 **Global JavaScript utilities** (exposed by `app.js` on `window`):
 - `showToast(message, type, duration)` — types: `success`, `error`, `warning`, `info`. Auto-dismisses. Pauses on hover. Error/warning toasts are also sent to `POST /api/log`.
-- `showConfirm({ title, message, confirmText, cancelText, variant })` — styled confirmation dialog replacing all browser `confirm()` calls. Returns a Promise resolving to `true`/`false`. Variant options: `danger` (red confirm button), `warning` (amber), default (indigo). Used for destructive actions: Sync from AWS, delete sessions, reset templates, etc.
+- `showConfirm(message, opts)` — styled confirmation dialog replacing all browser `confirm()` calls. Returns a Promise resolving to `true` (confirm) or `false`. `opts`: `title` (default "Confirm"), `detail` (secondary text), `confirmLabel` (default "Continue"), `cancelLabel` (default "Cancel"), `danger` (red confirm button instead of the indigo accent), `dismissResult` (what Escape / a backdrop click resolve to; default `false`). Used for destructive or costly actions: Sync from AWS, delete sessions, reset templates, etc.
 - `showLoading(text)` / `hideLoading()` — fullscreen loading overlay with spinner.
 - `resetView(route)` — destroys the DOM cache for a specific view, forcing fresh render on next visit.
 - `t(key, params)` — global translation function (see [Section 15: i18n](#15-internationalization-i18n)).
+- `html` / `raw` / `escapeHtml` / `SafeHtml` — safe HTML templating from `frontend/js/html.js` (loaded before the components in `index.html`). The `html` tagged template HTML-escapes every interpolated value by default; a nested `html` result or an array of them is inserted as-is, and `raw(str)` marks a string already known to be safe markup (never user, asset, model or prompt data). All markup assigned to `innerHTML` is built this way, so untrusted text can't inject markup.
 
 **Frontend component pattern** — every component is an IIFE that attaches to `window`:
 ```javascript
 (function () {
     'use strict';
     window.ComponentName = {
-        render() { return '<div>...</div>'; },  // Returns HTML string
+        render() { return html`<div>...</div>`; },  // Markup via the html`` helper (auto-escaped)
         init() { /* Called once on first visit — bind events */ },
         onShow() { /* Called on every visit (including cached) — refresh data */ },
         destroy() { /* Cleanup — called by resetView() */ },
@@ -2270,41 +2325,41 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
    # Windows (without venv)
    cd ArtSmoker && python -m uvicorn backend.main:app --reload
    ```
-   All the commands above still work verbatim. To also get **in-place auto-restart** (so an auto-update — or the operator's Restart button — reloads the code without you re-launching), start it under the built-in cross-platform supervisor instead (works on every OS, including Windows):
+   To also get **in-place auto-restart** (so an auto-update — or the operator's Restart button — reloads the code without you re-launching), start it under the built-in cross-platform supervisor instead (works on every OS, including Windows):
    ```bash
    cd ArtSmoker && python -m backend.main            # add --host / --port as needed
    ```
-   The supervisor runs the app (`backend.app:app`) in a child process and respawns it in place on a restart request; `Ctrl-C` / `SIGTERM` stops the whole thing cleanly. (`backend.main` still exports `app`, so the `uvicorn`/`gunicorn` commands are unchanged.)
-2. **Check startup output**: The console should show "All AWS checks passed" or a warning about specific Bedrock regions. If credentials are missing, a prominent error box explains what to configure.
+   The supervisor runs the app (`backend.app:app`) in a child process and respawns it in place on a restart request; `Ctrl-C` / `SIGTERM` stops the whole thing cleanly. (`backend.main` re-exports `app`, so the `uvicorn`/`gunicorn` commands above target the same application.)
+2. **Check startup output**: The console should show `Amazon Bedrock access OK (…) — N models reachable: …`, or a warning listing the checks that failed. If credentials are missing, a prominent error box explains what to configure.
 3. **Open frontend**: Navigate to `http://localhost:8000` — the frontend is served as static files by FastAPI. No separate web server needed.
-3. **Create a style profile**: Use the Style Library view to create a profile and upload reference images (or use directory import).
-4. **Trigger style analysis**: Click analyze — verify Claude extracts structured style attributes and generation hints.
-5. **Generate assets in 2D Image Studio**:
+4. **Create a style profile**: Use the Style Library view to create a profile and upload reference images (or use directory import).
+5. **Trigger style analysis**: Click analyze — verify Claude extracts structured style attributes and generation hints.
+6. **Generate assets in 2D Image Studio**:
    - Enter a prompt like "hospital building", select the style, choose asset type.
    - Set options to 3 and variations to 3 (9 total images) for a quick test.
    - Click Generate — verify the options row shows 3 distinct concept designs.
    - Click an option — verify the variations row shows 3 seed variants with emerald borders.
    - Click a variation — verify the main preview updates and the download bar shows the smart filename.
-6. **Test post-processing**: After generation, verify the label switches to "Post-Processing". Toggle a processing option and click "Apply to Current Results" — verify assets are updated without re-generating.
-7. **Download files**: Click PNG/SVG download buttons — verify the file is named with the prompt slug (e.g. `hospital-building_opt2_var1.png`).
-8. **Image-to-3D (if a TripoSG or TRELLIS.2 endpoint is deployed)**: Open a **Character** or **Game Asset** image in the Asset Viewer → **3D Model** tab → Generate. Verify the async job appears in Pending Jobs, completes, and the **textured GLB** loads in the interactive viewer. Confirm the licence panel shows the deployed pipeline's terms (and, for the full TRELLIS.2 pipeline, the nvdiffrast non-commercial caveat).
-9. **Engine export**: From the 3D tab, pick a target engine and **Export** — confirm the **FBX/USDZ** downloads with the selected LODs/collision, and that the original GLB is untouched (Y-up preserved).
-8. **Test voice input**: Record audio — verify transcription appears in the prompt editor.
-9. **Test two-area prompt editor**: Type a prompt, click "Preview Enhanced Prompt" — verify the composed prompt appears in the green-tinted area below. Verify the note under the button reflects whether a style is selected. Edit the original prompt — verify the composed area clears. Click Generate without composing — verify the backend auto-refines and populates the composed area via SSE.
-10. **Test prompt enhancement**: Type a brief prompt, click "Preview Enhanced Prompt" — verify the enhanced prompt respects user intent over style defaults.
-11. **Test marketing banner**: Set asset type to "Marketing Banner" and generate — verify the result is a scenic composition, not an isolated sprite.
-12. **Test Type Studio**: Navigate to Type Studio, enter text lines, select fonts, request AI layout suggestions. Verify 1-5 layout options are returned. Select a layout and render — verify the result is saved to the gallery.
-13. **Test Video Studio**: Navigate to Video Studio, configure S3 bucket in Video Settings, select a video model (Nova Reel or Luma Ray), enter a prompt, and generate. Verify the job appears in Active Jobs, polling updates the status, and on completion the video plays and thumbnail appears. Verify the video also appears in the Gallery with a VIDEO badge.
-14. **Browse gallery**: Switch to Gallery view — verify generated images and videos appear with the Media filter (All / 2D Artwork / 3D Models / Video), style filter, and search. Test multi-select and bulk delete (both image and video assets).
-15. **Test AssetViewer buttons**: Open an image asset — verify "2D Studio" and "Add Text" buttons appear. Open a type-studio asset — verify "Edit in Type Studio" button appears. Click a video card — verify the video player modal opens with metadata.
-16. **Test style_snapshot**: Delete a style, then view an asset that was generated with it — verify the style name still displays from the snapshot.
-17. **Test Model Settings**: Click "Model Settings" in any studio sidebar — verify it opens to the relevant tab. Tabs: Image Studio, Video Studio, Chat Studio, Type Studio, Shared Studio, Prompt Templates, Registry JSON. All sections should be collapsible with Show All / Hide All toggles. LLM categories and post-processing should show dropdown model pickers (not raw text fields). Try Sync from AWS — verify image, video, and chat models are discovered.
-17. **Test content moderation**: Generate with a prompt that triggers moderation — verify the system tries alternative models first (emerald dialog) before suggesting a rewrite (amber dialog). Test the rewrite option in each dialog — verify the rewritten prompt appears in the enhanced prompt area (not the original textarea) with the amber disclaimer. Verify the original prompt is preserved. Enable "Prompt Pre-Check" and test with a borderline prompt — verify the indigo pre-check dialog appears with specific issues, model switch, and rewrite options.
-18. **Test Chat Studio**: Navigate to Chat Studio, select a model and region, type a message. Verify streaming response with markdown rendering and code highlighting. Test: create/rename/delete sessions, vision (paste an image), context compaction (fill context then compact), export as Markdown, fork from a message, regenerate a response.
-19. **Test i18n**: Click a language button (JA, ZH, KO, FR, ES, HI, RU, DE) in the nav bar. Language buttons show native script (日, 中, 한, हिं, РУ, DE) with bilingual tooltips. Verify all UI text switches to the selected language. Switch back to EN. Verify prompts in non-English languages show the bilingual preview (Original/English tabs) in Image Studio and Video Studio.
-20. **Test prompt templates**: Open Model Settings → Prompt Templates. Verify two-level navigation: "View All" opens groups, "Expand editors" opens text boxes. Edit a template, remove a required variable — verify "Fix & Save" offers to auto-insert it. Test "Enhance with AI" and "Reset to Default".
-21. **Test custom confirmation dialogs**: Click "Sync from AWS" — verify a styled modal appears (not a browser confirm popup). Same for delete operations.
-22. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`, `/api/chat/*`, `/api/video/*`).
+7. **Test post-processing**: After generation, verify the label switches to "Post-Processing". Toggle a processing option and click "Apply to Current Results" — verify assets are updated without re-generating.
+8. **Download files**: Click PNG/SVG download buttons — verify the file is named with the prompt slug (e.g. `hospital-building_opt2_var1.png`).
+9. **Image-to-3D (if a TripoSG or TRELLIS.2 endpoint is deployed)**: Open a **Character** or **Game Asset** image in the Asset Viewer → **3D Model** tab → Generate. Verify the async job appears in Pending Jobs, completes, and the **textured GLB** loads in the interactive viewer. Confirm the licence panel shows the deployed pipeline's terms (and, for the full TRELLIS.2 pipeline, the nvdiffrast non-commercial caveat).
+10. **Engine export**: From the 3D tab, pick a target engine and **Export** — confirm the **FBX/USDZ** downloads with the selected LODs/collision, and that the original GLB is untouched (Y-up preserved).
+11. **Test voice input**: Record audio — verify transcription appears in the prompt editor.
+12. **Test two-area prompt editor**: Type a prompt, click "Preview Enhanced Prompt" — verify the composed prompt appears in the green-tinted area below. Verify the note under the button reflects whether a style is selected. Edit the original prompt — verify the composed area clears. Click Generate without composing — verify the backend auto-refines and populates the composed area via SSE.
+13. **Test prompt enhancement**: Type a brief prompt, click "Preview Enhanced Prompt" — verify the enhanced prompt respects user intent over style defaults.
+14. **Test marketing banner**: Set asset type to "Marketing Banner" and generate — verify the result is a scenic composition, not an isolated sprite.
+15. **Test Type Studio**: Navigate to Type Studio, enter text lines, select fonts, request AI layout suggestions. Verify 1-5 layout options are returned. Select a layout and render — verify the result is saved to the gallery.
+16. **Test Video Studio**: Navigate to Video Studio, configure S3 bucket in Video Settings, select a video model (Nova Reel or Luma Ray), enter a prompt, and generate. Verify the job appears in Active Jobs, polling updates the status, and on completion the video plays and thumbnail appears. Verify the video also appears in the Gallery with a VIDEO badge.
+17. **Browse gallery**: Switch to Gallery view — verify generated images and videos appear with the Media filter (All / 2D Artwork / 3D Models / Video), style filter, and search. Test multi-select and bulk delete (both image and video assets).
+18. **Test AssetViewer buttons**: Open an image asset — verify "2D Studio" and "Add Text" buttons appear. Open a type-studio asset — verify "Edit in Type Studio" button appears. Click a video card — verify the video player modal opens with metadata.
+19. **Test style_snapshot**: Delete a style, then view an asset that was generated with it — verify the style name still displays from the snapshot.
+20. **Test Model Settings**: Click "Model Settings" in any studio sidebar — verify it opens to the relevant tab. Tabs: Image Studio, Video Studio, Chat Studio, Type Studio, Shared Studio, Prompt Templates, Registry JSON, Maintenance. All sections should be collapsible with Show All / Hide All toggles. LLM categories and post-processing should show dropdown model pickers (not raw text fields). Try Sync from AWS — verify image, video, and chat models are discovered.
+21. **Test content moderation**: Generate with a prompt that triggers moderation — verify the system tries alternative models first (emerald dialog) before suggesting a rewrite (amber dialog). Test the rewrite option in each dialog — verify the rewritten prompt appears in the enhanced prompt area (not the original textarea) with the amber disclaimer. Verify the original prompt is preserved. Enable "Prompt Pre-Check" and test with a borderline prompt — verify the indigo pre-check dialog appears with specific issues, model switch, and rewrite options.
+22. **Test Chat Studio**: Navigate to Chat Studio, select a model and region, type a message. Verify streaming response with markdown rendering and code highlighting. Test: create/rename/delete sessions, vision (paste an image), context compaction (fill context then compact), export as Markdown, fork from a message, regenerate a response.
+23. **Test i18n**: Click a language button (JA, ZH, KO, FR, ES, HI, RU, DE) in the nav bar. Language buttons show native script (日, 中, 한, हिं, РУ, DE) with bilingual tooltips. Verify all UI text switches to the selected language. Switch back to EN. Verify prompts in non-English languages show the bilingual preview (Original/English tabs) in Image Studio and Video Studio.
+24. **Test prompt templates**: Open Model Settings → Prompt Templates. Verify two-level navigation: "View All" opens groups, "Expand editors" opens text boxes. Edit a template, remove a required variable — verify "Fix & Save" offers to auto-insert it. Test "Enhance with AI" and "Reset to Default".
+25. **Test custom confirmation dialogs**: Click "Sync from AWS" — verify a styled modal appears (not a browser confirm popup). Same for delete operations.
+26. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`, `/api/chat/*`, `/api/video/*`).
 
 ### Automated end-to-end harness (`tools/sanity_test.py`)
 
@@ -2337,11 +2392,11 @@ Real-HTTP checks against a running server, every model and route read from the r
 > **All in-app costs are estimates only.** Every cost ArtSmoker shows or reports (per-image/video/token, 3D compute, keep-warm, deployment, session/asset totals) is a **guidance estimate** computed from AWS published pricing × expected usage — **not a bill and not a guarantee** of actual charges. Actual cost depends on account pricing, region, discounts, taxes, data transfer, endpoint uptime (incl. idle/warm SageMaker instances), and auto-scaling. **Users are solely responsible for monitoring their own AWS spend** (Billing Console, Cost Explorer, Budgets/alarms). See the README [Disclaimer](README.md#disclaimer).
 >
 > The tables below are **reference pricing for deployment planning**. The application shows **live pricing** in the UI, all fetched from the AWS Pricing API during registry refresh-all and stored in `model_registry.json`:
-> - **Image per-unit** — `_fetch_image_pricing` → `image_pricing` (per model|region|quality|size). Resolved by `cost_tracker.resolve_image_price(cfg, key, region, quality)` — the SAME resolver the Model Settings pricing endpoint uses (single source of truth). The AWS Pricing API only returns per-image prices for Nova Canvas; other providers (Stability) fall back to the registry-recorded `base_price_usd`.
+> - **Image per-unit** — `_fetch_image_pricing` → `image_pricing` (per model|region|quality|size). Resolved by `cost_tracker.resolve_image_price(cfg, key, region, quality)` — the SAME resolver the Model Settings pricing endpoint uses (single source of truth). `_fetch_image_pricing` reads the AWS Price List's per-image rows: quality/size-keyed rows (`name|region|quality|size`) where the usage type carries them, and one flat per-image price (`name|region`) for Marketplace-sold models such as SD 3.5 Large and Stable Image Ultra/Core. When the registry has no price, the caller tries an on-demand fetch, then the model's `base_price_usd`, then shows "pricing unavailable".
 > - **SageMaker instance hourly rates** — `_fetch_sagemaker_pricing` (`ServiceCode=AmazonSageMaker`, `component=Hosting`) → `sagemaker_pricing` (per instance|region); resolved by `custom_models.get_instance_hourly_rate(instance, catalog_key, region)` (synced per-region → any synced region → catalog seed → **on-demand Pricing-API fetch cached in-memory**), driving all compute-cost math (3D, async 2D, keep-warm). Sync also refreshes `custom_model_catalog.gpu_instances[*].cost_per_hour_usd` from this table so the deploy UI can't drift.
 > - **Video per-second** — `_fetch_video_pricing` → `video_pricing` (per model|region, Nova Reel); resolved by `resolve_video_price_per_sec` (registry → `base_price_per_second_usd`). Luma Ray isn't in the API → uses the registry value.
 > - **LLM per-token** — `_sync_official_pricing` (`backend/services/official_pricing.py`) records only **official AWS sources**: (1) the **AWS Price List API** (`pricing:GetProducts`, service codes `AmazonBedrock`, `AmazonBedrockService`, `AmazonBedrockFoundationModels` — the same data the public pricing page renders); (2) **agreement-offer rate cards** (`bedrock:ListFoundationModelAgreementOffers`) — what AWS bills Marketplace-sold models by, keyed by exact model id; (3) the **Bedrock User Guide model cards** — In-Region / Geo / Global tables and the long-context threshold no API exposes. A row counts only if it is a **standard on-demand** token price (a *positive* rule: the words allowed after the direction phrase are the profile scope, the long-context band and "standard" — batch / flex / priority / cache / any future tier is rejected by default rather than deny-listed). Vendors and geos are discovered from the data, not hardcoded. Each `chat_models` entry gets `token_pricing` = `{rates, by_region: {Region \| geo:<GEO> \| *: {input_per_1k, output_per_1k, global_input_per_1k, global_output_per_1k, long_…}}}` plus the pinned-route `input_price_per_1k`/`output_price_per_1k`. `cost_tracker.compute_llm_cost(model, in, out, region)` reads these registry prices **ONLY**, for the Region actually invoked and the id's scope (Global rate for a `global.` id, regional otherwise, each falling back to the other); an unpriced model returns `0.0` ("pricing unavailable") — **no hardcoded fallback**.
-> - **Curated provider prices** — `provider_price_defaults` (base registry) holds published per-unit prices for models the Pricing API can't return (Stability image services, Luma video), relocated OUT of code so nothing is hardcoded.
+> - **Curated provider prices** — `provider_price_defaults` (base registry) holds published per-unit prices for models the Pricing API can't return (Stability image services, Luma video), kept in the registry rather than in code.
 > - **S3 infra** — `_record_infra_pricing` seeds standard per-region S3 request/transfer rates into `infra_pricing`; `cost_tracker._get_infra_pricing` reads the registry only.
 >
 > **Resolution order everywhere:** registry (Sync-recorded) → on-demand AWS Pricing API (cached; a later Sync persists) → "pricing unavailable" (cost `0`, never a hardcoded guess). Costs are **region-aware end-to-end** — image/video/chat use the request's actual region, not just 3D/custom.
@@ -2359,15 +2414,15 @@ What incurs cost and its billing unit — the current per-unit price is fetched 
 | **LLM prompt engineering & chat** | Claude Sonnet / Opus (newest on Sync) | input & output tokens | Prices stamped per-model onto `chat_models` by `_apply_llm_pricing`; Opus ≫ Sonnet |
 | **Bedrock image generation** | SD 3.5 Large, Stable Image Ultra, Stable Image Core | per image | Ultra ≫ SD 3.5 ≫ Core; per-model `base_price_usd`/`quality_prices` in registry |
 | **Self-hosted image / 3D** | FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2 | SageMaker GPU-seconds | Not per-image; scale-to-zero = $0 idle. Rate via `get_instance_hourly_rate` |
-| **Voice transcription** | Nova Sonic (newest on Sync) | speech & text tokens, in & out | Speech rows (`…-speech-input-tokens`) price at their own `speech_input_per_1k`/`speech_output_per_1k` (~9× text — they used to be lost under the cheaper text rate); stamped onto `voice_models` by `_apply_llm_pricing` (version-exact name match — a new version is unpriced until AWS publishes it) |
+| **Voice transcription** | Nova Sonic (newest on Sync) | speech & text tokens, in & out | Speech rows (`…-speech-input-tokens`) price at their own `speech_input_per_1k`/`speech_output_per_1k` (~9× the text rate); stamped onto `voice_models` by `_apply_llm_pricing` (version-exact name match — a new version is unpriced until AWS publishes it) |
 | **Remove Background / Creative Upscale** | Stability AI services | per image | Creative Upscale is the most expensive post-processing step |
 | **SVG Conversion** | vtracer / potrace / Pillow (local) | — | free, runs locally |
 
 > [!NOTE]
-> Prices from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) as of March 2026. Prices may change — always verify against the official source.
+> Current prices: the in-app display, or the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/).
 
 > [!NOTE]
-> **Vision token formula**: Claude charges image inputs as tokens: `tokens = (width × height) / 750`. A 1024×1024 image ≈ 1,398 tokens. At Opus $5.00/MTok input = ~$0.007 per image.
+> **Vision token formula**: Claude charges image inputs as tokens: `tokens = (width × height) / 750`. A 1024×1024 image ≈ 1,398 input tokens, billed at the model's input-token rate.
 
 ### 14.2 Additional LLM Costs (Per Use)
 
@@ -2476,15 +2531,15 @@ ArtSmoker supports 9 languages: English (base), Japanese, Simplified Chinese, Ko
 ```
 frontend/js/i18n/
 ├── i18n.js          # Core: t() function, JSON loader, DOM updater, reverse lookup
-├── en.json          # English (base) — 817+ keys, source of truth
-├── ja.json          # Japanese — 817+ keys
-├── zh.json          # Simplified Chinese — 817+ keys
-├── ko.json          # Korean — 817+ keys
-├── fr.json          # French — 817+ keys
-├── es.json          # Spanish — 817+ keys
-├── hi.json          # Hindi — 817+ keys
-├── ru.json          # Russian — 817+ keys
-└── de.json          # German — 817+ keys
+├── en.json          # English (base) — source of truth
+├── ja.json          # Japanese
+├── zh.json          # Simplified Chinese
+├── ko.json          # Korean
+├── fr.json          # French
+├── es.json          # Spanish
+├── hi.json          # Hindi
+├── ru.json          # Russian
+└── de.json          # German
 ```
 
 **Key design decisions:**
@@ -2495,11 +2550,11 @@ frontend/js/i18n/
 - `I18n.translateView(container)` post-renders component HTML using a reverse lookup (English text → key → translated text)
 - Language selection persisted in `localStorage` (`artsmoker_lang` key)
 - On language change: all cached views cleared and re-rendered in the new language
-- CJK/Devanagari/Cyrillic font support: Noto Sans JP/SC/KR/Devanagari loaded via Google Fonts CDN
+- CJK font support: Noto Sans JP / SC / KR loaded via Google Fonts in `index.html`
 
 ### 15.2 Prompt Translation Pipeline
 
-Non-English prompts are auto-detected and translated to English before processing. The translation uses the fast LLM (Claude Sonnet) at ~$0.001 per call.
+Non-English prompts are auto-detected and translated to English before processing. Detection fallback and translation use the fast LLM category (`fast_llm`).
 
 ```
 User types prompt (any language)
@@ -2508,11 +2563,11 @@ detect_language(text, ui_lang) —
    • If the UI language is English, detection is SKIPPED entirely (no translation).
    • If a non-English UI language is selected, that language is checked/confirmed FIRST.
    • Otherwise: Unicode heuristic (CJK/Hangul/Devanagari/Cyrillic/Latin+accents+function words),
-     with function-word matching done WORD-BOUNDARY aware (fixes English being mislabeled as German).
+     with function-word matching done WORD-BOUNDARY aware.
     ↓ (if ambiguous)
 LLM fallback detection
     ↓
-translate_to_english() via Claude Sonnet
+translate_to_english() via the fast LLM
     ↓
 Returns: { original, translated, source_lang, was_translated }
 ```
@@ -2551,7 +2606,7 @@ When a user types a non-English prompt, a translation preview bar appears with:
 
 ### 15.4 UI String Translation
 
-- 800+ translation keys across 16 categories (nav, common, image_studio, video_studio, etc.)
+- Every language file carries the same key set as `en.json`, grouped into top-level categories (nav, common, image_studio, video_studio, etc.)
 - Components use `t('key')` in template literals: `${t('image_studio.title')}`
 - Confirm dialogs, toast messages, tooltips, placeholders all translated
 - Technical terms stay in English: AI, LLM, SVG, PNG, S3, AWS, Bedrock, API
@@ -2586,9 +2641,6 @@ AWS Lambda is not suitable as the primary compute for this application:
 Lambda _could_ work for lightweight endpoints (styles CRUD, gallery listing, health check), but mixing Lambda and non-Lambda compute for the same API adds routing complexity without meaningful benefit at this stage.
 
 
-
-
-
 <a id="162-phase-1-current--local-development-done"></a>
 
 ### 16.2 Phase 1: Current — Local Development (Done)
@@ -2605,11 +2657,11 @@ Developer machine
 - Storage: local filesystem under `data/`.
 - No authentication, single user.
 
-#### 14.2.1 EC2 Quick Start
+#### 16.2.1 EC2 Quick Start
 
 For a lightweight production deployment (1-2 concurrent users), an EC2 instance is the simplest path:
 
-- **Recommended instance**: t3.small (2 vCPU, 2 GB RAM, ~$15/month), Amazon Linux 2023 or Ubuntu 22.04+.
+- **Instance**: a small general-purpose instance (e.g. t3.small, 2 vCPU / 2 GB RAM), Amazon Linux 2023 or Ubuntu 22.04+.
 - **Setup**:
   ```bash
   # Amazon Linux 2023
@@ -2617,9 +2669,8 @@ For a lightweight production deployment (1-2 concurrent users), an EC2 instance 
   # Ubuntu 22.04+
   sudo apt update && sudo apt install python3 python3-pip python3-venv git
 
-  # Optional: SVG tools
+  # Optional: potrace (monochrome SVG fallback; vtracer comes from requirements.txt)
   sudo apt install potrace                     # Ubuntu
-  pip install vtracer                       # or: cargo install vtracer (needs Rust)
 
   git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
   python3 -m venv .venv
@@ -2683,11 +2734,8 @@ For a lightweight production deployment (1-2 concurrent users), an EC2 instance 
   sudo systemctl start artsmoker
   sudo systemctl status artsmoker
   ```
-- **No race conditions for concurrent users** — each generation uses unique UUIDs, file writes don't overlap.
+- **Concurrent users**: generation ids are unique UUIDs, and shared mutable state (asset metadata, registry, prompt templates) is written atomically under the cross-process locks of §17, so multiple users and workers can't corrupt each other's writes.
 - **Migrating style data**: Style references use relative symlinks, so they work across machines as long as the source art directories maintain the same relative position to the ArtSmoker project.
-
-
-
 
 
 <a id="163-phase-2-containerized-deployment--app-runner--s3"></a>
@@ -2728,9 +2776,6 @@ AWS App Runner
 5. **Environment variables**: All config passes through environment variables (already supported via `ARTSMOKER_` prefix). App Runner environment configuration maps directly.
 
 **Estimated effort**: 1-2 days. The S3 storage swap is the main work; Dockerfile and App Runner setup are straightforward.
-
-
-
 
 
 <a id="164-phase-3-optimized-delivery--cloudfront--async-generation"></a>
@@ -2866,15 +2911,14 @@ Lock ordering: the only nested order is `_3d_finalize_lock() → asset_write_loc
 The model registry (`model_registry.json` + `.user.json`) and prompt templates (`prompt_templates.json` + `.user.json`) ARE cached in memory (`_registry`; `_templates` / `_user_overrides`). A wholesale save of a stale per-worker cache could clobber another worker's change, so **discrete mutations run in a transaction**:
 
 - `registry_transaction()` and `templates_transaction()` (context managers): under the module lock they **reload from disk** (rebasing onto the latest state), yield the fresh state for mutation, then persist (`_save_nolock` / `_save_user_nolock`).
-- The reload is **identity-preserving** — reloaded content is copied back into the original dict and the reference restored — so any caller still holding an earlier `get_registry()` result keeps seeing the live registry (prevents a class of orphaned-stale-dict bugs).
-- Converted mutators: `add/update_image_model`, `add/update_video_model`, `update_category`, `update_post_processing`, `update_video_settings`, 3D defaults, custom-model register/unregister, license acceptance, `model_ready`, full-registry PUT, and prompt-template `update` / `reset` / `reset_all`.
-- `_save_user_pref` (targeted per-field enable/disable override) was already a fresh-read RMW and is left as-is — cross-worker safe.
+- The reload is **identity-preserving** — reloaded content is copied back into the original dict and the reference restored — so any caller still holding an earlier `get_registry()` result keeps seeing the live registry rather than a detached copy.
+- Transactional mutators: `add/update_image_model`, `add/update_video_model`, `update_category`, `update_post_processing`, `update_video_settings`, 3D defaults, custom-model register/unregister, license acceptance, `model_ready`, full-registry PUT, and prompt-template `update` / `reset` / `reset_all`.
+- `_save_user_pref` (targeted per-field override) is itself a fresh-read read-modify-write, so it is cross-worker safe without a transaction.
 
-Proven: 3 processes writing 300 distinct models concurrently lose none; a naïve wholesale save loses ~2/3.
 
 ### 17.5 Batch-Sync exceptions
 
-The AWS Sync (`admin.py` `_run_refresh_all_regions`) and the startup auto-Sync (`main.py` lifespan) are **read-once → accumulate across (slow) AWS calls → save-once** batches. A per-mutation transaction would wipe the accumulation on reload, and holding the lock across the multi-minute AWS scan would stall other workers. They therefore keep a **wholesale** `_save()` (still atomic + locked); discovery data is AWS-authoritative. Rules encoded to keep this correct:
+The AWS Sync (`admin.py` `_run_refresh_all_regions`) and the first-run auto-Sync (`backend/app.py` startup) are **read-once → accumulate across (slow) AWS calls → save-once** batches. A per-mutation transaction would wipe the accumulation on reload, and holding the lock across the multi-minute AWS scan would stall other workers. They therefore keep a **wholesale** `_save()` (still atomic + locked); discovery data is AWS-authoritative. Rules encoded to keep this correct:
 
 - Inside a batch, mutate the shared `registry` dict **directly**, never via a transactional mutator (which would reload mid-batch and drop unsaved in-memory changes).
 - Any pre-scan reset (e.g. clearing `available_regions`) must be **persisted before** the scan, because the scan's `auto_register_image_models` calls transactional mutators that reload from disk.
@@ -2905,7 +2949,7 @@ A **Collection** turns one prompt into a **coherent set of distinct assets** —
 
 Collections reuse the **same three-step prompt spine** as the single-asset flow — the two middle steps just switch meaning while the toggle is on. The toggle lives **directly under Step 1** (the ask).
 
-- **Step 1 → check "Collection" → LOCK IN.** Checking it (a) **disables the checkbox** (it can no longer be unchecked), (b) **disables Generate**, and (c) reveals Step 2/3 and seeds Step 2 with a **blank, genre-adaptive guided scaffold** (see below) — it does NOT auto-generate (that raced a user typing their own). The mode is committed: the **only** exits are **Reset** (clears ask, art-direction, design, and the checkbox — full clean slate) or a browser refresh.
+- **Step 1 → check "Collection" → LOCK IN.** Checking it (a) **disables the checkbox** (it can no longer be unchecked), (b) **disables Generate**, and (c) reveals Step 2/3 and seeds Step 2 with a **blank, genre-adaptive guided scaffold** (see below) — it does NOT auto-generate, so nothing ever overwrites what the user is typing. The mode is committed: the **only** exits are **Reset** (clears ask, art-direction, design, and the checkbox — full clean slate) or a browser refresh.
 - **Step 2 becomes "Art Direction" (on-demand + guided).** The shared creative DNA — the collection-level analog of the single-asset Step-3 Enhanced Prompt. Its **dimensions are recommended dynamically from the prompt** (not a fixed template): an RPG roster gets `World/Era/Palette/Materials/Negative`, a chess set `Theme/Materials/Silhouette/Negative`, icons `Line & shape/Grid/…` — always including the core `Medium/Palette/Mood/Negative` for cross-set consistency. Step 2 seeds a **blank guided scaffold** of exactly those labels; the user can fill it in themselves **or** click **✨ Generate** to draft it on demand (the AI fills the *same* recommended fields; a filled-in box asks before replacing). The `Negative` line becomes the set-wide negative prompt applied to every Batch (so e.g. a "not photorealistic" brief actually reaches the model). Editing this field invalidates any accepted design (re-open the Designer).
 - **Step 3 becomes "Collection Designer".** A button opens the Designer (§18.3), which builds the **roster from the edited Step-2 art-direction**. The user must go through it and **Accept** it to close; on Accept, Step 3 shows a **read-only summary of what was decided** (e.g. "12 Batches · 3×2 · SD3.5 · prompt cohesion · est. $X").
 - **Generate re-enables only after the Designer is accepted** (a valid design = ≥1 Batch, art-direction set, every Batch has a prompt). The **main Generate button** then runs the collection — a collection is never generated blind.
@@ -2966,8 +3010,8 @@ Collection  →  Batch (one roster subject)  →  Option × Variation × Model  
 
 - **Collection** = one Generate press with the toggle on (`collection_id`); the Collection record groups its member Batches.
 - **Batch** *(unchanged term)* = one roster subject (e.g. "the White King") — it generates exactly one ordinary Batch of `Option × Variation × Model` Jobs, exactly as a single-asset Generate does today. A Collection is simply a **group of Batches**. (There is deliberately NO "Item"/"Cluster"/"piece" tier word — a roster subject *is* a Batch; "piece" appears only as the domain noun in examples like a chess piece.)
-- **ID strategy (decided 2026-09-08 by full producer/parser audit): each Batch keeps its own ordinary `batch_id`; the Collection groups N `batch_id`s. No id-format change — single-asset AND collection asset ids are the unchanged `{batch_id}_o{n}_v{m}`.** The audit confirmed the asset id is *never positionally parsed* anywhere (every consumer reads `batch_id`/`option_index`/`variant_index` from stored metadata, and the only id-string uses are construction + `startswith(batch_id + "_")` prefix filters backed by an authoritative `meta["batch_id"]` check). The rejected alternative — a `{collection_id}_i{k}_…` item-axis id — was cosmetically cleaner but would have made an entire collection one giant Batch, turning per-Batch regeneration into partial-batch regen that no endpoint supports; keeping one `batch_id` per roster subject lets per-Batch regeneration, seed-family, `get_batch` reconstruction, and the AssetViewer drill-down all reuse the existing whole-Batch machinery untouched. Collection membership lives in **metadata fields** on each Job (`collection_id`, `batch_name`, `batch_slug`, `model_agnostic_prompt`) — added exactly as `batch_id` already is — so the Gallery can collapse a collection into one card and the viewer can reconstruct the board.
-- This **adds a tier to the otherwise-frozen Batch/Job vocabulary** — when Collections ship, the terminology table in `CLAUDE.md` gains the Collection tier (**Collection = a group of Batches; each roster subject = one Batch; a Batch is a collection of Jobs**). Until then this section is the forward design of record.
+- **ID strategy: each Batch keeps its own ordinary `batch_id`; the Collection groups N `batch_id`s. Single-asset AND collection asset ids share the one format `{batch_id}_o{n}_v{m}`.** Asset ids are never parsed positionally: every consumer reads `batch_id` / `option_index` / `variant_index` from stored metadata, and the only id-string uses are construction and `startswith(batch_id + "_")` prefix filters backed by an authoritative `meta["batch_id"]` check. A collection-wide id with an item axis (e.g. `{collection_id}_i{k}_…`) would make the whole collection one Batch, so regenerating one subject would need partial-batch regeneration, which no endpoint supports. Keeping one `batch_id` per roster subject lets per-Batch regeneration, seed-family, `get_batch` reconstruction, and the AssetViewer drill-down all reuse the existing whole-Batch machinery untouched. Collection membership lives in **metadata fields** on each Job (`collection_id`, `batch_name`, `batch_slug`, `model_agnostic_prompt`) — added exactly as `batch_id` already is — so the Gallery can collapse a collection into one card and the viewer can reconstruct the board.
+- The Collection is the one tier above the Batch/Job vocabulary: **Collection = a group of Batches; each roster subject = one Batch; a Batch is a collection of Jobs** (the same table appears in the project's `CLAUDE.md`).
 
 ### 18.7 Data model & metadata
 
@@ -2993,7 +3037,7 @@ The `summary.json` index is a **cache**; the Job `metadata.json` files + the mas
 - **§17 locking + write ordering:** every collection-file write is `atomic_write_text` under `collection_write_lock(collection_id)` (§17). Ordering rule to avoid deadlock/lost-update: the Job's own metadata write commits FIRST under its `asset_write_lock(asset_id)`, that lock is RELEASED, and only THEN does `refresh_collection_summary` take `collection_write_lock` and read the already-committed Job meta — the two locks are never nested. Concurrent member-Job changes serialize on the reentrant cross-process `collection_write_lock`, so no refresh loses an update.
 - **Scale note:** this stays within the JSON-file + §17 model (no new dependency). A SQLite/global index is only warranted at *thousands* of collections (indexed queries, cheap partial updates) — deliberately deferred to avoid mixing a second consistency model now.
 
-Collection **versioning** is per-Batch (reuses the existing per-asset versioning; the set tracks each Batch's `selected_version` pointer) — see §18.7(a) `selected_version` and the tasks doc Phase M. A monolithic whole-set snapshot/restore is explicitly NOT built (the set is always reconstructable = each Batch's selected version + the master record).
+Collection **versioning** is per-Batch (reuses the existing per-asset versioning; the set tracks each Batch's `selected_version` pointer) — see §18.7(a) `selected_version`. A monolithic whole-set snapshot/restore is explicitly NOT built (the set is always reconstructable = each Batch's selected version + the master record).
 
 ### 18.8 Gallery & Collection Asset Viewer
 
@@ -3019,7 +3063,24 @@ Every LLM round-trip in the design flow has a real cost that must be **tracked c
 
 ### 18.10 Telemetry
 
-Every valuable step emits a PulseBoard `track_event` (see the `pulseboard-telemetry` skill): `collection_mode_enabled`, `collection_designed` (batch_count, model(s)), `collection_roster_regenerated`, `collection_art_direction_edited`, `collection_batch_edited` / `_regenerated`, `collection_generation_started` (batches×O×V×models), `collection_generation_complete` (success/partial counts), `collection_hero_anchor_used`, `collection_asset_type_checked` (server-side, from the pre-spend classifier: current/suggested/mismatch/unsupported), `collection_viewed`, `collection_reset`, and cost events `collection_llm_cost` / `collection_gen_cost`. (Fast-follow: `collection_3d_handoff`.) Telemetry is product-internal only — never referenced in social/launch copy.
+Collections telemetry is emitted **server-side** (`backend/services/telemetry.py`), at the endpoint that performs each action, so no event depends on the browser:
+
+| Event | Fired by |
+|-------|----------|
+| `collection_studio.mode_enabled` | `POST /api/collections/ui-event` `{event: "mode_enabled"}` — the client beacon for the Collection toggle, the one Collections action that makes no API call of its own. The endpoint accepts only allowlisted event names (400 otherwise). |
+| `collection_studio.designed` | `POST /api/collections/decompose` — roster design (`batch_count`, `models`) |
+| `collection_studio.roster_regenerated` | `POST /api/collections/regenerate-roster` |
+| `collection_studio.art_direction_edited` | `POST /api/collections/art-direction` (draft the art direction) and `POST /api/collections/recompose-all` (re-align the set to an edited one) |
+| `collection_studio.art_direction_lifted` | `POST /api/collections/lift-art-direction` (lift a Batch refinement into the shared art direction) |
+| `collection_studio.batch_regenerated` | `POST /api/collections/recompose-batch` |
+| `collection_studio.generate` | `POST /api/collections/generate`, at start (`batches`, `options`, `variations`, `num_images`, `models`, `image_inspired`) |
+| `collection_studio.generate_complete` | `POST /api/collections/generate`, at the end (`success`, `partial`) |
+| `collection_studio.hero_anchor` | `POST /api/collections/generate`, when hero-anchor cohesion is used |
+| `collection_studio.3d_handoff` | `POST /api/collections/{collection_id}/generate-3d` |
+| `collection_studio.export` | `GET /api/collections/{collection_id}/export` |
+| `collection_studio.version_selected` | `POST /api/collections/{collection_id}/select-version` |
+| `collection_studio.asset_type_checked` | `POST /api/refine-prompt/classify-asset-type` with `collection: true` — the pre-spend check (`current`, `suggested`, `mismatch`, `unsupported`) |
+| `collection_studio.cost` | Every billable step, with `operation` = `design`, `roster_regenerate`, `recompose_all`, `batch_regenerate`, `lift_art_direction` or `generation` |
 
 ### 18.11 Reuse map
 
