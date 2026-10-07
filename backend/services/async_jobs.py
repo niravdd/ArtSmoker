@@ -353,10 +353,31 @@ def _update_gallery_on_complete(job: dict, image_bytes: bytes):
     store.save_generated_image(asset_id, "asset.png", final_bytes)
     image_path = str(store.generated_asset_dir(asset_id) / "asset.png")
 
-    # Update existing metadata (created by generate router at submission time).
-    meta_path = store.generated_asset_dir(asset_id) / "metadata.json"
+    # Update existing metadata (created by generate router at submission time) —
+    # a read-modify-write under the asset lock, saved atomically (SPEC §17.3).
+    from backend.services.asset_locks import asset_write_lock
+    with asset_write_lock(asset_id):
+        _complete_gallery_metadata(job, asset_id, final_bytes, svg_path)
+
+    # If this Job belongs to a Collection, refresh its Gallery index so the set's
+    # cover / status reflect the just-landed async image (mirrors the edit-complete
+    # hook; guarded NO-OP for single-asset). This is what lets a Collection built on
+    # an async self-hosted model finalize even if the generate loop's per-Batch wait
+    # timed out before the image arrived (SPEC §18 — async-aware collections).
     try:
-        meta = json.loads(meta_path.read_text())
+        from backend.services import collection_store as cstore
+        cstore.refresh_if_member(asset_id)
+    except Exception:
+        pass
+
+    return image_path
+
+
+def _complete_gallery_metadata(job: dict, asset_id: str, final_bytes: bytes, svg_path) -> None:
+    """Mark the gallery entry complete. Caller holds asset_write_lock(asset_id)."""
+    from backend.storage.local_store import store
+    try:
+        meta = store.load_generation_metadata(asset_id) or {}
     except Exception:
         meta = {}
 
@@ -399,20 +420,7 @@ def _update_gallery_on_complete(job: dict, image_bytes: bytes):
         "svg_path": f"/api/gallery/{asset_id}/svg" if svg_path else None,
         "image_size_bytes": len(final_bytes),
     })
-    meta_path.write_text(json.dumps(meta, indent=2))
-
-    # If this Job belongs to a Collection, refresh its Gallery index so the set's
-    # cover / status reflect the just-landed async image (mirrors the edit-complete
-    # hook; guarded NO-OP for single-asset). This is what lets a Collection built on
-    # an async self-hosted model finalize even if the generate loop's per-Batch wait
-    # timed out before the image arrived (SPEC §18 — async-aware collections).
-    try:
-        from backend.services import collection_store as cstore
-        cstore.refresh_if_member(asset_id)
-    except Exception:
-        pass
-
-    return image_path
+    store.save_generation_metadata(asset_id, meta)
 
 
 def _update_gallery_on_edit_complete(job: dict, image_bytes: bytes):
@@ -564,23 +572,32 @@ def _update_gallery_on_failure(job: dict):
     Distinguishes a content-moderation block (the model refused the prompt) from
     a technical failure, so the Gallery can show "Model Censored" instead of the
     ambiguous "Failed". Uses the shared is_moderation_error() classifier so the
-    verdict matches the synchronous/multi-model paths.
+    verdict matches the synchronous/multi-model paths. An edit job leaves its
+    source asset untouched (the edit simply produced no new version).
     """
-    from backend.config import settings
+    if job.get("job_kind") == "edit":
+        return
+    from backend.services.asset_locks import asset_write_lock
     from backend.services.image_generator import is_moderation_error
+    from backend.storage.local_store import store
 
-    asset_id = job["asset_id"]
-    variant_dir = settings.images_dir / f"{asset_id}_o{job['option_index']}_v{job['variation_index']}"
-    meta_path = variant_dir / "metadata.json"
-    if meta_path.exists():
-        try:
-            meta = json.loads(meta_path.read_text())
+    # job["asset_id"] is the full per-image id ({batch_id}_o{n}_v{m}) the generate
+    # router created the gallery entry under (update_job_asset_id).
+    asset_id = job.get("asset_id", "")
+    if not asset_id:
+        return
+    try:
+        with asset_write_lock(asset_id):
+            meta = store.load_generation_metadata(asset_id)
+            if meta is None:
+                return
             error = job.get("error", "Unknown error")
             meta["async_status"] = "moderation_blocked" if is_moderation_error(error) else "failed"
             meta["async_error"] = error
-            meta_path.write_text(json.dumps(meta, indent=2))
-        except Exception:
-            pass
+            store.save_generation_metadata(asset_id, meta)
+    except Exception as e:
+        logger.warning("Couldn't record the failure of async job %s on asset %s: %s",
+                       job.get("job_id"), asset_id, e)
 
 
 # ── Background Poller ────────────────────────────────────────────────────
@@ -914,7 +931,11 @@ def _check_stale_and_resubmit(job: dict, s3):
         return
 
     # Endpoint is alive but has 0 instances (scaled to zero).
-    # The SageMaker async backlog was silently dropped. Resubmit.
+    # The SageMaker async backlog was silently dropped. Resubmit — unless another
+    # server process already did (it persisted the new output location).
+    if _adopt_peer_resubmission(job):
+        _update_progress(job)
+        return
     _resubmit_job(job, endpoint_name, s3)
 
 
@@ -1028,8 +1049,113 @@ def _claim_finalization(job: dict) -> bool:
         return True
 
 
+# Cross-process coordination. Every worker loads the S3-persisted jobs at
+# startup and whenever its poller restarts (_ensure_poller), so two processes on
+# one host (multi-worker gunicorn, or a second server) can hold the same pending
+# job. A host-wide lock serializes each job's check/finalize, and a terminal-state
+# ledger (one small JSON file per finished job, beside the lock files) shows a
+# process that another one already finished the job — so its output is saved,
+# post-processed and billed once, and a finished job is never resubmitted.
+_TERMINAL_DIR = Path(__file__).resolve().parent.parent.parent / "data" / ".locks" / "async_finalized"
+_TERMINAL_TTL_SECONDS = 86400  # matches the 1-day lifecycle of the S3 job records
+
+
+def _finalize_lock():
+    """Host-wide lock around one job's check + finalize (thread + process safe)."""
+    from backend.services.safe_write import named_write_lock
+    return named_write_lock("async_finalize")
+
+
+def _terminal_path(job_id: str) -> Path:
+    safe = "".join(c if (c.isalnum() or c in "-_") else "_" for c in str(job_id))
+    return _TERMINAL_DIR / f"{safe}.json"
+
+
+def _record_terminal(job: dict) -> None:
+    """Record a finished (complete/failed) job in the terminal ledger. Best-effort."""
+    if job.get("status") not in (COMPLETE, FAILED):
+        return
+    try:
+        from backend.services.safe_write import atomic_write_json
+        atomic_write_json(_terminal_path(job["job_id"]), {
+            k: job.get(k) for k in ("job_id", "status", "completed_at", "image_path", "error")})
+    except Exception as e:
+        logger.debug("Terminal ledger write failed for %s: %s", job.get("job_id"), e)
+
+
+def _adopt_peer_terminal(job: dict) -> bool:
+    """If another process already finished this job (ledger entry), take its
+    terminal state instead of checking S3 again. Caller holds _finalize_lock()."""
+    try:
+        rec = json.loads(_terminal_path(job["job_id"]).read_text())
+    except Exception:
+        return False
+    if rec.get("status") not in (COMPLETE, FAILED):
+        return False
+    with _lock:
+        for k in ("status", "completed_at", "image_path", "error"):
+            if rec.get(k) is not None:
+                job[k] = rec[k]
+        if job["status"] == COMPLETE:
+            job["progress"] = 100
+        # The finishing process owns the job's S3 cleanup — never re-create its record.
+        job["_s3_cleaned"] = True
+    logger.info("Async job %s was already %s by another server process — using its result",
+                job["job_id"], job["status"])
+    return True
+
+
+def _adopt_peer_resubmission(job: dict) -> bool:
+    """If another process already resubmitted this job (its S3 record carries a
+    newer output location), follow that submission instead of resubmitting again."""
+    try:
+        import boto3
+        from backend.config import settings
+        from backend.services.sagemaker_deployer import get_deployment_s3_bucket
+        bucket = get_deployment_s3_bucket()
+        if not bucket:
+            return False
+        s3 = boto3.client("s3", region_name=settings.aws_region_models)
+        rec = json.loads(s3.get_object(Bucket=bucket, Key=f"{_JOBS_S3_PREFIX}{job['job_id']}.json")["Body"].read())
+    except Exception:
+        return False
+    if (not rec.get("output_location") or rec["output_location"] == job.get("output_location")
+            or rec.get("resubmit_count", 0) < job.get("resubmit_count", 0)):
+        return False
+    with _lock:
+        for k in ("output_location", "failure_location", "endpoint_name", "resubmit_count",
+                  "last_resubmit_at", "status", "progress", "stage", "stage_label"):
+            if k in rec:
+                job[k] = rec[k]
+    logger.info("Async job %s was already resubmitted by another server process (attempt %s) — "
+                "following that submission", job["job_id"], job.get("resubmit_count"))
+    return True
+
+
+def _prune_terminal_ledger() -> None:
+    """Drop ledger entries older than _TERMINAL_TTL_SECONDS (their jobs are long gone)."""
+    try:
+        cutoff = time.time() - _TERMINAL_TTL_SECONDS
+        for f in _TERMINAL_DIR.glob("*.json"):
+            if f.stat().st_mtime < cutoff:
+                f.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
 def _check_job(job: dict, s3):
-    """Check if an async job's output has appeared in S3."""
+    """Check one async job for output, under the host-wide finalize lock. A job
+    another process already finished is adopted, not checked again."""
+    with _finalize_lock():
+        if job.get("status") in (COMPLETE, FAILED):
+            return
+        if _adopt_peer_terminal(job):
+            return
+        _check_job_unlocked(job, s3)
+
+
+def _check_job_unlocked(job: dict, s3):
+    """Check if an async job's output has appeared in S3. Caller holds _finalize_lock()."""
     output_location = job["output_location"]
 
     # Parse S3 URI
@@ -1096,6 +1222,7 @@ def _check_job(job: dict, s3):
                 job["error"] = "Model returned no image data"
                 job["completed_at"] = datetime.now(timezone.utc).isoformat()
             _update_gallery_on_failure(job)
+            _record_terminal(job)
             return
 
         # Decode and save to gallery. This is the CRITICAL, must-not-lose step.
@@ -1380,6 +1507,7 @@ def _cleanup_s3(job: dict, s3):
     from backend.services.sagemaker_deployer import get_deployment_s3_bucket
     bucket = get_deployment_s3_bucket()
     job["_s3_cleaned"] = True
+    _record_terminal(job)  # every terminal path ends here (or in _persist_job_to_s3)
 
     # 1. Delete output file
     output_loc = job.get("output_location", "")
@@ -1413,6 +1541,8 @@ def _persist_job_to_s3(job: dict):
     Jobs are stored as JSON files under artsmoker/async-jobs/{job_id}.json
     in the same S3 bucket used for model storage.
     """
+    if job.get("status") in (COMPLETE, FAILED):
+        _record_terminal(job)
     # Never re-create a job file that _cleanup_s3 has already deleted (terminal
     # job). This is the invariant that keeps a cleanup-then-persist ordering
     # bug from resurrecting completed/failed jobs in S3.
@@ -1496,6 +1626,7 @@ def load_persisted_jobs():
     for display in the Pending Jobs panel but don't need polling.
     Cleans up completed/failed job files older than 24 hours.
     """
+    _prune_terminal_ledger()
     try:
         import boto3
         from backend.services.sagemaker_deployer import get_deployment_s3_bucket
@@ -1585,127 +1716,132 @@ def resume_pending_jobs() -> int:
         pending = [j for j in _jobs.values() if j["status"] in (PENDING, GENERATING)]
 
     for job in pending:
-        try:
-            output_location = job.get("output_location", "")
-            if not output_location:
+        # Same host-wide lock + peer check as the live poller (_check_job): the
+        # poller, another worker's resume, or another server may hold this job.
+        with _finalize_lock():
+            if job.get("status") in (COMPLETE, FAILED) or _adopt_peer_terminal(job):
                 continue
-
-            parts = output_location.replace("s3://", "").split("/", 1)
-            bucket, key = parts[0], parts[1]
-
             try:
-                # Use head_object first to get LastModified (actual generation time)
-                head = s3.head_object(Bucket=bucket, Key=key)
-                s3_completed = head["LastModified"].astimezone(timezone.utc)
+                output_location = job.get("output_location", "")
+                if not output_location:
+                    continue
 
-                obj = s3.get_object(Bucket=bucket, Key=key)
-                body = obj["Body"].read()
+                parts = output_location.replace("s3://", "").split("/", 1)
+                bucket, key = parts[0], parts[1]
+
                 try:
-                    from backend.services.cost_tracker import add_background_s3_cost
-                    add_background_s3_cost("head", 0, "resume job head check")
-                    add_background_s3_cost("get", len(body), "resume job output download")
-                except Exception:
-                    pass
-                result = json.loads(body.decode("utf-8"))
-                image_b64 = result.get("image", "")
+                    # Use head_object first to get LastModified (actual generation time)
+                    head = s3.head_object(Bucket=bucket, Key=key)
+                    s3_completed = head["LastModified"].astimezone(timezone.utc)
 
-                # Claim before finalizing — resume runs at startup CONCURRENTLY
-                # with the live poller (both started in main.py lifespan), so both
-                # can see the same output; the claim ensures only one saves it.
-                if image_b64 and _claim_finalization(job):
-                    image_bytes = base64.b64decode(image_b64)
-                    # CRITICAL save (same guarantee as the live poller): if the
-                    # gallery write fails or isn't durable on disk, release the
-                    # claim, leave the job PENDING + S3 output intact, and skip
-                    # cleanup so a later poll retries. Never delete the only copy
-                    # of the image before it's safely in the gallery.
+                    obj = s3.get_object(Bucket=bucket, Key=key)
+                    body = obj["Body"].read()
                     try:
-                        image_path = _update_gallery_on_complete(job, image_bytes)
-                        if not (image_path and os.path.isfile(image_path) and os.path.getsize(image_path) > 0):
-                            raise IOError(f"gallery image not durable on disk: {image_path}")
-                    except Exception as save_err:
-                        with _lock:
-                            job["_finalizing"] = False
-                        if _is_host_wide_save_error(save_err):
-                            # Host-level storage failure — stop resuming the rest;
-                            # they'd all fail identically. Jobs stay PENDING + S3
-                            # preserved; the live poller (with backoff) retries.
-                            logger.error("⚠ Disk problem while restoring saved jobs (%s). Stopping restore; "
-                                         "no jobs lost — the poller will retry them once disk recovers.", save_err)
-                            break
-                        logger.warning("Couldn't restore job %s: %s — kept in queue, will retry.",
-                                       job["job_id"], save_err)
-                        continue
+                        from backend.services.cost_tracker import add_background_s3_cost
+                        add_background_s3_cost("head", 0, "resume job head check")
+                        add_background_s3_cost("get", len(body), "resume job output download")
+                    except Exception:
+                        pass
+                    result = json.loads(body.decode("utf-8"))
+                    image_b64 = result.get("image", "")
 
-                    # Use S3 object timestamp as the real completion time
-                    # (not "now", which includes wait time after server restart)
-                    submitted = datetime.fromisoformat(job["submitted_at"])
-                    if submitted.tzinfo is None:
-                        submitted = submitted.replace(tzinfo=timezone.utc)
-                    duration = (s3_completed - submitted).total_seconds()
-                    # Cap duration at 15 min — anything longer means the job
-                    # waited in queue while the endpoint was at zero
-                    duration = min(duration, 900)
-                    compute_cost = _calculate_compute_cost(job["model_key"], duration)
-
-                    with _lock:
-                        job["status"] = COMPLETE
-                        job["image_path"] = image_path
-                        job["completed_at"] = s3_completed.isoformat()
-                        job["progress"] = 100
-                        job["duration_seconds"] = round(duration, 1)
-                        job["compute_cost_usd"] = compute_cost
-
-                    _track_completion(job, duration, compute_cost)
-                    # Terminal state: _cleanup_s3 deletes the persisted job file
-                    # (and input/output). Do NOT _persist_job_to_s3 afterwards —
-                    # that would immediately re-create the file we just deleted,
-                    # leaving a completed job lingering in S3 forever. (The live
-                    # poller's completion path, above, is cleanup-only for the
-                    # same reason.)
-                    _cleanup_s3(job, s3)
-                    resolved += 1
-                    logger.info("Resumed job %s: complete (%d bytes, ~$%.4f)",
-                                job["job_id"], len(image_bytes), compute_cost)
-                else:
-                    with _lock:
-                        job["status"] = FAILED
-                        job["error"] = "No image data in output"
-                        job["completed_at"] = datetime.now(timezone.utc).isoformat()
-                    _update_gallery_on_failure(job)
-                    # Terminal state — cleanup only, no re-persist (see above).
-                    _cleanup_s3(job, s3)
-                    resolved += 1
-
-            except Exception as e:
-                if "NoSuchKey" in str(e) or "404" in str(e):
-                    # Output not ready — check endpoint health before giving up
-                    elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
-                    should_fail = False
-                    ep_name = _resolve_endpoint_for_job(job)
-                    if ep_name and elapsed > 300:
+                    # Claim before finalizing — resume runs at startup CONCURRENTLY
+                    # with the live poller (both started in main.py lifespan), so both
+                    # can see the same output; the claim ensures only one saves it.
+                    if image_b64 and _claim_finalization(job):
+                        image_bytes = base64.b64decode(image_b64)
+                        # CRITICAL save (same guarantee as the live poller): if the
+                        # gallery write fails or isn't durable on disk, release the
+                        # claim, leave the job PENDING + S3 output intact, and skip
+                        # cleanup so a later poll retries. Never delete the only copy
+                        # of the image before it's safely in the gallery.
                         try:
-                            from backend.services.sagemaker_deployer import get_endpoint_health
-                            health = get_endpoint_health(ep_name)
-                            if health["failed"] or not health["alive"]:
-                                should_fail = True
-                            elif health["progressing"] and health.get("stale_seconds", 0) > 1800:
-                                should_fail = True  # Stalled
-                        except Exception:
-                            pass
-                    if should_fail:
+                            image_path = _update_gallery_on_complete(job, image_bytes)
+                            if not (image_path and os.path.isfile(image_path) and os.path.getsize(image_path) > 0):
+                                raise IOError(f"gallery image not durable on disk: {image_path}")
+                        except Exception as save_err:
+                            with _lock:
+                                job["_finalizing"] = False
+                            if _is_host_wide_save_error(save_err):
+                                # Host-level storage failure — stop resuming the rest;
+                                # they'd all fail identically. Jobs stay PENDING + S3
+                                # preserved; the live poller (with backoff) retries.
+                                logger.error("⚠ Disk problem while restoring saved jobs (%s). Stopping restore; "
+                                             "no jobs lost — the poller will retry them once disk recovers.", save_err)
+                                break
+                            logger.warning("Couldn't restore job %s: %s — kept in queue, will retry.",
+                                           job["job_id"], save_err)
+                            continue
+
+                        # Use S3 object timestamp as the real completion time
+                        # (not "now", which includes wait time after server restart)
+                        submitted = datetime.fromisoformat(job["submitted_at"])
+                        if submitted.tzinfo is None:
+                            submitted = submitted.replace(tzinfo=timezone.utc)
+                        duration = (s3_completed - submitted).total_seconds()
+                        # Cap duration at 15 min — anything longer means the job
+                        # waited in queue while the endpoint was at zero
+                        duration = min(duration, 900)
+                        compute_cost = _calculate_compute_cost(job["model_key"], duration)
+
+                        with _lock:
+                            job["status"] = COMPLETE
+                            job["image_path"] = image_path
+                            job["completed_at"] = s3_completed.isoformat()
+                            job["progress"] = 100
+                            job["duration_seconds"] = round(duration, 1)
+                            job["compute_cost_usd"] = compute_cost
+
+                        _track_completion(job, duration, compute_cost)
+                        # Terminal state: _cleanup_s3 deletes the persisted job file
+                        # (and input/output). Do NOT _persist_job_to_s3 afterwards —
+                        # that would immediately re-create the file we just deleted,
+                        # leaving a completed job lingering in S3 forever. (The live
+                        # poller's completion path, above, is cleanup-only for the
+                        # same reason.)
+                        _cleanup_s3(job, s3)
+                        resolved += 1
+                        logger.info("Resumed job %s: complete (%d bytes, ~$%.4f)",
+                                    job["job_id"], len(image_bytes), compute_cost)
+                    else:
                         with _lock:
                             job["status"] = FAILED
-                            job["error"] = f"Timed out ({int(elapsed)}s) — endpoint may have failed or been deleted"
+                            job["error"] = "No image data in output"
                             job["completed_at"] = datetime.now(timezone.utc).isoformat()
                         _update_gallery_on_failure(job)
-                        _persist_job_to_s3(job)
+                        # Terminal state — cleanup only, no re-persist (see above).
+                        _cleanup_s3(job, s3)
                         resolved += 1
-                    # else: still pending, poller will check later
-                else:
-                    logger.warning("Resume check failed for %s: %s", job["job_id"], e)
 
-        except Exception as e:
-            logger.warning("Resume job %s error: %s", job["job_id"], e)
+                except Exception as e:
+                    if "NoSuchKey" in str(e) or "404" in str(e):
+                        # Output not ready — check endpoint health before giving up
+                        elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
+                        should_fail = False
+                        ep_name = _resolve_endpoint_for_job(job)
+                        if ep_name and elapsed > 300:
+                            try:
+                                from backend.services.sagemaker_deployer import get_endpoint_health
+                                health = get_endpoint_health(ep_name)
+                                if health["failed"] or not health["alive"]:
+                                    should_fail = True
+                                elif health["progressing"] and health.get("stale_seconds", 0) > 1800:
+                                    should_fail = True  # Stalled
+                            except Exception:
+                                pass
+                        if should_fail:
+                            with _lock:
+                                job["status"] = FAILED
+                                job["error"] = f"Timed out ({int(elapsed)}s) — endpoint may have failed or been deleted"
+                                job["completed_at"] = datetime.now(timezone.utc).isoformat()
+                            _update_gallery_on_failure(job)
+                            _persist_job_to_s3(job)
+                            resolved += 1
+                        # else: still pending, poller will check later
+                    else:
+                        logger.warning("Resume check failed for %s: %s", job["job_id"], e)
+
+            except Exception as e:
+                logger.warning("Resume job %s error: %s", job["job_id"], e)
 
     return resolved
