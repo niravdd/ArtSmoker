@@ -233,7 +233,7 @@ ArtSmoker/
 │   │   ├── asset_locks.py         # Per-asset metadata write lock (§17.3)
 │   │   ├── notices.py             # Durable, dismissible user notices
 │   │   ├── auto_update.py         # Version-gated self-update (git or zip) + restart control
-│   │   ├── telemetry.py           # Anonymous usage tracking via PulseBoard
+│   │   ├── telemetry.py           # Anonymous usage tracking via PulseBoard — ArtSmoker events only; a privacy filter reduces error/reason/breakdown fields to codes and blanks any path, URL, ARN, account ID or email
 │   │   └── pulseboard.py          # Zero-dependency PulseBoard telemetry client
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update models

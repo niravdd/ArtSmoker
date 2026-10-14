@@ -23,7 +23,9 @@ Cost convention (consistent across ALL studios):
   Other events carry cost inline when applicable (edits, post-processing).
 """
 
+import json
 import logging
+import re
 import time
 
 from backend.config import settings, APP_VERSION
@@ -52,11 +54,78 @@ def init():
     )
 
 
+# ── Privacy filter ───────────────────────────────────────────────────
+# Telemetry carries ArtSmoker events only — never user data. Callers may pass raw
+# error text, reasons or labels (their console/log lines keep the full detail);
+# everything is filtered HERE, the single point every event passes through:
+#   • per event: error/reason/breakdown fields are reduced to fixed codes/numbers;
+#   • last-line guard: any string property that looks like a file path, URL, ARN,
+#     12-digit account ID or email is replaced, and strings are length-capped.
+_REDACTED = "[redacted]"
+_MAX_STR = 500
+_SENSITIVE = re.compile(
+    r"(?:^|[\s'\"(=:,])(?:~|\.{1,2})?/[^\s/]+/"   # POSIX path (/a/b, ~/a/, ./a/)
+    r"|[A-Za-z]:\\"                                # Windows path
+    r"|[A-Za-z][A-Za-z0-9+.-]*://"                 # any URL (https://, s3://, file://)
+    r"|\barn:aws"                                  # AWS ARN
+    r"|(?<!\d)\d{12}(?!\d)"                        # AWS account ID
+    r"|[\w.+-]+@[\w-]+\.[\w.]+"                    # email address
+)
+_CODE = re.compile(r"[A-Za-z0-9_.]{1,60}")
+_AWS_ACTION = re.compile(r"[a-z0-9-]+:[A-Za-z0-9]+")
+_AWS_ERROR_CODE = re.compile(r"\b([A-Z][A-Za-z]+(?:Exception|Error|Capacity|Exceeded|Fault|Denied))\b")
+
+
+def _code(value: str, default: str = "other") -> str:
+    """A bare identifier (exception class, fixed code) or `default`."""
+    value = (value or "").strip()
+    return value if _CODE.fullmatch(value) else (default if value else "")
+
+
+def _reason_code(text: str) -> str:
+    """An AWS error code found in a failure reason (e.g. InsufficientInstanceCapacity),
+    else 'other' — never the reason text itself (it can name buckets, keys, ARNs)."""
+    if not text:
+        return ""
+    m = _AWS_ERROR_CODE.search(text)
+    return m.group(1) if m else "other"
+
+
+def _breakdown_summary(breakdown) -> str:
+    """Cost breakdown reduced to {component: {cost, count}} — the free-text `details`
+    (labels, filenames, sizes) are dropped. Non-JSON breakdowns are dropped entirely."""
+    try:
+        data = json.loads(breakdown) if isinstance(breakdown, str) else breakdown
+    except (TypeError, ValueError):
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    out = {}
+    for component, g in data.items():
+        if isinstance(g, dict) and _CODE.fullmatch(str(component)):
+            out[component] = {"cost": g.get("cost", 0), "count": g.get("count", 0)}
+    return json.dumps(out) if out else ""
+
+
+def _scrub(event: str, props: dict) -> dict:
+    """Last-line guard over every string property (see the block comment above)."""
+    for key, value in props.items():
+        if not isinstance(value, str):
+            continue
+        if _SENSITIVE.search(value):
+            logger.debug("Telemetry: redacted property %r on %s", key, event)
+            props[key] = _REDACTED
+        elif len(value) > _MAX_STR:
+            props[key] = value[:_MAX_STR]
+    return props
+
+
 def _track(event: str, **props):
     """Fire-and-forget event. No-op if telemetry is disabled."""
     if _pb:
         props.setdefault("version", VERSION)
-        _pb.track(event, **props)
+        event = re.sub(r"[^a-z0-9_.]", "_", (event or "").lower())[:100]
+        _pb.track(event, **_scrub(event, props))
 
 
 # ── System Events ────────────────────────────────────────────────────
@@ -74,7 +143,13 @@ def track_frontend_load(client_os: str = "", client_browser: str = "", screen: s
 
 
 def track_error(error_type: str = "", message: str = ""):
-    _track("system.error", error_type=error_type, message=message[:200])
+    """An error EVENT — the error type only. The message (exception text, request
+    path) stays in the console/log; the only message sent is an AWS action name
+    (service:Operation) for aws_permission_denied."""
+    props = {"error_type": _code(error_type)}
+    if error_type == "aws_permission_denied" and _AWS_ACTION.fullmatch(message or ""):
+        props["action"] = message
+    _track("system.error", **props)
 
 
 # ── Image Studio Events ─────────────────────────────────────────────
@@ -97,7 +172,7 @@ def track_image_generation(model: str = "", num_options: int = 1,
 
 def track_image_cost(cost_usd: float = 0, model: str = "", breakdown: str = ""):
     """Actual cost for an image generation (LLM + image model + post-processing)."""
-    _track("image_studio.cost", cost_usd=cost_usd, model=model, breakdown=breakdown)
+    _track("image_studio.cost", cost_usd=cost_usd, model=model, breakdown=_breakdown_summary(breakdown))
 
 
 def track_image_edit(edit_type: str = "", model: str = "", cost_usd: float = 0):
@@ -301,8 +376,10 @@ def track_version_check(source: str = "", current: str = "", latest: str = "",
         system.manual.version_check  (the /check-update endpoint)
     Distinct from system.auto_update, which fires only when an update is applied."""
     tag = {"startup": "start", "periodic": "24h", "manual": "manual"}.get(source, source or "unknown")
+    # `error` (exception / git output — can hold local paths or remote URLs) is
+    # reduced to a flag; the detail is in the auto-update log line.
     _track(f"system.{tag}.version_check", source=source, current=current, latest=latest,
-           update_available=update_available, error=error[:200] if error else "")
+           update_available=update_available, failed=bool(error))
 
 
 # ── Custom Model Events ───────────────────────────────────────────
@@ -353,7 +430,7 @@ def track_custom_model_deploy_failed(model: str = "", instance: str = "", reason
     """A self-hosted deploy failed (e.g. InsufficientInstanceCapacity) and was
     auto-torn-down. Recorded so recurring capacity shortages are visible over time."""
     studio = _resolve_custom_studio(model)
-    _track(f"{studio}.custom.deploy_failed", model=model, instance=instance, reason=reason[:200])
+    _track(f"{studio}.custom.deploy_failed", model=model, instance=instance, reason=_reason_code(reason))
 
 
 def track_custom_model_deploy_ready(model: str = "", instance: str = ""):
