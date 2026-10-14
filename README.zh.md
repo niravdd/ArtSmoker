@@ -1,12 +1,52 @@
 # ArtSmoker
 > *对你的艺术作品进行冒烟测试！*
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12--3.14-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
 ![ArtSmoker 演示 — 从文本提示词到生产级 2D 美术，再到带完整纹理、为游戏引擎量身定制的 3D 模型](docs/images/artsmoker-walkthrough.gif)
+
+<a id="quick-start"></a>
+
+## 🚀 快速开始
+
+**从全新克隆到生成第一个资源，只需几分钟 —— macOS、Linux 或 Windows 均可。**
+
+**您需要：** Python **3.12、3.13 或 3.14** · Git · 具有 Amazon Bedrock 访问权限的 AWS 凭证（`aws configure`、AWS SSO 或实例角色）。最快捷的权限配置方式是使用托管策略 `AmazonBedrockFullAccess` + `AmazonBedrockMantleInferenceAccess` —— [详情](#iam-permissions)。
+
+> [!TIP]
+> 🤖 **想让它替您完成？** 在 AWS 的智能体开发环境 **[Kiro](https://kiro.dev)** 中打开本仓库，然后提出请求：*"按照 README.md 中的快速开始步骤，设置并运行 ArtSmoker。"* Kiro 的智能体会替您执行这些命令。
+
+**macOS · Linux**
+
+```bash
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
+python3 --version                                   # 必须是 3.12、3.13 或 3.14（否则在下面改用例如 python3.14）
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements.txt
+python -m backend.main
+```
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/niravdd/ArtSmoker.git; cd ArtSmoker
+python --version                                    # 必须是 3.12、3.13 或 3.14（否则在下面改用例如 py -3.14）
+python -m venv .venv; .venv\Scripts\activate
+pip install -r backend\requirements.txt
+python -m backend.main
+```
+
+然后打开 **http://localhost:8000**。首次启动时，ArtSmoker 会检查您的 AWS 凭证，并对您的账户在每个 AWS 区域中可用的模型进行一次性扫描（通常需要几分钟）—— **Setting Up ArtSmoker** 界面会显示进度 —— 完成后即可开始生成。
+
+| 遇到问题？ | 前往 |
+|---|---|
+| 您的 `python3` 不是 3.12–3.14（例如 Amazon Linux 2023 的系统 `python3` 是 3.9；新装的 Homebrew `python3` 可能是 3.15，而某个依赖尚不支持该版本） | [3. 安装](#installation) |
+| PowerShell 无法运行 `.venv\Scripts\activate` | [3.3 Windows](#install-windows) |
+| AWS 凭证、权限或 Claude 首次使用相关错误 | [2. 前置条件](#get-started) · [2.2 IAM 权限](#iam-permissions) |
+| 多用户、EC2 主机或生产环境 | [4. 运行](#running) |
 
 ## 📌 0. 概述
 
@@ -431,7 +471,7 @@ ArtSmoker 在原始网格之上附加的价值在于，一切都**按您的引�
 
 ## 📌 2. 前置条件
 
-- **Python 3.11+**（3.12、3.13、3.14 均可）
+- **Python 3.12、3.13 或 3.14** —— Nova Sonic 语音 SDK（`aws_sdk_bedrock_runtime`）需要 3.12 或更高版本，而 `numba`（通过 `rembg` 进行本地背景移除时使用）尚不支持 3.15
 - 已配置并具有有效凭证的 **AWS CLI**
 - 用于 Bedrock 访问的 **IAM 权限**（见下文）
 
@@ -487,6 +527,8 @@ aws bedrock list-custom-models --region us-east-1 \
 ```
 
 如果测试 1-3 通过，您的核心权限已就绪。测试 4 仅在需要自定义模型发现时才需要。如果测试 1 通过但测试 2-3 失败，说明您的 IAM 策略允许列举但不允许调用 —— 请使用下方的权限表更新它。
+
+<a id="iam-permissions"></a>
 
 ### 📝 2.2 IAM 权限
 
@@ -706,6 +748,8 @@ ffmpeg -version 2>&1 | head -1 && echo "ffmpeg: OK" || echo "ffmpeg: not install
 ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not installed (optional)"
 ```
 
+<a id="installation"></a>
+
 ## 📌 3. 安装
 
 ### 📝 3.1 macOS
@@ -723,7 +767,7 @@ pip3 install -r backend/requirements.txt
 ```
 
 > [!NOTE]
-> 在 macOS 上，`python3` 和 `pip3` 可通过 Homebrew（`brew install python`）或 Xcode 命令行工具获得。如果看到 "command not found"，请从 [python.org](https://www.python.org/downloads/) 安装 Python，或通过 `brew install python@3.12` 安装。
+> 在 macOS 上，请从 [python.org](https://www.python.org/downloads/) 或 Homebrew 安装 Python。Homebrew 默认的 `python3` 可能比 3.14 更新（例如尚不支持的 3.15）—— 如果 `python3 --version` 显示的是这样的版本，请运行 `brew install python@3.14`，并用 `python3.14 -m venv .venv` 创建 venv。Xcode 命令行工具自带的 `python3` 版本过旧。
 
 ### 📝 3.2 Linux (Debian/Ubuntu)
 
@@ -745,6 +789,11 @@ pip3 install --user -r backend/requirements.txt
 > [!NOTE]
 > 在某些 Linux 发行版上，在 venv 之外运行 `pip install` 需要 `--user` 标志或 `--break-system-packages`（PEP 668）。使用 venv 可完全避免这个问题。
 
+> [!IMPORTANT]
+> ArtSmoker 需要 **Python 3.12、3.13 或 3.14** —— 请用 `python3 --version` 检查。如果您的发行版自带的 `python3` 不在此范围内（Ubuntu 24.04 自带 3.12；Ubuntu 22.04 自带 3.10，版本过旧），请另行安装一个受支持的版本与之并存，并用该版本创建 venv。在 **Amazon Linux 2023** 上，系统 `python3` 始终是 3.9，但较新的版本已有软件包提供：先运行 `sudo dnf install -y python3.12`，再运行 `python3.12 -m venv .venv`。
+
+<a id="install-windows"></a>
+
 ### 📝 3.3 Windows
 
 ```powershell
@@ -761,7 +810,9 @@ pip install -r backend\requirements.txt
 ```
 
 > [!NOTE]
-> 在 Windows 上，使用 `python`（而非 `python3`）。请从 [python.org](https://www.python.org/downloads/) 安装 Python —— 安装期间勾选 "Add to PATH"。Type Studio 字体选择器会从 `C:\Windows\Fonts` 检测字体（系统字体检测目前仅支持 macOS/Linux —— Windows 用户可使用全局或风格专属的自定义字体）。
+> 在 Windows 上，使用 `python`（而非 `python3`）。请从 [python.org](https://www.python.org/downloads/) 安装 Python 3.12、3.13 或 3.14 —— 安装期间勾选 "Add to PATH"。如果安装了多个版本，可用启动器选择其中一个：`py -3.14 -m venv .venv`。如果 PowerShell 拒绝运行 `.venv\Scripts\activate`（"running scripts is disabled"），可用 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` 一次性允许，或在 cmd 中使用 `.venv\Scripts\activate.bat`。Type Studio 字体选择器会从 `C:\Windows\Fonts` 检测字体（系统字体检测目前仅支持 macOS/Linux —— Windows 用户可使用全局或风格专属的自定义字体）。
+
+<a id="running"></a>
 
 ## 📌 4. 运行
 
@@ -1395,7 +1446,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 
 | 层级 | 技术 |
 |-------|-----------|
-| 后端 | FastAPI (Python 3.11+)、boto3、Pydantic |
+| 后端 | FastAPI (Python 3.12–3.14)、boto3、Pydantic |
 | 前端 | Vanilla JS、Tailwind CSS (CDN) |
 | AI (LLM) | Claude Sonnet（快速任务）、Claude Opus（复杂任务） |
 | AI (图像) | Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core（Amazon Bedrock）；FLUX.2/FLUX.1、HunyuanImage 3.0、Qwen-Image（SageMaker 自托管） |

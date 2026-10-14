@@ -1,12 +1,52 @@
 # ArtSmoker
 > *Le smoke-test de vos créations artistiques !*
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12--3.14-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
 ![Visite guidée d'ArtSmoker — du prompt texte à l'art 2D prêt pour la production, jusqu'au modèle 3D entièrement texturé et adapté au moteur de jeu](docs/images/artsmoker-walkthrough.gif)
+
+<a id="quick-start"></a>
+
+## 🚀 Démarrage rapide
+
+**D'un clone tout neuf à votre premier asset généré en quelques minutes — sur macOS, Linux ou Windows.**
+
+**Il vous faut :** Python **3.12, 3.13 ou 3.14** · Git · des identifiants AWS (`aws configure`, AWS SSO ou un rôle d'instance) avec accès à Amazon Bedrock. Le moyen le plus rapide de configurer les permissions : les politiques gérées `AmazonBedrockFullAccess` + `AmazonBedrockMantleInferenceAccess` — [détails](#iam-permissions).
+
+> [!TIP]
+> 🤖 **Vous préférez qu'on s'en charge pour vous ?** Ouvrez ce dépôt dans **[Kiro](https://kiro.dev)**, l'environnement de développement agentique d'AWS, et demandez : *« Installe et lance ArtSmoker en suivant la section Quick Start du README.md. »* L'agent de Kiro exécute les commandes à votre place.
+
+**macOS · Linux**
+
+```bash
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
+python3 --version                                   # doit être 3.12, 3.13 ou 3.14 (sinon, utilisez p. ex. python3.14 ci-dessous)
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements.txt
+python -m backend.main
+```
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/niravdd/ArtSmoker.git; cd ArtSmoker
+python --version                                    # doit être 3.12, 3.13 ou 3.14 (sinon, utilisez p. ex. py -3.14 ci-dessous)
+python -m venv .venv; .venv\Scripts\activate
+pip install -r backend\requirements.txt
+python -m backend.main
+```
+
+Ouvrez ensuite **http://localhost:8000**. Au premier lancement, ArtSmoker vérifie vos identifiants AWS et effectue une analyse unique des modèles que votre compte peut utiliser dans chaque région AWS (généralement quelques minutes) — un écran **Setting Up ArtSmoker** affiche la progression — et vous êtes prêt à générer.
+
+| Bloqué ? | Où aller |
+|---|---|
+| Votre `python3` n'est pas en 3.12–3.14 (p. ex. le `python3` système d'Amazon Linux 2023 est en 3.9 ; un `python3` Homebrew tout récent peut être en 3.15, qu'une dépendance ne prend pas encore en charge) | [3. Installation](#installation) |
+| PowerShell refuse d'exécuter `.venv\Scripts\activate` | [3.3 Windows](#install-windows) |
+| Erreurs d'identifiants AWS, de permissions ou de première utilisation de Claude | [2. Prérequis](#get-started) · [2.2 Permissions IAM](#iam-permissions) |
+| Plusieurs utilisateurs, une machine EC2 ou la production | [4. Exécution](#running) |
 
 ## 📌 0. Présentation
 
@@ -429,7 +469,7 @@ Les quatre schémas que vous rencontrerez :
 
 ## 📌 2. Prérequis
 
-- **Python 3.11+** (3.12, 3.13, 3.14 fonctionnent tous)
+- **Python 3.12, 3.13 ou 3.14** — le SDK vocal Nova Sonic (`aws_sdk_bedrock_runtime`) requiert la 3.12 ou une version ultérieure, et `numba` (utilisé par la suppression d'arrière-plan locale via `rembg`) ne prend pas encore en charge la 3.15
 - **AWS CLI** configuré avec des identifiants valides
 - **Permissions IAM** pour l'accès à Bedrock (voir ci-dessous)
 
@@ -485,6 +525,8 @@ aws bedrock list-custom-models --region us-east-1 \
 ```
 
 Si les tests 1 à 3 réussissent, vos permissions de base sont en place. Le test 4 n'est nécessaire que pour la découverte des modèles personnalisés. Si le test 1 réussit mais que les tests 2-3 échouent, votre politique IAM autorise le listing mais pas l'invocation — mettez-la à jour à l'aide du tableau de permissions ci-dessous.
+
+<a id="iam-permissions"></a>
 
 ### 📝 2.2 Permissions IAM
 
@@ -704,6 +746,8 @@ ffmpeg -version 2>&1 | head -1 && echo "ffmpeg: OK" || echo "ffmpeg: not install
 ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not installed (optional)"
 ```
 
+<a id="installation"></a>
+
 ## 📌 3. Installation
 
 ### 📝 3.1 macOS
@@ -721,7 +765,7 @@ pip3 install -r backend/requirements.txt
 ```
 
 > [!NOTE]
-> Sur macOS, `python3` et `pip3` sont disponibles via Homebrew (`brew install python`) ou les Xcode command-line tools. Si vous voyez « command not found », installez Python depuis [python.org](https://www.python.org/downloads/) ou via `brew install python@3.12`.
+> Sur macOS, installez Python depuis [python.org](https://www.python.org/downloads/) ou via Homebrew. Le `python3` par défaut de Homebrew peut être plus récent que la 3.14 (p. ex. la 3.15, pas encore prise en charge) — si `python3 --version` affiche une telle version, exécutez `brew install python@3.14` et créez le venv avec `python3.14 -m venv .venv`. Le `python3` des Xcode command-line tools est trop ancien.
 
 ### 📝 3.2 Linux (Debian/Ubuntu)
 
@@ -743,6 +787,11 @@ pip3 install --user -r backend/requirements.txt
 > [!NOTE]
 > Sur certaines distributions Linux, `pip install` en dehors d'un venv nécessite le flag `--user` ou `--break-system-packages` (PEP 668). Utiliser un venv évite entièrement ce problème.
 
+> [!IMPORTANT]
+> ArtSmoker nécessite **Python 3.12, 3.13 ou 3.14** — vérifiez avec `python3 --version`. Si le `python3` de votre distribution sort de cette plage (Ubuntu 24.04 fournit la 3.12 ; Ubuntu 22.04 fournit la 3.10, trop ancienne), installez une version prise en charge en parallèle et créez le venv avec celle-ci. Sur **Amazon Linux 2023**, le `python3` système reste en 3.9, mais des versions plus récentes sont disponibles sous forme de paquets : `sudo dnf install -y python3.12`, puis `python3.12 -m venv .venv`.
+
+<a id="install-windows"></a>
+
 ### 📝 3.3 Windows
 
 ```powershell
@@ -759,7 +808,9 @@ pip install -r backend\requirements.txt
 ```
 
 > [!NOTE]
-> Sur Windows, utilisez `python` (pas `python3`). Installez Python depuis [python.org](https://www.python.org/downloads/) — cochez « Add to PATH » pendant l'installation. Le sélecteur de polices de Type Studio détecte les polices depuis `C:\Windows\Fonts` (la détection des polices système n'est actuellement disponible que sur macOS/Linux — les utilisateurs Windows peuvent utiliser des polices personnalisées globales ou spécifiques au style).
+> Sur Windows, utilisez `python` (pas `python3`). Installez Python 3.12, 3.13 ou 3.14 depuis [python.org](https://www.python.org/downloads/) — cochez « Add to PATH » pendant l'installation. Si plusieurs versions sont installées, choisissez-en une avec le lanceur : `py -3.14 -m venv .venv`. Si PowerShell refuse d'exécuter `.venv\Scripts\activate` (« running scripts is disabled »), autorisez-le une fois avec `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, ou utilisez `.venv\Scripts\activate.bat` depuis cmd. Le sélecteur de polices de Type Studio détecte les polices depuis `C:\Windows\Fonts` (la détection des polices système n'est actuellement disponible que sur macOS/Linux — les utilisateurs Windows peuvent utiliser des polices personnalisées globales ou spécifiques au style).
+
+<a id="running"></a>
 
 ## 📌 4. Exécution
 
@@ -1393,7 +1444,7 @@ Une **estimation des coûts** se met à jour dynamiquement en fonction de toutes
 
 | Couche | Technologie |
 |--------|-------------|
-| Backend | FastAPI (Python 3.11+), boto3, Pydantic |
+| Backend | FastAPI (Python 3.12–3.14), boto3, Pydantic |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
 | IA (LLM) | Claude Sonnet (tâches rapides), Claude Opus (tâches complexes) |
 | IA (Image) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core (Amazon Bedrock) ; FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image (auto-hébergés sur SageMaker) |

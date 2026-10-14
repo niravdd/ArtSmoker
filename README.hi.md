@@ -1,12 +1,52 @@
 # ArtSmoker
 > *अपनी कलाकृतियों का स्मोक-टेस्ट करें!*
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12--3.14-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
 ![ArtSmoker वॉकथ्रू — टेक्स्ट प्रॉम्प्ट से प्रोडक्शन-रेडी 2D आर्ट और पूरी तरह टेक्सचर्ड, गेम-इंजन के लिए तैयार 3D मॉडल तक](docs/images/artsmoker-walkthrough.gif)
+
+<a id="quick-start"></a>
+
+## 🚀 क्विक स्टार्ट
+
+**ताज़ा क्लोन से अपने पहले जनरेट किए गए एसेट तक बस कुछ ही मिनटों में — macOS, Linux या Windows पर।**
+
+**आपको चाहिए:** Python **3.12, 3.13 या 3.14** · Git · Amazon Bedrock एक्सेस वाले AWS क्रेडेंशियल्स (`aws configure`, AWS SSO या इंस्टेंस रोल)। अनुमतियाँ सेट करने का सबसे तेज़ तरीका मैनेज्ड पॉलिसियाँ `AmazonBedrockFullAccess` + `AmazonBedrockMantleInferenceAccess` हैं — [विवरण](#iam-permissions)।
+
+> [!TIP]
+> 🤖 **चाहते हैं कि यह सब आपके लिए कर दिया जाए?** इस रिपॉज़िटरी को AWS के एजेंटिक डेवलपमेंट एनवायरनमेंट **[Kiro](https://kiro.dev)** में खोलें और कहें: *"README.md के क्विक स्टार्ट का पालन करते हुए ArtSmoker को सेट अप करो और चलाओ।"* Kiro का एजेंट आपके लिए सारे कमांड चला देता है।
+
+**macOS · Linux**
+
+```bash
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
+python3 --version                                   # 3.12, 3.13 या 3.14 होना चाहिए (वरना नीचे उदाहरण के लिए python3.14 का उपयोग करें)
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements.txt
+python -m backend.main
+```
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/niravdd/ArtSmoker.git; cd ArtSmoker
+python --version                                    # 3.12, 3.13 या 3.14 होना चाहिए (वरना नीचे उदाहरण के लिए py -3.14 का उपयोग करें)
+python -m venv .venv; .venv\Scripts\activate
+pip install -r backend\requirements.txt
+python -m backend.main
+```
+
+फिर **http://localhost:8000** खोलें। पहली बार लॉन्च करने पर ArtSmoker आपके AWS क्रेडेंशियल्स जाँचता है और हर AWS Region में आपके अकाउंट के लिए उपलब्ध मॉडलों का एक बार का स्कैन चलाता है (आमतौर पर कुछ मिनट) — प्रगति **Setting Up ArtSmoker** स्क्रीन पर दिखती है — और इसके बाद आप जनरेट करने के लिए तैयार हैं।
+
+| अटक गए? | यहाँ जाएँ |
+|---|---|
+| आपका `python3` 3.12–3.14 नहीं है (जैसे Amazon Linux 2023 का सिस्टम `python3` 3.9 है; बिल्कुल नया Homebrew `python3` 3.15 हो सकता है, जिसे एक डिपेंडेंसी अभी सपोर्ट नहीं करती) | [3. इंस्टॉलेशन](#installation) |
+| PowerShell `.venv\Scripts\activate` नहीं चलाता | [3.3 Windows](#install-windows) |
+| AWS क्रेडेंशियल, अनुमति या Claude के पहले उपयोग से जुड़ी त्रुटियाँ | [2. आवश्यकताएँ](#get-started) · [2.2 IAM अनुमतियाँ](#iam-permissions) |
+| कई उपयोगकर्ता, EC2 सर्वर या प्रोडक्शन | [4. रनिंग](#running) |
 
 ## 📌 0. सारांश
 
@@ -429,7 +469,7 @@ Image-to-3D एक नई तकनीक है, और यह जानना 
 
 ## 📌 2. आवश्यकताएँ
 
-- **Python 3.11+** (3.12, 3.13, 3.14 सभी काम करते हैं)
+- **Python 3.12, 3.13 या 3.14** — Nova Sonic वॉइस SDK (`aws_sdk_bedrock_runtime`) को 3.12 या उससे नया संस्करण चाहिए, और `numba` (जिसका उपयोग `rembg` के ज़रिए लोकल बैकग्राउंड रिमूवल में होता है) अभी 3.15 को सपोर्ट नहीं करता
 - वैध क्रेडेंशियल्स के साथ कॉन्फ़िगर किया हुआ **AWS CLI**
 - Bedrock एक्सेस के लिए **IAM अनुमतियाँ** (नीचे देखें)
 
@@ -485,6 +525,8 @@ aws bedrock list-custom-models --region us-east-1 \
 ```
 
 यदि Tests 1-3 पास हो जाते हैं, तो आपकी मूल अनुमतियाँ सेट हैं। Test 4 केवल कस्टम मॉडल डिस्कवरी के लिए आवश्यक है। यदि Test 1 पास होता है लेकिन Tests 2-3 विफल होते हैं, तो आपकी IAM नीति लिस्टिंग की अनुमति देती है लेकिन इनवोक करने की नहीं — नीचे दी गई अनुमति तालिका का उपयोग करके इसे अपडेट करें।
+
+<a id="iam-permissions"></a>
 
 ### 📝 2.2 IAM अनुमतियाँ
 
@@ -704,6 +746,8 @@ ffmpeg -version 2>&1 | head -1 && echo "ffmpeg: OK" || echo "ffmpeg: not install
 ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not installed (optional)"
 ```
 
+<a id="installation"></a>
+
 ## 📌 3. इंस्टॉलेशन
 
 ### 📝 3.1 macOS
@@ -721,7 +765,7 @@ pip3 install -r backend/requirements.txt
 ```
 
 > [!NOTE]
-> macOS पर, `python3` और `pip3` Homebrew (`brew install python`) या Xcode कमांड-लाइन टूल्स के माध्यम से उपलब्ध हैं। यदि आपको "command not found" दिखे, तो [python.org](https://www.python.org/downloads/) से या `brew install python@3.12` के माध्यम से Python इंस्टॉल करें।
+> macOS पर, Python को [python.org](https://www.python.org/downloads/) से या Homebrew से इंस्टॉल करें। Homebrew का डिफ़ॉल्ट `python3` 3.14 से नया हो सकता है (जैसे 3.15, जो अभी सपोर्टेड नहीं है) — अगर `python3 --version` ऐसा दिखाए, तो `brew install python@3.14` चलाएँ और `python3.14 -m venv .venv` से venv बनाएँ। Xcode कमांड-लाइन टूल्स का `python3` बहुत पुराना है।
 
 ### 📝 3.2 Linux (Debian/Ubuntu)
 
@@ -743,6 +787,11 @@ pip3 install --user -r backend/requirements.txt
 > [!NOTE]
 > कुछ Linux डिस्ट्रो पर, venv के बाहर `pip install` के लिए `--user` फ़्लैग या `--break-system-packages` (PEP 668) आवश्यक होता है। एक venv का उपयोग इससे पूरी तरह बचाता है।
 
+> [!IMPORTANT]
+> ArtSmoker को **Python 3.12, 3.13 या 3.14** चाहिए — `python3 --version` से जाँचें। अगर आपके डिस्ट्रो का `python3` इस दायरे से बाहर है (Ubuntu 24.04 में 3.12 आता है; Ubuntu 22.04 में 3.10 आता है, जो बहुत पुराना है), तो उसके साथ एक सपोर्टेड संस्करण भी इंस्टॉल करें और उसी से venv बनाएँ। **Amazon Linux 2023** पर सिस्टम `python3` 3.9 ही रहता है, लेकिन नए संस्करण पैकेज के रूप में उपलब्ध हैं: `sudo dnf install -y python3.12`, फिर `python3.12 -m venv .venv`।
+
+<a id="install-windows"></a>
+
 ### 📝 3.3 Windows
 
 ```powershell
@@ -759,7 +808,9 @@ pip install -r backend\requirements.txt
 ```
 
 > [!NOTE]
-> Windows पर, `python` का उपयोग करें (`python3` नहीं)। [python.org](https://www.python.org/downloads/) से Python इंस्टॉल करें — इंस्टॉलेशन के दौरान "Add to PATH" चेक करें। Type Studio फ़ॉन्ट पिकर `C:\Windows\Fonts` से फ़ॉन्ट डिटेक्ट करता है (सिस्टम फ़ॉन्ट डिटेक्शन वर्तमान में केवल macOS/Linux पर है — Windows उपयोगकर्ता ग्लोबल या स्टाइल-विशिष्ट कस्टम फ़ॉन्ट का उपयोग कर सकते हैं)।
+> Windows पर, `python` का उपयोग करें (`python3` नहीं)। [python.org](https://www.python.org/downloads/) से Python 3.12, 3.13 या 3.14 इंस्टॉल करें — इंस्टॉलेशन के दौरान "Add to PATH" चेक करें। अगर कई संस्करण इंस्टॉल हैं, तो लॉन्चर से एक चुनें: `py -3.14 -m venv .venv`। अगर PowerShell `.venv\Scripts\activate` चलाने से मना करे ("running scripts is disabled"), तो `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` से एक बार अनुमति दें, या cmd से `.venv\Scripts\activate.bat` का उपयोग करें। Type Studio फ़ॉन्ट पिकर `C:\Windows\Fonts` से फ़ॉन्ट डिटेक्ट करता है (सिस्टम फ़ॉन्ट डिटेक्शन वर्तमान में केवल macOS/Linux पर है — Windows उपयोगकर्ता ग्लोबल या स्टाइल-विशिष्ट कस्टम फ़ॉन्ट का उपयोग कर सकते हैं)।
+
+<a id="running"></a>
 
 ## 📌 4. रनिंग
 
@@ -1393,7 +1444,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 
 | परत | टेक्नोलॉजी |
 |-----|-----------|
-| Backend | FastAPI (Python 3.11+), boto3, Pydantic |
+| Backend | FastAPI (Python 3.12–3.14), boto3, Pydantic |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
 | AI (LLM) | Claude Sonnet (तेज़ कार्य), Claude Opus (जटिल कार्य) |
 | AI (Image) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core (Amazon Bedrock); FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image (SageMaker पर सेल्फ-होस्टेड) |

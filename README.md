@@ -1,12 +1,52 @@
 # ArtSmoker
 > *Smoke-testing your artwork!*
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12--3.14-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
 ![ArtSmoker walkthrough — from a text prompt to production-ready 2D art to a fully-textured, game-engine-tailored 3D model](docs/images/artsmoker-walkthrough.gif)
+
+<a id="quick-start"></a>
+
+## 🚀 Quick Start
+
+**From a fresh clone to your first generated asset in a few minutes — on macOS, Linux, or Windows.**
+
+**You need:** Python **3.12, 3.13, or 3.14** · Git · AWS credentials (`aws configure`, AWS SSO, or an instance role) with Amazon Bedrock access. The quickest permissions setup is the managed policies `AmazonBedrockFullAccess` + `AmazonBedrockMantleInferenceAccess` — [details](#iam-permissions).
+
+> [!TIP]
+> 🤖 **Rather have it done for you?** Open this repository in **[Kiro](https://kiro.dev)**, AWS's agentic development environment, and ask: *"Set up and run ArtSmoker by following the Quick Start in README.md."* Kiro's agent runs the commands for you.
+
+**macOS · Linux**
+
+```bash
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
+python3 --version                                   # must be 3.12, 3.13, or 3.14 (else use e.g. python3.14 below)
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements.txt
+python -m backend.main
+```
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/niravdd/ArtSmoker.git; cd ArtSmoker
+python --version                                    # must be 3.12, 3.13, or 3.14 (else use e.g. py -3.14 below)
+python -m venv .venv; .venv\Scripts\activate
+pip install -r backend\requirements.txt
+python -m backend.main
+```
+
+Then open **http://localhost:8000**. On the first launch ArtSmoker checks your AWS credentials and runs a one-time scan of the models your account can use in every AWS Region (typically a few minutes) — a **Setting Up ArtSmoker** screen shows the progress — and you're ready to generate.
+
+| Stuck? | Go to |
+|---|---|
+| Your `python3` isn't 3.12–3.14 (e.g. Amazon Linux 2023's system `python3` is 3.9; a brand-new Homebrew `python3` can be 3.15, which a dependency doesn't support yet) | [3. Installation](#installation) |
+| PowerShell won't run `.venv\Scripts\activate` | [3.3 Windows](#install-windows) |
+| AWS credential, permission, or Claude first-use errors | [2. Prerequisites](#get-started) · [2.2 IAM Permissions](#iam-permissions) |
+| Several users, an EC2 box, or production | [4. Running](#running) |
 
 ## 📌 0. Overview
 
@@ -429,7 +469,7 @@ The four patterns you'll meet:
 
 ## 📌 2. Prerequisites
 
-- **Python 3.11+** (3.12, 3.13, 3.14 all work)
+- **Python 3.12, 3.13, or 3.14** — the Nova Sonic voice SDK (`aws_sdk_bedrock_runtime`) requires 3.12 or newer, and `numba` (used by local background removal via `rembg`) doesn't support 3.15 yet
 - **AWS CLI** configured with working credentials
 - **IAM permissions** for Bedrock access (see below)
 
@@ -485,6 +525,8 @@ aws bedrock list-custom-models --region us-east-1 \
 ```
 
 If Tests 1-3 pass, your core permissions are set. Test 4 is needed only for custom model discovery. If Test 1 passes but Tests 2-3 fail, your IAM policy allows listing but not invoking — update it using the permissions table below.
+
+<a id="iam-permissions"></a>
 
 ### 📝 2.2 IAM Permissions
 
@@ -711,6 +753,8 @@ ffmpeg -version 2>&1 | head -1 && echo "ffmpeg: OK" || echo "ffmpeg: not install
 ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not installed (optional)"
 ```
 
+<a id="installation"></a>
+
 ## 📌 3. Installation
 
 ### 📝 3.1 macOS
@@ -728,7 +772,7 @@ pip3 install -r backend/requirements.txt
 ```
 
 > [!NOTE]
-> On macOS, `python3` and `pip3` are available via Homebrew (`brew install python`) or the Xcode command-line tools. If you see "command not found", install Python from [python.org](https://www.python.org/downloads/) or via `brew install python@3.12`.
+> On macOS, install Python from [python.org](https://www.python.org/downloads/) or Homebrew. Homebrew's default `python3` can be newer than 3.14 (e.g. 3.15, which isn't supported yet) — if `python3 --version` shows that, run `brew install python@3.14` and create the venv with `python3.14 -m venv .venv`. The Xcode command-line tools' `python3` is too old.
 
 ### 📝 3.2 Linux (Debian/Ubuntu)
 
@@ -750,6 +794,11 @@ pip3 install --user -r backend/requirements.txt
 > [!NOTE]
 > On some Linux distros, `pip install` outside a venv requires the `--user` flag or `--break-system-packages` (PEP 668). Using a venv avoids this entirely.
 
+> [!IMPORTANT]
+> ArtSmoker needs **Python 3.12, 3.13, or 3.14** — check with `python3 --version`. If your distro's `python3` is outside that range (Ubuntu 24.04 ships 3.12; Ubuntu 22.04 ships 3.10, which is too old), install a supported version alongside it and create the venv with that one. On **Amazon Linux 2023**, the system `python3` stays 3.9, but newer versions are packaged: `sudo dnf install -y python3.12`, then `python3.12 -m venv .venv`.
+
+<a id="install-windows"></a>
+
 ### 📝 3.3 Windows
 
 ```powershell
@@ -766,7 +815,9 @@ pip install -r backend\requirements.txt
 ```
 
 > [!NOTE]
-> On Windows, use `python` (not `python3`). Install Python from [python.org](https://www.python.org/downloads/) — check "Add to PATH" during installation. If PowerShell refuses to run `.venv\Scripts\activate` ("running scripts is disabled"), allow it once with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or use `.venv\Scripts\activate.bat` from cmd. The Type Studio font picker detects fonts from `C:\Windows\Fonts` (system font detection is currently macOS/Linux only — Windows users can use global or style-specific custom fonts).
+> On Windows, use `python` (not `python3`). Install Python 3.12, 3.13, or 3.14 from [python.org](https://www.python.org/downloads/) — check "Add to PATH" during installation. If several versions are installed, pick one with the launcher: `py -3.14 -m venv .venv`. If PowerShell refuses to run `.venv\Scripts\activate` ("running scripts is disabled"), allow it once with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or use `.venv\Scripts\activate.bat` from cmd. The Type Studio font picker detects fonts from `C:\Windows\Fonts` (system font detection is currently macOS/Linux only — Windows users can use global or style-specific custom fonts).
+
+<a id="running"></a>
 
 ## 📌 4. Running
 
@@ -1400,7 +1451,7 @@ A **cost estimate** updates dynamically based on all selections (model × qualit
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | FastAPI (Python 3.11+), boto3, Pydantic |
+| Backend | FastAPI (Python 3.12–3.14), boto3, Pydantic |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
 | AI (LLM) | Claude Sonnet (fast tasks), Claude Opus (complex tasks) |
 | AI (Image) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core (Amazon Bedrock); FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image (self-hosted on SageMaker) |

@@ -15,7 +15,7 @@
 7. **Verification** — test checklist to validate the build.
 
 **Coding conventions:**
-- **Backend**: Python 3.11+, FastAPI with Pydantic v2 models, type hints everywhere, `async def` for route handlers. Services are plain synchronous functions (Bedrock calls are blocking). Use `logging.getLogger(__name__)` in every module.
+- **Backend**: Python 3.12–3.14, FastAPI with Pydantic v2 models, type hints everywhere, `async def` for route handlers. Services are plain synchronous functions (Bedrock calls are blocking). Use `logging.getLogger(__name__)` in every module.
 - **Frontend**: Vanilla JS (no framework, no build step), Tailwind CSS via CDN, IIFE pattern for components (`(function() { 'use strict'; window.ComponentName = { render(), init(), onShow(), destroy() }; })();`). Components expose themselves on `window` and are wired up by `app.js`.
 - **Naming**: Backend uses `snake_case` for everything. Frontend uses `camelCase` for JS, `kebab-case` for CSS classes and HTML IDs. API field names are `snake_case` (matching Python models).
 - **Error handling**: Backend returns `HTTPException` with status codes (400, 404, 409, 502). Frontend shows errors via `window.showToast(message, 'error')`. All client-side errors are also sent to `POST /api/log` for server-side recording.
@@ -756,7 +756,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 | Component | Technology | Reason |
 |-----------|-----------|--------|
-| Backend | FastAPI (Python 3.11+) | Async, fast, Pydantic models, auto-docs |
+| Backend | FastAPI (Python 3.12–3.14) | Async, fast, Pydantic models, auto-docs |
 | Frontend | Vanilla JS + Tailwind CSS | No build step, fast to iterate, lightweight |
 | AI Models | Bedrock (boto3) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, Claude, Nova Sonic, Stability |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) | Cascade of vector tracing methods |
@@ -1031,7 +1031,7 @@ prompt_templates.user.json   (gitignored, user edits only)
 2. Check config freshness: prompt templates loaded from `prompt_templates.json` (code seed backfills any missing), registry checked for `aws_account_discovered` field
 3. Ensure data directories
 4. Validate AWS credentials + Bedrock access
-5. If registry never synced + credentials valid → auto-Sync from AWS (30-60 seconds, first deployment only)
+5. If registry never synced + credentials valid → first-run auto-Sync from AWS in the background (first deployment only; the UI shows a "Setting Up ArtSmoker" progress screen). It scans every Region (20 s timeout per Region), discovers custom models, prunes, settles the voice model, and fetches official pricing; it does not run Mantle reconcile, residency pinning or the servability probe — those run on a full Sync
 6. Initialize internal services, start server
 
 **Registry as single source of truth**: The application code contains **zero hardcoded model IDs, API parameters, or invocation templates**. Everything the system needs to invoke any Bedrock service — model IDs, regions, request body structures, prompt paths, negative prompt paths, mask paths, seed ranges, quality tiers, dimension modes, response parsing, pricing, and parameter constraints — is stored in `model_registry.json` and read at runtime. The format families define the complete API contract for each provider/service type, including a `parameters` spec with types, ranges, defaults, and descriptions for every configurable field. This means:
@@ -2038,7 +2038,7 @@ For a scoped IAM policy:
 >
 > This is the **core** policy (Bedrock + Mantle + S3 + discovery). **Self-hosted Custom Models on Amazon SageMaker** need an additional set: `sagemaker:*` for endpoints, **Application Auto Scaling** (scale-to-zero/from-zero) + **CloudWatch alarms** + **CloudWatch Logs** (readiness scanner) + **Service Quotas** + `ecr:DescribeRepositories`, `iam:PassRole`/`CreateRole`/`AttachRolePolicy`/`PutRolePolicy` (+ `iam:CreateServiceLinkedRole` for first-ever endpoint auto-scaling), and `secretsmanager:*` for the gated-model HF token — the complete verified list is under **Amazon SageMaker IAM requirements** in §5.10. Skip those if you won't deploy Custom Models.
 >
-> **Runtime detection:** ArtSmoker monitors every AWS call (a process-wide botocore hook in `bedrock_client.install_permission_monitor`) — an access-denied call is logged with the exact `service:Operation` and surfaced as a persistent user notice (deduped, 1/hour per action), so a permission gap never fails silently. bedrock-runtime data-plane denials are log-only (they usually mean model access, which the app handles in-flow).
+> **Runtime detection:** ArtSmoker monitors every AWS call (a process-wide botocore hook in `bedrock_client.install_permission_monitor`) — an access-denied call is logged with the exact `service:Operation` and surfaced as a persistent user notice (deduped, 1/hour per action), so a permission gap never fails silently. bedrock-runtime data-plane denials are log-only (they usually mean model access, which the app handles in-flow). Two non-IAM conditions are logged at info with no notice: the generic "not authorized to invoke this API operation" (the operation isn't offered in that Region/account), and `UnrecognizedClientException` / `InvalidClientTokenId` (the credentials aren't valid in that Region — an opt-in Region the account hasn't enabled, reached by the Sync's all-Region scan).
 
 **Apply the policy via CLI:**
 
@@ -2210,7 +2210,7 @@ If ffmpeg is not installed, Video Studio still generates and plays videos (strea
 
 | Requirement | macOS | Linux (Debian/Ubuntu) | Windows |
 |-------------|-------|-----------------------|---------|
-| Python 3.11+ | `brew install python@3.12` or [python.org](https://www.python.org/downloads/) | `sudo apt install python3 python3-pip python3-venv` | [python.org](https://www.python.org/downloads/) (check "Add to PATH") |
+| Python 3.12–3.14 (`numba`, via `rembg`, doesn't support 3.15 yet) | `brew install python@3.14` or [python.org](https://www.python.org/downloads/) | `sudo apt install python3 python3-pip python3-venv` (Ubuntu 24.04+; older releases need a newer Python alongside) | [python.org](https://www.python.org/downloads/) (check "Add to PATH") |
 | AWS CLI | `brew install awscli` or [AWS installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | `sudo apt install awscli` or [AWS installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | [AWS MSI installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) |
 | Python command | `python3` / `pip3` | `python3` / `pip3` | `python` / `pip` |
 | ffmpeg (optional) | `brew install ffmpeg` | `sudo apt install ffmpeg` | [ffmpeg.org/download](https://ffmpeg.org/download.html) or `winget install ffmpeg` |
@@ -2666,12 +2666,12 @@ Developer machine
 
 For a lightweight production deployment (1-2 concurrent users), an EC2 instance is the simplest path:
 
-- **Instance**: a small general-purpose instance (e.g. t3.small, 2 vCPU / 2 GB RAM), Amazon Linux 2023 or Ubuntu 22.04+.
+- **Instance**: a small general-purpose instance (e.g. t3.small, 2 vCPU / 2 GB RAM), Amazon Linux 2023 or Ubuntu 24.04+.
 - **Setup**:
   ```bash
   # Amazon Linux 2023
-  sudo dnf install python3.11 python3.11-pip git
-  # Ubuntu 22.04+
+  sudo dnf install python3.12 python3.12-pip git     # then: python3.12 -m venv .venv
+  # Ubuntu 24.04+
   sudo apt update && sudo apt install python3 python3-pip python3-venv git
 
   # Optional: potrace (monochrome SVG fallback; vtracer comes from requirements.txt)
@@ -2765,7 +2765,7 @@ AWS App Runner
 
 **Changes required**:
 
-1. **Dockerfile**: Containerize the FastAPI app. Multi-stage build: Python 3.11+ slim base, install requirements, copy backend + frontend, expose port 8000. Install `vtracer` binary for SVG conversion.
+1. **Dockerfile**: Containerize the FastAPI app. Multi-stage build: Python 3.12–3.14 slim base, install requirements, copy backend + frontend, expose port 8000. Install `vtracer` binary for SVG conversion.
 
 2. **S3 storage backend**: Implement `S3Store` with the same interface as `LocalStore`. The `LocalStore` was designed with this migration in mind — same method signatures, just swap `Path.read_bytes()` for `s3.get_object()` and `Path.write_bytes()` for `s3.put_object()`. Add `ARTSMOKER_STORAGE_BACKEND=s3` and `ARTSMOKER_S3_BUCKET=artsmoker-data` to config.
 

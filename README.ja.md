@@ -1,12 +1,52 @@
 # ArtSmoker
 > *アートワークのスモークテスト！*
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12--3.14-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
 ![ArtSmoker ウォークスルー — テキストプロンプトから、本番品質の2Dアート、そして完全にテクスチャリングされ、ゲームエンジン向けに調整された3Dモデルまで](docs/images/artsmoker-walkthrough.gif)
+
+<a id="quick-start"></a>
+
+## 🚀 クイックスタート
+
+**クローンしたてのリポジトリから最初のアセット生成まで、わずか数分 — macOS、Linux、Windows のいずれでも。**
+
+**必要なもの：** Python **3.12、3.13、または 3.14** · Git · Amazon Bedrock へのアクセス権を持つ AWS 認証情報（`aws configure`、AWS SSO、またはインスタンスロール）。パーミッションを最も手早く設定するには、マネージドポリシー `AmazonBedrockFullAccess` + `AmazonBedrockMantleInferenceAccess` を使います — [詳細](#iam-permissions)。
+
+> [!TIP]
+> 🤖 **セットアップをお任せしたいですか？** このリポジトリを AWS のエージェント型開発環境 **[Kiro](https://kiro.dev)** で開き、*「README.md のクイックスタートに従って ArtSmoker をセットアップし、起動してください。」* と頼んでください。Kiro のエージェントがコマンドを代わりに実行します。
+
+**macOS · Linux**
+
+```bash
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
+python3 --version                                   # 3.12、3.13、3.14 のいずれかであること（そうでなければ、以下で python3.14 などを使用）
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements.txt
+python -m backend.main
+```
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/niravdd/ArtSmoker.git; cd ArtSmoker
+python --version                                    # 3.12、3.13、3.14 のいずれかであること（そうでなければ、以下で py -3.14 などを使用）
+python -m venv .venv; .venv\Scripts\activate
+pip install -r backend\requirements.txt
+python -m backend.main
+```
+
+あとは **http://localhost:8000** を開くだけです。初回起動時、ArtSmoker は AWS 認証情報を確認し、あなたのアカウントがすべての AWS リージョンで利用できるモデルを一度だけスキャンします（通常は数分） — 進行状況は **Setting Up ArtSmoker** 画面に表示されます — それが終われば、すぐに生成を始められます。
+
+| 困ったときは | 参照先 |
+|---|---|
+| `python3` が 3.12–3.14 ではない（例：Amazon Linux 2023 のシステム `python3` は 3.9。インストールしたばかりの Homebrew の `python3` は 3.15 のことがあり、依存パッケージの一つがまだ対応していません） | [3. インストール](#installation) |
+| PowerShell で `.venv\Scripts\activate` が実行できない | [3.3 Windows](#install-windows) |
+| AWS 認証情報、パーミッション、または Claude の初回利用時のエラー | [2. 前提条件](#get-started) · [2.2 IAMパーミッション](#iam-permissions) |
+| 複数ユーザーでの利用、EC2 インスタンス、または本番環境 | [4. 実行](#running) |
 
 ## 📌 0. 概要
 
@@ -431,7 +471,7 @@ ArtSmokerが生のメッシュに上乗せする価値は、すべてが**エン
 
 ## 📌 2. 前提条件
 
-- **Python 3.11+**（3.12、3.13、3.14はすべて動作）
+- **Python 3.12、3.13、または3.14** — Nova Sonic音声SDK（`aws_sdk_bedrock_runtime`）は3.12以降が必要で、`numba`（`rembg`によるローカル背景除去で使用）はまだ3.15に対応していません
 - 有効な認証情報で設定済みの**AWS CLI**
 - Bedrockアクセス用の**IAMパーミッション**（以下を参照）
 
@@ -487,6 +527,8 @@ aws bedrock list-custom-models --region us-east-1 \
 ```
 
 Test 1〜3が通れば、コアのパーミッションは設定されています。Test 4はカスタムモデル検出にのみ必要です。Test 1が通ってもTest 2〜3が失敗する場合、IAMポリシーはリスト取得を許可しているが呼び出しは許可していない状態です — 下記のパーミッション表を使って更新してください。
+
+<a id="iam-permissions"></a>
 
 ### 📝 2.2 IAMパーミッション
 
@@ -706,6 +748,8 @@ ffmpeg -version 2>&1 | head -1 && echo "ffmpeg: OK" || echo "ffmpeg: not install
 ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not installed (optional)"
 ```
 
+<a id="installation"></a>
+
 ## 📌 3. インストール
 
 ### 📝 3.1 macOS
@@ -723,7 +767,7 @@ pip3 install -r backend/requirements.txt
 ```
 
 > [!NOTE]
-> macOSでは、`python3`と`pip3`はHomebrew（`brew install python`）またはXcodeコマンドラインツール経由で利用できます。「command not found」と表示される場合は、[python.org](https://www.python.org/downloads/)からPythonをインストールするか、`brew install python@3.12`でインストールしてください。
+> macOSでは、[python.org](https://www.python.org/downloads/)またはHomebrewからPythonをインストールしてください。Homebrewのデフォルトの`python3`は3.14より新しい場合があります（例：まだサポートされていない3.15） — `python3 --version`でそう表示された場合は、`brew install python@3.14`を実行し、`python3.14 -m venv .venv`でvenvを作成してください。Xcodeコマンドラインツールの`python3`は古すぎます。
 
 ### 📝 3.2 Linux (Debian/Ubuntu)
 
@@ -745,6 +789,11 @@ pip3 install --user -r backend/requirements.txt
 > [!NOTE]
 > 一部のLinuxディストリビューションでは、venv外での`pip install`に`--user`フラグまたは`--break-system-packages`（PEP 668）が必要です。venvを使えばこれを完全に回避できます。
 
+> [!IMPORTANT]
+> ArtSmokerには**Python 3.12、3.13、または3.14**が必要です — `python3 --version`で確認してください。ディストリビューションの`python3`がこの範囲外の場合（Ubuntu 24.04は3.12を同梱、Ubuntu 22.04は3.10を同梱しており古すぎます）、サポートされているバージョンを既存のものと並行してインストールし、そのバージョンでvenvを作成してください。**Amazon Linux 2023**では、システムの`python3`は3.9のままですが、新しいバージョンもパッケージとして提供されています：`sudo dnf install -y python3.12`を実行してから、`python3.12 -m venv .venv`でvenvを作成します。
+
+<a id="install-windows"></a>
+
 ### 📝 3.3 Windows
 
 ```powershell
@@ -761,7 +810,9 @@ pip install -r backend\requirements.txt
 ```
 
 > [!NOTE]
-> Windowsでは、`python3`ではなく`python`を使用してください。[python.org](https://www.python.org/downloads/)からPythonをインストールし、インストール時に「Add to PATH」をチェックしてください。Type Studioのフォントピッカーは`C:\Windows\Fonts`からフォントを検出します（システムフォント検出は現在macOS/Linuxのみ — Windowsユーザーはグローバルまたはスタイル固有のカスタムフォントを使用できます）。
+> Windowsでは、`python3`ではなく`python`を使用してください。[python.org](https://www.python.org/downloads/)からPython 3.12、3.13、または3.14をインストールし、インストール時に「Add to PATH」をチェックしてください。複数のバージョンがインストールされている場合は、ランチャーで選択できます：`py -3.14 -m venv .venv`。PowerShellが`.venv\Scripts\activate`の実行を拒否する場合（「running scripts is disabled」）は、`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`で一度だけ許可するか、cmdから`.venv\Scripts\activate.bat`を使用してください。Type Studioのフォントピッカーは`C:\Windows\Fonts`からフォントを検出します（システムフォント検出は現在macOS/Linuxのみ — Windowsユーザーはグローバルまたはスタイル固有のカスタムフォントを使用できます）。
+
+<a id="running"></a>
 
 ## 📌 4. 実行
 
@@ -1395,7 +1446,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 
 | レイヤー | テクノロジー |
 |-------|-----------|
-| バックエンド | FastAPI (Python 3.11+)、boto3、Pydantic |
+| バックエンド | FastAPI (Python 3.12–3.14)、boto3、Pydantic |
 | フロントエンド | Vanilla JS、Tailwind CSS (CDN) |
 | AI (LLM) | Claude Sonnet（高速タスク）、Claude Opus（複雑なタスク） |
 | AI (画像) | Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core（Amazon Bedrock）；FLUX.2/FLUX.1、HunyuanImage 3.0、Qwen-Image（SageMakerでセルフホスト） |

@@ -1,12 +1,52 @@
 # ArtSmoker
 > *Смоук-тестирование ваших работ!*
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12--3.14-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
 ![Обзор ArtSmoker — от текстового промпта к 2D-арту продакшен-качества и полностью текстурированной 3D-модели, адаптированной под игровой движок](docs/images/artsmoker-walkthrough.gif)
+
+<a id="quick-start"></a>
+
+## 🚀 Быстрый старт
+
+**От свежего клона до первого сгенерированного ассета за несколько минут — на macOS, Linux или Windows.**
+
+**Что понадобится:** Python **3.12, 3.13 или 3.14** · Git · учётные данные AWS (`aws configure`, AWS SSO или роль инстанса) с доступом к Amazon Bedrock. Быстрее всего настроить разрешения через управляемые политики `AmazonBedrockFullAccess` + `AmazonBedrockMantleInferenceAccess` — [подробнее](#iam-permissions).
+
+> [!TIP]
+> 🤖 **Хотите, чтобы всё сделали за вас?** Откройте этот репозиторий в **[Kiro](https://kiro.dev)** — агентной среде разработки от AWS — и попросите: *«Установи и запусти ArtSmoker, следуя разделу Quick Start в README.md.»* Агент Kiro сам выполнит все команды.
+
+**macOS · Linux**
+
+```bash
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
+python3 --version                                   # должно быть 3.12, 3.13 или 3.14 (иначе ниже используйте, например, python3.14)
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements.txt
+python -m backend.main
+```
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/niravdd/ArtSmoker.git; cd ArtSmoker
+python --version                                    # должно быть 3.12, 3.13 или 3.14 (иначе ниже используйте, например, py -3.14)
+python -m venv .venv; .venv\Scripts\activate
+pip install -r backend\requirements.txt
+python -m backend.main
+```
+
+Затем откройте **http://localhost:8000**. При первом запуске ArtSmoker проверяет ваши учётные данные AWS и однократно сканирует модели, доступные вашему аккаунту во всех регионах AWS (обычно это занимает несколько минут), — ход процесса отображается на экране **Setting Up ArtSmoker**, — и можно приступать к генерации.
+
+| Застряли? | Куда смотреть |
+|---|---|
+| Ваш `python3` не версии 3.12–3.14 (например, системный `python3` в Amazon Linux 2023 — это 3.9, а самый свежий `python3` из Homebrew может оказаться 3.15, которую одна из зависимостей пока не поддерживает) | [3. Установка](#installation) |
+| PowerShell не даёт запустить `.venv\Scripts\activate` | [3.3 Windows](#install-windows) |
+| Ошибки учётных данных AWS, разрешений или первого использования Claude | [2. Предварительные требования](#get-started) · [2.2 Разрешения IAM](#iam-permissions) |
+| Несколько пользователей, сервер EC2 или продакшен | [4. Запуск](#running) |
 
 ## 📌 0. Обзор
 
@@ -429,7 +469,7 @@ Image-to-3D — молодая технология, и стоит понима�
 
 ## 📌 2. Предварительные требования
 
-- **Python 3.11+** (3.12, 3.13, 3.14 тоже работают)
+- **Python 3.12, 3.13 или 3.14** — SDK голосовой модели Nova Sonic (`aws_sdk_bedrock_runtime`) требует 3.12 или новее, а `numba` (используется локальным удалением фона через `rembg`) пока не поддерживает 3.15
 - **AWS CLI** с настроенными рабочими учётными данными
 - **Разрешения IAM** для доступа к Bedrock (см. ниже)
 
@@ -485,6 +525,8 @@ aws bedrock list-custom-models --region us-east-1 \
 ```
 
 Если тесты 1-3 проходят, ваши базовые разрешения настроены. Тест 4 нужен только для обнаружения пользовательских моделей. Если тест 1 проходит, а тесты 2-3 нет, ваша IAM-политика разрешает листинг, но не вызов — обновите её, используя таблицу разрешений ниже.
+
+<a id="iam-permissions"></a>
 
 ### 📝 2.2 Разрешения IAM
 
@@ -704,6 +746,8 @@ ffmpeg -version 2>&1 | head -1 && echo "ffmpeg: OK" || echo "ffmpeg: not install
 ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not installed (optional)"
 ```
 
+<a id="installation"></a>
+
 ## 📌 3. Установка
 
 ### 📝 3.1 macOS
@@ -721,7 +765,7 @@ pip3 install -r backend/requirements.txt
 ```
 
 > [!NOTE]
-> На macOS `python3` и `pip3` доступны через Homebrew (`brew install python`) или инструменты командной строки Xcode. Если вы видите «command not found», установите Python с [python.org](https://www.python.org/downloads/) или через `brew install python@3.12`.
+> На macOS установите Python с [python.org](https://www.python.org/downloads/) или через Homebrew. Используемый по умолчанию `python3` из Homebrew может оказаться новее 3.14 (например, 3.15, которая пока не поддерживается) — если `python3 --version` показывает такую версию, выполните `brew install python@3.14` и создайте venv командой `python3.14 -m venv .venv`. `python3` из инструментов командной строки Xcode слишком старый.
 
 ### 📝 3.2 Linux (Debian/Ubuntu)
 
@@ -743,6 +787,11 @@ pip3 install --user -r backend/requirements.txt
 > [!NOTE]
 > На некоторых дистрибутивах Linux `pip install` вне venv требует флага `--user` или `--break-system-packages` (PEP 668). Использование venv полностью снимает эту проблему.
 
+> [!IMPORTANT]
+> ArtSmoker требует **Python 3.12, 3.13 или 3.14** — проверьте командой `python3 --version`. Если `python3` вашего дистрибутива выходит за этот диапазон (в Ubuntu 24.04 поставляется 3.12; в Ubuntu 22.04 — 3.10, что слишком старо), установите поддерживаемую версию рядом с системной и создайте venv именно ею. В **Amazon Linux 2023** системный `python3` остаётся версии 3.9, но более новые версии доступны в виде пакетов: `sudo dnf install -y python3.12`, затем `python3.12 -m venv .venv`.
+
+<a id="install-windows"></a>
+
 ### 📝 3.3 Windows
 
 ```powershell
@@ -759,7 +808,9 @@ pip install -r backend\requirements.txt
 ```
 
 > [!NOTE]
-> На Windows используйте `python` (не `python3`). Установите Python с [python.org](https://www.python.org/downloads/) — при установке отметьте «Add to PATH». Выбор шрифтов Type Studio обнаруживает шрифты из `C:\Windows\Fonts` (системное обнаружение шрифтов сейчас только для macOS/Linux — пользователи Windows могут использовать глобальные или стиль-специфичные пользовательские шрифты).
+> На Windows используйте `python` (не `python3`). Установите Python 3.12, 3.13 или 3.14 с [python.org](https://www.python.org/downloads/) — при установке отметьте «Add to PATH». Если установлено несколько версий, выберите нужную через лаунчер: `py -3.14 -m venv .venv`. Если PowerShell отказывается запускать `.venv\Scripts\activate` («running scripts is disabled»), разрешите это один раз командой `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` или используйте `.venv\Scripts\activate.bat` из cmd. Выбор шрифтов Type Studio обнаруживает шрифты из `C:\Windows\Fonts` (системное обнаружение шрифтов сейчас только для macOS/Linux — пользователи Windows могут использовать глобальные или стиль-специфичные пользовательские шрифты).
+
+<a id="running"></a>
 
 ## 📌 4. Запуск
 
@@ -1393,7 +1444,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 
 | Слой | Технология |
 |------|-----------|
-| Бэкенд | FastAPI (Python 3.11+), boto3, Pydantic |
+| Бэкенд | FastAPI (Python 3.12–3.14), boto3, Pydantic |
 | Фронтенд | Vanilla JS, Tailwind CSS (CDN) |
 | ИИ (LLM) | Claude Sonnet (быстрые задачи), Claude Opus (сложные задачи) |
 | ИИ (Изображения) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core (Amazon Bedrock); FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image (self-hosted на SageMaker) |

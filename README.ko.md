@@ -1,12 +1,52 @@
 # ArtSmoker
 > *아트워크를 스모크 테스트하세요!*
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12--3.14-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
 ![ArtSmoker 워크스루 — 텍스트 프롬프트에서 프로덕션급 2D 아트, 완전히 텍스처링된 게임 엔진 맞춤형 3D 모델까지](docs/images/artsmoker-walkthrough.gif)
+
+<a id="quick-start"></a>
+
+## 🚀 빠른 시작
+
+**새로 클론한 저장소에서 첫 에셋 생성까지 단 몇 분 — macOS, Linux, Windows 어디서든.**
+
+**필요한 것:** Python **3.12, 3.13 또는 3.14** · Git · Amazon Bedrock에 접근할 수 있는 AWS 인증 정보(`aws configure`, AWS SSO 또는 인스턴스 역할). 가장 빠른 권한 설정은 관리형 정책 `AmazonBedrockFullAccess` + `AmazonBedrockMantleInferenceAccess`를 사용하는 것입니다 — [자세히 보기](#iam-permissions).
+
+> [!TIP]
+> 🤖 **직접 하기보다 맡기고 싶으신가요?** 이 저장소를 **[Kiro](https://kiro.dev)**(AWS의 에이전트형 개발 환경)에서 열고 이렇게 요청하세요: *"README.md의 빠른 시작을 따라 ArtSmoker를 설정하고 실행해 줘."* Kiro의 에이전트가 명령을 대신 실행해 줍니다.
+
+**macOS · Linux**
+
+```bash
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
+python3 --version                                   # 3.12, 3.13, 3.14 중 하나여야 함 (아니면 아래 명령에서 python3.14 등으로 대체)
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements.txt
+python -m backend.main
+```
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/niravdd/ArtSmoker.git; cd ArtSmoker
+python --version                                    # 3.12, 3.13, 3.14 중 하나여야 함 (아니면 아래 명령에서 py -3.14 등으로 대체)
+python -m venv .venv; .venv\Scripts\activate
+pip install -r backend\requirements.txt
+python -m backend.main
+```
+
+그런 다음 **http://localhost:8000**을 여세요. 처음 실행하면 ArtSmoker가 AWS 인증 정보를 확인하고, 모든 AWS 리전에서 계정이 사용할 수 있는 모델을 한 번 스캔합니다(보통 몇 분 소요). 진행 상황은 **Setting Up ArtSmoker** 화면에 표시되며, 스캔이 끝나면 바로 생성을 시작할 수 있습니다.
+
+| 막혔나요? | 이동 |
+|---|---|
+| `python3`가 3.12–3.14가 아님(예: Amazon Linux 2023의 시스템 `python3`는 3.9이고, 최신 Homebrew `python3`는 아직 일부 의존성이 지원하지 않는 3.15일 수 있음) | [3. 설치](#installation) |
+| PowerShell에서 `.venv\Scripts\activate`가 실행되지 않음 | [3.3 Windows](#install-windows) |
+| AWS 인증 정보, 권한 또는 Claude 첫 사용 오류 | [2. 사전 요구사항](#get-started) · [2.2 IAM 권한](#iam-permissions) |
+| 여러 사용자, EC2 서버 또는 프로덕션 환경 | [4. 실행](#running) |
 
 ## 📌 0. 개요
 
@@ -429,7 +469,7 @@ ArtSmoker가 원시 메시 위에 더하는 가치는 모든 것이 **사용할 
 
 ## 📌 2. 사전 요구사항
 
-- **Python 3.11+**(3.12, 3.13, 3.14 모두 작동)
+- **Python 3.12, 3.13 또는 3.14** — Nova Sonic 음성 SDK(`aws_sdk_bedrock_runtime`)는 3.12 이상이 필요하며, `numba`(`rembg`를 통한 로컬 배경 제거에 사용)는 아직 3.15를 지원하지 않습니다
 - 유효한 인증 정보로 구성된 **AWS CLI**
 - Bedrock 접근을 위한 **IAM 권한**(아래 참조)
 
@@ -485,6 +525,8 @@ aws bedrock list-custom-models --region us-east-1 \
 ```
 
 Test 1-3이 통과하면 핵심 권한이 설정된 것입니다. Test 4는 커스텀 모델 검색에만 필요합니다. Test 1은 통과하지만 Test 2-3이 실패하면, IAM 정책이 목록 조회는 허용하지만 호출은 허용하지 않는 것입니다 — 아래 권한 표를 사용하여 업데이트하세요.
+
+<a id="iam-permissions"></a>
 
 ### 📝 2.2 IAM 권한
 
@@ -704,6 +746,8 @@ ffmpeg -version 2>&1 | head -1 && echo "ffmpeg: OK" || echo "ffmpeg: not install
 ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not installed (optional)"
 ```
 
+<a id="installation"></a>
+
 ## 📌 3. 설치
 
 ### 📝 3.1 macOS
@@ -721,7 +765,7 @@ pip3 install -r backend/requirements.txt
 ```
 
 > [!NOTE]
-> macOS에서는 `python3`와 `pip3`가 Homebrew(`brew install python`) 또는 Xcode 커맨드라인 도구를 통해 사용 가능합니다. "command not found"가 표시되면 [python.org](https://www.python.org/downloads/)에서 Python을 설치하거나 `brew install python@3.12`를 사용하세요.
+> macOS에서는 [python.org](https://www.python.org/downloads/) 또는 Homebrew로 Python을 설치하세요. Homebrew의 기본 `python3`는 3.14보다 새로운 버전(예: 아직 지원되지 않는 3.15)일 수 있습니다 — `python3 --version`이 그런 버전을 표시하면 `brew install python@3.14`를 실행한 뒤 `python3.14 -m venv .venv`로 venv를 만드세요. Xcode 커맨드라인 도구의 `python3`는 너무 오래된 버전입니다.
 
 ### 📝 3.2 Linux (Debian/Ubuntu)
 
@@ -743,6 +787,11 @@ pip3 install --user -r backend/requirements.txt
 > [!NOTE]
 > 일부 Linux 배포판에서는 venv 외부의 `pip install`에 `--user` 플래그 또는 `--break-system-packages`(PEP 668)가 필요합니다. venv를 사용하면 이 문제를 완전히 피할 수 있습니다.
 
+> [!IMPORTANT]
+> ArtSmoker에는 **Python 3.12, 3.13 또는 3.14**가 필요합니다 — `python3 --version`으로 확인하세요. 배포판의 `python3`가 이 범위를 벗어나면(Ubuntu 24.04는 3.12를 제공하지만, Ubuntu 22.04는 너무 오래된 3.10을 제공합니다) 지원되는 버전을 함께 설치하고 그 버전으로 venv를 만드세요. **Amazon Linux 2023**에서는 시스템 `python3`가 3.9로 유지되지만 더 새로운 버전이 패키지로 제공됩니다: `sudo dnf install -y python3.12` 후 `python3.12 -m venv .venv`를 실행하세요.
+
+<a id="install-windows"></a>
+
 ### 📝 3.3 Windows
 
 ```powershell
@@ -759,7 +808,9 @@ pip install -r backend\requirements.txt
 ```
 
 > [!NOTE]
-> Windows에서는 (`python3`가 아니라) `python`을 사용하세요. [python.org](https://www.python.org/downloads/)에서 Python을 설치하고 — 설치 중 "Add to PATH"를 체크하세요. Type Studio 폰트 피커는 `C:\Windows\Fonts`에서 폰트를 감지합니다(시스템 폰트 감지는 현재 macOS/Linux 전용 — Windows 사용자는 글로벌 또는 스타일별 커스텀 폰트를 사용할 수 있습니다).
+> Windows에서는 (`python3`가 아니라) `python`을 사용하세요. [python.org](https://www.python.org/downloads/)에서 Python 3.12, 3.13 또는 3.14를 설치하고 — 설치 중 "Add to PATH"를 체크하세요. 여러 버전이 설치되어 있다면 런처로 버전을 지정하세요: `py -3.14 -m venv .venv`. PowerShell이 `.venv\Scripts\activate` 실행을 거부하면("running scripts is disabled") `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`로 한 번 허용하거나, cmd에서 `.venv\Scripts\activate.bat`를 사용하세요. Type Studio 폰트 피커는 `C:\Windows\Fonts`에서 폰트를 감지합니다(시스템 폰트 감지는 현재 macOS/Linux 전용 — Windows 사용자는 글로벌 또는 스타일별 커스텀 폰트를 사용할 수 있습니다).
+
+<a id="running"></a>
 
 ## 📌 4. 실행
 
@@ -1393,7 +1444,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 
 | 레이어 | 기술 |
 |--------|------|
-| 백엔드 | FastAPI (Python 3.11+), boto3, Pydantic |
+| 백엔드 | FastAPI (Python 3.12–3.14), boto3, Pydantic |
 | 프론트엔드 | Vanilla JS, Tailwind CSS (CDN) |
 | AI (LLM) | Claude Sonnet(빠른 작업), Claude Opus(복잡한 작업) |
 | AI (이미지) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core (Amazon Bedrock); FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image (SageMaker 셀프 호스팅) |
