@@ -158,14 +158,26 @@ _PERM_DENIED_CODES = {
     "AccessDeniedException", "AccessDenied", "UnauthorizedOperation",
     "Forbidden", "NotAuthorized", "AuthorizationError", "AuthFailure",
 }
+# "The security token included in the request is invalid" — returned (HTTP 403)
+# when the credentials aren't valid in the called Region, i.e. an opt-in Region
+# the account hasn't enabled (the Sync's Region scan reaches every Region).
+# Globally-bad credentials are reported by the startup credential check instead.
+_REGION_NOT_ENABLED_CODES = {"UnrecognizedClientException", "InvalidClientTokenId"}
 _PERM_QUIET_SERVICES = {"bedrock-runtime"}
 _PERM_SUPPRESS_SECONDS = 3600
 _perm_seen: dict = {}
 _perm_lock = __import__("threading").Lock()
 
 
-def _report_permission_denied(service: str, operation: str, code: str, message: str) -> None:
+def _report_permission_denied(service: str, operation: str, code: str, message: str,
+                              region: str = "") -> None:
     key = f"{service}:{operation}"
+    if code in _REGION_NOT_ENABLED_CODES:
+        logger.info(
+            "AWS Region %s is likely not enabled for this account (%s on %s) — "
+            "skipped, no IAM change needed",
+            region or "?", code, key)
+        return
     now = time.monotonic()
     with _perm_lock:
         last = _perm_seen.get(key)
@@ -238,7 +250,8 @@ def install_permission_monitor() -> None:
                 if code in _PERM_DENIED_CODES or status == 403:
                     service = getattr(self.meta, "service_model", None)
                     service = getattr(service, "service_name", "aws")
-                    _report_permission_denied(service, operation_name, code, err.get("Message", ""))
+                    _report_permission_denied(service, operation_name, code, err.get("Message", ""),
+                                              region=getattr(self.meta, "region_name", "") or "")
             except Exception:
                 logger.debug("Permission-monitor inspection failed", exc_info=True)
             raise
