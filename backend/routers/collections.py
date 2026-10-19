@@ -17,9 +17,10 @@ import logging
 import queue
 import random
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -30,6 +31,8 @@ from backend.storage.local_store import store
 logger = logging.getLogger(__name__)
 
 _SEED_MAX = 2 ** 31 - 1
+# Bound on the 3D submissions a collection remembers for its 3D view (newest kept).
+_MAX_3D_REQUESTS = 2000
 
 router = APIRouter(prefix="/api/collections", tags=["collections"])
 
@@ -1091,6 +1094,19 @@ async def generate_collection_3d(collection_id: str, body: Collection3DRequest |
             logger.exception("Collection 3D submit failed for %s v%s", aid, ver)
             failures.append({"asset_id": aid, "error": str(exc)})
 
+    # Remember what this collection sent to 3D, so its 3D view can report each
+    # target's state from ANY server process and after restarts (in-memory 3D job
+    # tracking is per process, and a finished job's persisted record is deleted).
+    if submitted:
+        now = datetime.now(timezone.utc).isoformat()
+        def _record(r):
+            reqs = r.setdefault("three_d_requests", [])
+            reqs.extend({"asset_id": s["asset_id"], "version": s["version"],
+                         "job_id": s.get("job_id"), "submitted_at": now}
+                        for s in submitted if s.get("job_id"))
+            del reqs[:-_MAX_3D_REQUESTS]   # bounded: keep the newest
+        cstore.update_collection(collection_id, _record)
+
     cstore.refresh_collection_summary(collection_id)
     try:
         from backend.services.telemetry import track_collection_3d_handoff
@@ -1102,93 +1118,98 @@ async def generate_collection_3d(collection_id: str, body: Collection3DRequest |
     return {"submitted": submitted, "failures": failures}
 
 
-def _batch_default_glb(asset_id: str, version: int):
-    """The representative GLB for a Batch's selected version. Resolves the DEFAULT
-    variant's PRIVATE file from metadata (the single source of truth — same resolver
-    the gallery serve/export use), then falls back to the legacy canonical names
-    (asset_3d_v{N}.glb / asset_3d.glb) for legacy assets, then any .glb in the Job
-    dir. None if this Batch has no 3D model yet."""
-    from backend.routers.gallery import default_3d_glb_filename
-    d = store.generated_asset_dir(asset_id)
-    names = []
-    dflt = default_3d_glb_filename(store.load_generation_metadata(asset_id) or {}, version)
-    if dflt:
-        names.append(dflt)
-    names += [f"asset_3d_v{version}.glb", "asset_3d.glb"]
-    for name in names:
-        p = d / name
-        if p.exists():
-            return p
-    globbed = sorted(d.glob("*.glb"))
-    return globbed[0] if globbed else None
+def _job_versions(meta: dict) -> list[int]:
+    """A Job's live 2D version numbers (tombstoned versions excluded)."""
+    vers = sorted(v.get("version") for v in (meta.get("versions") or [])
+                  if v.get("version") and v.get("type") != "deleted")
+    return vers or [int(meta.get("current_version", 1) or 1)]
 
 
-@router.get("/{collection_id}/export")
-async def export_collection(collection_id: str, target: str = Query("generic"),
-                            fmt: str = Query("fbx")):
-    """Set-level export: convert each Batch's selected 3D mesh to `target`/`fmt`
-    and bundle them into ONE zip, named per piece-slug. Reuses the existing
-    headless-Blender GLB→FBX/USD path (SPEC §18 Phase N). Batches without a 3D
-    model yet are skipped."""
-    import tempfile, zipfile
+def _target_3d_state(meta: dict, version: int, req: dict | None, now: datetime) -> dict | None:
+    """3D state of one (Job, version) for the collection 3D view, or None when it
+    has never had 3D. Precedence: the submitted job's own variant landed → ready;
+    the live job record (this process) → its status/error; a mesh on disk → ready;
+    a submission older than the longest a SageMaker async request can live →
+    expired; else still in flight."""
+    from backend.routers import generate_3d as g3d
+    from backend.routers.gallery import resolve_3d_glb
+
+    aid = meta.get("id", "")
+    path, _ = resolve_3d_glb(aid, version, meta=meta)
+    has_mesh = path is not None
+    out = {"asset_id": aid, "version": version,
+           "glb_url": f"/api/gallery/{aid}/3d/{version}" if has_mesh else None}
+    if req is None:
+        return {**out, "state": "ready"} if has_mesh else None
+
+    jid = req.get("job_id")
+    variants = ((meta.get("three_d") or {}).get(f"v{version}") or {}).get("variants") or []
+    if jid and any(v.get("job_id") == jid for v in variants):
+        return {**out, "state": "ready", "job_id": jid}
+    live = g3d._3d_jobs.get(jid) if jid else None
+    if live:
+        status = live.get("status", "submitted")
+        if status == "failed":
+            return {**out, "state": "failed", "job_id": jid,
+                    "error": (live.get("error") or "")[:300]}
+        if status == "complete":
+            return {**out, "state": "ready" if has_mesh else "failed", "job_id": jid}
+        return {**out, "state": "queued" if status == "submitted" else "generating", "job_id": jid}
+    try:
+        age_h = (now - datetime.fromisoformat(req.get("submitted_at", ""))).total_seconds() / 3600
+    except (TypeError, ValueError):
+        age_h = 0
+    if age_h > g3d._3D_JOB_MAX_AGE_H:
+        if has_mesh:
+            return {**out, "state": "ready", "job_id": jid}
+        return {**out, "state": "failed", "job_id": jid, "error": "expired"}
+    return {**out, "state": "generating", "job_id": jid}
+
+
+@router.get("/{collection_id}/3d-status")
+async def collection_3d_status(collection_id: str):
+    """Per-Batch 3D state for the collection's 3D view: every (Job, version) that
+    has a mesh or was sent to 3D from this collection, with its state (queued /
+    generating / ready / failed), the GLB URL when ready, and per-Batch counts.
+    Each Batch's `primary` is the model to show on its card — the representative
+    Job at the Batch's selected version when that is ready, else its first ready
+    model. `in_flight` tells the UI whether to keep polling."""
     from backend.services import collection_store as cstore
-    from backend.services import mesh_export
 
     rec = cstore.load_collection(collection_id)
     if rec is None:
         raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
-    fmt = (fmt or "fbx").lower()
-    if fmt not in ("fbx", "usd", "glb"):
-        raise HTTPException(400, detail="fmt must be fbx, usd, or glb.")
+    latest: dict = {}
+    for r in rec.get("three_d_requests") or []:
+        key = (r.get("asset_id"), int(r.get("version") or 1))
+        if key not in latest or (r.get("submitted_at") or "") >= (latest[key].get("submitted_at") or ""):
+            latest[key] = r
 
-    tmp = Path(tempfile.mkdtemp(prefix=f"collexport_{collection_id[:8]}_"))
-    exported, skipped = [], []
-    try:
-        for entry in rec.get("roster", []):
-            bid = entry.get("batch_id")
-            if not bid:
-                continue
-            asset_id, version = _resolve_batch_source(collection_id, bid)
-            glb = _batch_default_glb(asset_id, version) if asset_id else None
-            slug = entry.get("slug") or (entry.get("name", "") or "piece").lower().replace(" ", "_")
-            if glb is None:
-                skipped.append(entry.get("name"))
-                continue
-            try:
-                if fmt == "glb":
-                    out = tmp / f"{slug}.glb"
-                    out.write_bytes(glb.read_bytes())
-                    exported.append(out)
-                else:
-                    outs = mesh_export.convert_mesh(glb, {fmt: tmp / f"{slug}.{fmt}"}, target=target)
-                    if fmt in outs:
-                        exported.append(Path(outs[fmt]))
-                    else:
-                        skipped.append(entry.get("name"))
-            except Exception as exc:
-                logger.warning("Collection export: batch %s failed: %r", slug, exc)
-                skipped.append(entry.get("name"))
-
-        if not exported:
-            raise HTTPException(400, detail="No Batches have a 3D model to export yet. Generate 3D first.")
-
-        bundle = tmp / f"{(rec.get('name') or 'collection').replace(' ', '_')}_{fmt}.zip"
-        with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
-            for f in exported:
-                zf.write(f, arcname=f.name)
-        try:
-            from backend.services.telemetry import track_collection_export
-            track_collection_export(engine=target, batch_count=len(exported))
-        except Exception:
-            pass
-        # FileResponse streams then the temp dir is cleaned by the OS on reboot;
-        # we don't rmtree here because the response reads the file lazily.
-        return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Collection export failed")
-        raise HTTPException(500, detail=f"Export failed: {exc}")
+    now = datetime.now(timezone.utc)
+    batches, in_flight = [], False
+    for entry in rec.get("roster", []):
+        bid = entry.get("batch_id")
+        if not bid:
+            continue
+        jobs = cstore._member_jobs(bid)
+        targets = []
+        for meta in jobs:
+            for ver in _job_versions(meta):
+                st = _target_3d_state(meta, ver, latest.get((meta.get("id"), ver)), now)
+                if st:
+                    targets.append(st)
+        counts = {s: sum(1 for t in targets if t["state"] == s)
+                  for s in ("queued", "generating", "ready", "failed")}
+        in_flight = in_flight or bool(counts["queued"] or counts["generating"])
+        rep_id = jobs[0]["id"] if jobs else None
+        rep_ver = entry.get("selected_version") or (jobs[0].get("current_version", 1) if jobs else 1)
+        ready = [t for t in targets if t["state"] == "ready"]
+        primary = next((t for t in ready if t["asset_id"] == rep_id and t["version"] == rep_ver),
+                       ready[0] if ready else None)
+        batches.append({"batch_id": bid, "name": entry.get("name", ""), "slug": entry.get("slug", ""),
+                        "thumb_path": f"/api/gallery/{rep_id}/png" if rep_id else None,
+                        "primary": primary, "counts": counts, "targets": targets})
+    return {"collection_id": collection_id, "in_flight": in_flight, "batches": batches}
 
 
 # ── Downloads: 3D-mesh bundle + image bundle (SPEC §18 Phase N) ───────────────
@@ -1197,7 +1218,21 @@ class CollectionDownloadRequest(BaseModel):
     # Specific (job, version) targets; empty → ALL applicable jobs in the collection.
     targets: list[dict] = []            # [{asset_id, version}]
     fmt: str = "glb"                    # 3D download only: glb | fbx | usd
-    target: str = "generic"            # export engine target (Unreal/Unity/generic)
+    target: str = "generic"            # export engine target (generic/unreal/unity/godot/maya/3dsmax)
+    # Engine prep ops — the same picks as the single-asset 3D export (validated per
+    # target there): pack none|orm|unity_mask|hdrp_mask · lods none|lod3 ·
+    # collision none|convex|decomp · uv2 none|generate.
+    pack: str = "none"
+    lods: str = "none"
+    collision: str = "none"
+    uv2: str = "none"
+
+
+def _zip_cleanup(path: Path):
+    """BackgroundTask: remove a download's temp dir once the response is sent."""
+    import shutil
+    from starlette.background import BackgroundTask
+    return BackgroundTask(shutil.rmtree, str(path), ignore_errors=True)
 
 
 def _all_member_targets(rec: dict) -> list[dict]:
@@ -1215,13 +1250,15 @@ def _all_member_targets(rec: dict) -> list[dict]:
 
 @router.post("/{collection_id}/download-3d")
 async def download_collection_3d(collection_id: str, body: CollectionDownloadRequest):
-    """Package the collection's 3D meshes into ONE zip — the selected (job,version)
-    targets, or every Job that HAS a mesh. Converts to the chosen format via the
-    headless-Blender path. Jobs without a mesh are skipped (SPEC §18 Phase N)."""
+    """Package the collection's 3D models into ONE zip — the selected (job, version)
+    targets, or every (job, version) that HAS a mesh. Each model goes through the
+    single-asset engine export UNCHANGED (gallery.get_asset_3d_export: format,
+    engine target, LODs / collision / texture packing / UV2, its per-combination
+    cache), so a collection export is byte-identical to exporting each asset alone.
+    Files are grouped per piece (`<slug>/…`); versions without a mesh are skipped."""
     import tempfile, zipfile
-    from fastapi.responses import FileResponse
     from backend.services import collection_store as cstore
-    from backend.services import mesh_export
+    from backend.routers.gallery import get_asset_3d_export, resolve_3d_glb
 
     rec = cstore.load_collection(collection_id)
     if rec is None:
@@ -1229,33 +1266,64 @@ async def download_collection_3d(collection_id: str, body: CollectionDownloadReq
     fmt = (body.fmt or "glb").lower()
     if fmt not in ("glb", "fbx", "usd"):
         raise HTTPException(400, detail="fmt must be glb, fbx, or usd.")
-    targets = [t for t in (body.targets or []) if t.get("asset_id")] or _all_member_targets(rec)
+
+    slug_of, targets = {}, []
+    for entry in rec.get("roster", []):
+        bid = entry.get("batch_id")
+        if not bid:
+            continue
+        for meta in cstore._member_jobs(bid):
+            slug_of[meta["id"]] = entry.get("slug") or bid
+            if not body.targets:
+                targets += [{"asset_id": meta["id"], "version": v} for v in _job_versions(meta)
+                            if resolve_3d_glb(meta["id"], v, meta=meta)[0] is not None]
+    if body.targets:
+        targets = [{"asset_id": t["asset_id"], "version": int(t.get("version") or 1)}
+                   for t in body.targets if t.get("asset_id") in slug_of]   # members only
 
     tmp = Path(tempfile.mkdtemp(prefix=f"coll3d_{collection_id[:8]}_"))
-    exported = []
-    for tg in targets:
-        aid, ver = tg["asset_id"], int(tg.get("version") or 1)
-        glb = _batch_default_glb(aid, ver)
-        if glb is None:
-            continue
-        try:
-            if fmt == "glb":
-                out = tmp / f"{aid}.glb"
-                out.write_bytes(glb.read_bytes())
-                exported.append(out)
-            else:
-                outs = mesh_export.convert_mesh(glb, {fmt: tmp / f"{aid}.{fmt}"}, target=body.target)
-                if fmt in outs:
-                    exported.append(Path(outs[fmt]))
-        except Exception as exc:
-            logger.warning("Collection 3D download: %s failed: %r", aid, exc)
-    if not exported:
-        raise HTTPException(400, detail="No 3D models to download yet. Generate 3D first.")
     bundle = tmp / f"{(rec.get('name') or 'collection').replace(' ', '_')}_3d_{fmt}.zip"
-    with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in exported:
-            zf.write(f, arcname=f.name)
-    return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name)
+    added, skipped = 0, []
+    try:
+        with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
+            for tg in targets:
+                aid, ver = tg["asset_id"], tg["version"]
+                try:
+                    resp = await get_asset_3d_export(aid, ver, fmt, target=body.target, pack=body.pack,
+                                                     lods=body.lods, collision=body.collision, uv2=body.uv2)
+                except HTTPException as he:
+                    if he.status_code != 404:   # 404 = no mesh for this version: silently skip
+                        skipped.append(f"{aid} v{ver}: {he.detail}")
+                    continue
+                src = Path(resp.path)
+                folder = f"{slug_of[aid]}/{aid}_v{ver}"
+                if src.suffix == ".zip":   # packed export = model + textures/
+                    with zipfile.ZipFile(src) as inner:
+                        for name in inner.namelist():
+                            zf.writestr(f"{folder}/{name}", inner.read(name))
+                else:
+                    zf.write(src, f"{folder}{''.join(src.suffixes[-1:])}")
+                added += 1
+    except Exception:
+        import shutil
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+    if not added:
+        import shutil
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise HTTPException(400, detail=(skipped[0] if skipped else
+                                         "No 3D models to download yet. Generate 3D first."))
+    if skipped:
+        logger.warning("Collection 3D download %s: skipped %d target(s): %s",
+                       collection_id, len(skipped), "; ".join(skipped)[:500])
+    try:
+        from backend.services.telemetry import track_collection_export
+        track_collection_export(engine=body.target, batch_count=added)
+    except Exception:
+        pass
+    return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name,
+                        headers={"X-Skipped-Count": str(len(skipped))},
+                        background=_zip_cleanup(tmp))
 
 
 @router.post("/{collection_id}/download-images")
@@ -1263,30 +1331,37 @@ async def download_collection_images(collection_id: str, body: CollectionDownloa
     """Package the collection's IMAGES into ONE zip — the selected/current version
     PNG of each Job (or the selected targets). This is 'Download Collection'."""
     import tempfile, zipfile
-    from fastapi.responses import FileResponse
     from backend.services import collection_store as cstore
 
     rec = cstore.load_collection(collection_id)
     if rec is None:
         raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
-    targets = [t for t in (body.targets or []) if t.get("asset_id")] or _all_member_targets(rec)
+    slug_of = {}
+    for entry in rec.get("roster", []):
+        for meta in cstore._member_jobs(entry.get("batch_id")):
+            slug_of[meta["id"]] = entry.get("slug") or entry.get("batch_id")
+    targets = ([t for t in (body.targets or []) if t.get("asset_id") in slug_of]   # members only
+               or _all_member_targets(rec))
 
-    tmp = Path(tempfile.mkdtemp(prefix=f"collimg_{collection_id[:8]}_"))
     added = []
     for tg in targets:
         aid, ver = tg["asset_id"], int(tg.get("version") or 1)
+        # Same resolution as GET /api/gallery/{id}/version/{n}: older versions are
+        # archived as asset_v{N}.png, the current one lives as asset.png.
         png = (store.get_generated_file_path(aid, f"asset_v{ver}.png")
                or store.get_generated_file_path(aid, "asset.png"))
         if png is None:
             continue
-        added.append((aid, png))
+        added.append((aid, ver, png))
     if not added:
         raise HTTPException(400, detail="No images to download.")
+    tmp = Path(tempfile.mkdtemp(prefix=f"collimg_{collection_id[:8]}_"))
     bundle = tmp / f"{(rec.get('name') or 'collection').replace(' ', '_')}_images.zip"
     with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
-        for aid, png in added:
-            zf.write(str(png), arcname=f"{aid}.png")
-    return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name)
+        for aid, ver, png in added:
+            zf.write(str(png), arcname=f"{slug_of.get(aid, 'collection')}/{aid}_v{ver}.png")
+    return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name,
+                        background=_zip_cleanup(tmp))
 
 
 # ── Versioning (SPEC §18 Phase M — per-Batch selected-version pointer) ────────

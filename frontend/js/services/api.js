@@ -268,7 +268,7 @@
             generate3d(id, data) { return request(`/api/collections/${id}/generate-3d`, { method: 'POST', body: data || {} }); },
             generateBatch(id, data) { return request(`/api/collections/${id}/generate-batch`, { method: 'POST', body: data }); },
             selectVersion(id, data) { return request(`/api/collections/${id}/select-version`, { method: 'POST', body: data }); },
-            exportUrl(id, target, fmt) { return `/api/collections/${id}/export?target=${encodeURIComponent(target)}&fmt=${encodeURIComponent(fmt)}`; },
+            threeDStatus(id) { return request(`/api/collections/${id}/3d-status`, { method: 'GET' }); },
             del(id) { return request(`/api/collections/${id}?delete_assets=true`, { method: 'DELETE' }); },
             /** Stream a whole-collection generation (SSE). onEvent(evt) per event. */
             generateStream(data, onEvent) {

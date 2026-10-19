@@ -1106,6 +1106,32 @@ def default_3d_glb_filename(meta: dict, version: int) -> str | None:
     return None
 
 
+def resolve_3d_glb(asset_id: str, version: int, variant: str | None = None,
+                   meta: dict | None = None):
+    """The GLB file backing a 2D version's 3D model → (path, filename), or
+    (None, None) when that version has no mesh. Candidate order (the single source
+    shared by the serve, export, and Collection resolvers): explicit ``variant`` →
+    the metadata-resolved DEFAULT variant's private file (also the safety net for a
+    malformed/unknown variant) → legacy canonical names (``asset_3d_v{N}.glb``, and
+    ``asset_3d.glb`` for v1 only). Never another version's file."""
+    candidates = []
+    if variant:
+        candidates.append(f"asset_3d_v{version}__{variant}.glb")
+    if meta is None:
+        meta = store.load_generation_metadata(asset_id) or {}
+    dflt = default_3d_glb_filename(meta, version)
+    if dflt and dflt not in candidates:
+        candidates.append(dflt)
+    candidates.append(f"asset_3d_v{version}.glb")
+    if version == 1:
+        candidates.append("asset_3d.glb")
+    for fn in candidates:
+        p = store.get_generated_file_path(asset_id, fn)
+        if p is not None:
+            return p, fn
+    return None, None
+
+
 @router.get("/{asset_id}/3d/{version}")
 async def get_asset_3d(asset_id: str, version: int, variant: str | None = None):
     """Serve a GLB (3D model) file for a generated asset.
@@ -1116,25 +1142,7 @@ async def get_asset_3d(asset_id: str, version: int, variant: str | None = None):
     (the single source of truth — no redundant copies). asset_3d_v{N}.glb /
     asset_3d.glb remain only as fallbacks for LEGACY assets that predate per-variant files.
     """
-    candidates = []
-    if variant:
-        candidates.append(f"asset_3d_v{version}__{variant}.glb")
-    # ALWAYS include the metadata-resolved default private file — both as the no-variant
-    # default AND as a safety net when an explicit `variant` is malformed/unknown (falls
-    # back to the real default, not just the legacy canonical names).
-    dflt = default_3d_glb_filename(store.load_generation_metadata(asset_id) or {}, version)
-    if dflt and dflt not in candidates:
-        candidates.append(dflt)
-    # Legacy on-disk fallbacks (assets that never got a private variant file).
-    candidates.append(f"asset_3d_v{version}.glb")
-    if version == 1:
-        candidates.append("asset_3d.glb")
-
-    path = None
-    for fn in candidates:
-        path = store.get_generated_file_path(asset_id, fn)
-        if path is not None:
-            break
+    path, _ = resolve_3d_glb(asset_id, version, variant)
     if path is None:
         raise HTTPException(404, detail=f"3D model not found for asset '{asset_id}' version {version}.")
     return FileResponse(path, media_type="model/gltf-binary", filename=f"{asset_id}_3d.glb")
@@ -1176,24 +1184,8 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
         ops["pack"] = "none"
     token = mesh_export.ops_cache_token(ops)
 
-    # Locate the source GLB using the SAME candidate order as the GLB endpoint:
-    # explicit variant → metadata-resolved default (private file) → legacy fallbacks.
-    glb_candidates = []
-    if variant:
-        glb_candidates.append(f"asset_3d_v{version}__{variant}.glb")
-    dflt = default_3d_glb_filename(store.load_generation_metadata(asset_id) or {}, version)
-    if dflt and dflt not in glb_candidates:
-        glb_candidates.append(dflt)
-    glb_candidates.append(f"asset_3d_v{version}.glb")
-    if version == 1:
-        glb_candidates.append("asset_3d.glb")
-    glb_path = None
-    glb_name = None
-    for fn in glb_candidates:
-        p = store.get_generated_file_path(asset_id, fn)
-        if p is not None:
-            glb_path, glb_name = p, fn
-            break
+    # Locate the source GLB with the SAME resolver as the GLB endpoint.
+    glb_path, glb_name = resolve_3d_glb(asset_id, version, variant)
     if glb_path is None:
         raise HTTPException(404, detail=f"3D model not found for asset '{asset_id}' version {version}.")
 
