@@ -3728,8 +3728,19 @@
             const prev = this._result;
             const result = this._collectionToResult(data);
             const same = keepSelection && prev?.collection_id && prev.collection_id === result.collection_id;
-            const selO = same ? (this._selectedOption || 0) : 0;
-            const selV = same ? (this._selectedVariant || 0) : 0;
+            let selO = same ? (this._selectedOption || 0) : 0;
+            let selV = same ? (this._selectedVariant || 0) : 0;
+            // Keep the viewed image by IDENTITY, not by flattened position: an
+            // earlier Batch gaining/losing options (a retry, a late async model)
+            // shifts every later global index.
+            const viewedId = same ? prev?.options?.[selO]?.variants?.[selV]?.id : null;
+            if (viewedId) {
+                result.options.some((opt, oi) => {
+                    const vi = (opt.variants || []).findIndex(v => v.id === viewedId);
+                    if (vi >= 0) { selO = oi; selV = vi; return true; }
+                    return false;
+                });
+            }
             const hadImages = same && (prev.options || []).length > 0;
             this._result = result;
             const hasImages = result.options.length > 0;
