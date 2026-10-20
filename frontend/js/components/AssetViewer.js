@@ -132,6 +132,33 @@
             return true;
         },
 
+        /** Background-removal method control — on-device (free) / Amazon Bedrock
+         *  (paid) — with its cost hint (<p id="{id}-hint">). The one control used by
+         *  the 3D tab and the Collection 3D pane + image download. labelKey is an
+         *  asset_viewer key. Pair with bindBgMethodHint. Returns SafeHtml. */
+        bgMethodControlHTML(id, labelKey = 'three_d_bg_method') {
+            return html`
+                <div class="flex items-center gap-2">
+                    <label class="text-[9px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('artsmoker.ui.asset_viewer.' + labelKey)}</label>
+                    <select id="${id}" class="input text-[10px] py-0.5 flex-1">
+                        <option value="local">${t('artsmoker.ui.asset_viewer.export_method_local')}</option>
+                        <option value="bedrock">${t('artsmoker.ui.asset_viewer.export_method_bedrock')}</option>
+                    </select>
+                </div>
+                <p id="${id}-hint" class="text-[9px] text-brand-text-dim"></p>`;
+        },
+        /** Keep a bgMethodControlHTML select's cost hint in sync. */
+        bindBgMethodHint(sel, hint) {
+            if (!sel || !hint) return;
+            const upd = () => {
+                hint.textContent = sel.value === 'bedrock'
+                    ? t('artsmoker.ui.asset_viewer.export_method_bedrock_hint')
+                    : t('artsmoker.ui.asset_viewer.export_method_local_hint');
+            };
+            sel.addEventListener('change', upd);
+            upd();
+        },
+
         /** The interactive 3D preview (<model-viewer>) with the ONE look used
          *  everywhere a 3D model is shown — the 3D tab and the Collection 3D
          *  board. opts: {id, alt, lazy}. Returns SafeHtml. */
@@ -2835,14 +2862,7 @@
                     <!-- Background-removal method for the 3D cutout. Local (free,
                          on-device) is the default; Bedrock (paid, softer edge) is
                          offered explicitly. Threaded into every prepare-source call. -->
-                    <div class="flex items-center gap-2">
-                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('artsmoker.ui.asset_viewer.three_d_bg_method')}</label>
-                        <select id="av-3d-bg-method" class="input text-[10px] py-0.5 flex-1">
-                            <option value="local">${t('artsmoker.ui.asset_viewer.export_method_local')}</option>
-                            <option value="bedrock">${t('artsmoker.ui.asset_viewer.export_method_bedrock')}</option>
-                        </select>
-                    </div>
-                    <p id="av-3d-bg-method-hint" class="text-[9px] text-brand-text-dim"></p>
+                    ${this.bgMethodControlHTML('av-3d-bg-method')}
                     ${isSubject ? html`
                     <!-- Improve the Source sits WITH the image it acts on (most intuitive
                          placement) — the sole instance; not duplicated in the button row. -->
@@ -3020,19 +3040,8 @@
             this._update3DReviewStatus(container);
 
             // Background-removal method selector: keep the cost hint in sync.
-            const bgSel = container.querySelector('#av-3d-bg-method');
-            bgSel?.addEventListener('change', () => this._update3DBgMethodHint(container));
-            this._update3DBgMethodHint(container);
-        },
-
-        /** Cost hint for the 3D background-removal method selector. */
-        _update3DBgMethodHint(scope) {
-            const sel = scope?.querySelector?.('#av-3d-bg-method');
-            const hint = scope?.querySelector?.('#av-3d-bg-method-hint');
-            if (!sel || !hint) return;
-            hint.textContent = sel.value === 'bedrock'
-                ? t('artsmoker.ui.asset_viewer.export_method_bedrock_hint')
-                : t('artsmoker.ui.asset_viewer.export_method_local_hint');
+            this.bindBgMethodHint(container.querySelector('#av-3d-bg-method'),
+                                  container.querySelector('#av-3d-bg-method-hint'));
         },
 
         /** The 3D cutout background-removal method the user selected (default local). */
@@ -3205,7 +3214,11 @@
                 // Chosen TripoSG instance (omitted when there's no chooser → server picks newest)
                 model_key: container.querySelector('#av-3d-model')?.value || undefined,
                 quality: container.querySelector('#av-3d-quality')?.value || 'standard',
-                seed: parseInt(container.querySelector('#av-3d-seed')?.value, 10) || undefined,
+                // 0 is a valid seed — only a blank/invalid field means "random".
+                seed: Number.isFinite(parseInt(container.querySelector('#av-3d-seed')?.value, 10))
+                    ? parseInt(container.querySelector('#av-3d-seed').value, 10) : undefined,
+                // The "Remove bg" choice — applied when the version has no cutout yet.
+                bg_method: this._bg3DMethod(),
                 steps: parseInt(container.querySelector('#av-3d-steps')?.value, 10) || 50,
                 guidance: parseFloat(container.querySelector('#av-3d-guidance')?.value) || 7.5,
                 max_faces: parseInt(container.querySelector('#av-3d-faces')?.value, 10) || 0,

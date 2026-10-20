@@ -371,7 +371,7 @@ async def collection_art_direction(body: ArtDirectionRequest):
         logger.exception("Collection art-direction failed")
         raise HTTPException(502, detail=f"Art direction failed: {exc}")
     finally:
-        track_collection_art_direction_edited(cost_usd=get_total_cost())
+        track_collection_art_direction_edited(cost_usd=get_total_cost(), operation="art_direction")
 
 
 @router.post("/art-direction-fields")
@@ -1088,18 +1088,28 @@ async def generate_collection_3d(collection_id: str, body: Collection3DRequest |
     if not targets:
         raise HTTPException(400, detail="No jobs selected (or generated) to convert to 3D.")
 
-    submitted, failures = [], []
-    for tg in targets:
-        aid, ver = tg["asset_id"], tg["version"]
-        try:
-            res = await generate_3d(ThreeDGenerateRequest(asset_id=aid, version=ver, **settings))
-            submitted.append({"asset_id": aid, "version": ver,
-                              "job_id": res.get("job_id") if isinstance(res, dict) else None})
-        except HTTPException as he:
-            failures.append({"asset_id": aid, "error": he.detail})
-        except Exception as exc:
-            logger.exception("Collection 3D submit failed for %s v%s", aid, ver)
-            failures.append({"asset_id": aid, "error": str(exc)})
+    def _submit_all():
+        # Off the event loop: each submit does a local cutout + S3 upload + an
+        # endpoint invoke (blocking work), and a set can hold many targets.
+        import asyncio as _aio
+        ok, bad = [], []
+        for tg in targets:
+            aid, ver = tg["asset_id"], tg["version"]
+            try:
+                res = _aio.run(generate_3d(ThreeDGenerateRequest(asset_id=aid, version=ver, **settings)))
+                ok.append({"asset_id": aid, "version": ver,
+                           "job_id": res.get("job_id") if isinstance(res, dict) else None})
+            except HTTPException as he:
+                bad.append({"asset_id": aid, "version": ver, "error": str(he.detail)[:160]})
+            except Exception as exc:
+                logger.exception("Collection 3D submit failed for %s v%s", aid, ver)
+                bad.append({"asset_id": aid, "version": ver, "error": str(exc)[:160]})
+        return ok, bad
+
+    import asyncio
+    submitted, failures = await asyncio.to_thread(_submit_all)
+    logger.info("Collection %s → 3D: %d submitted, %d failed (of %d target(s))",
+                collection_id, len(submitted), len(failures), len(targets))
 
     # Remember what this collection sent to 3D, so its 3D view can report each
     # target's state from ANY server process and after restarts (in-memory 3D job
@@ -1115,11 +1125,12 @@ async def generate_collection_3d(collection_id: str, body: Collection3DRequest |
         cstore.update_collection(collection_id, _record)
 
     cstore.refresh_collection_summary(collection_id)
-    try:
-        from backend.services.telemetry import track_collection_3d_handoff
-        track_collection_3d_handoff(batch_count=len(submitted))
-    except Exception:
-        pass
+    if submitted:
+        try:
+            from backend.services.telemetry import track_collection_3d_handoff
+            track_collection_3d_handoff(job_count=len(submitted))
+        except Exception:
+            pass
     if not submitted and failures:
         raise HTTPException(400, detail=failures[0].get("error", "3D submission failed."))
     return {"submitted": submitted, "failures": failures}
@@ -1222,25 +1233,73 @@ async def collection_3d_status(collection_id: str):
         primary = next((t for t in done if t["asset_id"] == rep_id and t["version"] == rep_ver),
                        done[0] if done else None)
         batches.append({"batch_id": bid, "name": entry.get("name", ""), "slug": entry.get("slug", ""),
-                        "thumb_path": f"/api/gallery/{rep_id}/png" if rep_id else None,
+                        "thumb_path": (None if not rep_id else
+                                       f"/api/gallery/{rep_id}/version/{rep_ver}"
+                                       if rep_ver != jobs[0].get("current_version", 1)
+                                       else f"/api/gallery/{rep_id}/png"),
                         "primary": primary, "counts": counts, "targets": targets})
     return {"collection_id": collection_id, "in_flight": in_flight, "batches": batches}
 
 
 # ── Downloads: 3D-mesh bundle + image bundle (SPEC §18 Phase N) ───────────────
 
+# The per-version image artefacts of the single-asset Export & Cutouts tab, and
+# the file names it gives them — a collection image zip holds the same files.
+_IMAGE_ARTEFACTS = {
+    "png": "{aid}_v{ver}.png",            # the version image
+    "svg": "{aid}_v{ver}.svg",            # with-background vector SVG
+    "cutout_png": "{aid}_v{ver}_nobg.png",  # background-removed cutout
+    "cutout_svg": "{aid}_v{ver}_nobg.svg",  # cutout vector SVG
+}
+
+
 class CollectionDownloadRequest(BaseModel):
-    # Specific (job, version) targets; empty → ALL applicable jobs in the collection.
+    # Specific (job, version) targets; empty → every Job at its displayed version.
     targets: list[dict] = []            # [{asset_id, version}]
-    fmt: str = "glb"                    # 3D download only: glb | fbx | usd
-    target: str = "generic"            # export engine target (generic/unreal/unity/godot/maya/3dsmax)
-    # Engine prep ops — the same picks as the single-asset 3D export (validated per
+    # 3D download: format + the single-asset engine-export picks (validated per
     # target there): pack none|orm|unity_mask|hdrp_mask · lods none|lod3 ·
     # collision none|convex|decomp · uv2 none|generate.
+    fmt: str = "glb"                    # glb | fbx | usd
+    target: str = "generic"            # generic/unreal/unity/godot/maya/3dsmax
     pack: str = "none"
     lods: str = "none"
     collision: str = "none"
     uv2: str = "none"
+    # Image download: which Export & Cutouts artefacts to include, and the
+    # background remover for a cutout that doesn't exist yet (local = free,
+    # bedrock = paid per image) — the same choice as the single-asset Export tab.
+    include: list[str] = ["png"]
+    bg_method: str = "local"
+
+
+def _download_targets(rec: dict, requested: list[dict]) -> tuple[list[dict], dict, dict]:
+    """Resolve a download's (job, version) targets → (targets, slug_of, meta_of).
+    Requested targets are kept only when the job is a member and the version is a
+    live version of it. Without a request: every Job at its DISPLAYED version — a
+    Batch's representative Job at the pinned `selected_version`, others at their
+    current version (what the collection viewer shows)."""
+    from backend.services import collection_store as cstore
+    slug_of, meta_of, displayed = {}, {}, []
+    for entry in rec.get("roster", []):
+        bid = entry.get("batch_id")
+        if not bid:
+            continue
+        for i, meta in enumerate(cstore._member_jobs(bid)):
+            aid = meta["id"]
+            slug_of[aid], meta_of[aid] = entry.get("slug") or bid, meta
+            vers = _job_versions(meta)
+            pin = entry.get("selected_version") if i == 0 else None
+            displayed.append({"asset_id": aid, "version": pin if pin in vers
+                              else int(meta.get("current_version", 1) or 1)})
+    if not requested:
+        return displayed, slug_of, meta_of
+    out, seen = [], set()
+    for t in requested:
+        aid, ver = t.get("asset_id"), int(t.get("version") or 1)
+        if aid in meta_of and ver in _job_versions(meta_of[aid]) and (aid, ver) not in seen:
+            seen.add((aid, ver))
+            out.append({"asset_id": aid, "version": ver})
+    return out, slug_of, meta_of
 
 
 def _zip_cleanup(path: Path):
@@ -1250,30 +1309,23 @@ def _zip_cleanup(path: Path):
     return BackgroundTask(shutil.rmtree, str(path), ignore_errors=True)
 
 
-def _all_member_targets(rec: dict) -> list[dict]:
-    """Every Job in the collection as {asset_id, version(current)}."""
-    from backend.services import collection_store as cstore
-    out = []
-    for entry in rec.get("roster", []):
-        bid = entry.get("batch_id")
-        if not bid:
-            continue
-        for j in cstore._member_jobs(bid):
-            out.append({"asset_id": j["id"], "version": int(j.get("current_version", 1) or 1)})
-    return out
-
-
 @router.post("/{collection_id}/download-3d")
 async def download_collection_3d(collection_id: str, body: CollectionDownloadRequest):
     """Package the collection's 3D models into ONE zip — the selected (job, version)
-    targets, or every (job, version) that HAS a mesh. Each model goes through the
-    single-asset engine export UNCHANGED (gallery.get_asset_3d_export: format,
-    engine target, LODs / collision / texture packing / UV2, its per-combination
-    cache), so a collection export is byte-identical to exporting each asset alone.
-    Files are grouped per piece (`<slug>/…`); versions without a mesh are skipped."""
-    import tempfile, zipfile
+    targets, or every Job at its displayed version that has a mesh. Each model is
+    built by the single-asset engine export UNCHANGED (gallery.build_3d_export:
+    format, engine target, LODs / collision / texture packing / UV2, the same
+    per-combination cache and file name), so a collection export is identical to
+    exporting each asset alone. Entries: `<batch-slug>/<the single download name
+    with _v<n>>` (a packed export's model + textures/ go in a folder of that name).
+    Versions without a mesh are skipped; models the chosen options can't export
+    (e.g. nothing to pack) are skipped and counted in X-Skipped-Count."""
+    import asyncio
+    import shutil
+    import tempfile
+    import zipfile
     from backend.services import collection_store as cstore
-    from backend.routers.gallery import get_asset_3d_export, resolve_3d_glb
+    from backend.routers.gallery import build_3d_export
 
     rec = cstore.load_collection(collection_id)
     if rec is None:
@@ -1281,59 +1333,51 @@ async def download_collection_3d(collection_id: str, body: CollectionDownloadReq
     fmt = (body.fmt or "glb").lower()
     if fmt not in ("glb", "fbx", "usd"):
         raise HTTPException(400, detail="fmt must be glb, fbx, or usd.")
-
-    slug_of, targets = {}, []
-    for entry in rec.get("roster", []):
-        bid = entry.get("batch_id")
-        if not bid:
-            continue
-        for meta in cstore._member_jobs(bid):
-            slug_of[meta["id"]] = entry.get("slug") or bid
-            if not body.targets:
-                targets += [{"asset_id": meta["id"], "version": v} for v in _job_versions(meta)
-                            if resolve_3d_glb(meta["id"], v, meta=meta)[0] is not None]
-    if body.targets:
-        targets = [{"asset_id": t["asset_id"], "version": int(t.get("version") or 1)}
-                   for t in body.targets if t.get("asset_id") in slug_of]   # members only
+    targets, slug_of, _ = _download_targets(rec, body.targets)
 
     tmp = Path(tempfile.mkdtemp(prefix=f"coll3d_{collection_id[:8]}_"))
     bundle = tmp / f"{(rec.get('name') or 'collection').replace(' ', '_')}_3d_{fmt}.zip"
-    added, skipped = 0, []
-    try:
+
+    def _build():
+        # Off the event loop: Blender/CoACD conversions + zip writing are blocking.
+        added, skipped = 0, []
         with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
             for tg in targets:
                 aid, ver = tg["asset_id"], tg["version"]
                 try:
-                    resp = await get_asset_3d_export(aid, ver, fmt, target=body.target, pack=body.pack,
-                                                     lods=body.lods, collision=body.collision, uv2=body.uv2)
+                    res = asyncio.run(build_3d_export(aid, ver, fmt, target=body.target, pack=body.pack,
+                                                      lods=body.lods, collision=body.collision, uv2=body.uv2))
                 except HTTPException as he:
-                    if he.status_code != 404:   # 404 = no mesh for this version: silently skip
-                        skipped.append(f"{aid} v{ver}: {he.detail}")
+                    if he.status_code != 404:   # 404 = no mesh for this version: not an error
+                        skipped.append(f"{aid} v{ver}: {str(he.detail)[:160]}")
                     continue
-                src = Path(resp.path)
-                folder = f"{slug_of[aid]}/{aid}_v{ver}"
-                if src.suffix == ".zip":   # packed export = model + textures/
-                    with zipfile.ZipFile(src) as inner:
-                        for name in inner.namelist():
-                            zf.writestr(f"{folder}/{name}", inner.read(name))
+                name = res["dl_name"].replace(f"{aid}_3d", f"{aid}_v{ver}_3d", 1)
+                if res["is_zip"]:   # packed export = model + textures/ → a folder
+                    folder = name[:-len(".zip")].rsplit(".", 1)[0]
+                    with zipfile.ZipFile(res["path"]) as inner:
+                        for member in inner.namelist():
+                            zf.writestr(f"{slug_of[aid]}/{folder}/{member}", inner.read(member))
                 else:
-                    zf.write(src, f"{folder}{''.join(src.suffixes[-1:])}")
+                    zf.write(res["path"], f"{slug_of[aid]}/{name}")
                 added += 1
+        return added, skipped
+
+    try:
+        added, skipped = await asyncio.to_thread(_build)
     except Exception:
-        import shutil
         shutil.rmtree(tmp, ignore_errors=True)
         raise
+    logger.info("Collection %s 3D download (%s/%s): %d model(s), %d skipped",
+                collection_id, fmt, body.target, added, len(skipped))
+    if skipped:
+        logger.warning("Collection %s 3D download skipped: %s", collection_id, "; ".join(skipped)[:500])
     if not added:
-        import shutil
         shutil.rmtree(tmp, ignore_errors=True)
         raise HTTPException(400, detail=(skipped[0] if skipped else
                                          "No 3D models to download yet. Generate 3D first."))
-    if skipped:
-        logger.warning("Collection 3D download %s: skipped %d target(s): %s",
-                       collection_id, len(skipped), "; ".join(skipped)[:500])
     try:
         from backend.services.telemetry import track_collection_export
-        track_collection_export(engine=body.target, batch_count=added)
+        track_collection_export(engine=body.target, fmt=fmt, model_count=added)
     except Exception:
         pass
     return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name,
@@ -1343,39 +1387,85 @@ async def download_collection_3d(collection_id: str, body: CollectionDownloadReq
 
 @router.post("/{collection_id}/download-images")
 async def download_collection_images(collection_id: str, body: CollectionDownloadRequest):
-    """Package the collection's IMAGES into ONE zip — the selected/current version
-    PNG of each Job (or the selected targets). This is 'Download Collection'."""
-    import tempfile, zipfile
+    """Package the collection's IMAGES into ONE zip ('Download collection') — the
+    selected (job, version) targets, or every Job at its displayed version — with
+    the chosen Export & Cutouts artefacts per version (PNG / SVG / cutout PNG /
+    cutout SVG), under the Export tab's file names in `<batch-slug>/`. Missing
+    artefacts are produced by the single-asset export endpoint UNCHANGED
+    (gallery.create_export_variants: cached, reused, cost-recorded, telemetered),
+    with the chosen background remover. Versions it can't prepare are skipped and
+    counted in X-Skipped-Count."""
+    import asyncio
+    import shutil
+    import tempfile
+    import zipfile
     from backend.services import collection_store as cstore
+    from backend.routers import gallery as gal
 
     rec = cstore.load_collection(collection_id)
     if rec is None:
         raise HTTPException(404, detail=f"Collection '{collection_id}' not found.")
-    slug_of = {}
-    for entry in rec.get("roster", []):
-        for meta in cstore._member_jobs(entry.get("batch_id")):
-            slug_of[meta["id"]] = entry.get("slug") or entry.get("batch_id")
-    targets = ([t for t in (body.targets or []) if t.get("asset_id") in slug_of]   # members only
-               or _all_member_targets(rec))
-
-    added = []
-    for tg in targets:
-        aid, ver = tg["asset_id"], int(tg.get("version") or 1)
-        # Same resolution as GET /api/gallery/{id}/version/{n}: older versions are
-        # archived as asset_v{N}.png, the current one lives as asset.png.
-        png = (store.get_generated_file_path(aid, f"asset_v{ver}.png")
-               or store.get_generated_file_path(aid, "asset.png"))
-        if png is None:
-            continue
-        added.append((aid, ver, png))
-    if not added:
+    include = [k for k in _IMAGE_ARTEFACTS if k in (body.include or [])] or ["png"]
+    method = "bedrock" if body.bg_method == "bedrock" else "local"
+    targets, slug_of, meta_of = _download_targets(rec, body.targets)
+    if not targets:
         raise HTTPException(400, detail="No images to download.")
+
+    def _paths(aid: str, ver: int) -> dict:
+        meta = gal._get_meta(aid) or meta_of[aid]
+        cur = int(meta.get("current_version", 1) or 1)
+        svg = store.get_generated_file_path(aid, gal._withbg_svg_name(ver, cur))
+        return {"png": gal._version_png_path(aid, ver, cur), "svg": svg,
+                "cutout_png": gal._resolve_cutout_png(aid, ver, meta, cur),
+                "cutout_svg": gal._resolve_cutout_svg(aid, ver)}
+
     tmp = Path(tempfile.mkdtemp(prefix=f"collimg_{collection_id[:8]}_"))
     bundle = tmp / f"{(rec.get('name') or 'collection').replace(' ', '_')}_images.zip"
-    with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
-        for aid, ver, png in added:
-            zf.write(str(png), arcname=f"{slug_of.get(aid, 'collection')}/{aid}_v{ver}.png")
+
+    def _build():
+        # Off the event loop: cutouts (rembg / Bedrock) + SVG traces are blocking.
+        files, skipped, made = 0, [], 0
+        with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
+            for tg in targets:
+                aid, ver = tg["asset_id"], tg["version"]
+                paths = _paths(aid, ver)
+                if any(paths[k] is None for k in include if k != "png"):
+                    try:
+                        asyncio.run(gal.create_export_variants(
+                            aid, gal.ExportVariantsRequest(method=method, version=ver)))
+                        made += 1
+                    except HTTPException as he:
+                        skipped.append(f"{aid} v{ver}: {str(he.detail)[:160]}")
+                        continue
+                    paths = _paths(aid, ver)
+                for k in include:
+                    if paths[k] is None:
+                        skipped.append(f"{aid} v{ver}: no {k}")
+                        continue
+                    zf.write(paths[k], f"{slug_of[aid]}/" + _IMAGE_ARTEFACTS[k].format(aid=aid, ver=ver))
+                    files += 1
+        return files, skipped, made
+
+    try:
+        files, skipped, made = await asyncio.to_thread(_build)
+    except Exception:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+    logger.info("Collection %s image download (%s, cutouts by %s): %d file(s) from %d version(s), "
+                "%d prepared, %d skipped", collection_id, "+".join(include), method, files,
+                len(targets), made, len(skipped))
+    if skipped:
+        logger.warning("Collection %s image download skipped: %s", collection_id, "; ".join(skipped)[:500])
+    if not files:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise HTTPException(400, detail=(skipped[0] if skipped else "No images to download."))
+    try:
+        from backend.services.telemetry import track_collection_download
+        track_collection_download(artefacts="+".join(include), file_count=files, job_count=len(targets))
+    except Exception:
+        pass
     return FileResponse(str(bundle), media_type="application/zip", filename=bundle.name,
+                        headers={"X-Skipped-Count": str(len(skipped))},
                         background=_zip_cleanup(tmp))
 
 

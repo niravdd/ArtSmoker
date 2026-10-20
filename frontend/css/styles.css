@@ -381,6 +381,13 @@ body {
     font-size: 0.8125rem;
 }
 
+/* Compact inline/icon buttons (per-row tools, view switches, chips). */
+.btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    gap: 0.25rem;
+}
+
 .btn-lg {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;

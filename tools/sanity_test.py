@@ -920,11 +920,14 @@ def run_collection(base, model, region, extra_models=None):
             return False, "regenerate-roster did not preserve the locked entry's prompt verbatim", cid
         steps.append("regenerate-roster(lock)")
 
-        # 6) generate 2 Batches × 1×1 (SSE) — assert complete + cost_update
+        # 6) generate 2 Batches × 1×1 (SSE) with an explicit set seed — assert
+        # complete + cost_update (the seed family is checked at 8d)
+        set_seed = 424242
         events = post_sse(base, "/api/collections/generate",
                           {"collection_id": cid, "name": dec.get("name", "Sanity Set"), "raw_ask": ask,
                            "art_direction": dec["art_direction"], "roster": roster, "image_model": mk,
                            "region": region, "asset_type": "game_asset", "num_options": 1, "num_variations": 1,
+                           "seed": set_seed,
                            "llm_cost_ledger": dec.get("llm_cost_ledger", []), "design_cost": dec.get("cost", 0)},
                           timeout=300)
         comp = next((e for e in events if e.get("type") == "collection_complete"), None)
@@ -1121,6 +1124,32 @@ def run_collection(base, model, region, extra_models=None):
         if _lin["collection_id"] != cid or not all(str(_lin[k]).strip() for k in _lin):
             return False, f"Job metadata missing collection lineage: {_lin}", cid
         steps.append("collection-lineage")
+
+        # 8d) SEED FAMILY (SPEC §18.5): the set seed is recorded, and Batch i's first
+        # Job carries base + i·O·V (O = V = 1 here → base + i).
+        if (rec.get("knobs") or {}).get("seed") != set_seed:
+            return False, f"set seed not recorded (knobs.seed={(rec.get('knobs') or {}).get('seed')})", cid
+        for i, entry in enumerate(rec.get("roster") or []):
+            first = next((v for b in full.get("batches", []) if (b.get("roster_entry") or {}).get("batch_id") == entry.get("batch_id")
+                          for o in ((b.get("batch") or {}).get("options") or [])[:1]
+                          for v in (o.get("variants") or [])[:1]), None)
+            if not first:
+                return False, f"Batch {i} has no Job to check its seed", cid
+            got = get_json(base, f"/api/gallery/{first['id']}", timeout=30).get("seed")
+            if got != set_seed + i:
+                return False, f"Batch {i} seed {got} (want {set_seed + i})", cid
+        steps.append("seed-family")
+
+        # 8e) 3D STATUS (no 3D yet): every Batch listed, no targets, nothing in
+        # flight, counts in the per-asset 3D job vocabulary.
+        st3 = get_json(base, f"/api/collections/{cid}/3d-status", timeout=30)
+        if st3.get("in_flight") is not False or len(st3.get("batches", [])) != 2:
+            return False, f"3d-status shape wrong: {str(st3)[:160]}", cid
+        if any(b.get("targets") or b.get("primary") for b in st3["batches"]):
+            return False, "3d-status reports a 3D model where none exists", cid
+        if set((st3["batches"][0].get("counts") or {})) != {"submitted", "generating", "complete", "failed"}:
+            return False, f"3d-status counts not in the 3D job vocabulary: {st3['batches'][0].get('counts')}", cid
+        steps.append("3d-status")
 
         # 9) select-version pointer + design_history provenance
         sv = post_json(base, f"/api/collections/{cid}/select-version",

@@ -52,12 +52,18 @@
                         <h2 id="cv-title" class="text-lg font-semibold truncate">${title}</h2>
                         <div class="flex items-center gap-2">
                             <span id="cv-selinfo" class="text-[11px] text-cyan-300"></span>
-                            <!-- Primary + default action (first, focused → Enter): reload the set into Image Studio. -->
-                            <button id="cv-reload" class="btn btn-xs btn-primary">${t('collection.reload_studio')}</button>
-                            <button id="cv-3d" class="btn btn-xs bg-violet-700/70 hover:bg-violet-600 text-white">${t('collection.convert_3d')}</button>
-                            <button id="cv-dl-images" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.download_images')}</button>
-                            <button id="cv-dl-3d" class="btn btn-xs bg-brand-bg border border-brand-border">${t('collection.download_3d')}</button>
-                            <button id="cv-delete" class="btn btn-xs bg-red-700/70 hover:bg-red-600 text-white">${t('collection.delete')}</button>
+                            <!-- Primary + default action (first, focused → Enter): reload the set
+                                 into the Image Studio — the same button as the AssetViewer's. -->
+                            <button id="cv-reload" class="btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white" title="${t('collection.reload_studio')}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                ${t('asset_viewer.to_studio')}
+                            </button>
+                            <button id="cv-3d" class="btn btn-sm bg-violet-700/70 hover:bg-violet-600 text-white">${t('collection.convert_3d')}</button>
+                            <button id="cv-dl-images" class="btn btn-sm bg-brand-bg border border-brand-border">${t('collection.download_images')}</button>
+                            <button id="cv-dl-3d" class="btn btn-sm bg-brand-bg border border-brand-border">${t('collection.download_3d')}</button>
+                            <button id="cv-delete" class="btn btn-sm bg-red-700/70 hover:bg-red-600 text-white">${t('collection.delete')}</button>
                             <button id="cv-close" class="text-brand-text-muted hover:text-brand-text text-2xl leading-none ml-2">&times;</button>
                         </div>
                     </div>
@@ -347,12 +353,25 @@
             this._stop3dPoll();
             if (st.in_flight) this._poll3d = setTimeout(() => this._render3d(true), POLL_3D_MS);
         },
+        /** Open the full AssetViewer (prev/next over `list`) on a specific version
+         *  (null → the asset's current one), via its own version bar. */
+        async _openAssetAt(item, list, idx, version) {
+            if (!window.AssetViewer || !item) return null;
+            await window.AssetViewer.open(item, list, idx);
+            const ov = window.AssetViewer._overlay;
+            if (version) ov?.querySelector(`.av-version-btn[data-version="${version}"]`)?.click();
+            return ov;
+        },
+        /** {repJobId: pinnedVersion} for a Batch whose pin isn't its current version. */
+        _pinnedVersions(batch, batchId) {
+            const rep = (((batch || {}).options || [])[0]?.variants || [])[0];
+            const sb = (this._data?.summary?.batches || []).find(b => b.batch_id === batchId);
+            const pin = sb && sb.selected_version;
+            return (rep && pin && pin !== rep.current_version) ? { [rep.id]: pin } : {};
+        },
         /** Open the full AssetViewer on a Job's version, on its 3D tab. */
         async _open3dAsset(assetId, version) {
-            if (!window.AssetViewer || !assetId) return;
-            await window.AssetViewer.open({ id: assetId }, [{ id: assetId }], 0);
-            const ov = window.AssetViewer._overlay;
-            ov?.querySelector(`.av-version-btn[data-version="${version}"]`)?.click();
+            const ov = await this._openAssetAt({ id: assetId }, [{ id: assetId }], 0, version);
             ov?.querySelector('[data-tab="3d"]')?.click();
         },
 
@@ -462,8 +481,10 @@
                 <div class="card w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 space-y-3">
                     ${header}
                     <p class="text-[11px] text-brand-text-muted">${this._selCount() > 0 ? t('collection.pane_applies_sel', { count }) : t('collection.pane_applies_all_n', { count })}</p>
-                    <div>
-                        <label class="block text-[11px] text-brand-text-muted mb-1">${t('collection.pane_pipeline')}</label>
+                    <!-- Endpoint chooser — like the 3D tab, shown only when there's a choice. -->
+                    <div class="${instances.length > 1 ? '' : 'hidden'}">
+                        <label class="block text-[11px] text-brand-text-muted mb-1">${A('three_d_model')}</label>
+                        <p class="text-[9px] text-brand-text-dim mb-1">${A('three_d_model_hint')}</p>
                         <select id="cv3p-model" class="input text-sm w-full">
                             ${instances.length
                                 ? instances.map((inst, i) => html`<option value="${inst.model_key}" ${i === 0 ? 'selected' : ''}>${AV.threeDInstanceLabel(inst)}</option>`)
@@ -508,6 +529,7 @@
                                     <option value="200000">200,000</option>
                                     <option value="300000">300,000</option>
                                 </select>
+                                <p class="text-[9px] text-brand-text-dim mt-1">${A('three_d_faces_hint')}</p>
                             </div>
                             <div>
                                 <label class="text-[10px] text-brand-text-muted mb-0.5 block">${A('three_d_depth')}</label>
@@ -520,12 +542,12 @@
                             <div class="col-span-2">
                                 <label class="text-[10px] text-brand-text-muted mb-0.5 block">${A('three_d_seed')}</label>
                                 <input id="cv3p-seed" type="number" class="input text-xs w-full max-w-xs" placeholder="${A('three_d_seed_placeholder')}" />
-                                <p class="text-[9px] text-brand-text-dim mt-1">${t('collection.pane_seed_hint')}</p>
+                                <p class="text-[9px] text-brand-text-dim mt-1">${A('three_d_seed_hint')}</p>
                             </div>
                         </div>
                     </details>
                     <div class="rounded-lg border border-brand-border bg-brand-bg/40 p-3">
-                        <label class="text-xs text-brand-text-muted mb-2 block">${t('collection.pane_saveas_title')}</label>
+                        <label class="text-xs text-brand-text-muted mb-2 block">${A('three_d_saveas_title')}</label>
                         <label class="flex items-start gap-2 mb-1.5 cursor-pointer">
                             <input type="radio" name="cv3p-saveas" value="default" checked class="mt-0.5" />
                             <span class="text-[11px]"><span class="font-medium">${A('three_d_saveas_replace')}</span><br><span class="text-brand-text-dim">${A('three_d_saveas_replace_hint')}</span></span>
@@ -535,6 +557,8 @@
                             <span class="text-[11px]"><span class="font-medium">${A('three_d_saveas_variant')}</span><br><span class="text-brand-text-dim">${A('three_d_saveas_variant_hint')}</span></span>
                         </label>
                     </div>
+                    <!-- The 3D tab's "Remove bg" choice, for each image without a cutout yet. -->
+                    <div class="space-y-1">${AV.bgMethodControlHTML('cv3p-bg')}</div>
                     <p class="text-[10px] text-brand-text-dim">${t('collection.pane_source_note')}</p>
                     <div class="flex justify-end pt-1">
                         <button id="cv3p-go" class="btn btn-primary btn-sm">${t('collection.pane_convert_n', { count })}</button>
@@ -592,6 +616,7 @@
             $('cv3p-steps').addEventListener('input', () => { $('cv3p-steps-label').textContent = $('cv3p-steps').value; updateEstimate(); });
             $('cv3p-guidance').addEventListener('input', () => { $('cv3p-guidance-label').textContent = $('cv3p-guidance').value; });
             updateLicense();
+            AV.bindBgMethodHint($('cv3p-bg'), $('cv3p-bg-hint'));
             applyPreset();   // sync advanced fields + estimate to the default (High)
 
             $('cv3p-go').addEventListener('click', async () => {
@@ -624,29 +649,44 @@
                 if (mk) settings.model_key = mk;
                 const seedV = parseInt($('cv3p-seed').value, 10);
                 if (Number.isFinite(seedV)) settings.seed = seedV;
+                settings.bg_method = $('cv3p-bg').value;
                 go.disabled = true; go.textContent = '…';
                 try {
                     const r = await API.collections.generate3d(collectionId, { targets: this._selTargets(), settings });
-                    window.showToast?.(t('collection.threed_submitted', { count: (r.submitted || []).length }), 'success');
-                    if ((r.failures || []).length) window.showToast?.(r.failures[0].error, 'warning');
+                    // Same feedback as the 3D tab: "in progress" (info), failures prefixed.
+                    window.showToast?.(`${A('three_d_pending')} · ${t('collection.threed_submitted', { count: (r.submitted || []).length })}`, 'info');
+                    const fails = r.failures || [];
+                    if (fails.length) {
+                        window.showToast?.(`${A('three_d_failed')}: ${fails[0].error}${fails.length > 1 ? ` (+${fails.length - 1})` : ''}`, 'warning');
+                    }
                     close();
                     // Land on the 3D view so the submitted models' progress is visible.
                     setTimeout(() => this.open(collectionId, { view: '3d' }), 800);
                 } catch (e) {
-                    window.showToast?.(e.message || t('collection.error'), 'error');
+                    window.showToast?.(`${A('three_d_failed')}: ${e.message || t('collection.error')}`, 'error');
                     go.disabled = false; go.textContent = t('collection.pane_convert_n', { count });
                 }
             });
         },
 
         // ── Downloads (whole collection or selected) ───────────────────────
-        async _zipDownload(path, body, fallbackName) {
+        /** Build + download a packaged zip, with the single-asset export's feedback:
+         *  preparing → ready / failed toasts, the header button disabled meanwhile
+         *  (no double build), and a warning when some items were left out. */
+        async _zipDownload(path, body, fallbackName, { skippedKey, btnId } = {}) {
+            const btn = btnId ? document.getElementById(btnId) : null;
+            if (btn?.disabled) return;
+            if (btn) btn.disabled = true;
+            window.showToast?.(t('asset_viewer.three_d_export_preparing'), 'info');
             try {
                 // nosemgrep -- serialized HTTP body; ZIP response streamed to a download
                 const resp = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-                if (!resp.ok) { let d = ''; try { d = (await resp.json()).detail; } catch (_) {} window.showToast?.(d || t('collection.error'), 'error'); return; }
+                if (!resp.ok) {
+                    let d = ''; try { d = (await resp.json()).detail; } catch (_) {}
+                    window.showToast?.(`${t('asset_viewer.three_d_export_failed')}${d ? ': ' + d : ''}`, 'error');
+                    return;
+                }
                 const skipped = parseInt(resp.headers.get('X-Skipped-Count') || '0', 10);
-                if (skipped > 0) window.showToast?.(t('collection.dl3d_skipped', { count: skipped }), 'warning');
                 const blob = await resp.blob();
                 const cd = resp.headers.get('Content-Disposition') || '';
                 const m = /filename="?([^"]+)"?/.exec(cd);
@@ -655,10 +695,87 @@
                 a.download = (m && m[1]) || fallbackName;
                 document.body.appendChild(a); a.click(); a.remove();
                 setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-            } catch (e) { window.showToast?.(e.message || t('collection.error'), 'error'); }
+                window.showToast?.(t('asset_viewer.three_d_export_ready', { fmt: 'ZIP' }), 'success');
+                if (skipped > 0 && skippedKey) window.showToast?.(t(skippedKey, { count: skipped }), 'warning');
+            } catch (e) {
+                window.showToast?.(`${t('asset_viewer.three_d_export_failed')}: ${e.message || t('collection.error')}`, 'error');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         },
+
+        /** Image download: the single-asset Export & Cutouts artefacts per version
+         *  (PNG, SVG, cutout PNG, cutout SVG — same cards' titles + file names) and the
+         *  same background-remover choice, for the selection or the whole set. */
         _downloadImages(collectionId) {
-            this._zipDownload(`/api/collections/${collectionId}/download-images`, { targets: this._selTargets() }, 'collection_images.zip');
+            if (document.getElementById('cv-dlimg-pane')) return;
+            const AV = window.AssetViewer;
+            const n = this._selCount();
+            const arts = [
+                ['png', t('asset_viewer.png_tab'), true],
+                ['svg', t('asset_viewer.export_card_withbg_title'), false],
+                ['cutout_png', t('asset_viewer.export_card_nobg_png_title'), false],
+                ['cutout_svg', t('asset_viewer.export_card_nobg_svg_title'), false],
+            ];
+            const pane = document.createElement('div');
+            pane.id = 'cv-dlimg-pane';
+            pane.className = 'fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4';
+            // nosemgrep
+            pane.innerHTML = html`
+                <div class="card w-full max-w-md p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold">${t('collection.download_images')}</h3>
+                        <button id="cvdi-close" class="text-brand-text-muted hover:text-brand-text text-xl leading-none">&times;</button>
+                    </div>
+                    <p class="text-[11px] text-brand-text-muted">${n ? t('collection.dl3d_applies_sel', { count: n }) : t('collection.dlimg_applies_all')}</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        ${arts.map(([k, label, on]) => html`<label class="flex items-center gap-2 text-[12px] cursor-pointer">
+                            <input type="checkbox" class="cvdi-art accent-cyan-500" value="${k}" ${on ? 'checked' : ''} /> ${label}</label>`)}
+                    </div>
+                    <div id="cvdi-method" class="space-y-1">${AV.bgMethodControlHTML('cvdi-bg', 'export_bg_method')}</div>
+                    <div class="flex justify-end"><button id="cvdi-go" class="btn btn-primary btn-sm">${t('collection.dl3d_go')}</button></div>
+                </div>`;
+            document.body.appendChild(pane);
+            const $ = (id) => document.getElementById(id);
+            const close = () => pane.remove();
+            $('cvdi-close').addEventListener('click', close);
+            pane.addEventListener('click', (e) => { if (e.target === pane) close(); });
+            pane.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+            AV.bindBgMethodHint($('cvdi-bg'), $('cvdi-bg-hint'));
+            const picked = () => [...pane.querySelectorAll('.cvdi-art:checked')].map(c => c.value);
+            // The remover matters only when a cutout is requested (an SVG of the
+            // version is a free local trace).
+            const syncMethod = () => {
+                const need = picked().some(k => k.startsWith('cutout'));
+                $('cvdi-method').classList.toggle('opacity-50', !need);
+                $('cvdi-bg').disabled = !need;
+                $('cvdi-go').disabled = picked().length === 0;
+            };
+            pane.querySelectorAll('.cvdi-art').forEach(c => c.addEventListener('change', syncMethod));
+            syncMethod();
+            $('cvdi-go').addEventListener('click', async () => {
+                const include = picked();
+                if (!include.length) return;
+                const method = $('cvdi-bg').value;
+                if (method === 'bedrock' && include.some(k => k.startsWith('cutout'))) {
+                    const count = n || this._jobCount();
+                    const ok = window.showConfirm
+                        ? await window.showConfirm(t('collection.dlimg_bedrock_confirm', { count }), {
+                            title: t('collection.download_images'), confirmLabel: t('collection.dl3d_go'),
+                            cancelLabel: t('common.cancel') })
+                        : window.confirm(t('collection.dlimg_bedrock_confirm', { count }));
+                    if (!ok) return;
+                }
+                close();
+                await this._zipDownload(`/api/collections/${collectionId}/download-images`,
+                    { targets: this._selTargets(), include, bg_method: method }, 'collection_images.zip',
+                    { skippedKey: 'collection.dlimg_skipped', btnId: 'cv-dl-images' });
+            });
+        },
+        /** Jobs in the set (the "whole set" scope of a download). */
+        _jobCount() {
+            return (this._data?.batches || []).reduce((s, e) =>
+                s + ((e.batch && e.batch.options) || []).reduce((n, o) => n + (o.variants || []).length, 0), 0);
         },
         /** 3D download: format + the single-asset engine-export controls (shared
          *  AssetViewer.threeDExportControls — same lists, labels and per-target
@@ -686,7 +803,7 @@
                         <div>
                             <label class="block text-[11px] text-brand-text-muted mb-1">${t('collection.dl3d_format')}</label>
                             <select id="cvdl-fmt" class="input text-sm w-full">
-                                <option value="glb">GLB</option><option value="fbx">FBX</option><option value="usd">USDZ</option>
+                                <option value="glb">GLB</option><option value="fbx">FBX</option><option value="usd">USD</option>
                             </select>
                         </div>
                         ${sel('cvdl-target', A('three_d_target_engine'))}
@@ -696,6 +813,7 @@
                         ${sel('cvdl-uv2', A('three_d_opt_uv2'))}
                     </div>
                     <p class="text-[10px] text-brand-text-dim">${t('collection.dl3d_note')}</p>
+                    <p id="cvdl-fidelity" class="text-[9px] text-brand-text-muted/70 hidden">${A('three_d_fidelity_note')}</p>
                     <div class="flex justify-end"><button id="cvdl-go" class="btn btn-primary btn-sm">${t('collection.dl3d_go')}</button></div>
                 </div>`;
             document.body.appendChild(pane);
@@ -706,7 +824,11 @@
             pane.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
             // glTF embeds its own metallic-roughness: engine texture packing is
             // FBX/USD only (the per-asset export applies the same rule server-side).
-            const syncPack = () => { $('cvdl-pack').disabled = $('cvdl-fmt').value === 'glb'; };
+            // FBX/USD carry the AssetViewer's fidelity note (what survives conversion).
+            const syncPack = () => {
+                $('cvdl-pack').disabled = $('cvdl-fmt').value === 'glb';
+                $('cvdl-fidelity').classList.toggle('hidden', $('cvdl-fmt').value === 'glb');
+            };
             $('cvdl-fmt').addEventListener('change', syncPack);
             await AV.threeDExportControls({
                 target: $('cvdl-target'), pack: $('cvdl-pack'), lods: $('cvdl-lods'),
@@ -720,9 +842,9 @@
                 const body = { targets: this._selTargets(), fmt, target: $('cvdl-target').value,
                                pack: fmt === 'glb' ? 'none' : $('cvdl-pack').value,
                                lods: $('cvdl-lods').value, collision: $('cvdl-collision').value, uv2: $('cvdl-uv2').value };
-                go.disabled = true; go.textContent = t('collection.dl3d_preparing');
-                await this._zipDownload(`/api/collections/${collectionId}/download-3d`, body, `collection_3d_${fmt}.zip`);
                 close();
+                await this._zipDownload(`/api/collections/${collectionId}/download-3d`, body, `collection_3d_${fmt}.zip`,
+                    { skippedKey: 'collection.dl3d_skipped', btnId: 'cv-dl-3d' });
             });
         },
 
@@ -751,7 +873,7 @@
             // Drill into a batch-DETAIL view (SPEC §18.8) that shows the whole
             // options × variations grid — like the Image Studio result view — instead
             // of opening a single image with no way to reach the siblings.
-            this._batchDetail = { batch, name: (entry.roster_entry || {}).name || batch.batch_id || '', sel: { o: 0, v: 0 } };
+            this._batchDetail = { batch, batchId, name: (entry.roster_entry || {}).name || batch.batch_id || '', sel: { o: 0, v: 0 } };
             this._renderBatchDetail();
         },
 
@@ -768,6 +890,10 @@
             opts.forEach((o) => (o.variants || []).forEach((v) => flat.push({ id: v.id, prompt: o.enhanced_prompt })));
             const selVariant = (opts[bd.sel.o]?.variants || [])[bd.sel.v] || flat[0];
             const selId = selVariant && selVariant.id;
+            // The representative Job shows the Batch's PINNED version (what the cover,
+            // downloads and 3D use); every other Job its current version.
+            const pinOf = this._pinnedVersions(bd.batch, bd.batchId);
+            const imgSrc = (id) => pinOf[id] ? `/api/gallery/${id}/version/${pinOf[id]}?t=${cb}` : `/api/gallery/${id}/png?t=${cb}`;
             // nosemgrep
             body.innerHTML = html`
                 <div class="mb-3 flex items-center gap-2">
@@ -776,7 +902,7 @@
                 </div>
                 <div class="bg-brand-bg rounded-lg flex items-center justify-center overflow-hidden mb-3 p-2" style="max-height:45vh">
                     ${selId
-                        ? html`<img id="cv-bd-preview" src="/api/gallery/${selId}/png?t=${cb}" class="max-w-full object-contain cursor-pointer rounded" style="max-height:42vh" title="${t('collection.open_full')}" alt="${bd.name}" />`
+                        ? html`<img id="cv-bd-preview" src="${imgSrc(selId)}" class="max-w-full object-contain cursor-pointer rounded" style="max-height:42vh" title="${t('collection.open_full')}" alt="${bd.name}" />`
                         : html`<span class="text-brand-text-muted text-xs py-10">${t('collection.empty')}</span>`}
                 </div>
                 <div class="flex flex-wrap gap-3 items-start">
@@ -799,7 +925,7 @@
                                     <div class="inline-block align-top">
                                         <button class="cv-bd-cell relative rounded-md overflow-hidden border block ${oi === bd.sel.o && vi === bd.sel.v ? 'border-cyan-400 ring-1 ring-cyan-400' : 'border-brand-border hover:border-brand-text-muted'}" data-o="${oi}" data-v="${vi}" style="width:84px;height:84px" title="${t('collection.option_label')} ${oi + 1} · ${t('collection.variation_label')} ${vi + 1}">
                                             <input type="checkbox" class="cv-job-sel absolute top-0.5 left-0.5 z-10 w-3.5 h-3.5 accent-cyan-500 cursor-pointer" title="${t('collection.select_job')}" ${this._jobAllSelected(v) ? 'checked' : ''} />
-                                            <img src="/api/gallery/${v.id}/png?t=${cb}" class="w-full h-full object-cover" alt="" loading="lazy" />
+                                            <img src="${imgSrc(v.id)}" class="w-full h-full object-cover" alt="" loading="lazy" />
                                             ${v.has_3d ? html`<span class="absolute top-0.5 right-0.5 text-[8px] px-1 rounded bg-violet-600/80 text-white">3D</span>` : ''}
                                             <span class="absolute bottom-0 right-0 text-[9px] px-1 bg-black/70 text-white rounded-tl">${t('collection.variation_short', { n: vi + 1 })}</span>
                                         </button>
@@ -815,7 +941,7 @@
             document.getElementById('cv-bd-back').addEventListener('click', () => { this._batchDetail = null; this._render(this._data); });
             document.getElementById('cv-bd-preview')?.addEventListener('click', () => {
                 const idx = Math.max(0, flat.findIndex(x => x.id === selId));
-                window.AssetViewer?.open(flat[idx], flat, idx);
+                this._openAssetAt(flat[idx], flat, idx, pinOf[selId]);
             });
             body.querySelectorAll('.cv-bd-cell').forEach((btn) => {
                 btn.addEventListener('click', (e) => {
@@ -845,13 +971,19 @@
         },
 
         async _delete(collectionId) {
-            if (!collectionId || !confirm(t('collection.delete_confirm'))) return;
+            if (!collectionId) return;
+            const ok = window.showConfirm
+                ? await window.showConfirm(t('collection.delete_confirm'), {
+                    title: t('collection.delete'), confirmLabel: t('collection.delete'),
+                    cancelLabel: t('common.cancel'), danger: true })
+                : window.confirm(t('collection.delete_confirm'));
+            if (!ok) return;
             try {
                 await API.collections.del(collectionId);
                 window.ImageStudio?.clearLoadedCollection?.(collectionId);   // before close()'s refresh
                 this.close();
                 window.Gallery?.refresh?.();
-            } catch (e) { alert(e.message || t('collection.error')); }
+            } catch (e) { window.showToast?.(e.message || t('collection.error'), 'error'); }
         },
     };
 

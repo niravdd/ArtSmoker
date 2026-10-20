@@ -327,6 +327,10 @@ class ThreeDGenerateRequest(BaseModel):
     # existing default (which stays the served asset_3d.glb). First-ever 3D for a
     # version always becomes the default regardless.
     save_as: str = "default"  # "default" | "variant"
+    # Background remover for the 3D source cutout when one doesn't exist yet:
+    # "local" (free rembg) | "bedrock" (paid) — the form's "Remove bg" choice, the
+    # same one source review (prepare-source) uses.
+    bg_method: str = "local"
 
     def resolved_guidance(self) -> float:
         return self.guidance if self.guidance is not None else self.guidance_scale
@@ -774,7 +778,8 @@ async def generate_3d(body: ThreeDGenerateRequest):
     # sidecar here — that's transient, scoped to an active improve-dialog session.
     # A bg_free version is its own cutout. (The handler also strips BG server-side
     # as a backstop, so a raw version still works.)
-    image_path = _ensure_cutout(body.asset_id, body.version)
+    image_path = _ensure_cutout(body.asset_id, body.version,
+                                bg_method="bedrock" if body.bg_method == "bedrock" else "local")
     if image_path is None:
         raise HTTPException(404, detail=f"Image not found for asset '{body.asset_id}' version {body.version}.")
 

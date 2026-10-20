@@ -324,7 +324,14 @@ def _project_batch(entry: dict) -> dict:
     selected_version = entry.get("selected_version")
     if selected_version is None and jobs:
         selected_version = jobs[0].get("current_version", 1)
-    thumb_path = f"/api/gallery/{thumb_asset_id}/png" if thumb_asset_id else None
+    # The thumb shows the PINNED version when it isn't the current one (the same
+    # version the set's downloads and 3D default to); the current one stays /png.
+    current = jobs[0].get("current_version", 1) if jobs else 1
+    thumb_path = None
+    if thumb_asset_id:
+        thumb_path = (f"/api/gallery/{thumb_asset_id}/version/{selected_version}"
+                      if selected_version and selected_version != current
+                      else f"/api/gallery/{thumb_asset_id}/png")
 
     # Available version numbers of the representative Job (excluding tombstones) —
     # drives the viewer's per-Batch "selected version" picker (Phase M).

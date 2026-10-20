@@ -908,6 +908,22 @@ async def get_export_status(asset_id: str, version: int | None = Query(default=N
     return _export_status(asset_id, meta, v, current_version)
 
 
+def _record_cutout(asset_id: str, version: int, method: str, cost_usd: float) -> None:
+    """Record how a version's cutout was made (+ any Bedrock removal cost) in the
+    asset's metadata — fresh-read → modify → atomic write under the asset lock
+    (SPEC §17), so concurrent edits/exports of the same asset never lose a field."""
+    from backend.services.asset_locks import asset_write_lock
+    with asset_write_lock(asset_id):
+        meta = store.load_generation_metadata(asset_id) or {}
+        meta.setdefault("cutouts", {})[str(version)] = {"method": method, "cost_usd": round(cost_usd, 6)}
+        if cost_usd:
+            history = meta.setdefault("cost_history", [])
+            history.append({"action": "remove_background", "model": "bedrock", "cost_usd": round(cost_usd, 6)})
+            meta["estimated_total_cost_usd"] = round(sum(c.get("cost_usd", 0) for c in history), 6)
+        store.save_generation_metadata(asset_id, meta)
+    _meta_cache.pop(asset_id, None)
+
+
 class ExportVariantsRequest(BaseModel):
     method: str = "local"          # "local" (rembg, free) | "bedrock" (paid SD)
     version: int | None = None     # defaults to the current version
@@ -975,10 +991,7 @@ async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
                 convert_to_svg(src_path.read_bytes(), cutout_svg_path)
             except Exception:
                 logger.exception("no-bg SVG trace failed for %s v%d (bg-free)", asset_id, version)
-        cut_meta_all[str(version)] = {"method": "none", "cost_usd": 0.0}
-        meta["cutouts"] = cut_meta_all
-        store.save_generation_metadata(asset_id, meta)
-        _meta_cache.pop(asset_id, None)
+        _record_cutout(asset_id, version, "none", 0.0)
         meta = _get_meta(asset_id) or meta
     else:
         # ONE shared cutout: reuse the canonical/legacy PNG if it already exists
@@ -1014,17 +1027,7 @@ async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
                 except Exception:
                     cost_usd = 0.0
 
-            cut_meta_all[str(version)] = {"method": method, "cost_usd": round(cost_usd, 6)}
-            meta["cutouts"] = cut_meta_all
-            if cost_usd:
-                history = meta.get("cost_history", [])
-                history.append({"action": "remove_background", "model": "bedrock", "cost_usd": round(cost_usd, 6)})
-                meta["cost_history"] = history
-                meta["estimated_total_cost_usd"] = round(
-                    sum(c.get("cost_usd", 0) for c in history), 6
-                )
-            store.save_generation_metadata(asset_id, meta)
-            _meta_cache.pop(asset_id, None)
+            _record_cutout(asset_id, version, method, cost_usd)
             meta = _get_meta(asset_id) or meta
         else:
             # Reusing the shared cutout PNG (existing): DON'T re-remove the
@@ -1154,7 +1157,40 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
                               pack: str = "none", lods: str = "none",
                               collision: str = "none", uv2: str = "none",
                               check: int = 0, prepare: int = 0):
-    """Serve a game-engine-tailored export of a generated 3D asset.
+    """Serve a game-engine-tailored export of a generated 3D asset (built by
+    build_3d_export). check=1: cached-status probe only; prepare=1: build + cache
+    and return status (the two-step UX); else stream the file. Download telemetry
+    fires here (the processed exports; the pristine GLB is counted by the
+    download beacon)."""
+    res = await build_3d_export(asset_id, version, fmt, variant=variant, target=target, pack=pack,
+                                lods=lods, collision=collision, uv2=uv2, check=bool(check))
+    if check:
+        return {"cached": res["cached"]}
+    if prepare:
+        return {"ready": True, "zip": res["is_zip"], "size_bytes": res["path"].stat().st_size}
+    if not res["pristine"]:
+        # Adoption telemetry: an export download is always intentional (fetch-based
+        # UI). Chosen ops ride as a property (not in the event name — cardinality).
+        try:
+            from backend.services.telemetry import track_download
+            _m = _get_meta(asset_id) or {}
+            track_download(file_format=res["fmt"], asset_type=_m.get("asset_type", ""), kind="export",
+                           engine_target=res["target"], model=_m.get("image_model", ""),
+                           variant=(variant or "") + (f"|ops:{res['token']}" if res["token"] else ""))
+        except Exception:
+            pass
+    return FileResponse(res["path"], media_type=res["media"], filename=res["dl_name"])
+
+
+async def build_3d_export(asset_id: str, version: int, fmt: str, variant: str | None = None,
+                          target: str = "generic", pack: str = "none", lods: str = "none",
+                          collision: str = "none", uv2: str = "none", check: bool = False) -> dict:
+    """Build (or find cached) a game-engine-tailored export of a generated 3D asset —
+    the ONE export implementation, shared by the per-asset route and the Collection
+    3D download. Returns {path, fmt, ext, target, token, is_zip, pristine, dl_name,
+    media}; with check=True only {cached, …} (no conversion). Raises HTTPException
+    (404 no mesh for that version, 400 nothing to pack, 503 conversion failed).
+    No download telemetry here — callers count their own downloads.
 
     fmt ∈ {glb, fbx, usd}. GLB is served PRISTINE (glTF is Y-up by spec and importers
     convert on load — a re-oriented GLB would be malformed). FBX + USD are oriented
@@ -1194,11 +1230,9 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
     # artifact that flows through the generic conversion path below; the original is
     # never touched.
     if fmt == "glb" and not token:
-        if check:
-            return {"cached": True}
-        if prepare:
-            return {"ready": True, "zip": False, "size_bytes": glb_path.stat().st_size}
-        return FileResponse(glb_path, media_type="model/gltf-binary", filename=f"{asset_id}_3d.glb")
+        return {"cached": True, "path": glb_path, "fmt": fmt, "ext": "glb", "target": target,
+                "token": "", "is_zip": False, "pristine": True,
+                "dl_name": f"{asset_id}_3d.glb", "media": "model/gltf-binary"}
 
     # FBX / USD(z) / processed GLB: cache beside the original, keyed by target + ops.
     base = glb_name[:-4]  # strip ".glb"
@@ -1212,8 +1246,14 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
 
     # check=1: cheap cached-status probe (no conversion) — lets the UI show an
     # "already generated — instant download" indicator for the current picks.
+    dl_name = f"{asset_id}_3d_{target}" + (f"_{token}" if token else "") + (f".{ext}.zip" if is_zip else f".{ext}")
+    media = ("application/zip" if is_zip
+             else "model/gltf-binary" if fmt == "glb"
+             else "application/octet-stream")
+    result = {"path": final_path, "fmt": fmt, "ext": ext, "target": target, "token": token,
+              "is_zip": is_zip, "pristine": False, "dl_name": dl_name, "media": media}
     if check:
-        return {"cached": final_path.exists() and final_path.stat().st_size > 0}
+        return {**result, "cached": final_path.exists() and final_path.stat().st_size > 0}
 
     if not final_path.exists() or final_path.stat().st_size == 0:
         import asyncio
@@ -1311,27 +1351,7 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
         except Exception as exc:
             logger.warning("Could not record export in metadata for %s: %s", asset_id, exc)
 
-    # prepare=1 (the two-step UX "Generate" click): conversion + cache + metadata
-    # record are done — return status instead of streaming the file. The download
-    # telemetry below fires only on the actual Download click.
-    if prepare:
-        return {"ready": True, "zip": is_zip, "size_bytes": final_path.stat().st_size}
-
-    # Adoption telemetry: an export download is always intentional (fetch-based UI).
-    # Chosen ops ride as a property (not in the event name — cardinality).
-    try:
-        from backend.services.telemetry import track_download
-        _m = _get_meta(asset_id) or {}
-        track_download(file_format=fmt, asset_type=_m.get("asset_type", ""), kind="export",
-                       engine_target=target, model=_m.get("image_model", ""),
-                       variant=(variant or "") + (f"|ops:{token}" if token else ""))
-    except Exception:
-        pass
-    dl_name = f"{asset_id}_3d_{target}" + (f"_{token}" if token else "") + (f".{ext}.zip" if is_zip else f".{ext}")
-    media = ("application/zip" if is_zip
-             else "model/gltf-binary" if fmt == "glb"
-             else "application/octet-stream")
-    return FileResponse(final_path, media_type=media, filename=dl_name)
+    return result
 
 
 class TrackDownloadRequest(BaseModel):

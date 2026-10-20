@@ -669,6 +669,15 @@
         /** Collection card (SPEC §18.8) — one card for the whole set. Accepts a raw
          *  summary from API.collections.list() too (id derived, data-collection
          *  carries the id). */
+        /** The card's 3D badge (cube icon + label) — one look for single assets
+         *  ("3D") and collections ("3D n/m"). z: the stacking class for the card. */
+        _badge3dHTML(label, tip, z) {
+            return html`<span class="absolute bottom-2 right-2 ${z} flex items-center gap-1 bg-violet-600/85 text-white text-[9px] px-1.5 py-0.5 rounded font-semibold shadow" title="${tip}">
+                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                ${label}
+            </span>`;
+        },
+
         /** How many of a collection's Batches have a 3D model (summary `has_3d`). */
         _collection3dCount(item) {
             return (item.batches || []).filter(b => b && b.has_3d).length;
@@ -727,8 +736,8 @@
                                 ? html`<img src="${cover}" class="w-full h-full object-cover" alt="${item.name}" />`
                                 : html`<div class="w-full h-full flex items-center justify-center"><svg class="w-10 h-10 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg></div>`)}
                         <span class="absolute top-1.5 left-1.5 z-40 text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-600/80 text-white font-semibold">${t('artsmoker.ui.collection.card_badge')}</span>
-                        ${n3d ? html`<span class="absolute bottom-2 right-2 z-40 bg-violet-600/85 text-white text-[9px] px-1.5 py-0.5 rounded font-semibold shadow"
-                            title="${t('artsmoker.ui.collection.card_3d_tip', { n: n3d, m: count })}">${t('artsmoker.ui.collection.card_3d', { n: n3d, m: count })}</span>` : ''}
+                        ${n3d ? this._badge3dHTML(t('artsmoker.ui.collection.card_3d', { n: n3d, m: count }),
+                            t('artsmoker.ui.collection.card_3d_tip', { n: n3d, m: count }), 'z-40') : ''}
                     </div>
                     <div class="p-2">
                         <p class="text-xs font-medium truncate">${item.name || t('artsmoker.ui.collection.viewer_title')}</p>
@@ -790,10 +799,7 @@
                                 data-id="${item.id}" ${isSelected ? 'checked' : ''} />
                         </label>
                         ${isVideo ? html`<span class="absolute top-2 right-2 bg-brand-accent/80 text-white text-[9px] px-1.5 py-0.5 rounded font-medium">${t('artsmoker.ui.gallery.video_badge')}</span>` : ''}
-                        ${item.has_3d ? html`<span class="absolute bottom-2 right-2 z-10 flex items-center gap-1 bg-violet-600/85 text-white text-[9px] px-1.5 py-0.5 rounded font-semibold shadow" title="${t('artsmoker.ui.gallery.has_3d_tooltip')}">
-                            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                            ${t('artsmoker.ui.gallery.has_3d_badge')}
-                        </span>` : ''}
+                        ${item.has_3d ? this._badge3dHTML(t('artsmoker.ui.gallery.has_3d_badge'), t('artsmoker.ui.gallery.has_3d_tooltip'), 'z-10') : ''}
                     </div>
                     <div class="p-4 space-y-2">
                         <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${truncPrompt || html`<em class="text-brand-text-muted">${t('artsmoker.ui.gallery.no_prompt')}</em>`}</p>

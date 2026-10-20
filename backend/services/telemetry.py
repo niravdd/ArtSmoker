@@ -239,9 +239,10 @@ def track_collection_roster_regenerated(cost_usd: float = 0):
     _track("collection_studio.roster_regenerated", cost_usd=0)
     _collection_cost(cost_usd, "roster_regenerate")
 
-def track_collection_art_direction_edited(cost_usd: float = 0):
+def track_collection_art_direction_edited(cost_usd: float = 0, operation: str = "recompose_all"):
+    # operation: "art_direction" (draft it, POST /art-direction) | "recompose_all"
     _track("collection_studio.art_direction_edited", cost_usd=0)
-    _collection_cost(cost_usd, "recompose_all")
+    _collection_cost(cost_usd, operation)
 
 def track_collection_art_direction_lifted(cost_usd: float = 0):
     _track("collection_studio.art_direction_lifted", cost_usd=0)
@@ -268,11 +269,20 @@ def track_collection_generation_complete(success: int = 0, partial: int = 0, cos
 def track_collection_hero_anchor_used(batch_count: int = 0):
     _track("collection_studio.hero_anchor", cost_usd=0, batch_count=batch_count)
 
-def track_collection_3d_handoff(batch_count: int = 0):
-    _track("collection_studio.3d_handoff", cost_usd=0, batch_count=batch_count)
+def track_collection_3d_handoff(job_count: int = 0):
+    # Fired only when ≥1 job was submitted; the 3D compute cost is reported per job
+    # at completion (generate_3d), like a single-asset 3D run.
+    _track("collection_studio.3d_handoff", cost_usd=0, job_count=job_count)
 
-def track_collection_export(engine: str = "", batch_count: int = 0):
-    _track("collection_studio.export", cost_usd=0, engine=engine, batch_count=batch_count)
+def track_collection_export(engine: str = "", fmt: str = "", model_count: int = 0):
+    # One event per collection 3D zip (the per-model builds fire no asset.dl.*).
+    _track("collection_studio.export", cost_usd=0, engine=engine, format=fmt, model_count=model_count)
+
+def track_collection_download(artefacts: str = "", file_count: int = 0, job_count: int = 0):
+    # One event per collection image zip. Cutouts it had to make are reported by the
+    # single-asset export (image_studio.post_process, with any Bedrock cost).
+    _track("collection_studio.download", cost_usd=0, artefacts=artefacts,
+           file_count=file_count, job_count=job_count)
 
 def track_collection_version_selected(version: int = 0):
     _track("collection_studio.version_selected", cost_usd=0, version=version)
