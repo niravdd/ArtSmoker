@@ -2,19 +2,25 @@
  * CollectionAssetViewer — the collection-level counterpart to the batch view +
  * AssetViewer (SPEC §18.8). A board of the collection's Batches (one per roster
  * subject); each Batch card drills into that Batch's options/variations/versions
- * via the EXISTING per-asset AssetViewer (reuse, don't rebuild). Collection-level
- * actions: delete; "3D the whole set" + "Export set" are fast-follow placeholders
- * (Phase N).
+ * via the EXISTING per-asset AssetViewer (reuse, don't rebuild). Two views of the
+ * board: Images (the Batches) and 3D models (each Batch's models with live 3D
+ * status). Collection-level actions: load in Image Studio, convert to 3D,
+ * download images / 3D models, delete.
  */
 (function () {
     const t = (k, p) => (window.t ? window.t('artsmoker.ui.' + k, p) : k);
+    const POLL_3D_MS = 15000;   // 3D status refresh while models are in flight
 
     const CollectionAssetViewer = {
         _data: null,
 
-        async open(collectionId) {
+        /** opts.view: 'images' (default) | '3d'. */
+        async open(collectionId, opts = {}) {
             this._sel = new Map();   // asset_id -> version, selection for 3D + downloads
             this._collectionId = collectionId;
+            this._view = opts.view === '3d' ? '3d' : 'images';
+            this._batchDetail = null;
+            this._stop3dPoll();
             this._mount(t('collection.viewer_title'));
             try {
                 const data = await API.collections.get(collectionId);
@@ -27,6 +33,7 @@
 
         close() {
             const cid = this._data?.record?.collection_id;
+            this._stop3dPoll();
             document.getElementById('collection-viewer-overlay')?.remove(); this._data = null;
             // A version pin / Batch retry inside the viewer changes what Image Studio
             // shows when this collection is loaded there.
@@ -73,7 +80,9 @@
             document.getElementById('cv-dl-3d').addEventListener('click', () => this._download3d(this._collectionId));
             document.getElementById('cv-reload').focus();
             overlay.addEventListener('click', (e) => { if (e.target === overlay) this.close(); });
-            overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.getElementById('cv-3d-pane')) this.close(); });
+            overlay.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !document.getElementById('cv-3d-pane') && !document.getElementById('cv-dl3d-pane')) this.close();
+            });
         },
 
         _renderError(msg) {
@@ -138,16 +147,36 @@
                 </details>`;
         },
 
+        // ── Images | 3D models view switch ─────────────────────────────────
+        _viewToggleHTML() {
+            const btn = (view, label) => html`<button class="cv-view btn btn-xs ${this._view === view
+                ? 'btn-primary' : 'bg-brand-bg border border-brand-border'}" data-view="${view}">${label}</button>`;
+            return html`<div class="flex items-center gap-1 mb-3">
+                ${btn('images', t('collection.view_images'))}${btn('3d', t('collection.view_3d'))}
+            </div>`;
+        },
+        _bindViewToggle(body) {
+            body.querySelectorAll('.cv-view').forEach((b) => b.addEventListener('click', () => {
+                if (b.dataset.view === this._view) return;
+                this._view = b.dataset.view;
+                this._batchDetail = null;
+                this._stop3dPoll();
+                this._render(this._data);
+            }));
+        },
+
         _render(data) {
             const rec = data.record || {};
             const summary = data.summary || {};
             const titleEl = document.getElementById('cv-title');
             if (titleEl) titleEl.textContent = rec.name || t('collection.viewer_title');
+            if (this._view === '3d') { this._render3d(); return; }
             const batches = summary.batches || [];
             const body = document.getElementById('cv-body');
             // nosemgrep
             body.innerHTML = html`
                 ${this._metaPanelHTML(rec, summary)}
+                ${this._viewToggleHTML()}
                 <div class="gallery-grid">
                     ${batches.map((b) => {
                         const failed = (b.status === 'failed' || b.status === 'blocked');
@@ -176,6 +205,7 @@
                         </div>`;
                     })}
                 </div>`;
+            this._bindViewToggle(body);
             // Batch card → drill into the batch detail. (Checkbox toggles selection.)
             body.querySelectorAll('.cv-batch').forEach((card) => {
                 card.addEventListener('click', (e) => {
@@ -208,6 +238,122 @@
                 });
             });
             this._updateSelInfo();
+        },
+
+        // ── 3D models view ─────────────────────────────────────────────────
+        // The same board as Images, one card per Batch, but the card face is the
+        // Batch's primary 3D model (the representative Job at the selected version,
+        // else its first complete model) in the shared AssetViewer model-viewer.
+        // Status uses the per-asset 3D job vocabulary (submitted / generating /
+        // complete / failed) and the board's own badges; every other (job, version)
+        // model is a chip. Refreshes every POLL_3D_MS while any model is in flight —
+        // only cards whose status changed are redrawn, so loaded previews stay put.
+        _stop3dPoll() {
+            if (this._poll3d) { clearTimeout(this._poll3d); this._poll3d = null; }
+        },
+        /** A Batch's overall 3D status, mapped onto the board's _statusBadge. */
+        _batch3dStatus(c) {
+            if (c.submitted || c.generating) return 'generating';
+            if (c.complete) return c.failed ? 'partial' : 'complete';
+            return c.failed ? 'failed' : '';
+        },
+        _card3dHTML(b) {
+            const p = b.primary;
+            const c = b.counts || {};
+            const status = this._batch3dStatus(c);
+            const others = (b.targets || []).filter(tg => !p || tg.asset_id !== p.asset_id || tg.version !== p.version);
+            const icon = { complete: '✓', generating: '◷', submitted: '…', failed: '✕' };
+            const tip = (tg) => tg.status === 'failed'
+                ? (tg.error === 'expired' ? t('collection.threed_expired') : (tg.error || t('asset_viewer.three_d_failed')))
+                : (tg.status === 'complete' ? '' : t('asset_viewer.three_d_generating'));
+            return html`
+                <div class="cv3d-card gallery-card card overflow-hidden" data-batch="${b.batch_id}">
+                    <div class="bg-brand-bg overflow-hidden relative" style="height:200px">
+                        ${p ? window.AssetViewer.threeDModelViewerHTML(p.glb_url, { alt: b.name, lazy: true })
+                            : html`${b.thumb_path ? html`<img src="${b.thumb_path}" class="w-full h-full object-contain opacity-40" alt="" loading="lazy" />` : ''}
+                                <div class="absolute inset-0 flex items-center justify-center p-3 text-center">${status ? this._statusBadge(status) : html`<span class="text-[11px] text-brand-text-muted">${t('collection.threed_none')}</span>`}</div>`}
+                    </div>
+                    <div class="p-2">
+                        <p class="text-xs font-medium truncate">${b.name || b.slug}</p>
+                        <div class="flex items-center gap-1 mt-1">
+                            ${status ? this._statusBadge(status) : ''}
+                            ${p ? html`<button class="cv3d-open text-[10px] px-1.5 py-0.5 rounded bg-violet-600/70 hover:bg-violet-500 text-white" data-asset="${p.asset_id}" data-version="${p.version}" title="${t('collection.open_full')}">3D</button>` : ''}
+                            <span class="text-[10px] text-brand-text-muted ml-auto">${t('collection.threed_models_count', { count: c.complete || 0 })}</span>
+                        </div>
+                        ${others.length ? html`<div class="flex flex-wrap gap-1 mt-1.5">
+                            ${others.map(tg => html`<button class="cv3d-target text-[9px] px-1 py-0.5 rounded border border-brand-border ${tg.status === 'complete' ? 'hover:border-violet-400 cursor-pointer' : 'cursor-default opacity-80'}"
+                                data-asset="${tg.asset_id}" data-version="${tg.version}" data-status="${tg.status}"
+                                title="${tip(tg)}">${icon[tg.status] || ''} ${t('collection.threed_job_label', { o: tg.option, v: tg.variation, ver: tg.version })}</button>`)}
+                        </div>` : ''}
+                    </div>
+                </div>`;
+        },
+        _sig3d(b) {
+            return JSON.stringify([b.primary && b.primary.glb_url, b.counts,
+                (b.targets || []).map(tg => [tg.asset_id, tg.version, tg.status])]);
+        },
+        _bind3dCard(card) {
+            card.querySelectorAll('.cv3d-open, .cv3d-target[data-status="complete"]').forEach(btn =>
+                btn.addEventListener('click', () => this._open3dAsset(btn.dataset.asset, parseInt(btn.dataset.version, 10))));
+        },
+        async _render3d(refresh = false) {
+            const body = document.getElementById('cv-body');
+            const cid = this._collectionId;
+            if (!body || !cid) return;
+            if (!refresh) {
+                // nosemgrep
+                body.innerHTML = html`${this._viewToggleHTML()}<div id="cv3d-grid" class="text-center py-10 text-brand-text-muted text-sm">${t('common.loading')}</div>`;
+                this._bindViewToggle(body);
+            }
+            let st;
+            try { st = await API.collections.threeDStatus(cid); }
+            catch (e) {
+                if (!refresh) this._renderError(e.message || t('collection.error'));
+                return;
+            }
+            // The user may have switched view or closed the viewer while we waited.
+            if (this._view !== '3d' || this._collectionId !== cid || !document.getElementById('cv-body')) return;
+            const batches = st.batches || [];
+            const grid = document.getElementById('cv3d-grid');
+            const anyModel = batches.some(b => (b.targets || []).length);
+            if (!refresh || !grid || !grid.classList.contains('gallery-grid')) {
+                // nosemgrep
+                body.innerHTML = html`
+                    ${this._viewToggleHTML()}
+                    ${st.in_flight ? html`<p id="cv3d-live" class="text-[10px] text-cyan-300/90 mb-2">${t('collection.threed_live_note')}</p>` : ''}
+                    ${anyModel
+                        ? html`<div id="cv3d-grid" class="gallery-grid">${batches.map(b => this._card3dHTML(b))}</div>`
+                        : html`<div id="cv3d-grid" class="text-center py-10 text-brand-text-muted text-sm">${t('collection.threed_empty')}</div>`}`;
+                this._bindViewToggle(body);
+                body.querySelectorAll('.cv3d-card').forEach((card, i) => {
+                    card.dataset.sig = this._sig3d(batches[i]);
+                    this._bind3dCard(card);
+                });
+            } else {
+                batches.forEach((b) => {
+                    const card = grid.querySelector(`.cv3d-card[data-batch="${CSS.escape(b.batch_id)}"]`);
+                    const sig = this._sig3d(b);
+                    if (!card || card.dataset.sig === sig) return;
+                    const tmp = document.createElement('div');
+                    // nosemgrep
+                    tmp.innerHTML = this._card3dHTML(b);
+                    const fresh = tmp.firstElementChild;
+                    fresh.dataset.sig = sig;
+                    card.replaceWith(fresh);
+                    this._bind3dCard(fresh);
+                });
+                if (!st.in_flight) document.getElementById('cv3d-live')?.remove();
+            }
+            this._stop3dPoll();
+            if (st.in_flight) this._poll3d = setTimeout(() => this._render3d(true), POLL_3D_MS);
+        },
+        /** Open the full AssetViewer on a Job's version, on its 3D tab. */
+        async _open3dAsset(assetId, version) {
+            if (!window.AssetViewer || !assetId) return;
+            await window.AssetViewer.open({ id: assetId }, [{ id: assetId }], 0);
+            const ov = window.AssetViewer._overlay;
+            ov?.querySelector(`.av-version-btn[data-version="${version}"]`)?.click();
+            ov?.querySelector('[data-tab="3d"]')?.click();
         },
 
         // ── Selection — a Set of "assetId@version" targets (job + version level;
@@ -484,7 +630,8 @@
                     window.showToast?.(t('collection.threed_submitted', { count: (r.submitted || []).length }), 'success');
                     if ((r.failures || []).length) window.showToast?.(r.failures[0].error, 'warning');
                     close();
-                    setTimeout(() => this.open(collectionId), 800);   // reflect submitted status
+                    // Land on the 3D view so the submitted models' progress is visible.
+                    setTimeout(() => this.open(collectionId, { view: '3d' }), 800);
                 } catch (e) {
                     window.showToast?.(e.message || t('collection.error'), 'error');
                     go.disabled = false; go.textContent = t('collection.pane_convert_n', { count });
@@ -498,6 +645,8 @@
                 // nosemgrep -- serialized HTTP body; ZIP response streamed to a download
                 const resp = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
                 if (!resp.ok) { let d = ''; try { d = (await resp.json()).detail; } catch (_) {} window.showToast?.(d || t('collection.error'), 'error'); return; }
+                const skipped = parseInt(resp.headers.get('X-Skipped-Count') || '0', 10);
+                if (skipped > 0) window.showToast?.(t('collection.dl3d_skipped', { count: skipped }), 'warning');
                 const blob = await resp.blob();
                 const cd = resp.headers.get('Content-Disposition') || '';
                 const m = /filename="?([^"]+)"?/.exec(cd);
@@ -511,11 +660,70 @@
         _downloadImages(collectionId) {
             this._zipDownload(`/api/collections/${collectionId}/download-images`, { targets: this._selTargets() }, 'collection_images.zip');
         },
-        _download3d(collectionId) {
-            const fmt = (window.prompt(t('collection.download_3d_fmt'), 'glb') || '').trim().toLowerCase();
-            if (!fmt) return;
-            if (!['glb', 'fbx', 'usd'].includes(fmt)) { window.showToast?.(t('collection.download_3d_fmt_invalid'), 'warning'); return; }
-            this._zipDownload(`/api/collections/${collectionId}/download-3d`, { targets: this._selTargets(), fmt }, `collection_3d_${fmt}.zip`);
+        /** 3D download: format + the single-asset engine-export controls (shared
+         *  AssetViewer.threeDExportControls — same lists, labels and per-target
+         *  rules), applied to the selection or every model in the set. */
+        async _download3d(collectionId) {
+            if (document.getElementById('cv-dl3d-pane')) return;
+            const AV = window.AssetViewer;
+            const A = (k) => t('asset_viewer.' + k);
+            const n = this._selCount();
+            const pane = document.createElement('div');
+            pane.id = 'cv-dl3d-pane';
+            pane.className = 'fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4';
+            const sel = (id, label) => html`<div>
+                <label class="block text-[11px] text-brand-text-muted mb-1">${label}</label>
+                <select id="${id}" class="input text-sm w-full"></select></div>`;
+            // nosemgrep
+            pane.innerHTML = html`
+                <div class="card w-full max-w-md p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold">${t('collection.download_3d')}</h3>
+                        <button id="cvdl-close" class="text-brand-text-muted hover:text-brand-text text-xl leading-none">&times;</button>
+                    </div>
+                    <p class="text-[11px] text-brand-text-muted">${n ? t('collection.dl3d_applies_sel', { count: n }) : t('collection.dl3d_applies_all')}</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] text-brand-text-muted mb-1">${t('collection.dl3d_format')}</label>
+                            <select id="cvdl-fmt" class="input text-sm w-full">
+                                <option value="glb">GLB</option><option value="fbx">FBX</option><option value="usd">USDZ</option>
+                            </select>
+                        </div>
+                        ${sel('cvdl-target', A('three_d_target_engine'))}
+                        ${sel('cvdl-pack', A('three_d_opt_packing'))}
+                        ${sel('cvdl-lods', A('three_d_opt_lods'))}
+                        ${sel('cvdl-collision', A('three_d_opt_collision'))}
+                        ${sel('cvdl-uv2', A('three_d_opt_uv2'))}
+                    </div>
+                    <p class="text-[10px] text-brand-text-dim">${t('collection.dl3d_note')}</p>
+                    <div class="flex justify-end"><button id="cvdl-go" class="btn btn-primary btn-sm">${t('collection.dl3d_go')}</button></div>
+                </div>`;
+            document.body.appendChild(pane);
+            const $ = (id) => document.getElementById(id);
+            const close = () => pane.remove();
+            $('cvdl-close').addEventListener('click', close);
+            pane.addEventListener('click', (e) => { if (e.target === pane) close(); });
+            pane.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+            // glTF embeds its own metallic-roughness: engine texture packing is
+            // FBX/USD only (the per-asset export applies the same rule server-side).
+            const syncPack = () => { $('cvdl-pack').disabled = $('cvdl-fmt').value === 'glb'; };
+            $('cvdl-fmt').addEventListener('change', syncPack);
+            await AV.threeDExportControls({
+                target: $('cvdl-target'), pack: $('cvdl-pack'), lods: $('cvdl-lods'),
+                collision: $('cvdl-collision'), uv2: $('cvdl-uv2'),
+            }, syncPack);
+            syncPack();
+            $('cvdl-go').addEventListener('click', async () => {
+                const go = $('cvdl-go');
+                if (go.disabled) return;
+                const fmt = $('cvdl-fmt').value;
+                const body = { targets: this._selTargets(), fmt, target: $('cvdl-target').value,
+                               pack: fmt === 'glb' ? 'none' : $('cvdl-pack').value,
+                               lods: $('cvdl-lods').value, collision: $('cvdl-collision').value, uv2: $('cvdl-uv2').value };
+                go.disabled = true; go.textContent = t('collection.dl3d_preparing');
+                await this._zipDownload(`/api/collections/${collectionId}/download-3d`, body, `collection_3d_${fmt}.zip`);
+                close();
+            });
         },
 
         /** Retry a Failed/Blocked Batch. For a content-filter block, prompt the user
@@ -593,7 +801,7 @@
                                             <input type="checkbox" class="cv-job-sel absolute top-0.5 left-0.5 z-10 w-3.5 h-3.5 accent-cyan-500 cursor-pointer" title="${t('collection.select_job')}" ${this._jobAllSelected(v) ? 'checked' : ''} />
                                             <img src="/api/gallery/${v.id}/png?t=${cb}" class="w-full h-full object-cover" alt="" loading="lazy" />
                                             ${v.has_3d ? html`<span class="absolute top-0.5 right-0.5 text-[8px] px-1 rounded bg-violet-600/80 text-white">3D</span>` : ''}
-                                            <span class="absolute bottom-0 right-0 text-[9px] px-1 bg-black/70 text-white rounded-tl">v${vi + 1}</span>
+                                            <span class="absolute bottom-0 right-0 text-[9px] px-1 bg-black/70 text-white rounded-tl">${t('collection.variation_short', { n: vi + 1 })}</span>
                                         </button>
                                         ${vers.length > 1 ? html`<div class="flex flex-wrap gap-0.5 mt-0.5" style="max-width:84px">
                                             ${vers.map((ver) => html`<button class="cv-ver-chip text-[8px] leading-none px-1 py-0.5 rounded border ${this._sel.has(this._key(v.id, ver)) ? 'bg-cyan-600 text-white border-cyan-500' : 'border-brand-border text-brand-text-muted hover:border-brand-text-muted'}" data-id="${v.id}" data-ver="${ver}" title="${t('collection.select_version')} ${ver}">v${ver}</button>`)}
@@ -604,7 +812,7 @@
                         </div>`;
                     })}
                 </div>`;
-            document.getElementById('cv-bd-back').addEventListener('click', () => this._render(this._data));
+            document.getElementById('cv-bd-back').addEventListener('click', () => { this._batchDetail = null; this._render(this._data); });
             document.getElementById('cv-bd-preview')?.addEventListener('click', () => {
                 const idx = Math.max(0, flat.findIndex(x => x.id === selId));
                 window.AssetViewer?.open(flat[idx], flat, idx);
@@ -646,6 +854,17 @@
             } catch (e) { alert(e.message || t('collection.error')); }
         },
     };
+
+    // Follow a UI-language switch while open: rebuild the header and the current
+    // view (board / Batch detail / 3D) from the loaded data; selection is kept.
+    CollectionAssetViewer._relocalize = function () {
+        if (!this._data || !document.getElementById('collection-viewer-overlay')) return;
+        const bd = this._batchDetail;
+        this._mount(t('collection.viewer_title'));
+        if (bd && this._view !== '3d') this._renderBatchDetail();
+        else this._render(this._data);
+    };
+    window.I18n?.onChange?.(() => CollectionAssetViewer._relocalize());
 
     window.CollectionAssetViewer = CollectionAssetViewer;
 })();

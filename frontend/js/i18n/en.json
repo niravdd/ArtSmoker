@@ -1401,7 +1401,14 @@
     "tmpl_label_typestudio_layout_output_multi": "Type Studio: Layout Output (multiple) — output format for multiple layout options",
     "tmpl_label_typestudio_layout_output_single": "Type Studio: Layout Output (single) — output format for one layout",
     "tmpl_label_admin_template_enhance": "Template Editor: Enhance-with-AI — the prompt behind the \"Enhance with AI\" button here",
-    "tmpl_label_admin_template_fix_variables": "Template Editor: Fix Variables — the prompt behind \"Fix & Save\" to reinsert missing variables"
+    "tmpl_label_admin_template_fix_variables": "Template Editor: Fix Variables — the prompt behind \"Fix & Save\" to reinsert missing variables",
+    "tmpl_group_collections": "Collections",
+    "tmpl_label_collection_art_direction": "Collection art direction",
+    "tmpl_label_collection_art_direction_fields": "Art direction fields",
+    "tmpl_label_collection_merge_art_direction": "Merge art direction",
+    "tmpl_label_collection_roster": "Collection roster",
+    "tmpl_label_collection_batch_prompt": "Batch prompt",
+    "tmpl_label_collection_asset_type_classify": "Collection asset-type check"
   },
   "prompt_editor": {
     "placeholder": "Describe what you want to generate...",
@@ -1774,7 +1781,6 @@
     "pane_quality": "Quality",
     "pane_seed": "Seed",
     "selected_count": "{{count}} selected",
-    "download_3d_fmt": "Download 3D meshes as? (glb, fbx, or usd)",
     "select_batch": "Select this batch",
     "select_job": "Select this job",
     "details": "Details",
@@ -1843,7 +1849,6 @@
     "asset_type_use": "Use {{type}}",
     "asset_type_coerced": "Collections use Characters or Game Assets — switched to {{type}}.",
     "asset_type_locked": "Collections support only Character or Game Asset.",
-    "download_3d_fmt_invalid": "Format must be glb, fbx, or usd",
     "batches_done": "{{done}}/{{total}} batches",
     "status_pending": "Not generated",
     "generated_done": "Collection generated — {{done}}/{{total}} batches",
@@ -1854,6 +1859,24 @@
     "sent_prompts_label": "Prompts used in the last generation ({{count}})",
     "sent_negative_label": "Negative",
     "cohesion_reference": "Reference-anchor",
-    "postprocess_confirm": "Apply post-processing to all {{count}} images across {{batches}} Batches in this collection?"
+    "postprocess_confirm": "Apply post-processing to all {{count}} images across {{batches}} Batches in this collection?",
+    "view_images": "Images",
+    "view_3d": "3D models",
+    "threed_none": "No 3D model yet",
+    "threed_empty": "No 3D models yet. Select pieces (or nothing, for the whole set) and use Convert to 3D.",
+    "threed_expired": "Expired — the 3D job didn't finish in time",
+    "threed_live_note": "Updates automatically while models are generating.",
+    "threed_job_label": "Opt {{o}} · Var {{v}} · v{{ver}}",
+    "variation_short": "Var {{n}}",
+    "dl3d_applies_sel": "Applies to the {{count}} selected item(s).",
+    "dl3d_applies_all": "Applies to every 3D model in the collection.",
+    "dl3d_format": "Format",
+    "dl3d_note": "The same options as a single-asset 3D export. FBX, USDZ and prep options are converted on first use, so a large set can take a while.",
+    "dl3d_go": "Download",
+    "dl3d_preparing": "Preparing…",
+    "dl3d_skipped": "{{count}} model(s) couldn't be exported with these options (for example, nothing to pack) and were left out.",
+    "card_3d": "3D {{n}}/{{m}}",
+    "card_3d_tip": "{{n}} of {{m}} pieces have a 3D model",
+    "threed_models_count": "{{count}} 3D model(s)"
   }
 }

@@ -132,6 +132,66 @@
             return true;
         },
 
+        /** The interactive 3D preview (<model-viewer>) with the ONE look used
+         *  everywhere a 3D model is shown — the 3D tab and the Collection 3D
+         *  board. opts: {id, alt, lazy}. Returns SafeHtml. */
+        threeDModelViewerHTML(src, opts = {}) {
+            return html`<model-viewer ${opts.id ? html`id="${opts.id}"` : ''}
+                src="${src}"
+                alt="${opts.alt || t('artsmoker.ui.asset_viewer.alt_3d_model')}"
+                ${opts.lazy ? html`loading="lazy"` : ''}
+                camera-controls
+                touch-action="pan-y"
+                auto-rotate
+                shadow-intensity="0.3"
+                exposure="2"
+                environment-image="neutral"
+                tone-mapping="commerce"
+                min-camera-orbit="auto auto 0.5m"
+                max-camera-orbit="auto auto 10m"
+                interpolation-decay="100"
+                style="width: 100%; height: 100%; --poster-color: transparent; background: linear-gradient(160deg, #2a2d35 0%, #1a1d25 100%);"
+            ></model-viewer>`;
+        },
+
+        /** Engine-export controls — target engine + prep ops (packing, LODs,
+         *  collision, UV2) — shared by the 3D tab and the Collection 3D download.
+         *  The lists come from the backend's export config; op lists refresh per
+         *  target and keep a pick that is still offered. els = {target, pack,
+         *  lods, collision, uv2} (<select>s). onChange() runs after each fill and
+         *  each op pick. Resolves to the config {targets, options, default}. */
+        async threeDExportControls(els, onChange) {
+            const optLabel = (v) => t(`artsmoker.ui.asset_viewer.three_d_optval_${v}`) || v;
+            const ops = ['pack', 'lods', 'collision', 'uv2'];
+            ops.forEach(k => els[k]?.addEventListener('change', () => onChange?.()));
+            let cfg = {};
+            try { cfg = await API.admin.exportTargets(); } catch { /* empty → generic default + no ops */ }
+            const fill = () => {
+                const o = (cfg.options || {})[els.target?.value] || null;
+                if (!o) return;
+                const lists = { pack: o.packing, lods: o.lods, collision: o.collision, uv2: o.uv2 };
+                for (const k of ops) {
+                    const sel = els[k];
+                    if (!sel) continue;
+                    const keep = sel.value;   // preserve the pick when still offered
+                    // nosemgrep
+                    sel.innerHTML = (lists[k] || ['none'])
+                        .map(v => html`<option value="${v}">${optLabel(v)}</option>`).join('');
+                    sel.value = (lists[k] || []).includes(keep) ? keep : 'none';
+                }
+                onChange?.();
+            };
+            if (els.target) {
+                // nosemgrep
+                els.target.innerHTML = (cfg.targets || [])
+                    .map(tt => html`<option value="${tt.key}">${tt.label}</option>`).join('');
+                els.target.value = cfg.default || 'generic';
+                els.target.addEventListener('change', fill);
+            }
+            fill();
+            return cfg;
+        },
+
         _overlay: null,
         _item: null,
         _meta: null,
@@ -4184,21 +4244,7 @@
                          has >1 3D variant (different pipeline / deployment / config). -->
                     <div id="av-3d-variants" class="hidden"></div>
                     <div class="relative rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 460px;">
-                        <model-viewer id="av-3d-viewer"
-                            src="${glbUrl}${glbUrl.includes('?') ? '&' : '?'}t=${Date.now()}"
-                            alt="${t('artsmoker.ui.asset_viewer.alt_3d_model')}"
-                            camera-controls
-                            touch-action="pan-y"
-                            auto-rotate
-                            shadow-intensity="0.3"
-                            exposure="2"
-                            environment-image="neutral"
-                            tone-mapping="commerce"
-                            min-camera-orbit="auto auto 0.5m"
-                            max-camera-orbit="auto auto 10m"
-                            interpolation-decay="100"
-                            style="width: 100%; height: 100%; --poster-color: transparent; background: linear-gradient(160deg, #2a2d35 0%, #1a1d25 100%);"
-                        ></model-viewer>
+                        ${this.threeDModelViewerHTML(`${glbUrl}${glbUrl.includes('?') ? '&' : '?'}t=${Date.now()}`, { id: 'av-3d-viewer' })}
                         <!-- Viewer controls overlay -->
                         <div class="absolute bottom-2 right-2 flex gap-1">
                             <button id="av-3d-zoom-in" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="${t('artsmoker.ui.asset_viewer.zoom_in')}">+</button>
@@ -4357,44 +4403,19 @@
             container.querySelector('#av-3d-download-usd')?.addEventListener('click', () => this._downloadExport('usd'));
             container.querySelector('#av-3d-download-pglb')?.addEventListener('click', () => this._downloadExport('glb'));
             const targetSel = container.querySelector('#av-3d-target');
-            const optSelects = {
-                pack: container.querySelector('#av-3d-opt-pack'),
-                lods: container.querySelector('#av-3d-opt-lods'),
-                collision: container.querySelector('#av-3d-opt-collision'),
-                uv2: container.querySelector('#av-3d-opt-uv2'),
-            };
-            const optLabel = (v) => t(`artsmoker.ui.asset_viewer.three_d_optval_${v}`) || v;
-            const fillOptions = () => {
-                const opts = this._exportOptions?.[targetSel?.value] || null;
-                if (!opts) return;
-                const lists = { pack: opts.packing, lods: opts.lods, collision: opts.collision, uv2: opts.uv2 };
-                for (const [k, sel] of Object.entries(optSelects)) {
-                    if (!sel) continue;
-                    const keep = sel.value;   // preserve the pick when still offered
-                    // nosemgrep
-                    sel.innerHTML = (lists[k] || ['none'])
-                        .map(v => html`<option value="${v}">${optLabel(v)}</option>`).join('');
-                    sel.value = (lists[k] || []).includes(keep) ? keep : 'none';
-                }
-                this._refreshExportReady();
-            };
-            // Any op change re-probes whether that combination is already cached.
-            Object.values(optSelects).forEach(sel => sel?.addEventListener('change', () => this._refreshExportReady()));
             if (targetSel) {
-                targetSel.addEventListener('change', fillOptions);
-                (async () => {
-                    try {
-                        const data = await API.admin.exportTargets();
-                        // nosemgrep
-                        targetSel.innerHTML = (data.targets || [])
-                            .map(tt => html`<option value="${tt.key}">${tt.label}</option>`).join('');
-                        targetSel.value = data.default || 'generic';
-                        this._exportOptions = data.options || null;
-                        this._exportTargets = data.targets || [];
-                    } catch { /* leave empty → generic default + no ops in the URL */ }
-                    fillOptions();
+                // Shared controls; any fill / op pick re-probes whether that
+                // combination is already cached.
+                this.threeDExportControls({
+                    target: targetSel,
+                    pack: container.querySelector('#av-3d-opt-pack'),
+                    lods: container.querySelector('#av-3d-opt-lods'),
+                    collision: container.querySelector('#av-3d-opt-collision'),
+                    uv2: container.querySelector('#av-3d-opt-uv2'),
+                }, () => this._refreshExportReady()).then((cfg) => {
+                    this._exportTargets = cfg.targets || [];
                     this._renderReadyExports();   // needs target labels → after fetch
-                })();
+                });
             }
 
             // Variant switcher: show alternative 3D models for this 2D

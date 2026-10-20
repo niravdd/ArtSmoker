@@ -1401,7 +1401,14 @@
     "tmpl_label_typestudio_layout_output_multi": "Text-Studio: Layout-Ausgabe (mehrere) — Ausgabeformat für mehrere Layout-Optionen",
     "tmpl_label_typestudio_layout_output_single": "Text-Studio: Layout-Ausgabe (einzeln) — Ausgabeformat für ein Layout",
     "tmpl_label_admin_template_enhance": "Vorlagen-Editor: Mit KI optimieren — der Prompt hinter der Schaltfläche „Mit KI optimieren“ hier",
-    "tmpl_label_admin_template_fix_variables": "Vorlagen-Editor: Variablen korrigieren — der Prompt hinter „Korrigieren & speichern“, der fehlende Variablen wieder einfügt"
+    "tmpl_label_admin_template_fix_variables": "Vorlagen-Editor: Variablen korrigieren — der Prompt hinter „Korrigieren & speichern“, der fehlende Variablen wieder einfügt",
+    "tmpl_group_collections": "Sammlungen",
+    "tmpl_label_collection_art_direction": "Art Direction der Sammlung",
+    "tmpl_label_collection_art_direction_fields": "Art-Direction-Felder",
+    "tmpl_label_collection_merge_art_direction": "Art Direction zusammenführen",
+    "tmpl_label_collection_roster": "Elementliste der Sammlung",
+    "tmpl_label_collection_batch_prompt": "Batch-Prompt",
+    "tmpl_label_collection_asset_type_classify": "Asset-Typ-Prüfung der Sammlung"
   },
   "prompt_editor": {
     "placeholder": "Beschreiben Sie, was Sie generieren möchten...",
@@ -1774,7 +1781,6 @@
     "pane_quality": "Qualität",
     "pane_seed": "Seed",
     "selected_count": "{{count}} ausgewählt",
-    "download_3d_fmt": "3D-Meshes herunterladen als? (glb, fbx oder usd)",
     "select_batch": "Diesen Batch auswählen",
     "select_job": "Diesen Job auswählen",
     "details": "Details",
@@ -1843,7 +1849,6 @@
     "asset_type_use": "„{{type}}“ verwenden",
     "asset_type_coerced": "Kollektionen nutzen Charaktere oder Spiel-Assets – auf „{{type}}“ umgestellt.",
     "asset_type_locked": "Kollektionen unterstützen nur Charakter oder Spiel-Asset.",
-    "download_3d_fmt_invalid": "Format muss glb, fbx oder usd sein",
     "batches_done": "{{done}}/{{total}} Stapel",
     "status_pending": "Nicht generiert",
     "generated_done": "Kollektion generiert — {{done}}/{{total}} Stapel",
@@ -1854,6 +1859,24 @@
     "sent_prompts_label": "Bei der letzten Generierung verwendete Prompts ({{count}})",
     "sent_negative_label": "Negativ",
     "cohesion_reference": "Referenz-Anker",
-    "postprocess_confirm": "Nachbearbeitung auf alle {{count}} Bilder in {{batches}} Stapeln dieser Kollektion anwenden?"
+    "postprocess_confirm": "Nachbearbeitung auf alle {{count}} Bilder in {{batches}} Stapeln dieser Kollektion anwenden?",
+    "view_images": "Bilder",
+    "view_3d": "3D-Modelle",
+    "threed_none": "Noch kein 3D-Modell",
+    "threed_empty": "Noch keine 3D-Modelle. Wählen Sie Elemente aus (oder nichts für das ganze Set) und nutzen Sie „In 3D umwandeln“.",
+    "threed_expired": "Abgelaufen — der 3D-Job wurde nicht rechtzeitig fertig",
+    "threed_live_note": "Aktualisiert sich automatisch, während Modelle erstellt werden.",
+    "threed_job_label": "Opt. {{o}} · Var. {{v}} · v{{ver}}",
+    "variation_short": "Var. {{n}}",
+    "dl3d_applies_sel": "Gilt für die {{count}} ausgewählten Elemente.",
+    "dl3d_applies_all": "Gilt für alle 3D-Modelle der Sammlung.",
+    "dl3d_format": "Format",
+    "dl3d_note": "Dieselben Optionen wie beim 3D-Export eines einzelnen Assets. FBX, USDZ und Aufbereitung werden beim ersten Mal konvertiert, daher kann ein großes Set etwas dauern.",
+    "dl3d_go": "Herunterladen",
+    "dl3d_preparing": "Wird vorbereitet…",
+    "dl3d_skipped": "{{count}} Modell(e) ließen sich mit diesen Optionen nicht exportieren (z. B. nichts zu packen) und wurden ausgelassen.",
+    "card_3d": "3D {{n}}/{{m}}",
+    "card_3d_tip": "{{n}} von {{m}} Elementen haben ein 3D-Modell",
+    "threed_models_count": "{{count}} 3D-Modell(e)"
   }
 }

@@ -407,6 +407,11 @@
             const body = document.getElementById('cd-body');
             if (!body || !this._state) return;
             const s = this._state;
+            // The art-direction box is read live (_adText), not synced on change —
+            // keep what's typed across re-renders (lock / delete / regenerate /
+            // language switch), or the edit would silently revert.
+            const adEl = document.getElementById('cd-art-direction');
+            if (adEl) s.artDirection.text = adEl.value;
             // nosemgrep
             body.innerHTML = html`
                 ${s.loaded ? html`
@@ -540,6 +545,18 @@
             this._render();
         },
     };
+
+    // Follow a UI-language switch while open: rebuild the header + body from the
+    // state (edits are already in it — fields sync on change, the art direction on
+    // render). Skipped mid-request; the next render picks up the new language.
+    CollectionDesigner._relocalize = function () {
+        if (!this._state || this._busy || !document.getElementById('collection-designer-overlay')) return;
+        const adEl = document.getElementById('cd-art-direction');
+        if (adEl) this._state.artDirection.text = adEl.value;
+        this._mount();
+        this._render();
+    };
+    window.I18n?.onChange?.(() => CollectionDesigner._relocalize());
 
     window.CollectionDesigner = CollectionDesigner;
 })();

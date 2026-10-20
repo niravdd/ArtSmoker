@@ -1401,7 +1401,14 @@
     "tmpl_label_typestudio_layout_output_multi": "टाइप स्टूडियो: लेआउट आउटपुट (एकाधिक) — कई लेआउट विकल्पों का आउटपुट प्रारूप",
     "tmpl_label_typestudio_layout_output_single": "टाइप स्टूडियो: लेआउट आउटपुट (एकल) — एक लेआउट का आउटपुट प्रारूप",
     "tmpl_label_admin_template_enhance": "टेम्पलेट एडिटर: AI से संवर्धन — यहाँ के \"AI से संवर्धित करें\" बटन के पीछे का प्रॉम्प्ट",
-    "tmpl_label_admin_template_fix_variables": "टेम्पलेट एडिटर: वेरिएबल ठीक करें — छूटे वेरिएबल फिर से जोड़ने वाले \"ठीक करें और सहेजें\" के पीछे का प्रॉम्प्ट"
+    "tmpl_label_admin_template_fix_variables": "टेम्पलेट एडिटर: वेरिएबल ठीक करें — छूटे वेरिएबल फिर से जोड़ने वाले \"ठीक करें और सहेजें\" के पीछे का प्रॉम्प्ट",
+    "tmpl_group_collections": "कलेक्शन",
+    "tmpl_label_collection_art_direction": "कलेक्शन आर्ट डायरेक्शन",
+    "tmpl_label_collection_art_direction_fields": "आर्ट डायरेक्शन फ़ील्ड",
+    "tmpl_label_collection_merge_art_direction": "आर्ट डायरेक्शन मर्ज",
+    "tmpl_label_collection_roster": "कलेक्शन रोस्टर",
+    "tmpl_label_collection_batch_prompt": "बैच प्रॉम्प्ट",
+    "tmpl_label_collection_asset_type_classify": "कलेक्शन एसेट-टाइप जाँच"
   },
   "prompt_editor": {
     "placeholder": "बताएँ कि आप क्या बनाना चाहते हैं...",
@@ -1774,7 +1781,6 @@
     "pane_quality": "गुणवत्ता",
     "pane_seed": "सीड",
     "selected_count": "{{count}} चयनित",
-    "download_3d_fmt": "3D मेश किस रूप में डाउनलोड करें? (glb, fbx, या usd)",
     "select_batch": "इस बैच को चुनें",
     "select_job": "इस जॉब को चुनें",
     "details": "विवरण",
@@ -1843,7 +1849,6 @@
     "asset_type_use": "{{type}} उपयोग करें",
     "asset_type_coerced": "कलेक्शन कैरेक्टर या गेम एसेट का उपयोग करते हैं — {{type}} पर बदल दिया गया।",
     "asset_type_locked": "कलेक्शन केवल कैरेक्टर या गेम एसेट का समर्थन करते हैं।",
-    "download_3d_fmt_invalid": "फ़ॉर्मेट glb, fbx या usd होना चाहिए",
     "batches_done": "{{done}}/{{total}} बैच",
     "status_pending": "जनरेट नहीं हुआ",
     "generated_done": "कलेक्शन जनरेट हो गया — {{done}}/{{total}} बैच",
@@ -1854,6 +1859,24 @@
     "sent_prompts_label": "पिछली जनरेशन में उपयोग हुए प्रॉम्प्ट ({{count}})",
     "sent_negative_label": "नेगेटिव",
     "cohesion_reference": "रेफ़रेंस-एंकर",
-    "postprocess_confirm": "इस कलेक्शन के {{batches}} बैच की सभी {{count}} इमेज पर पोस्ट-प्रोसेसिंग लागू करें?"
+    "postprocess_confirm": "इस कलेक्शन के {{batches}} बैच की सभी {{count}} इमेज पर पोस्ट-प्रोसेसिंग लागू करें?",
+    "view_images": "इमेज",
+    "view_3d": "3D मॉडल",
+    "threed_none": "अभी कोई 3D मॉडल नहीं",
+    "threed_empty": "अभी कोई 3D मॉडल नहीं है। आइटम चुनें (या पूरे सेट के लिए कुछ न चुनें) और 'Convert to 3D' का उपयोग करें।",
+    "threed_expired": "समय समाप्त — 3D जॉब समय पर पूरा नहीं हुआ",
+    "threed_live_note": "मॉडल बनते समय यह अपने आप अपडेट होता है।",
+    "threed_job_label": "विकल्प {{o}} · वेरिएशन {{v}} · v{{ver}}",
+    "variation_short": "वेरि. {{n}}",
+    "dl3d_applies_sel": "चुने गए {{count}} आइटम पर लागू होगा।",
+    "dl3d_applies_all": "कलेक्शन के हर 3D मॉडल पर लागू होगा।",
+    "dl3d_format": "फ़ॉर्मेट",
+    "dl3d_note": "ये वही विकल्प हैं जो एक एसेट के 3D एक्सपोर्ट में होते हैं। FBX, USDZ और तैयारी के विकल्प पहली बार उपयोग पर बदले जाते हैं, इसलिए बड़े सेट में समय लग सकता है।",
+    "dl3d_go": "डाउनलोड",
+    "dl3d_preparing": "तैयार हो रहा है…",
+    "dl3d_skipped": "{{count}} मॉडल इन विकल्पों के साथ एक्सपोर्ट नहीं हो सके (जैसे पैक करने के लिए कुछ नहीं) और छोड़ दिए गए।",
+    "card_3d": "3D {{n}}/{{m}}",
+    "card_3d_tip": "{{m}} में से {{n}} आइटम का 3D मॉडल है",
+    "threed_models_count": "{{count}} 3D मॉडल"
   }
 }

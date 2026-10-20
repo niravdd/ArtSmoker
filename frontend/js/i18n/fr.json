@@ -1131,7 +1131,14 @@
     "tmpl_label_typestudio_layout_output_multi": "Studio de Texte : sortie de mise en page (multiple) — format de sortie pour plusieurs options de mise en page",
     "tmpl_label_typestudio_layout_output_single": "Studio de Texte : sortie de mise en page (unique) — format de sortie pour une seule mise en page",
     "tmpl_label_admin_template_enhance": "Éditeur de modèles : amélioration par AI — le prompt derrière le bouton « Améliorer avec l'AI » ici",
-    "tmpl_label_admin_template_fix_variables": "Éditeur de modèles : correction des variables — le prompt derrière « Corriger et enregistrer » pour réinsérer les variables manquantes"
+    "tmpl_label_admin_template_fix_variables": "Éditeur de modèles : correction des variables — le prompt derrière « Corriger et enregistrer » pour réinsérer les variables manquantes",
+    "tmpl_group_collections": "Collections",
+    "tmpl_label_collection_art_direction": "Direction artistique de la collection",
+    "tmpl_label_collection_art_direction_fields": "Champs de direction artistique",
+    "tmpl_label_collection_merge_art_direction": "Fusion de la direction artistique",
+    "tmpl_label_collection_roster": "Liste des éléments de la collection",
+    "tmpl_label_collection_batch_prompt": "Prompt du lot",
+    "tmpl_label_collection_asset_type_classify": "Vérification du type de ressource de la collection"
   },
   "nav": {
     "chat_studio": "Studio de Chat",
@@ -1774,7 +1781,6 @@
     "pane_quality": "Qualité",
     "pane_seed": "Seed",
     "selected_count": "{{count}} sélectionné(s)",
-    "download_3d_fmt": "Télécharger les maillages 3D en ? (glb, fbx ou usd)",
     "select_batch": "Sélectionner ce batch",
     "select_job": "Sélectionner ce job",
     "details": "Détails",
@@ -1843,7 +1849,6 @@
     "asset_type_use": "Utiliser « {{type}} »",
     "asset_type_coerced": "Les collections utilisent des Personnages ou des Assets de jeu — passé à « {{type}} ».",
     "asset_type_locked": "Les collections ne prennent en charge que Personnage ou Asset de jeu.",
-    "download_3d_fmt_invalid": "Le format doit être glb, fbx ou usd",
     "batches_done": "{{done}}/{{total}} lots",
     "status_pending": "Non généré",
     "generated_done": "Collection générée — {{done}}/{{total}} lots",
@@ -1854,6 +1859,24 @@
     "sent_prompts_label": "Prompts utilisés lors de la dernière génération ({{count}})",
     "sent_negative_label": "Négatif",
     "cohesion_reference": "Ancrage référence",
-    "postprocess_confirm": "Appliquer le post-traitement aux {{count}} images des {{batches}} lots de cette collection ?"
+    "postprocess_confirm": "Appliquer le post-traitement aux {{count}} images des {{batches}} lots de cette collection ?",
+    "view_images": "Images",
+    "view_3d": "Modèles 3D",
+    "threed_none": "Pas encore de modèle 3D",
+    "threed_empty": "Aucun modèle 3D pour l'instant. Sélectionnez des éléments (ou rien, pour tout l'ensemble) puis utilisez Convertir en 3D.",
+    "threed_expired": "Expiré — la tâche 3D ne s'est pas terminée à temps",
+    "threed_live_note": "Mise à jour automatique pendant la génération des modèles.",
+    "threed_job_label": "Opt. {{o}} · Var. {{v}} · v{{ver}}",
+    "variation_short": "Var. {{n}}",
+    "dl3d_applies_sel": "S'applique aux {{count}} élément(s) sélectionné(s).",
+    "dl3d_applies_all": "S'applique à tous les modèles 3D de la collection.",
+    "dl3d_format": "Format",
+    "dl3d_note": "Les mêmes options que l'export 3D d'un élément seul. FBX, USDZ et les options de préparation sont convertis à la première utilisation : un grand ensemble peut prendre un moment.",
+    "dl3d_go": "Télécharger",
+    "dl3d_preparing": "Préparation…",
+    "dl3d_skipped": "{{count}} modèle(s) n'ont pas pu être exportés avec ces options (par exemple, rien à empaqueter) et ont été ignorés.",
+    "card_3d": "3D {{n}}/{{m}}",
+    "card_3d_tip": "{{n}} élément(s) sur {{m}} ont un modèle 3D",
+    "threed_models_count": "{{count}} modèle(s) 3D"
   }
 }

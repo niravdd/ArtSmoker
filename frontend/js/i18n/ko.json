@@ -1131,7 +1131,14 @@
     "tmpl_label_typestudio_layout_output_multi": "타이프 스튜디오: 레이아웃 출력(여러 개) — 여러 레이아웃 옵션의 출력 형식",
     "tmpl_label_typestudio_layout_output_single": "타이프 스튜디오: 레이아웃 출력(단일) — 하나의 레이아웃 출력 형식",
     "tmpl_label_admin_template_enhance": "템플릿 편집기: AI로 향상 — 이곳의 \"AI로 향상\" 버튼 뒤에서 동작하는 프롬프트",
-    "tmpl_label_admin_template_fix_variables": "템플릿 편집기: 변수 수정 — 누락된 변수를 다시 삽입하는 \"수정 후 저장\" 뒤의 프롬프트"
+    "tmpl_label_admin_template_fix_variables": "템플릿 편집기: 변수 수정 — 누락된 변수를 다시 삽입하는 \"수정 후 저장\" 뒤의 프롬프트",
+    "tmpl_group_collections": "컬렉션",
+    "tmpl_label_collection_art_direction": "컬렉션 아트 디렉션",
+    "tmpl_label_collection_art_direction_fields": "아트 디렉션 항목",
+    "tmpl_label_collection_merge_art_direction": "아트 디렉션 병합",
+    "tmpl_label_collection_roster": "컬렉션 구성 목록",
+    "tmpl_label_collection_batch_prompt": "배치 프롬프트",
+    "tmpl_label_collection_asset_type_classify": "컬렉션 에셋 유형 확인"
   },
   "nav": {
     "chat_studio": "채팅 스튜디오",
@@ -1774,7 +1781,6 @@
     "pane_quality": "품질",
     "pane_seed": "시드",
     "selected_count": "{{count}}개 선택됨",
-    "download_3d_fmt": "3D 메시를 어떤 형식으로? (glb, fbx, usd)",
     "select_batch": "이 배치 선택",
     "select_job": "이 작업 선택",
     "details": "세부 정보",
@@ -1843,7 +1849,6 @@
     "asset_type_use": "{{type}} 사용",
     "asset_type_coerced": "컬렉션은 캐릭터 또는 게임 에셋을 사용합니다 — {{type}}(으)로 전환했습니다.",
     "asset_type_locked": "컬렉션은 캐릭터 또는 게임 에셋만 지원합니다.",
-    "download_3d_fmt_invalid": "형식은 glb, fbx, usd 중 하나여야 합니다",
     "batches_done": "{{done}}/{{total}} 배치",
     "status_pending": "생성 안 됨",
     "generated_done": "컬렉션 생성 완료 — {{done}}/{{total}} 배치",
@@ -1854,6 +1859,24 @@
     "sent_prompts_label": "마지막 생성에 사용된 프롬프트({{count}})",
     "sent_negative_label": "네거티브",
     "cohesion_reference": "레퍼런스 앵커",
-    "postprocess_confirm": "이 컬렉션의 배치 {{batches}}개에 있는 이미지 {{count}}장 전체에 후처리를 적용할까요?"
+    "postprocess_confirm": "이 컬렉션의 배치 {{batches}}개에 있는 이미지 {{count}}장 전체에 후처리를 적용할까요?",
+    "view_images": "이미지",
+    "view_3d": "3D 모델",
+    "threed_none": "아직 3D 모델이 없습니다",
+    "threed_empty": "아직 3D 모델이 없습니다. 항목을 선택하고(선택하지 않으면 세트 전체) '3D로 변환'을 사용하세요.",
+    "threed_expired": "만료됨 — 3D 작업이 제한 시간 내에 끝나지 않았습니다",
+    "threed_live_note": "모델이 생성되는 동안 자동으로 업데이트됩니다.",
+    "threed_job_label": "옵션 {{o}} · 변형 {{v}} · v{{ver}}",
+    "variation_short": "변형 {{n}}",
+    "dl3d_applies_sel": "선택한 {{count}}개 항목에 적용됩니다.",
+    "dl3d_applies_all": "컬렉션의 모든 3D 모델에 적용됩니다.",
+    "dl3d_format": "형식",
+    "dl3d_note": "단일 에셋 3D 내보내기와 같은 옵션입니다. FBX, USDZ 및 처리 옵션은 처음 사용할 때 변환되므로 큰 세트는 시간이 걸릴 수 있습니다.",
+    "dl3d_go": "다운로드",
+    "dl3d_preparing": "준비 중…",
+    "dl3d_skipped": "{{count}}개 모델은 이 옵션으로 내보낼 수 없어(예: 패킹할 대상 없음) 제외되었습니다.",
+    "card_3d": "3D {{n}}/{{m}}",
+    "card_3d_tip": "{{m}}개 중 {{n}}개에 3D 모델이 있습니다",
+    "threed_models_count": "3D 모델 {{count}}개"
   }
 }

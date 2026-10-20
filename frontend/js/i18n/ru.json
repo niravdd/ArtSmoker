@@ -1401,7 +1401,14 @@
     "tmpl_label_typestudio_layout_output_multi": "Студия текста: вывод раскладки (несколько) — формат вывода для нескольких вариантов раскладки",
     "tmpl_label_typestudio_layout_output_single": "Студия текста: вывод раскладки (один) — формат вывода для одной раскладки",
     "tmpl_label_admin_template_enhance": "Редактор шаблонов: улучшение с AI — промпт, стоящий за кнопкой «Улучшить с помощью AI»",
-    "tmpl_label_admin_template_fix_variables": "Редактор шаблонов: исправление переменных — промпт кнопки «Исправить и сохранить», восстанавливающий пропущенные переменные"
+    "tmpl_label_admin_template_fix_variables": "Редактор шаблонов: исправление переменных — промпт кнопки «Исправить и сохранить», восстанавливающий пропущенные переменные",
+    "tmpl_group_collections": "Коллекции",
+    "tmpl_label_collection_art_direction": "Арт-направление коллекции",
+    "tmpl_label_collection_art_direction_fields": "Поля арт-направления",
+    "tmpl_label_collection_merge_art_direction": "Объединение арт-направления",
+    "tmpl_label_collection_roster": "Состав коллекции",
+    "tmpl_label_collection_batch_prompt": "Промпт пакета",
+    "tmpl_label_collection_asset_type_classify": "Проверка типа ресурсов коллекции"
   },
   "prompt_editor": {
     "placeholder": "Опишите, что хотите сгенерировать...",
@@ -1774,7 +1781,6 @@
     "pane_quality": "Качество",
     "pane_seed": "Сид",
     "selected_count": "Выбрано: {{count}}",
-    "download_3d_fmt": "В каком формате скачать 3D-меши? (glb, fbx или usd)",
     "select_batch": "Выбрать этот батч",
     "select_job": "Выбрать это задание",
     "details": "Подробности",
@@ -1843,7 +1849,6 @@
     "asset_type_use": "Использовать «{{type}}»",
     "asset_type_coerced": "Коллекции используют персонажей или игровые ассеты — переключено на «{{type}}».",
     "asset_type_locked": "Коллекции поддерживают только персонажей или игровые ассеты.",
-    "download_3d_fmt_invalid": "Формат должен быть glb, fbx или usd",
     "batches_done": "Пакетов: {{done}}/{{total}}",
     "status_pending": "Не создано",
     "generated_done": "Коллекция создана — пакетов: {{done}}/{{total}}",
@@ -1854,6 +1859,24 @@
     "sent_prompts_label": "Промпты последней генерации ({{count}})",
     "sent_negative_label": "Негативный",
     "cohesion_reference": "Привязка к референсу",
-    "postprocess_confirm": "Применить постобработку ко всем {{count}} изображениям в {{batches}} пакетах этой коллекции?"
+    "postprocess_confirm": "Применить постобработку ко всем {{count}} изображениям в {{batches}} пакетах этой коллекции?",
+    "view_images": "Изображения",
+    "view_3d": "3D-модели",
+    "threed_none": "3D-модели пока нет",
+    "threed_empty": "3D-моделей пока нет. Выберите элементы (или ничего — для всего набора) и нажмите «Преобразовать в 3D».",
+    "threed_expired": "Истекло — 3D-задание не завершилось вовремя",
+    "threed_live_note": "Обновляется автоматически, пока создаются модели.",
+    "threed_job_label": "Вар. {{o}} · Вид {{v}} · v{{ver}}",
+    "variation_short": "Вид {{n}}",
+    "dl3d_applies_sel": "Применяется к выбранным элементам: {{count}}.",
+    "dl3d_applies_all": "Применяется ко всем 3D-моделям коллекции.",
+    "dl3d_format": "Формат",
+    "dl3d_note": "Те же параметры, что и при 3D-экспорте отдельного ресурса. FBX, USDZ и обработка выполняются при первом использовании, поэтому для большого набора это может занять время.",
+    "dl3d_go": "Скачать",
+    "dl3d_preparing": "Подготовка…",
+    "dl3d_skipped": "Моделей, не экспортированных с этими параметрами (например, нечего упаковывать) и пропущенных: {{count}}.",
+    "card_3d": "3D {{n}}/{{m}}",
+    "card_3d_tip": "3D-модель есть у {{n}} из {{m}}",
+    "threed_models_count": "3D-моделей: {{count}}"
   }
 }

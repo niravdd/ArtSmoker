@@ -1394,6 +1394,14 @@
                     { name: 'reference_edit_instruction', friendlyLabel: _fl('reference_edit_instruction') },
                     { name: 'inpaint_removal_transform', friendlyLabel: _fl('inpaint_removal_transform') },
                 ]},
+                { key: 'collections', label: t('artsmoker.ui.model_settings.tmpl_group_collections'), color: 'text-fuchsia-400', templates: [
+                    { name: 'collection_art_direction', friendlyLabel: _fl('collection_art_direction') },
+                    { name: 'collection_art_direction_fields', friendlyLabel: _fl('collection_art_direction_fields') },
+                    { name: 'collection_merge_art_direction', friendlyLabel: _fl('collection_merge_art_direction') },
+                    { name: 'collection_roster', friendlyLabel: _fl('collection_roster') },
+                    { name: 'collection_batch_prompt', friendlyLabel: _fl('collection_batch_prompt') },
+                    { name: 'collection_asset_type_classify', friendlyLabel: _fl('collection_asset_type_classify') },
+                ]},
                 { key: 'style_library', label: t('artsmoker.ui.nav.style_library'), color: 'text-purple-400', templates: [
                     { name: 'style_analysis_full', friendlyLabel: _fl('style_analysis_full') },
                     { name: 'style_hints_generation', friendlyLabel: _fl('style_hints_generation') },

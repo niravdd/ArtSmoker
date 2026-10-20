@@ -1131,7 +1131,14 @@
     "tmpl_label_typestudio_layout_output_multi": "タイプスタジオ: レイアウト出力(複数) — 複数のレイアウト案の出力形式",
     "tmpl_label_typestudio_layout_output_single": "タイプスタジオ: レイアウト出力(単一) — 1つのレイアウトの出力形式",
     "tmpl_label_admin_template_enhance": "テンプレートエディター: AI で強化 — ここにある「AI で強化」ボタンの裏側のプロンプト",
-    "tmpl_label_admin_template_fix_variables": "テンプレートエディター: 変数の修正 — 欠落した変数を再挿入する「修正して保存」の裏側のプロンプト"
+    "tmpl_label_admin_template_fix_variables": "テンプレートエディター: 変数の修正 — 欠落した変数を再挿入する「修正して保存」の裏側のプロンプト",
+    "tmpl_group_collections": "コレクション",
+    "tmpl_label_collection_art_direction": "コレクションのアートディレクション",
+    "tmpl_label_collection_art_direction_fields": "アートディレクションの項目",
+    "tmpl_label_collection_merge_art_direction": "アートディレクションの統合",
+    "tmpl_label_collection_roster": "コレクションの構成リスト",
+    "tmpl_label_collection_batch_prompt": "バッチのプロンプト",
+    "tmpl_label_collection_asset_type_classify": "コレクションのアセットタイプ判定"
   },
   "nav": {
     "chat_studio": "チャットスタジオ",
@@ -1774,7 +1781,6 @@
     "pane_quality": "品質",
     "pane_seed": "シード",
     "selected_count": "{{count}} 件選択中",
-    "download_3d_fmt": "3Dメッシュの形式は？（glb, fbx, usd）",
     "select_batch": "このバッチを選択",
     "select_job": "このジョブを選択",
     "details": "詳細",
@@ -1843,7 +1849,6 @@
     "asset_type_use": "{{type}} を使用",
     "asset_type_coerced": "コレクションはキャラクターまたはゲームアセットを使用します — {{type}} に切り替えました。",
     "asset_type_locked": "コレクションはキャラクターまたはゲームアセットのみ対応しています。",
-    "download_3d_fmt_invalid": "形式は glb、fbx、usd のいずれかを指定してください",
     "batches_done": "{{done}}/{{total}} バッチ",
     "status_pending": "未生成",
     "generated_done": "コレクションを生成しました — {{done}}/{{total}} バッチ",
@@ -1854,6 +1859,24 @@
     "sent_prompts_label": "前回の生成で使われたプロンプト（{{count}}）",
     "sent_negative_label": "ネガティブ",
     "cohesion_reference": "参照アンカー",
-    "postprocess_confirm": "このコレクションの {{batches}} 件のバッチにある全 {{count}} 枚の画像に後処理を適用しますか？"
+    "postprocess_confirm": "このコレクションの {{batches}} 件のバッチにある全 {{count}} 枚の画像に後処理を適用しますか？",
+    "view_images": "画像",
+    "view_3d": "3Dモデル",
+    "threed_none": "3Dモデルはまだありません",
+    "threed_empty": "3Dモデルはまだありません。アイテムを選択し（選択なしならセット全体）、「3Dに変換」を使ってください。",
+    "threed_expired": "期限切れ — 3Dジョブが時間内に完了しませんでした",
+    "threed_live_note": "モデルの生成中は自動で更新されます。",
+    "threed_job_label": "案 {{o}}・バリエ {{v}}・v{{ver}}",
+    "variation_short": "バリエ {{n}}",
+    "dl3d_applies_sel": "選択した {{count}} 件に適用されます。",
+    "dl3d_applies_all": "コレクション内のすべての3Dモデルに適用されます。",
+    "dl3d_format": "形式",
+    "dl3d_note": "単体アセットの3Dエクスポートと同じオプションです。FBX・USDZ・各種処理は初回に変換されるため、大きなセットでは時間がかかることがあります。",
+    "dl3d_go": "ダウンロード",
+    "dl3d_preparing": "準備中…",
+    "dl3d_skipped": "{{count}} 件のモデルはこのオプションでエクスポートできなかったため（例：パックする対象がない）、除外されました。",
+    "card_3d": "3D {{n}}/{{m}}",
+    "card_3d_tip": "{{m}} 件中 {{n}} 件に3Dモデルがあります",
+    "threed_models_count": "3Dモデル {{count}} 件"
   }
 }

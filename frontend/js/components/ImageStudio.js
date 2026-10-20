@@ -3422,9 +3422,11 @@
             this._generating = true;
             // Fresh run: the set's results fill the results area Batch by Batch.
             this._beginCollectionRun(design.collectionId);
+            const seed = this._getSeed();   // the sidebar Seed: base of the whole set
             try {
                 await API.collections.generateStream({
                     collection_id: design.collectionId, name: design.name || 'Collection',
+                    seed,
                     raw_ask: editor.getUserText().trim(),
                     art_direction: { text: editor.getArtDirectionText() },
                     roster: design.roster,
@@ -3436,6 +3438,7 @@
 
                     llm_cost_ledger: design.ledger || [], design_cost: design.designCost || 0,
                 }, (evt) => this._onCollectionEvent(evt, (design.roster || []).length));
+                this._advanceCollectionSeed(seed, design.roster, knobs);
                 this._toastCollectionDone();
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
@@ -3618,9 +3621,11 @@
             if (btn) btn.disabled = true;
             this._generating = true;
             this._beginCollectionRun(design.collectionId);
+            const seed = this._getSeed();   // the sidebar Seed: base of the whole set
             try {
                 await API.collections.generateStream({
                     collection_id: design.collectionId, name: design.name || 'Collection',
+                    seed,
                     raw_ask: design.prompt || '',
                     art_direction: { text: design.artDirectionText || '' },
                     roster: design.roster,
@@ -3635,6 +3640,7 @@
                 }, (evt) => this._onCollectionEvent(evt, (design.roster || []).length));
                 // The design is KEPT (like the Text flow): the Designer reopens it as
                 // generated, and a re-run makes a new Collection (the server mints the id).
+                this._advanceCollectionSeed(seed, design.roster, knobs);
                 this._toastCollectionDone();
             } catch (e) {
                 window.showToast?.(e.message || t('artsmoker.ui.collection.error'), 'error');
@@ -3922,6 +3928,15 @@
             if (mode === 'random') { this._setSeed(this._rollSeed()); return; }
             const step = (payload.num_options || 1) * (payload.num_variations || 1);
             this._setSeed((payload.seed + step) % 2147483648);
+        },
+
+        /** After a collection run: advance the sidebar Seed per its mode, stepping
+         *  past the WHOLE set — the server gives Batch i the span
+         *  base + i·O·V … base + (i+1)·O·V − 1, so a set uses N·O·V seeds. */
+        _advanceCollectionSeed(seed, roster, knobs) {
+            const n = (roster || []).length || 1;
+            this._advanceSeed({ seed, num_options: knobs.options || 3,
+                                num_variations: (knobs.variations || 2) * n });
         },
 
         /** The full-body framing nudge (roadmap A): a landscape canvas

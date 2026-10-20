@@ -22,7 +22,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.config import settings
 from backend.models.generation_request import AssetType, GenerationRequest
@@ -33,6 +33,13 @@ logger = logging.getLogger(__name__)
 _SEED_MAX = 2 ** 31 - 1
 # Bound on the 3D submissions a collection remembers for its 3D view (newest kept).
 _MAX_3D_REQUESTS = 2000
+
+
+def _batch_seed(base: int, idx: int, n_opts: int, n_vars: int) -> int:
+    """Batch idx's base seed: its own span of n_opts·n_vars slot seeds after the
+    previous Batches', wrapped into the valid range like single-asset slot seeds
+    (generate.py) — a user base near the max must not overflow the request bound."""
+    return (int(base) + idx * max(1, n_opts) * max(1, n_vars)) % (_SEED_MAX + 1)
 
 router = APIRouter(prefix="/api/collections", tags=["collections"])
 
@@ -597,7 +604,7 @@ class GenerateCollectionRequest(BaseModel):
     style_id: str | None = None
     num_options: int = 3
     num_variations: int = 2
-    seed: int | None = None            # collection base seed (None → random per Batch)
+    seed: int | None = Field(default=None, ge=0, le=_SEED_MAX)   # set base seed (None → random)
     cohesion_mode: str = "prompt"      # "prompt" (default) | "hero" (hero-anchor) | "reference" (image-inspired anchor)
     reference_images: list[str] = []   # image-inspired: b64/data-URL image(s) that anchor every Batch's look
     remove_background: bool = True     # collections are asset sets → cut-outs by default
@@ -775,7 +782,7 @@ async def generate_collection(body: GenerateCollectionRequest):
                 style_id=body.style_id,
                 num_options=n_opts,
                 num_variations=n_vars,
-                seed=base_seed + idx * n_opts * n_vars,
+                seed=_batch_seed(base_seed, idx, n_opts, n_vars),
                 negative_prompt=collection_negative,
                 remove_background=body.remove_background,
             )
@@ -961,7 +968,7 @@ async def generate_one_batch(collection_id: str, body: RetryBatchRequest):
     sub = GenerationRequest(
         prompt=prompt, asset_type=_asset_enum(knobs.get("asset_type")),
         image_model=image_model, num_options=n_opts, num_variations=n_vars,
-        seed=base_seed + idx * n_opts * n_vars,
+        seed=_batch_seed(base_seed, idx, n_opts, n_vars),
         # Same set-wide negative (e.g. anti-photorealism) the initial run used.
         negative_prompt=_negative_from_art_direction(
             rec.get("art_direction_structured") or {"text": rec.get("overarching_art_direction", "")}),
@@ -1118,6 +1125,10 @@ async def generate_collection_3d(collection_id: str, body: Collection3DRequest |
     return {"submitted": submitted, "failures": failures}
 
 
+# The per-asset 3D job statuses (generate_3d), reused verbatim by the collection view.
+_3D_STATUSES = ("submitted", "generating", "complete", "failed")
+
+
 def _job_versions(meta: dict) -> list[int]:
     """A Job's live 2D version numbers (tombstoned versions excluded)."""
     vers = sorted(v.get("version") for v in (meta.get("versions") or [])
@@ -1126,11 +1137,13 @@ def _job_versions(meta: dict) -> list[int]:
 
 
 def _target_3d_state(meta: dict, version: int, req: dict | None, now: datetime) -> dict | None:
-    """3D state of one (Job, version) for the collection 3D view, or None when it
-    has never had 3D. Precedence: the submitted job's own variant landed → ready;
-    the live job record (this process) → its status/error; a mesh on disk → ready;
-    a submission older than the longest a SageMaker async request can live →
-    expired; else still in flight."""
+    """3D status of one (Job, version) for the collection 3D view, or None when it
+    has never had 3D. Same status vocabulary as the per-asset 3D job API
+    (/api/generate/3d/status): submitted | generating | complete | failed.
+    Precedence: the submitted job's own variant landed → complete; the live job
+    record (this process) → its status/error; a mesh on disk → complete; a
+    submission older than the longest a SageMaker async request can live →
+    failed (error "expired"); else still generating."""
     from backend.routers import generate_3d as g3d
     from backend.routers.gallery import resolve_3d_glb
 
@@ -1138,42 +1151,45 @@ def _target_3d_state(meta: dict, version: int, req: dict | None, now: datetime) 
     path, _ = resolve_3d_glb(aid, version, meta=meta)
     has_mesh = path is not None
     out = {"asset_id": aid, "version": version,
+           "option": int(meta.get("option_index", 0) or 0) + 1,
+           "variation": int(meta.get("variant_index", 0) or 0) + 1,
            "glb_url": f"/api/gallery/{aid}/3d/{version}" if has_mesh else None}
     if req is None:
-        return {**out, "state": "ready"} if has_mesh else None
+        return {**out, "status": "complete"} if has_mesh else None
 
     jid = req.get("job_id")
     variants = ((meta.get("three_d") or {}).get(f"v{version}") or {}).get("variants") or []
     if jid and any(v.get("job_id") == jid for v in variants):
-        return {**out, "state": "ready", "job_id": jid}
+        return {**out, "status": "complete", "job_id": jid}
     live = g3d._3d_jobs.get(jid) if jid else None
     if live:
         status = live.get("status", "submitted")
         if status == "failed":
-            return {**out, "state": "failed", "job_id": jid,
+            return {**out, "status": "failed", "job_id": jid,
                     "error": (live.get("error") or "")[:300]}
-        if status == "complete":
-            return {**out, "state": "ready" if has_mesh else "failed", "job_id": jid}
-        return {**out, "state": "queued" if status == "submitted" else "generating", "job_id": jid}
+        if status == "complete" and not has_mesh:
+            return {**out, "status": "failed", "job_id": jid}
+        return {**out, "status": status if status in _3D_STATUSES else "generating", "job_id": jid}
     try:
         age_h = (now - datetime.fromisoformat(req.get("submitted_at", ""))).total_seconds() / 3600
     except (TypeError, ValueError):
         age_h = 0
     if age_h > g3d._3D_JOB_MAX_AGE_H:
         if has_mesh:
-            return {**out, "state": "ready", "job_id": jid}
-        return {**out, "state": "failed", "job_id": jid, "error": "expired"}
-    return {**out, "state": "generating", "job_id": jid}
+            return {**out, "status": "complete", "job_id": jid}
+        return {**out, "status": "failed", "job_id": jid, "error": "expired"}
+    return {**out, "status": "generating", "job_id": jid}
 
 
 @router.get("/{collection_id}/3d-status")
 async def collection_3d_status(collection_id: str):
-    """Per-Batch 3D state for the collection's 3D view: every (Job, version) that
-    has a mesh or was sent to 3D from this collection, with its state (queued /
-    generating / ready / failed), the GLB URL when ready, and per-Batch counts.
-    Each Batch's `primary` is the model to show on its card — the representative
-    Job at the Batch's selected version when that is ready, else its first ready
-    model. `in_flight` tells the UI whether to keep polling."""
+    """Per-Batch 3D status for the collection's 3D view: every (Job, version) that
+    has a mesh or was sent to 3D from this collection, with its status (the
+    per-asset 3D job vocabulary: submitted / generating / complete / failed), the
+    GLB URL when complete, and per-Batch counts. Each Batch's `primary` is the
+    model shown on its card — the representative Job at the Batch's selected
+    version when complete, else its first complete model. `in_flight` tells the
+    UI whether to keep polling."""
     from backend.services import collection_store as cstore
 
     rec = cstore.load_collection(collection_id)
@@ -1198,14 +1214,13 @@ async def collection_3d_status(collection_id: str):
                 st = _target_3d_state(meta, ver, latest.get((meta.get("id"), ver)), now)
                 if st:
                     targets.append(st)
-        counts = {s: sum(1 for t in targets if t["state"] == s)
-                  for s in ("queued", "generating", "ready", "failed")}
-        in_flight = in_flight or bool(counts["queued"] or counts["generating"])
+        counts = {s: sum(1 for t in targets if t["status"] == s) for s in _3D_STATUSES}
+        in_flight = in_flight or bool(counts["submitted"] or counts["generating"])
         rep_id = jobs[0]["id"] if jobs else None
         rep_ver = entry.get("selected_version") or (jobs[0].get("current_version", 1) if jobs else 1)
-        ready = [t for t in targets if t["state"] == "ready"]
-        primary = next((t for t in ready if t["asset_id"] == rep_id and t["version"] == rep_ver),
-                       ready[0] if ready else None)
+        done = [t for t in targets if t["status"] == "complete"]
+        primary = next((t for t in done if t["asset_id"] == rep_id and t["version"] == rep_ver),
+                       done[0] if done else None)
         batches.append({"batch_id": bid, "name": entry.get("name", ""), "slug": entry.get("slug", ""),
                         "thumb_path": f"/api/gallery/{rep_id}/png" if rep_id else None,
                         "primary": primary, "counts": counts, "targets": targets})

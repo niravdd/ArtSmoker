@@ -418,11 +418,15 @@
                 }
 
                 // Load Collections (SPEC §18.8) as ONE card each — only on the
-                // FIRST page (reset load, not load-more) and the all-media/image
-                // filters. Fast-path list read (summary index, no Job parsing).
-                if (reset && (mediaFilter === '' || mediaFilter === 'image')) {
+                // FIRST page (reset load, not load-more) and the all-media/image/3D
+                // filters (under 3D: only collections holding ≥1 3D model — their
+                // members never appear loose). Fast-path summary read (no Job parsing).
+                if (reset && (mediaFilter === '' || mediaFilter === 'image' || mediaFilter === '3d')) {
                     try {
                         const cdata = await API.collections.list();
+                        if (mediaFilter === '3d') {
+                            cdata.collections = (cdata.collections || []).filter(c => this._collection3dCount(c) > 0);
+                        }
                         (cdata.collections || []).forEach(c => {
                             c._media = 'collection';
                             c._collection = true;
@@ -625,7 +629,9 @@
                     const idx = displayItems.findIndex((i) => String(i.id) === String(id));
                     if (idx < 0) return;
                     if (media === 'collection' && window.CollectionAssetViewer) {
-                        window.CollectionAssetViewer.open(displayItems[idx].collection_id);
+                        // From the 3D filter, land on the collection's 3D models view.
+                        const _is3d = document.getElementById('gal-filter-media')?.value === '3d';
+                        window.CollectionAssetViewer.open(displayItems[idx].collection_id, { view: _is3d ? '3d' : 'images' });
                     } else if (media === 'video' && window.VideoStudio?._openVideoPlayer) {
                         window.VideoStudio._openVideoPlayer(id);
                     } else {
@@ -663,10 +669,16 @@
         /** Collection card (SPEC §18.8) — one card for the whole set. Accepts a raw
          *  summary from API.collections.list() too (id derived, data-collection
          *  carries the id). */
+        /** How many of a collection's Batches have a 3D model (summary `has_3d`). */
+        _collection3dCount(item) {
+            return (item.batches || []).filter(b => b && b.has_3d).length;
+        },
+
         collectionCardHTML(item) {
             const cover = item.cover && item.cover.thumb_path
                 ? item.cover.thumb_path + `?t=${item.updated_at || ''}` : null;
             const count = item.batch_count || (item.batches ? item.batches.length : 0);
+            const n3d = this._collection3dCount(item);   // Batches with a 3D model
             // Content-shape label (SPEC §18.8): "16 characters · 3×2 · 96 images".
             // asset word from a small i18n map (collections are character/game_asset
             // only); breakdown + total when options×variations are known.
@@ -715,6 +727,8 @@
                                 ? html`<img src="${cover}" class="w-full h-full object-cover" alt="${item.name}" />`
                                 : html`<div class="w-full h-full flex items-center justify-center"><svg class="w-10 h-10 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg></div>`)}
                         <span class="absolute top-1.5 left-1.5 z-40 text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-600/80 text-white font-semibold">${t('artsmoker.ui.collection.card_badge')}</span>
+                        ${n3d ? html`<span class="absolute bottom-2 right-2 z-40 bg-violet-600/85 text-white text-[9px] px-1.5 py-0.5 rounded font-semibold shadow"
+                            title="${t('artsmoker.ui.collection.card_3d_tip', { n: n3d, m: count })}">${t('artsmoker.ui.collection.card_3d', { n: n3d, m: count })}</span>` : ''}
                     </div>
                     <div class="p-2">
                         <p class="text-xs font-medium truncate">${item.name || t('artsmoker.ui.collection.viewer_title')}</p>
