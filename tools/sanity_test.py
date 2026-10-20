@@ -24,6 +24,8 @@ SELECTION (matches the agreed scope; all configurable)
           non-text modalities (rerank / vision-only / audio / video-understanding).
 - image : Stability "SD" text-to-image models only.
 - video : every enabled video model.
+- collections: the full Collections flow on the first image model (+ a 2nd for the
+          multi-model set) — Amazon Bedrock models only; never a custom endpoint.
 Region scope: every Region a route can be served from ("all"), or one per route.
 
 ROUTES (chat) — every inference profile AWS offers is exercised, not just the pin
@@ -62,6 +64,7 @@ USAGE
   python3 tools/sanity_test.py --geo-scope pinned      # chat: pinned id only
   python3 tools/sanity_test.py --stages registry       # static consistency only
   python3 tools/sanity_test.py --stages excluded,llm   # hidden Regions + invoke_llm
+  python3 tools/sanity_test.py --stages collections    # Collections end-to-end (Bedrock models)
   python3 tools/sanity_test.py --tiers 2 --versions 2  # selection depth (0 0 = every model)
   python3 tools/sanity_test.py --limit 5               # smoke-test the harness itself
   python3 tools/sanity_test.py --base-url http://127.0.0.1:8000
@@ -824,12 +827,16 @@ def _tiny_reference_png_b64():
 
 def run_collection(base, model, region, extra_models=None):
     """Collections (SPEC §18) FULL end-to-end regression on the given image model:
-    decompose → estimate → recompose-batch → recompose-all → regenerate-roster
-    (locked-preserve) → generate (2 Batches × 1×1) → multi-model set (when a 2nd
-    model is enabled) → gallery card/index → get/reconstruct → select-version
-    (+ design_history) → export graceful-400 → delete cleanup. Real HTTP,
-    registry-driven. Live 3D SUBMIT is intentionally NOT fired (SageMaker cost +
-    async side-effects); export's no-3D path exercises the export wiring instead."""
+    decompose → image-inspired art direction → estimate → recompose-batch →
+    recompose-all → regenerate-roster (locked-preserve) → generate (2 Batches × 1×1,
+    explicit set seed) → multi-model set + retry (when a 2nd model is enabled) →
+    image-inspired generate + reference route → gallery card/index →
+    get/reconstruct → bg-removed alpha → collection lineage → seed family →
+    3D status → select-version (+ design_history) → packaged downloads (3D no-model
+    400; images all / 4 artefacts / non-member 400) → delete cleanup. Real HTTP,
+    registry-driven, Amazon Bedrock models only. A live 3D SUBMIT is never fired
+    (custom SageMaker endpoints are only tested in a run planned with the user);
+    3D status + the no-model 3D download exercise that wiring instead."""
     import urllib.error
     mk = model["key"]
     mk2 = (extra_models or [{}])[0].get("key") if extra_models else None   # a 2nd enabled model → multi-model set
@@ -1160,14 +1167,46 @@ def run_collection(base, model, region, extra_models=None):
             return False, "design_history not appended", cid
         steps.append("select-version+history")
 
-        # 10) export with no 3D yet → graceful 400 (exercises export wiring)
+        # 10) PACKAGED DOWNLOADS (SPEC §18.8) — the collection layer over the
+        # single-asset exports. 3D with no models yet → graceful 400. Images: the
+        # default (no selection) = every Job at its displayed version as
+        # <slug>/<asset>_v<n>.png; a selection with all four Export & Cutouts
+        # artefacts (free on-device remover) → the Export tab's file names;
+        # a selection of non-members only → 400.
+        import io as _io2
+        import zipfile as _zip
+
+        def _zip_names(path, payload):
+            with _urlopen(_req(f"{base}{path}", payload, "POST", accept="application/zip", timeout=300), 300) as r:
+                return sorted(_zip.ZipFile(_io2.BytesIO(r.read())).namelist()), r.headers.get("X-Skipped-Count")
+
         try:
-            _urlopen(_req(f"{base}/api/collections/{cid}/export?fmt=fbx", timeout=60), 60)
-            return False, "export should 400 (no 3D) but returned 200", cid
+            _zip_names(f"/api/collections/{cid}/download-3d", {"fmt": "fbx", "target": "unreal"})
+            return False, "3D download should 400 (no 3D yet) but returned a zip", cid
         except urllib.error.HTTPError as e:
             if e.code != 400:
-                return False, f"export unexpected status {e.code}", cid
-        steps.append("export-graceful400")
+                return False, f"3D download unexpected status {e.code}", cid
+        jobs = [(v["id"], (b.get("roster_entry") or {}).get("slug"))
+                for b in full.get("batches", []) for o in ((b.get("batch") or {}).get("options") or [])
+                for v in o.get("variants", [])]
+        names, skipped = _zip_names(f"/api/collections/{cid}/download-images", {})
+        want = sorted(f"{slug}/{aid}_v1.png" for aid, slug in jobs)
+        if names != want or skipped != "0":
+            return False, f"image download (all) wrong: {names} skipped={skipped} (want {want})", cid
+        aid0, slug0 = jobs[0]
+        names, skipped = _zip_names(f"/api/collections/{cid}/download-images",
+                                    {"targets": [{"asset_id": aid0, "version": 1}],
+                                     "include": ["png", "svg", "cutout_png", "cutout_svg"], "bg_method": "local"})
+        want = sorted(f"{slug0}/{aid0}_v1{suffix}" for suffix in (".png", ".svg", "_nobg.png", "_nobg.svg"))
+        if names != want:
+            return False, f"image download (4 artefacts) wrong: {names} (want {want})", cid
+        try:
+            _zip_names(f"/api/collections/{cid}/download-images", {"targets": [{"asset_id": "not-a-member_o0_v0", "version": 1}]})
+            return False, "image download accepted a non-member target", cid
+        except urllib.error.HTTPError as e:
+            if e.code != 400:
+                return False, f"non-member image download status {e.code} (want 400)", cid
+        steps.append("downloads(3d-400,images-all,images-4-artefacts,non-member-400)")
 
         # 11) delete cleanup (ACTUALLY executed) + verify gone
         _delete_json(base, f"/api/collections/{cid}?delete_assets=true")
