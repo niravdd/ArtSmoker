@@ -1,25 +1,38 @@
 """Chat Studio router — multi-model LLM chat with streaming, sessions, and cost tracking."""
 
 import base64
+import binascii
 import json
 import logging
+import re
 import time
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from backend.config import settings
 from backend.services.prompt_templates import get_template
+from backend.services.safe_write import atomic_write_text, named_write_lock
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 CHAT_DIR = settings.data_dir / "chat"
+
+# Session ids become file names: letters, digits, '-' and '_' only, so no id can
+# point outside CHAT_DIR (new ids are 8 hex chars).
+_SESSION_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
+_REGION_RE = re.compile(r"[a-z]{2}(-[a-z]+)+-\d{1,2}")
+_BASE64_RE = re.compile(r"[A-Za-z0-9+/]*={0,2}")
+# Roles a saved session may hold ('system_divider' = the UI's model-switch marker)
+# and roles a model may be sent.
+_STORED_ROLES = {"user", "assistant", "system_divider"}
+_STREAM_ROLES = {"user", "assistant"}
 
 
 # ── Request models ────────────────────────────────────────────────────────
@@ -29,9 +42,9 @@ class ChatMessageRequest(BaseModel):
     region: str | None = None
     messages: list[dict]  # [{role, content}]
     system_prompt: str = ""
-    temperature: float = 0.7
-    max_tokens: int = 4096
-    top_p: float | None = None
+    temperature: float = Field(0.7, ge=0, le=2)
+    max_tokens: int = Field(4096, ge=1)
+    top_p: float | None = Field(None, ge=0, le=1)
 
 
 class SessionCreate(BaseModel):
@@ -46,8 +59,8 @@ class SessionUpdate(BaseModel):
     region_override: str | None = None
     system_prompt: str | None = None
     messages: list[dict] | None = None
-    temperature: float | None = None
-    max_tokens: int | None = None
+    temperature: float | None = Field(None, ge=0, le=2)
+    max_tokens: int | None = Field(None, ge=1)
     total_input_tokens: int | None = None
     total_output_tokens: int | None = None
     total_cost_usd: float | None = None
@@ -55,7 +68,7 @@ class SessionUpdate(BaseModel):
 
 class CompactRequest(BaseModel):
     session_id: str
-    keep_recent: int = 6  # Keep last N messages verbatim
+    keep_recent: int = Field(6, ge=1)  # Keep last N messages verbatim
 
 
 def _converse_blocks(content: list) -> list:
@@ -68,7 +81,7 @@ def _converse_blocks(content: list) -> list:
         for kind, val in block.items():
             src = val.get("source") if isinstance(val, dict) else None
             if isinstance(src, dict) and isinstance(src.get("bytes"), str):
-                block[kind] = {**val, "source": {**src, "bytes": base64.b64decode(src["bytes"])}}
+                block[kind] = {**val, "source": {**src, "bytes": base64.b64decode(src["bytes"], validate=True)}}
         out.append(block)
     return out
 
@@ -226,6 +239,7 @@ async def chat_stream(req: ChatMessageRequest):
 
     if not req.messages:
         raise HTTPException(400, detail="Messages are required")
+    _validate_stream_request(req)
 
     model_id = req.model_id
     region = req.region or _resolve_chat_region(model_id)
@@ -257,7 +271,11 @@ async def chat_stream(req: ChatMessageRequest):
             converse_messages.append({"role": role, "content": [{"text": content}]})
         elif isinstance(content, list):
             # Already structured (e.g., with images)
-            converse_messages.append({"role": role, "content": _converse_blocks(content)})
+            try:
+                blocks = _converse_blocks(content)
+            except (binascii.Error, ValueError):
+                raise HTTPException(400, detail="An attached image is not valid base64")
+            converse_messages.append({"role": role, "content": blocks})
 
     # Registry-driven param gate: omit `temperature` for models that reject it
     # (newer Claude/GPT tiers deprecate it). Same gate the generation path uses;
@@ -734,24 +752,27 @@ async def get_session(session_id: str):
 @router.put("/sessions/{session_id}")
 async def update_session(session_id: str, body: SessionUpdate):
     """Update a chat session (title, messages, model, etc.)."""
-    session = _load_session(session_id)
-    if not session:
-        raise HTTPException(404, detail=f"Session {session_id} not found")
-
     updates = body.model_dump(exclude_unset=True)
-    session.update(updates)
-    session["updated_at"] = datetime.utcnow().isoformat()
-    _save_session(session_id, session)
+    if updates.get("messages") is not None:
+        _validate_stored_messages(updates["messages"])
+    with _sessions_lock():
+        session = _load_session(session_id)
+        if not session:
+            raise HTTPException(404, detail=f"Session {session_id} not found")
+        session.update(updates)
+        session["updated_at"] = datetime.utcnow().isoformat()
+        _save_session(session_id, session)
     return session
 
 
 @router.delete("/sessions/{session_id}")
 async def delete_session(session_id: str):
     """Delete a chat session."""
-    path = CHAT_DIR / f"{session_id}.json"
-    if path.exists():
-        path.unlink()
-        return {"deleted": session_id}
+    path = _session_path(session_id)
+    with _sessions_lock():
+        if path.exists():
+            path.unlink()
+            return {"deleted": session_id}
     raise HTTPException(404, detail=f"Session {session_id} not found")
 
 
@@ -830,10 +851,10 @@ async def compact_context(body: CompactRequest):
     to_summarize = messages[:-body.keep_recent]
     to_keep = messages[-body.keep_recent:]
 
-    # Build summary prompt
+    # Build summary prompt (model-switch dividers are UI markers, not turns)
     convo_text = "\n".join(
         f"{'User' if m['role'] == 'user' else 'Assistant'}: {m.get('content', '')[:500]}"
-        for m in to_summarize
+        for m in to_summarize if m.get("role") in _STREAM_ROLES
     )
 
     try:
@@ -861,9 +882,18 @@ async def compact_context(body: CompactRequest):
         "compacted_count": len(to_summarize),
     }
 
-    session["messages"] = [summary_msg] + to_keep
-    session["updated_at"] = datetime.utcnow().isoformat()
-    _save_session(body.session_id, session)
+    # The summary call takes seconds: re-read under the lock and splice onto the
+    # CURRENT messages, so anything saved meanwhile is kept, not overwritten.
+    with _sessions_lock():
+        session = _load_session(body.session_id)
+        if not session:
+            raise HTTPException(404, detail=f"Session {body.session_id} not found")
+        current = session.get("messages", [])
+        if current[:len(to_summarize)] != to_summarize:
+            raise HTTPException(409, detail="The conversation changed while it was being compacted — try again.")
+        session["messages"] = [summary_msg] + current[len(to_summarize):]
+        session["updated_at"] = datetime.utcnow().isoformat()
+        _save_session(body.session_id, session)
 
     return {
         "compacted": True,
@@ -988,19 +1018,89 @@ async def chat_telemetry(body: ChatTelemetryEvent):
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
+def _session_path(session_id: str) -> Path:
+    """The session's file; 400 for any id that isn't a plain file-name token."""
+    if not isinstance(session_id, str) or not _SESSION_ID_RE.fullmatch(session_id):
+        raise HTTPException(400, detail="Invalid session id")
+    return CHAT_DIR / f"{session_id}.json"
+
+
+def _sessions_lock():
+    """Held around every read-modify-write of a session file (SPEC §17)."""
+    return named_write_lock("chat_sessions")
+
+
 def _save_session(session_id: str, data: dict):
-    CHAT_DIR.mkdir(parents=True, exist_ok=True)
-    (CHAT_DIR / f"{session_id}.json").write_text(json.dumps(data, indent=2, default=str))
+    atomic_write_text(_session_path(session_id), json.dumps(data, indent=2, default=str))
 
 
 def _load_session(session_id: str) -> dict | None:
-    path = CHAT_DIR / f"{session_id}.json"
+    path = _session_path(session_id)
     if not path.exists():
         return None
     try:
         return json.loads(path.read_text())
     except Exception:
+        logger.warning("Chat session %s is unreadable — skipped", session_id)
         return None
+
+
+def _is_base64(value) -> bool:
+    return isinstance(value, str) and bool(_BASE64_RE.fullmatch(value))
+
+
+def _validate_stored_messages(messages: list) -> None:
+    """Messages are stored verbatim (escaping happens when they're shown); this
+    only rejects shapes the app never writes, so a crafted PUT can't plant
+    non-text content or non-image data in a session."""
+    for i, m in enumerate(messages):
+        if not isinstance(m, dict) or m.get("role") not in _STORED_ROLES:
+            raise HTTPException(400, detail=f"Message {i}: invalid role")
+        if not isinstance(m.get("content", ""), str):
+            raise HTTPException(400, detail=f"Message {i}: content must be text")
+        if m.get("content_blocked") is not None and not isinstance(m["content_blocked"], str):
+            raise HTTPException(400, detail=f"Message {i}: content_blocked must be text")
+        images = m.get("images")
+        if images is not None and not (isinstance(images, list) and all(_is_base64(x) for x in images)):
+            raise HTTPException(400, detail=f"Message {i}: images must be base64 strings")
+
+
+def _known_chat_model(model_id: str) -> bool:
+    """True for the ids Chat Studio lists (GET /models): a chat_models entry under
+    any profile prefix, an LLM category's current model, or an enabled custom LLM."""
+    if not model_id:
+        return False
+    from backend.services.model_registry import get_registry, find_chat_model, strip_geo_prefix
+    if find_chat_model(model_id):
+        return True
+    categories = get_registry().get("categories", {})
+    base = strip_geo_prefix(model_id)
+    if any(strip_geo_prefix(categories.get(c, {}).get("current") or "") == base
+           for c in ("fast_llm", "complex_llm", "fallback_llm")):
+        return True
+    custom = categories.get("custom_llms", {}).get("models", {})
+    return any(c.get("enabled", False) and c.get("model_id") == model_id for c in custom.values())
+
+
+def _validate_stream_request(req: "ChatMessageRequest") -> None:
+    """Reject a /stream request the UI can't produce: an id outside the chat model
+    list (no open proxy to any model), a malformed Region, or bad message shapes."""
+    if not _known_chat_model(req.model_id):
+        raise HTTPException(400, detail=f"Unknown chat model: {req.model_id}")
+    if req.region and not _REGION_RE.fullmatch(req.region):
+        raise HTTPException(400, detail="Invalid Region")
+    for i, m in enumerate(req.messages):
+        if m.get("role") not in _STREAM_ROLES:
+            raise HTTPException(400, detail=f"Message {i}: invalid role")
+        content = m.get("content", "")
+        if isinstance(content, str):
+            continue
+        if not isinstance(content, list) or not all(isinstance(b, dict) for b in content):
+            raise HTTPException(400, detail=f"Message {i}: invalid content")
+        for b in content:
+            src = (b.get("image") or {}).get("source") if isinstance(b.get("image"), dict) else None
+            if isinstance(src, dict) and not _is_base64(src.get("bytes")):
+                raise HTTPException(400, detail=f"Message {i}: an attached image is not valid base64")
 
 
 def _resolve_chat_region(model_id: str) -> str:

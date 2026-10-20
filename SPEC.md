@@ -1350,6 +1350,31 @@ A full-featured LLM chat interface running on the user's own AWS account, offeri
 - **Auto-title** — AI generates a 3-8 word session title from the first exchange
 - **Pricing info** — model picker shows cost per 1K tokens; pricing bar shows estimated cost for 10K/100K token conversations
 
+**Rendering safety — store verbatim, sanitise on display.** Messages are stored exactly as written; nothing is escaped or stripped on the server. `_renderMarkdown` converts markdown with marked, which passes raw HTML through, and then runs the output through **DOMPurify** (pinned + SRI in `index.html`) before it reaches the page. The DOMPurify config (`_PURIFY_CONFIG`) does the following:
+- uses the HTML profile only (no SVG/MathML);
+- forbids every element that fetches a remote resource on render (`img`, `picture`, `source`, `video`, `audio`, `track`, `iframe`, `object`, `embed`), because an injected image URL could carry conversation text to a third party;
+- forbids form controls and `style`, and drops `style` and `data-*` attributes, so model output can't overlay the UI or trigger the view's `data-action` buttons;
+- makes every link open in a new tab with `rel="noopener noreferrer"`.
+
+Code-block highlighting and the copy button are added **after** sanitising. Code text is decoded with an inert `DOMParser`, and hljs escapes its own output. The copy button has no inline handler; the `#cs-messages` click delegation handles it. If marked or DOMPurify isn't loaded, a message is shown as escaped plain text, never as unsanitised HTML.
+
+**Request validation + storage** (`routers/chat.py`):
+- **Session ids** become file names only through `_session_path`, which accepts `[A-Za-z0-9_-]{1,64}` and returns 400 for anything else. So no id, including the body field of `/compact`, can point outside `data/chat/`.
+- **Writes** use `atomic_write_text`. Every read-modify-write (update, delete, compact) runs inside `named_write_lock("chat_sessions")` (§17).
+- **`PUT /sessions/{id}`** checks message shapes (`_validate_stored_messages`):
+  - role must be `user`, `assistant` or `system_divider`;
+  - `content` and `content_blocked` must be text;
+  - `images` must be base64 strings.
+
+  Content itself is not altered.
+- **`/stream`** (`_validate_stream_request`) accepts only the model ids `GET /models` lists (`_known_chat_model`: a chat_models entry under any profile prefix, an LLM category's current model, or an enabled custom LLM). It also requires:
+  - a well-formed Region;
+  - `user`/`assistant` roles;
+  - valid base64 image bytes;
+  - `temperature` 0–2, `top_p` 0–1, and `max_tokens` ≥ 1.
+
+  A rejected request returns JSON (400/422), which the UI shows as the reply's error text.
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/chat/stream` | Send messages to an LLM and stream the response via SSE — Bedrock ConverseStream, or the model's Mantle route for Mantle-only models (§4.8). Returns events: delta (text chunks), metadata (tokens, cost, latency), stop, error. |
@@ -1362,7 +1387,7 @@ A full-featured LLM chat interface running on the user's own AWS account, offeri
 | POST | `/api/chat/sessions/{id}/duplicate` | Duplicate a session with a new ID. |
 | GET | `/api/chat/sessions/{id}/export` | Export session as Markdown file download. Includes session metadata, model info, and all messages with timestamps. |
 | GET | `/api/chat/sessions/{id}/search?q=` | Search within a session's messages. Case-insensitive substring search. Returns matching snippets with surrounding context. |
-| POST | `/api/chat/compact` | Compact older messages via LLM summarization. Keeps last N messages verbatim, replaces older with a summary message (role: user to maintain strict alternation). |
+| POST | `/api/chat/compact` | Compact older messages via LLM summarization. Keeps last N messages verbatim, replaces older with a summary message (role: user to maintain strict alternation). After the summary call it re-reads the session under the lock and splices the summary onto the current messages, so anything saved meanwhile is kept. If the summarised messages were edited during the call, it returns 409 and nothing is written. |
 
 ### 5.9 Browse
 
@@ -2311,7 +2336,7 @@ The frontend uses a dark theme with CSS custom properties. These values define t
 - `showLoading(text)` / `hideLoading()` — fullscreen loading overlay with spinner.
 - `resetView(route)` — destroys the DOM cache for a specific view, forcing fresh render on next visit.
 - `t(key, params)` — global translation function (see [Section 15: i18n](#15-internationalization-i18n)).
-- `html` / `raw` / `escapeHtml` / `SafeHtml` — safe HTML templating from `frontend/js/html.js` (loaded before the components in `index.html`). The `html` tagged template HTML-escapes every interpolated value by default; a nested `html` result or an array of them is inserted as-is, and `raw(str)` marks a string already known to be safe markup (never user, asset, model or prompt data). All markup assigned to `innerHTML` is built this way, so untrusted text can't inject markup.
+- `html` / `raw` / `escapeHtml` / `SafeHtml` — safe HTML templating from `frontend/js/html.js` (loaded before the components in `index.html`). The `html` tagged template HTML-escapes every interpolated value by default; a nested `html` result or an array of them is inserted as-is, and `raw(str)` marks a string already known to be safe markup (never user, asset, model or prompt data). All markup assigned to `innerHTML` is built this way, so untrusted text can't inject markup. The one place that must insert real HTML from untrusted text is Chat Studio's markdown rendering: it goes through DOMPurify before `raw()` (§5.8).
 
 **Frontend component pattern** — every component is an IIFE that attaches to `window`:
 ```javascript
@@ -2931,7 +2956,7 @@ ArtSmoker is designed to run **multi-worker** in production (`gunicorn -w 2 …`
 - **Reentrant**: the flock is opened once and reference-counted by depth (`_flock_state`), so a thread that already holds a key can re-acquire it (e.g. a transaction body calling a leaf writer that shares the same lock) without self-deadlocking. Distinct threads/processes still block each other — full mutual exclusion.
 - Supports both `with lock:` and explicit `acquire()` / `release()`.
 - **Graceful degradation**: if no OS file lock is available (an exotic platform with neither `fcntl` nor `msvcrt`, or an odd filesystem) it degrades to in-process-only locking and logs a **one-time WARNING**, so a lost-update on a shared host is diagnosable. Atomic writes still apply regardless.
-- Factories: `named_write_lock(name)` (registries) and `asset_write_lock(asset_id)` (`backend/services/asset_locks.py`).
+- Factories: `named_write_lock(name)` (registries; also `"chat_sessions"` around every Chat Studio session read-modify-write, §5.8) and `asset_write_lock(asset_id)` (`backend/services/asset_locks.py`).
 
 ### 17.3 Per-asset metadata writes
 

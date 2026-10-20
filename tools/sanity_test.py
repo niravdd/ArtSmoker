@@ -62,7 +62,7 @@ USAGE
   python3 tools/sanity_test.py --stages chat           # one stage
   python3 tools/sanity_test.py --region-scope pinned   # one Region per route
   python3 tools/sanity_test.py --geo-scope pinned      # chat: pinned id only
-  python3 tools/sanity_test.py --stages registry       # static consistency only
+  python3 tools/sanity_test.py --stages registry       # static consistency + Chat input guards (no spend)
   python3 tools/sanity_test.py --stages excluded,llm   # hidden Regions + invoke_llm
   python3 tools/sanity_test.py --stages collections    # Collections end-to-end (Bedrock models)
   python3 tools/sanity_test.py --tiers 2 --versions 2  # selection depth (0 0 = every model)
@@ -805,6 +805,16 @@ def run_image(base, model, region):
     return False, f"no image ({len(events)} events)", None
 
 
+def _http_status(base, path, payload=None, method="POST", timeout=60) -> int:
+    """The HTTP status of a request — for checks where an error code IS the
+    expected answer, so HTTPError is returned rather than raised."""
+    try:
+        with _urlopen(_req(base + path, payload, method, timeout=timeout), timeout) as r:
+            return r.status
+    except urllib.error.HTTPError as e:
+        return e.code
+
+
 def _delete_json(base, path, timeout=60):
     """Execute a DELETE and return the parsed JSON (the older code built a Request
     but never opened it — so cleanup silently no-op'd). Always urlopen."""
@@ -1401,6 +1411,27 @@ def registry_checks(base, reg) -> list[dict]:
             row("price-order", k, False, f"Global rate above regional in {', '.join(bad[:5])}")
         if not (c.get("input_price_per_1k") or c.get("output_price_per_1k") or tp):
             row("priced", k, False, f"{c.get('model_id')} has no official price", warn=True)
+
+    # 7) Chat Studio refuses requests its UI never sends — no model is called.
+    known = next((c.get("model_id") for c in enabled.values() if c.get("model_id")), "")
+    hi = [{"role": "user", "content": "hi"}]
+    guards = [("unknown model id", "/api/chat/stream",
+               {"model_id": "sanity.not-a-registered-model", "messages": hi}),
+              ("session id outside data/chat", "/api/chat/compact",
+               {"session_id": "../sanity", "keep_recent": 1})]
+    if known:
+        guards.append(("malformed Region", "/api/chat/stream",
+                       {"model_id": known, "region": "us-west-2.example.com", "messages": hi}))
+    for name, path, body in guards:
+        got = _http_status(base, path, body)
+        row("chat-guard", name, got == 400, f"HTTP {got} (want 400)")
+    sid = post_json(base, "/api/chat/sessions", {"title": "sanity-guard"}).get("session_id")
+    try:
+        got = _http_status(base, f"/api/chat/sessions/{sid}",
+                           {"messages": [{"role": "admin", "content": "x"}]}, "PUT")
+        row("chat-guard", "stored message with an unknown role", got == 400, f"HTTP {got} (want 400)")
+    finally:
+        _delete_json(base, f"/api/chat/sessions/{sid}")
     return rows
 
 
@@ -1539,7 +1570,7 @@ def main():
           f"| geos offered: {', '.join(sorted({g for p in _profile_map().values() for g in p})) or 'none'}")
 
     if "registry" in stages:
-        print("\n=== STAGE REGISTRY — pins, categories, served ids, Region pickers, price order ===")
+        print("\n=== STAGE REGISTRY — pins, categories, served ids, Region pickers, price order, Chat input guards ===")
         record_stage("registry", registry_checks(base, reg))
 
     # Cross-platform concurrency preflight: measure the server's real parallelism and,

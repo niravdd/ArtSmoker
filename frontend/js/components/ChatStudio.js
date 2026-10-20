@@ -285,8 +285,17 @@
             _renderSessionList(e.target.value.toLowerCase());
         });
 
-        // Delegate clicks on messages (regenerate, edit, fork)
+        // Delegate clicks on messages (code-block copy, regenerate, edit, fork)
         _container.querySelector('#cs-messages')?.addEventListener('click', (e) => {
+            const copyBtn = e.target.closest('.cs-copy-btn');
+            if (copyBtn) {
+                const code = copyBtn.closest('pre')?.querySelector('code');
+                navigator.clipboard?.writeText(code ? code.textContent : '').then(() => {
+                    copyBtn.textContent = copyBtn.dataset.copied;
+                    setTimeout(() => { copyBtn.textContent = copyBtn.dataset.copy; }, 1500);
+                }).catch(() => {});
+                return;
+            }
             const btn = e.target.closest('[data-action]');
             if (!btn) return;
             const action = btn.dataset.action;
@@ -841,6 +850,15 @@
                 signal: _abortController.signal,
             });
 
+            if (!response.ok) {
+                // A rejected request (400/422) carries JSON, not an SSE stream.
+                const err = await response.json().catch(() => ({}));
+                const detail = Array.isArray(err.detail)
+                    ? err.detail.map(d => d.msg).join('; ')
+                    : (err.detail || `HTTP ${response.status}`);
+                throw new Error(detail);
+            }
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
@@ -1103,18 +1121,48 @@
 
     // ── Markdown rendering ───────────────────────────────────────────
 
+    // Message text is stored verbatim and sanitised HERE, when shown: marked
+    // passes raw HTML through, so its output goes through DOMPurify before it
+    // reaches the page. HTML profile only (no SVG/MathML); nothing that fetches
+    // a remote resource on render (an injected image URL could carry the
+    // conversation out); no inline styles (overlay tricks); no data-* (so model
+    // output can't trigger this view's data-action buttons). Links open in a
+    // new tab. Without DOMPurify the text is shown escaped, never as raw HTML.
+    const _PURIFY_CONFIG = {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: ['style', 'img', 'picture', 'source', 'video', 'audio', 'track',
+                      'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea', 'select', 'option'],
+        FORBID_ATTR: ['style'],
+        ALLOW_DATA_ATTR: false,
+    };
+    if (typeof DOMPurify !== 'undefined') {
+        DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+            if (node.tagName === 'A' && node.hasAttribute('href')) {
+                node.setAttribute('target', '_blank');
+                node.setAttribute('rel', 'noopener noreferrer');
+            }
+        });
+    }
+
+    function _decodeEntities(escaped) {
+        // DOMParser documents are inert (no script runs, nothing loads).
+        return new DOMParser().parseFromString(escaped, 'text/html').documentElement.textContent;
+    }
+
     function _renderMarkdown(text) {
         if (!text) return '';
-        if (typeof marked !== 'undefined') {
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
             try {
-                const html = marked.parse(text, { breaks: true, gfm: true });
+                const html = DOMPurify.sanitize(marked.parse(text, { breaks: true, gfm: true }), _PURIFY_CONFIG);
+                // Code blocks get the copy button + highlighting AFTER sanitising;
+                // everything added here is escaped (hljs escapes its output).
                 return html.replace(/<pre><code(.*?)>([\s\S]*?)<\/code><\/pre>/g, (match, attrs, code) => {
                     const langMatch = attrs.match(/class="language-(\w+)"/);
                     const lang = langMatch ? langMatch[1] : '';
                     let highlighted = code;
                     if (typeof hljs !== 'undefined') {
                         try {
-                            const decoded = code.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"');
+                            const decoded = _decodeEntities(code);
                             highlighted = lang
                                 ? hljs.highlight(decoded, { language: lang }).value
                                 : hljs.highlightAuto(decoded).value;
@@ -1126,7 +1174,7 @@
                     // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
                     const langBadge = lang ? `<span class="absolute top-2 left-3 text-[9px] text-brand-text-muted/40 font-mono">${_esc(lang)}</span>` : '';
                     // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
-                    return `<pre class="cs-code-block relative group">${langBadge}<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"><button class="cs-copy-btn text-[9px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-brand-text-muted" data-copy="${copyLbl}" data-copied="${copiedLbl}" onclick="navigator.clipboard.writeText(this.closest('pre').querySelector('code').textContent);this.textContent=this.dataset.copied;setTimeout(()=>this.textContent=this.dataset.copy,1500)">${copyLbl}</button></div><code class="language-${lang}">${highlighted}</code></pre>`;
+                    return `<pre class="cs-code-block relative group">${langBadge}<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"><button class="cs-copy-btn text-[9px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-brand-text-muted" data-copy="${copyLbl}" data-copied="${copiedLbl}">${copyLbl}</button></div><code class="language-${lang}">${highlighted}</code></pre>`;
                 });
             } catch { /* fallback */ }
         }
