@@ -72,7 +72,7 @@ ArtSmokerは、今日最良の生成モデルを1つのアーティストファ�
 - **あらゆるモデルを、ワンクリックで** — 各リージョンにわたる最新のホスト型モデルを使うか、キュレーションされたオープンソースモデル（Qwen-Image、FLUX.2、HunyuanImage、TripoSG、TRELLIS.2など）を、シングルクリックであなた自身のGPUにデプロイできます — パッケージング、量子化、オートスケーリング、ジョブトラッキングはすべて処理され、すべてのモデルは出荷前にエンドツーエンドで検証されています。
 - **好きな場所で動作 — そしてあなたのIPはあなたのもの** — 1人のアーティストのデスクトップにも、チーム全体で共有するインスタンスにもインストールできます。**あなた自身のGPUは不要**です（重い計算はマネージドなAWSサービス上、またはArtSmokerが立ち上げてゼロまでスケールバックしてくれるオートスケーリングエンドポイント上で実行されます）。接続先はあなた自身のAWSアカウントのみ — アートワーク、プロンプト、スタイル、生成されたアセットはあなたの環境内に留まり、サードパーティサービスには何も送られず、クリエイティブIPの完全な所有権を保持できます。
 
-**Amazon Bedrockモデル**：Claude Sonnet/Opus（プロンプトエンジニアリング＆チャット）、Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core、Stability AIサービス（画像編集）、Nova Reel、Luma AI Ray（動画生成）、さらにChat Studio向けに16プロバイダーから80以上のLLM。**セルフホストモデル**：Qwen-Image（テキストから画像へ）＆Qwen-Image-Edit（参照ガイド＋指示編集、Apache-2.0）、HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSG＆TRELLIS.2（画像から3Dへ）など、Amazon SageMaker経由 — 新しいモデルを追加できる拡張可能なカタログ付き。
+**Amazon Bedrockモデル**：Claude Sonnet/Opus（プロンプトエンジニアリング＆チャット）、Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core、Stability AIサービス（画像編集）、Luma AI Ray（動画生成）、さらにChat Studio向けに16プロバイダーから80以上のLLM。**セルフホストモデル**：Qwen-Image（テキストから画像へ）＆Qwen-Image-Edit（参照ガイド＋指示編集、Apache-2.0）、HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSG＆TRELLIS.2（画像から3Dへ）など、Amazon SageMaker経由 — 新しいモデルを追加できる拡張可能なカタログ付き。
 
 **[今すぐ始める — 前提条件とインストールへジャンプ ▸](#get-started)**
 
@@ -133,7 +133,7 @@ ArtSmokerは2つのモードで動作します — **スタンドアロン**（�
 - 🖼️ **Image Studio** — オプション×バリエーションで画像を生成、ガイド付き3ステッププロンプトワークフロー
 - 🎨 **Prompt Designer** — AIがプロンプトを編集可能なビジュアルコンポーネント（被写体、シーン、照明、色）に分解、フィールドごとのロック/バリエーショントグル、スタイル統合、スマートなアセットタイプ分類。Photorealistic、Character、Environmentなど
 - 🗂️ **コレクション（セット生成）** — 1つのプロンプト、**または参照画像**から、一貫性のある**個別アセットのセット**（「バイキング風のチェスセット」「20体のJRPGキャラクター」など）を作成します。Image Studio で **Collection** トグルをオンにし、**Text** タブ（プロンプトが駆動）または **Image-Inspired** タブ（参照画像の*見た目*がアートディレクションを駆動）から開始。専用の **Collection Designer** が、共有の**アートディレクション**と、テーマに沿った個別の題材の**ロスター**へと分解します — 各題材が、編集可能なモデル非依存プロンプトを持つ1つの**バッチ**です。アートディレクションを編集してセット全体を再構成、個々のバッチをロック／再生成／追加／削除し、すべてをまとめて生成（各オプション×バリエーション）。設計＋予測コストの見積もりをライブ表示。**1モデルで統一感のあるセット、または複数モデルで各バッチをそれぞれのモデルで生成**（モデル横断比較）できます。任意の **hero-** / **reference-anchor** コヒージョンで、選択／提供した画像にセットをスタイル固定。コレクションは Gallery に**1枚のカード**として表示され、Collection ビューアーを開くと各バッチが通常の Asset Viewer（オプション／バリエーション／バージョン、編集、エクスポート、3D — 単一画像とまったく同じ — さらにそのバッチの**コレクション系譜**）へドリルダウン。各バッチの**代表バージョンを固定**、**セット全体を一括3D化**（選んだバッチや画像だけでも可）してコレクション専用の **3D models** ビューで各モデルが届く様子を確認、セット全体または選択分を1つの zip として**ダウンロード**（単一画像と同じファイル — PNG、SVG、背景除去済みカットアウト — または、同じエンジンプリセット・LOD・コリジョン・テクスチャパッキングを適用した3Dモデル）、または**コレクション全体を Image Studio に再読み込み**して確認・再生成できます。コレクションの3Dモデルはそのコレクション内にまとまり、Gallery の **3D フィルター**では「3D n/m」バッジ付きのコレクションカードが表示されます。読み込んだコレクションは **Image Studio の結果エリアにそのまま表示**され（単一画像と同じカード・プレビュー・プロンプト表示をバッチごとにグループ化）、Collection Designer を開き直すと**保存されたデザインそのもの**（アートディレクション、各バッチのプロンプト、各モデルに実際に送られたプロンプト）が表示され、指示しない限り再生成されません。また、**費用が発生する前に**アセットタイプがプロンプトと照合されます(セットはキャラクターかゲームアセット)— 意図しない形式でセット全体に支払うことはありません
-- 🎬 **Video Studio** — モデル固有のプロンプトガイダンス（Nova Reelのカメラコントロール、Luma Rayの自然言語）付きのテキストから動画へ、マルチショット、画像から動画へ
+- 🎬 **Video Studio** — モデル固有のプロンプトガイダンス（Luma Rayの自然言語による演出指示）付きのテキストから動画へ、画像から動画へ、ループ
 - ✍️ **Type Studio** — フォントピッカー付きのAIデザインテキストオーバーレイ
 - 💬 **Chat Studio** — ストリーミング、Markdown、コードハイライト、ビジョン、セッション、コンテキスト圧縮を備えたマルチモデルLLMチャット
 - 📁 **統合ギャラリー** — 各アセットを本来のアスペクト比（縦長、正方形、横長 — 決してクロップしない）で表示するメイソンリーレイアウト。画像＋動画の閲覧、メディアフィルター（All / 2D Artwork / 3D Models / Video）、検索、完全な日付・時刻・タイムゾーンのタイムスタンプ、ダウンロード、削除。すでに生成済みの3Dモデルを持つアセットには**3Dバッジ**が付き、**3D Models**フィルターはそれらだけを表示します
@@ -215,7 +215,7 @@ ArtSmokerは2つのモードで動作します — **スタンドアロン**（�
 
 *3Dパイプラインのスクリーンショット — 生成、ソースレビュー、ゲームエンジン向けに調整されたエクスポート、バリアント — は、下のセクション1.9（3Dモデル生成）で、それぞれが示す機能とともに掲載しています。*
 
-**Video Studio** — 左側に設定（モデル、生成モード、長さ、リージョン、コスト見積もり）、右側にプロンプト。Nova Reel（シングルショット、最大2分のマルチショット自動/手動）とLuma AI Ray（アスペクト比、ループ）に対応。
+**Video Studio** — 左側に設定（モデル、生成モード、長さ、リージョン、コスト見積もり）、右側にプロンプト。アカウント内で**Sync from AWS**が検出した動画モデルを提供します — 現在はLuma AI Ray（アスペクト比、ループ）。
 
 ![Video Studio — Settings and prompt](docs/images/video-studio.png)
 
@@ -256,17 +256,16 @@ ArtSmokerは2つのモードで動作します — **スタンドアロン**（�
 
 ### 📝 1.6 Video Studio
 
-テキストプロンプトからAI駆動の動画やアニメーションを生成します。**Amazon Nova Reel**（v1.0、v1.1）と**Luma AI Ray**（v2.0）に対応。
+テキストプロンプトからAI駆動の動画やアニメーションを生成します。Video Studioは、アカウント内で**Sync from AWS**が検出した動画モデルを提供します — 現在は**Luma AI Ray**（v2.0）。Amazon Nova Reel（v1.0、v1.1）は2026-09-30にAWSでのサポート終了（EOL）を迎え、現在は提供されていません。
 
-| 機能 | Nova Reel | Luma Ray v2 |
-|---------|-----------|-------------|
-| **最大長** | 120秒（2分） | 9秒 |
-| **解像度** | 1280x720 | 720p / 540p |
-| **アスペクト比** | 16:9のみ | 7オプション（1:1、16:9、9:16など） |
-| **画像から動画へ** | はい（開始フレーム） | はい（開始＋終了フレーム） |
-| **ループ動画** | なし | はい |
-| **マルチショット制御** | はい（自動＋手動） | なし |
-| **価格** | ～$0.08/秒 | ～$1.50/秒 |
+| 機能 | Luma Ray v2 |
+|---------|-------------|
+| **最大長** | 9秒 |
+| **解像度** | 720p / 540p |
+| **アスペクト比** | 7オプション（1:1、16:9、9:16など） |
+| **画像から動画へ** | はい（開始＋終了フレーム） |
+| **ループ動画** | はい |
+| **価格** | ～$1.50/秒 |
 
 **仕組み：**
 1. 動画モデルを選択し、長さ、アスペクト比、リージョンを設定
@@ -727,7 +726,7 @@ which potrace && echo "potrace: OK" || echo "potrace: not installed (optional)"
 
 ### 📝 2.4 オプション：動画サムネイル＆メタデータツール
 
-Video StudioはAmazon Nova ReelとLuma AI Ray経由でMP4動画を生成します。サムネイル（最初のフレームをJPEGとして）と動画メタデータ（長さ、解像度、FPS）を抽出するには、ArtSmokerバックエンドを実行するマシンに**ffmpeg**と**ffprobe**がインストールされている必要があります。
+Video StudioはAmazon Bedrockの動画モデル（現在はLuma AI Ray）経由でMP4動画を生成します。サムネイル（最初のフレームをJPEGとして）と動画メタデータ（長さ、解像度、FPS）を抽出するには、ArtSmokerバックエンドを実行するマシンに**ffmpeg**と**ffprobe**がインストールされている必要があります。
 
 ffmpegがない場合：
 - 動画は引き続き正しく生成・再生されます（S3からストリーミング、またはMP4としてダウンロード）
@@ -1048,11 +1047,12 @@ ArtSmokerが起動したら、最良の結果を得るために次のステッ�
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
 │  Claude Sonnet       │  │  Nova Sonic (voice)      │
-│  Claude Opus         │  │  Nova Reel (video)       │
+│  Claude Opus         │  │                          │
 │  SD 3.5 Large        │  │                          │
 │  Stable Image Ultra  │  │                          │
 │  Stable Image Core   │  │                          │
 │  Stability AI (post) │  │                          │
+│  Luma AI Ray (video) │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (other regions)
              │
              ▼
@@ -1375,7 +1375,7 @@ Prompt Designerが開く前に、**AIアセットタイプ分類**が実行さ�
 - 任意のスタジオのサイドバーで**「Model Settings」**をクリックすると管理モーダルが開きます — そのスタジオに関連するタブが開きます。
 - スタジオ別に整理された**9つのタブ**：
   - **Image Studio** — 画像生成モデル（SD 3.5 Large、Stable Image Ultra、Stable Image Core、さらにセルフホストのFLUX、HunyuanImage、Qwen-Image）、リージョン、品質ティア、プロンプト制限、モデレーション厳格度
-  - **Video Studio** — 動画モデル（Nova Reel、Luma Ray）、S3バケット設定、リージョン、料金
+  - **Video Studio** — 動画モデル（例：Luma Ray）、S3バケット設定、リージョン、料金
   - **Chat Studio** — 検出されたチャット/LLMモデル（16プロバイダーから80以上）、コンテキストウィンドウ、ビジョン機能、1Kトークンあたりの料金
   - **Type Studio** — テキストレイアウト生成用のLLMモデル（Complexまたはfast LLM）
   - **Shared Studio** — スタジオ横断のLLMカテゴリ（Fast LLM、Complex LLM、Fallback LLM、Voice）、後処理モデル（背景削除、アップスケール）
@@ -1451,7 +1451,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 | AI (画像) | Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core（Amazon Bedrock）；FLUX.2/FLUX.1、HunyuanImage 3.0、Qwen-Image（SageMakerでセルフホスト） |
 | AI (後処理) | Stability AI（背景除去、Creative Upscale） |
 | AI (チャット) | Bedrock ConverseStream経由で16プロバイダーから80以上のLLM（Claude、Nova、Llama、Mistralなど） |
-| AI (動画) | Nova Reel v1.0/v1.1（最大2分）、Luma AI Ray v2（最大9秒） |
+| AI (動画) | Luma AI Ray v2（最大9秒） |
 | AI (音声) | Nova Sonic（双方向ストリーミング経由の音声テキスト変換） |
 | i18n | カスタムt()関数、約1,500キー×9言語、逆引きDOM翻訳 |
 | SVG変換 | vtracer（主要）、potrace（フォールバック）、Pillow（最終手段） |
@@ -1628,7 +1628,7 @@ ArtSmoker/
 | `max_reference_images` | `ARTSMOKER_MAX_REFERENCE_IMAGES` | 100 | スタイルごとにインポートされる最大画像数 |
 | `max_analysis_images` | `ARTSMOKER_MAX_ANALYSIS_IMAGES` | 20 | 分析コールごとにAIに送られる最大画像数 |
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Claude＋Stability AIモデルのリージョン |
-| `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Amazon（Nova Sonic音声、Nova Reel動画）のリージョン |
+| `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Amazon（Nova Sonic音声）のリージョン |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | AWSプロファイル名（未設定の場合はデフォルトチェーンを使用） |
 | `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | 起動時のバージョンゲート付き更新＋24時間ごとの定期チェック（gitまたはtarball）、その後その場で再起動 |
 
@@ -1639,7 +1639,7 @@ ArtSmoker/
 > [!IMPORTANT]
 > **モデルは急速に非推奨化・変更されます。** 新しいモデルが頻繁に登場し、古いモデルは頻繁に廃止されるため、ドキュメントにハードコードされた特定のモデル名や料金はすぐに古くなります。ArtSmokerはこれを自動的に処理します — **AWSから同期**するたびに、現在のモデルラインナップを再検出し、共有LLMスロットを最新のClaude Sonnet/Opusに自動ロールし、AWS Pricing APIからライブのモデルごとの料金を`model_registry.json`に更新します。**アプリが信頼できる情報源**です — どのモデルが存在し、いくらかかるか（選択したモデル、品質ティア、リージョン、バッチサイズに応じてImage Studioサイドバーにライブ表示）の両方について。以下のモデル名や数値は**あくまで参考例**です — 常にアプリ内または公式の[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)で現在のモデル/料金を確認してください。
 
-アプリの**デフォルトリージョン**は`us-west-2`（Claude、Stability AI）と`us-east-1`（Amazon Nova Sonic、Nova Reel）です；料金はリージョンによって異なります。コストモデルについては[SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)も参照してください。
+アプリの**デフォルトリージョン**は`us-west-2`（Claude、Stability AI）と`us-east-1`（Amazon Nova Sonic）です；料金はリージョンによって異なります。コストモデルについては[SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)も参照してください。
 
 ### 📝 12.1 単位あたりの料金
 

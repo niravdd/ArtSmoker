@@ -151,7 +151,6 @@ AI Pipeline (Amazon Bedrock)
     +-- Stable Image Ultra      — Image generation (Stability AI premium)
     +-- Stable Image Core       — Image generation (Stability AI fast)
     +-- Stability AI            — Background removal, upscaling, inpainting, style transfer
-    +-- Nova Reel v1.0/v1.1    — Video generation (text-to-video, image-to-video, multi-shot)
     +-- Luma AI Ray v2.0       — Video generation (text-to-video, flexible aspect ratios)
     +-- Nova Sonic              — Speech-to-text transcription (bidirectional streaming)
     |
@@ -770,7 +769,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 **Two-region architecture**:
 - `us-west-2` (`aws_region_models`): Claude models, Stability AI models (including Stable Diffusion 3.5 Large, Stable Image Ultra).
-- `us-east-1` (`aws_region_images`): Nova Sonic, Nova Reel.
+- `us-east-1` (`aws_region_images`): Nova Sonic.
 
 **Bedrock client** (`backend/services/bedrock_client.py`):
 - Lazy-initialized boto3 clients keyed by region with connection pooling (10 max pool connections).
@@ -821,7 +820,6 @@ Why both matter: the newest **frontier models are Mantle-only** — OpenAI **GPT
 | Stable Diffusion 3.5 Large | `stability.sd3-5-large-v1:0` | us-west-2 | Primary image generation |
 | Stable Image Core 1.0 | `stability.stable-image-core-v1:1` | us-west-2 | Image generation (Stability AI fast) |
 | Stable Image Ultra | `stability.stable-image-ultra-v1:1` | us-west-2 | Image generation (Stability AI premium) |
-| Nova Reel v1.1 | `amazon.nova-reel-v1:1` | us-east-1 | Video generation (Amazon) |
 | Luma Ray v2.0 | `luma.ray-v2:0` | us-west-2 | Video generation (Luma AI) |
 | Nova Sonic | newest ACTIVE in `voice_models` (e.g. `amazon.nova-2-5-sonic`) | us-east-1 | Speech-to-text |
 
@@ -1329,7 +1327,7 @@ Uses an LLM to determine the best asset type for a prompt. Key distinction: a pe
 | POST | `/api/video/revise` | Re-generate with modified prompt, linked to original video in metadata. Inherits settings from the original job. |
 | DELETE | `/api/video/{video_id}` | Delete video (local files). |
 
-**Prompt enhancement:** When "Enhance prompt" is enabled, the `video_enhance_prompt` template adds camera movements, lighting, and temporal cues. The template receives `{model_guidance}` from the video model's `prompt_guidance` field in the registry (or a sensible default: "Richly descriptive, up to 5000 characters" for Luma Ray, "Concise descriptive caption, 512 character limit" for Nova Reel). `{optimal_length}` comes from the model's `optimal_prompt_words` field. Video models have no negative prompt support — avoidance terms are woven into positive descriptions naturally.
+**Prompt enhancement:** When "Enhance prompt" is enabled, the `video_enhance_prompt` template adds camera movements, lighting, and temporal cues. The template receives `{model_guidance}` from the video model's `prompt_guidance` field in the registry (or a sensible default: "Richly descriptive, up to 5000 characters" for Luma Ray, "Concise descriptive caption, 512 character limit" for any other family). `{optimal_length}` comes from the model's `optimal_prompt_words` field. Video models have no negative prompt support — avoidance terms are woven into positive descriptions naturally.
 
 ### 5.8 Chat Studio
 
@@ -2411,7 +2409,7 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 13. **Test prompt enhancement**: Type a brief prompt, click "Preview Enhanced Prompt" — verify the enhanced prompt respects user intent over style defaults.
 14. **Test marketing banner**: Set asset type to "Marketing Banner" and generate — verify the result is a scenic composition, not an isolated sprite.
 15. **Test Type Studio**: Navigate to Type Studio, enter text lines, select fonts, request AI layout suggestions. Verify 1-5 layout options are returned. Select a layout and render — verify the result is saved to the gallery.
-16. **Test Video Studio**: Navigate to Video Studio, configure S3 bucket in Video Settings, select a video model (Nova Reel or Luma Ray), enter a prompt, and generate. Verify the job appears in Active Jobs, polling updates the status, and on completion the video plays and thumbnail appears. Verify the video also appears in the Gallery with a VIDEO badge.
+16. **Test Video Studio**: Navigate to Video Studio, configure S3 bucket in Video Settings, select a video model (e.g. Luma Ray), enter a prompt, and generate. Verify the job appears in Active Jobs, polling updates the status, and on completion the video plays and thumbnail appears. Verify the video also appears in the Gallery with a VIDEO badge.
 17. **Browse gallery**: Switch to Gallery view — verify generated images and videos appear with the Media filter (All / 2D Artwork / 3D Models / Video), style filter, and search. Test multi-select and bulk delete (both image and video assets).
 18. **Test AssetViewer buttons**: Open an image asset — verify "Image Studio" and "Add Text" buttons appear. Open a type-studio asset — verify "Edit in Type Studio" button appears. Click a video card — verify the video player modal opens with metadata.
 19. **Test style_snapshot**: Delete a style, then view an asset that was generated with it — verify the style name still displays from the snapshot.
@@ -2454,9 +2452,9 @@ Real-HTTP checks against a running server, every model and route read from the r
 > **All in-app costs are estimates only.** Every cost ArtSmoker shows or reports (per-image/video/token, 3D compute, keep-warm, deployment, session/asset totals) is a **guidance estimate** computed from AWS published pricing × expected usage — **not a bill and not a guarantee** of actual charges. Actual cost depends on account pricing, region, discounts, taxes, data transfer, endpoint uptime (incl. idle/warm SageMaker instances), and auto-scaling. **Users are solely responsible for monitoring their own AWS spend** (Billing Console, Cost Explorer, Budgets/alarms). See the README [Disclaimer](README.md#disclaimer).
 >
 > The tables below are **reference pricing for deployment planning**. The application shows **live pricing** in the UI, all fetched from the AWS Pricing API during registry refresh-all and stored in `model_registry.json`:
-> - **Image per-unit** — `_fetch_image_pricing` → `image_pricing` (per model|region|quality|size). Resolved by `cost_tracker.resolve_image_price(cfg, key, region, quality)` — the SAME resolver the Model Settings pricing endpoint uses (single source of truth). `_fetch_image_pricing` reads the AWS Price List's per-image rows: quality/size-keyed rows (`name|region|quality|size`) where the usage type carries them, and one flat per-image price (`name|region`) for Marketplace-sold models such as SD 3.5 Large and Stable Image Ultra/Core. When the registry has no price, the caller tries an on-demand fetch, then the model's `base_price_usd`, then shows "pricing unavailable".
+> - **Image per-unit** — `_fetch_image_pricing` → `image_pricing` (per model|region|quality|size). Resolved by `cost_tracker.resolve_image_price(cfg, key, region, quality)` — the SAME resolver the Model Settings pricing endpoint uses (single source of truth). `_fetch_image_pricing` reads the AWS Price List's per-image rows: quality/size-keyed rows (`name|region|quality|size`) where the usage type carries them, and one flat per-image price (`name|region`) for Marketplace-sold models such as SD 3.5 Large and Stable Image Ultra/Core. Each row is recorded under every name the product goes by (`product_model_names`: the `model` attribute, which AWS may fill with a short code such as `SD3.5LargeV1`, and the Marketplace `servicename` display name), so `NameIndex` matches the model whichever name AWS uses. When the registry has no price, the caller tries an on-demand fetch, then the model's `base_price_usd`, then shows "pricing unavailable".
 > - **SageMaker instance hourly rates** — `_fetch_sagemaker_pricing` (`ServiceCode=AmazonSageMaker`, `component=Hosting`) → `sagemaker_pricing` (per instance|region); resolved by `custom_models.get_instance_hourly_rate(instance, catalog_key, region)` (synced per-region → any synced region → catalog seed → **on-demand Pricing-API fetch cached in-memory**), driving all compute-cost math (3D, async 2D, keep-warm). Sync also refreshes `custom_model_catalog.gpu_instances[*].cost_per_hour_usd` from this table so the deploy UI can't drift.
-> - **Video per-second** — `_fetch_video_pricing` → `video_pricing` (per model|region, Nova Reel); resolved by `resolve_video_price_per_sec` (registry → `base_price_per_second_usd`). Luma Ray isn't in the API → uses the registry value.
+> - **Video per-second** — `_fetch_video_pricing` → `video_pricing` (per model|region, each row under every name the product goes by — `product_model_names`); resolved by `resolve_video_price_per_sec` (registry → `base_price_per_second_usd`).
 > - **LLM per-token** — `_sync_official_pricing` (`backend/services/official_pricing.py`) records only **official AWS sources**: (1) the **AWS Price List API** (`pricing:GetProducts`, service codes `AmazonBedrock`, `AmazonBedrockService`, `AmazonBedrockFoundationModels` — the same data the public pricing page renders); (2) **agreement-offer rate cards** (`bedrock:ListFoundationModelAgreementOffers`) — what AWS bills Marketplace-sold models by, keyed by exact model id; (3) the **Bedrock User Guide model cards** — In-Region / Geo / Global tables and the long-context threshold no API exposes. A row counts only if it is a **standard on-demand** token price (a *positive* rule: the words allowed after the direction phrase are the profile scope, the long-context band and "standard" — batch / flex / priority / cache / any future tier is rejected by default rather than deny-listed). Vendors and geos are discovered from the data, not hardcoded. Each `chat_models` entry gets `token_pricing` = `{rates, by_region: {Region \| geo:<GEO> \| *: {input_per_1k, output_per_1k, global_input_per_1k, global_output_per_1k, long_…}}}` plus the pinned-route `input_price_per_1k`/`output_price_per_1k`. `cost_tracker.compute_llm_cost(model, in, out, region)` reads these registry prices **ONLY**, for the Region actually invoked and the id's scope (Global rate for a `global.` id, regional otherwise, each falling back to the other); an unpriced model returns `0.0` ("pricing unavailable") — **no hardcoded fallback**.
 > - **Curated provider prices** — `provider_price_defaults` (base registry) holds published per-unit prices for models the Pricing API can't return (Stability image services, Luma video), kept in the registry rather than in code.
 > - **S3 infra** — `_record_infra_pricing` seeds standard per-region S3 request/transfer rates into `infra_pricing`; `cost_tracker._get_infra_pricing` reads the registry only.

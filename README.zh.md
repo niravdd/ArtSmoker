@@ -72,7 +72,7 @@ ArtSmoker 是一个自托管的创意工作室，将当今最好的生成式模�
 - **每个模型，一键搞定** —— 跨区域使用最新的托管模型，或将精选的开源模型（Qwen-Image、FLUX.2、HunyuanImage、TripoSG、TRELLIS.2 等）一键部署到您自己的 GPU 上 —— 打包、量化、自动缩放和任务跟踪全部处理妥当，每个模型在发布前都经过端到端验证。
 - **在您想要的地方运行 —— 您的 IP 始终归您所有** —— 将它安装在单个艺术家的桌面上，或安装在供整个团队共享的实例上；**无需您自己的 GPU**（繁重的计算运行在托管的 AWS 服务上，或运行在 ArtSmoker 为您启动并在空闲时缩回至零的自动缩放端点上）。它只连接到您自己的 AWS 账户 —— 作品、提示词、风格和生成的资产都留在您的环境中，没有任何内容流向第三方服务，您对自己的创意 IP 保留完全的所有权。
 
-**Amazon Bedrock 模型**：Claude Sonnet/Opus（提示词工程和聊天）、Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core、Stability AI 服务（图像编辑）、Nova Reel、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。**自托管模型**：Qwen-Image（文生图）与 Qwen-Image-Edit（参考引导 + 指令编辑，Apache-2.0）、HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSG 与 TRELLIS.2（图像转 3D）等，通过 Amazon SageMaker 提供 —— 并附带可扩展目录以添加新模型。
+**Amazon Bedrock 模型**：Claude Sonnet/Opus（提示词工程和聊天）、Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core、Stability AI 服务（图像编辑）、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。**自托管模型**：Qwen-Image（文生图）与 Qwen-Image-Edit（参考引导 + 指令编辑，Apache-2.0）、HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSG 与 TRELLIS.2（图像转 3D）等，通过 Amazon SageMaker 提供 —— 并附带可扩展目录以添加新模型。
 
 **[立即开始 —— 跳转至前置条件和安装 ▸](#get-started)**
 
@@ -133,7 +133,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 - 🖼️ **Image Studio** —— 以选项 x 变体生成图像，引导式 3 步提示词工作流
 - 🎨 **Prompt Designer** —— AI 将提示词分解为可编辑的视觉组件（主体、场景、光照、颜色），每个字段可锁定/变化切换，风格集成，智能资产类型分类。Photorealistic、Character、Environment 等
 - 🗂️ **合集（成套生成）** — 将一条提示词**或一张参考图**变成一整套风格一致的**不同资产**（如「维京风格国际象棋套装」「20 个 JRPG 角色」）。在 Image Studio 打开 **Collection** 开关——从 **Text** 标签（由你的提示词驱动）或 **Image-Inspired** 标签（由参考图的*外观*驱动美术方向）——专用的 **Collection Designer** 会将你的构思分解为共享的**美术方向**加一份主题一致的不同主体**清单**——每个主体都是一个**批次**，带有可编辑的、与模型无关的提示词。编辑美术方向即可重构整套；对单个批次进行锁定、重生成、新增或删除；然后一次性生成全部（每个批次 选项×变体），并实时显示设计＋预估成本。**可选一个模型得到统一的一套，或选多个模型让每个批次都由各模型分别生成**（跨模型对比）。可选的 **hero-**／**reference-anchor** 一致性会将整套的风格锁定到所选／所提供的图像。合集在 Gallery 中显示为**一张卡片**，打开合集查看器后，每个批次都可下钻到常规的 Asset Viewer（选项／变体／版本、编辑、导出和 3D——与单张图片完全相同，另有该批次的**合集谱系**）；你可以**固定代表每个批次的版本**、**一次性把整套转 3D**（或只转你挑选的批次或图片），并在合集自己的 **3D models** 视图中看着每个模型陆续到位、将整套或所选内容打包为一个 zip **下载**——与单张图片提供的文件相同（PNG、SVG 和去背景抠图），或其 3D 模型（采用相同的引擎预设、LOD、碰撞体和纹理打包）——或**将整个合集重新载入 Image Studio** 以复查和重新生成。合集的 3D 模型始终保留在合集内——Gallery 的 **3D 筛选**会显示带「3D n/m」徽章的合集卡片。载入的合集会**直接显示在 Image Studio 的结果区域**（与单张图片相同的卡片、预览和提示词面板，按批次分组）；重新打开 Collection Designer 会显示**保存的原始设计**（艺术指导、每个批次的提示词，以及各模型实际收到的提示词），只有在你要求时才会重新生成;并且在**产生任何费用之前**会根据提示词检查资产类型(合集为角色或游戏资产)——绝不会为错误类型的整套作品付费
-- 🎬 **Video Studio** —— 模型特定的提示词引导（Nova Reel 摄像机控制、Luma Ray 自然语言）的文生视频，多镜头、图生视频
+- 🎬 **Video Studio** —— 模型特定的提示词引导（Luma Ray 自然语言导演式描述）的文生视频，图生视频、循环
 - ✍️ **Type Studio** —— 带字体选择器的 AI 设计文字叠加
 - 💬 **Chat Studio** —— 支持流式输出、Markdown、代码高亮、视觉、会话、上下文压缩的多模型 LLM 聊天
 - 📁 **统一画廊** —— 瀑布流布局，以每个资产的真实纵横比展示（竖版、方形、横版 —— 从不裁剪）。浏览图像 + 视频、媒体过滤（全部 / 2D 作品 / 3D 模型 / 视频）、搜索、完整的日期-时间-时区戳、下载、删除。已生成 3D 模型的资产带有 **3D 徽章**，**3D 模型**过滤器则专门列出这些资产
@@ -215,7 +215,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 *3D 管线的截图 —— 生成、源图审查、面向游戏引擎定制的导出与变体 —— 展示在下方第 1.9 节（3D 模型生成）中，与其对应的功能相伴呈现。*
 
-**Video Studio** —— 左侧为设置（模型、生成模式、时长、区域、成本估算），右侧为提示词。支持 Nova Reel（单镜头、最长 2 分钟的多镜头自动/手动）和 Luma AI Ray（宽高比、循环）。
+**Video Studio** —— 左侧为设置（模型、生成模式、时长、区域、成本估算），右侧为提示词。提供 **Sync from AWS** 在您账户中发现的视频模型 —— 目前为 Luma AI Ray（宽高比、循环）。
 
 ![Video Studio — 设置和提示词](docs/images/video-studio.png)
 
@@ -256,17 +256,16 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 ### 📝 1.6 Video Studio
 
-从文本提示词生成 AI 驱动的视频和动画。支持 **Amazon Nova Reel**（v1.0、v1.1）和 **Luma AI Ray**（v2.0）。
+从文本提示词生成 AI 驱动的视频和动画。Video Studio 提供 **Sync from AWS** 在您账户中发现的视频模型 —— 目前为 **Luma AI Ray**（v2.0）。Amazon Nova Reel（v1.0、v1.1）已于 2026-09-30 在 AWS 达到生命周期终止（EOL），不再提供。
 
-| 功能 | Nova Reel | Luma Ray v2 |
-|---------|-----------|-------------|
-| **最大时长** | 120 秒（2 分钟） | 9 秒 |
-| **分辨率** | 1280x720 | 720p / 540p |
-| **宽高比** | 仅 16:9 | 7 个选项（1:1、16:9、9:16 等） |
-| **图生视频** | 是（起始帧） | 是（起始 + 结束帧） |
-| **循环视频** | 否 | 是 |
-| **多镜头控制** | 是（自动 + 手动） | 否 |
-| **价格** | ~$0.08/秒 | ~$1.50/秒 |
+| 功能 | Luma Ray v2 |
+|---------|-------------|
+| **最大时长** | 9 秒 |
+| **分辨率** | 720p / 540p |
+| **宽高比** | 7 个选项（1:1、16:9、9:16 等） |
+| **图生视频** | 是（起始 + 结束帧） |
+| **循环视频** | 是 |
+| **价格** | ~$1.50/秒 |
 
 **工作原理：**
 1. 选择视频模型，配置时长、宽高比、区域
@@ -727,7 +726,7 @@ which potrace && echo "potrace: OK" || echo "potrace: not installed (optional)"
 
 ### 📝 2.4 可选：视频缩略图与元数据工具
 
-Video Studio 通过 Amazon Nova Reel 和 Luma AI Ray 生成 MP4 视频。要提取缩略图（首帧为 JPEG）和视频元数据（时长、分辨率、FPS），运行 ArtSmoker 后端的机器上必须安装 **ffmpeg** 和 **ffprobe**。
+Video Studio 通过 Amazon Bedrock 视频模型（目前为 Luma AI Ray）生成 MP4 视频。要提取缩略图（首帧为 JPEG）和视频元数据（时长、分辨率、FPS），运行 ArtSmoker 后端的机器上必须安装 **ffmpeg** 和 **ffprobe**。
 
 没有 ffmpeg 时：
 - 视频仍能正确生成和播放（从 S3 流式传输或下载为 MP4）
@@ -1048,11 +1047,12 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
 │  Claude Sonnet       │  │  Nova Sonic (voice)      │
-│  Claude Opus         │  │  Nova Reel (video)       │
+│  Claude Opus         │  │                          │
 │  SD 3.5 Large        │  │                          │
 │  Stable Image Ultra  │  │                          │
 │  Stable Image Core   │  │                          │
 │  Stability AI (post) │  │                          │
+│  Luma AI Ray (video) │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (其他区域)
              │
              ▼
@@ -1375,7 +1375,7 @@ Image Studio 使用引导式的 3 步工作流：
 - 点击任意工作室侧边栏中的 **"Model Settings"** 打开管理模态框 —— 它会打开到该工作室的相关选项卡。
 - 按工作室组织的 **9 个选项卡**：
   - **Image Studio** —— 图像生成模型（SD 3.5 Large、Stable Image Ultra、Stable Image Core，以及自托管的 FLUX、HunyuanImage、Qwen-Image）、区域、质量等级、提示词限制、审核严格度
-  - **Video Studio** —— 视频模型（Nova Reel、Luma Ray）、S3 存储桶设置、区域、定价
+  - **Video Studio** —— 视频模型（例如 Luma Ray）、S3 存储桶设置、区域、定价
   - **Chat Studio** —— 发现的聊天/LLM 模型（来自 16 个供应商的 80 多个）、上下文窗口、视觉能力、每 1K token 定价
   - **Type Studio** —— 用于文字布局生成的 LLM 模型（Complex 或 Fast LLM）
   - **Shared Studio** —— 跨工作室的 LLM 分类（Fast LLM、Complex LLM、Fallback LLM、Voice）、后处理模型（移除背景、放大）
@@ -1451,7 +1451,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 | AI (图像) | Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core（Amazon Bedrock）；FLUX.2/FLUX.1、HunyuanImage 3.0、Qwen-Image（SageMaker 自托管） |
 | AI (后处理) | Stability AI（移除背景、Creative Upscale） |
 | AI (聊天) | 通过 Bedrock ConverseStream 的来自 16 个供应商的 80 多个 LLM（Claude、Nova、Llama、Mistral 等） |
-| AI (视频) | Nova Reel v1.0/v1.1（最长 2 分钟）、Luma AI Ray v2（最长 9 秒） |
+| AI (视频) | Luma AI Ray v2（最长 9 秒） |
 | AI (语音) | Nova Sonic（通过双向流式传输的语音转文字） |
 | i18n | 自定义 t() 函数、约 1,500 个键 × 9 种语言、反向查找 DOM 翻译 |
 | SVG 转换 | vtracer（主要）、potrace（备选）、Pillow（最后手段） |
@@ -1628,7 +1628,7 @@ ArtSmoker/
 | `max_reference_images` | `ARTSMOKER_MAX_REFERENCE_IMAGES` | 100 | 每个风格导入的最大图像数 |
 | `max_analysis_images` | `ARTSMOKER_MAX_ANALYSIS_IMAGES` | 20 | 每次分析调用发送给 AI 的最大图像数 |
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Claude + Stability AI 模型的区域 |
-| `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Amazon 服务的区域（Nova Sonic 语音、Nova Reel 视频） |
+| `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Amazon 服务的区域（Nova Sonic 语音） |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | AWS 配置文件名称（未设置时使用默认链） |
 | `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | 启动时进行版本门控更新 + 每 24 小时定期检查（git 或 tarball），然后原地重启 |
 
@@ -1639,7 +1639,7 @@ ArtSmoker/
 > [!IMPORTANT]
 > **模型弃用和变更很快。** 新模型频繁推出、旧模型频繁退役，因此文档中硬编码的任何具体模型名称或价格都会很快过时。ArtSmoker 会自动处理这一点 —— 每次 **Sync from AWS** 都会重新发现当前的模型阵容，将共享 LLM 槽位自动滚动到最新的 Claude Sonnet/Opus，并从 AWS Pricing API 将实时的每模型定价刷新到 `model_registry.json`。**应用才是唯一可信来源** —— 无论是哪些模型存在，还是它们各自的价格（根据您所选的模型、质量档位、区域和批量大小，在 Image Studio 侧边栏中实时显示）。下方的模型名称和任何数字**仅为示例说明** —— 请始终在应用内或官方 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)确认当前的模型/价格。
 
-应用的**默认区域**为 `us-west-2`（Claude、Stability AI）和 `us-east-1`（Amazon Nova Sonic、Nova Reel）；价格因区域而异。成本模型另请参阅 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
+应用的**默认区域**为 `us-west-2`（Claude、Stability AI）和 `us-east-1`（Amazon Nova Sonic）；价格因区域而异。成本模型另请参阅 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
 
 ### 📝 12.1 单位定价
 

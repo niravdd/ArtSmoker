@@ -72,7 +72,7 @@ ArtSmoker est un studio créatif auto-hébergé qui place les meilleurs modèles
 - **Chaque modèle, en un clic** — utilisez les derniers modèles hébergés à travers les régions, ou déployez des modèles open source sélectionnés (Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2, et plus) sur vos propres GPU en un seul clic — empaquetage, quantification, mise à l'échelle automatique et suivi des tâches entièrement pris en charge, chaque modèle validé de bout en bout avant sa publication.
 - **Fonctionne où vous le voulez — et votre IP reste la vôtre** — installez-le sur le poste d'un seul artiste ou sur une instance partagée pour toute l'équipe ; **aucun GPU personnel requis** (les calculs lourds s'exécutent sur des services AWS managés, ou sur des endpoints à mise à l'échelle automatique qu'ArtSmoker démarre et ramène à zéro pour vous). Il ne se connecte qu'à votre propre compte AWS — œuvres, prompts, styles et assets générés restent dans votre environnement, rien ne part vers des services tiers, et vous conservez la pleine propriété de votre IP créative.
 
-**Modèles Amazon Bedrock** : Claude Sonnet/Opus (ingénierie de prompts et chat), Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, services Stability AI (édition d'images), Nova Reel, Luma AI Ray (génération vidéo), plus 80+ LLM de 16 fournisseurs pour Chat Studio. **Modèles auto-hébergés** : Qwen-Image (text-to-image) et Qwen-Image-Edit (édition guidée par référence + par instruction, Apache-2.0), HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG et TRELLIS.2 (image-vers-3D), et plus via Amazon SageMaker — avec un catalogue extensible pour ajouter de nouveaux modèles.
+**Modèles Amazon Bedrock** : Claude Sonnet/Opus (ingénierie de prompts et chat), Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, services Stability AI (édition d'images), Luma AI Ray (génération vidéo), plus 80+ LLM de 16 fournisseurs pour Chat Studio. **Modèles auto-hébergés** : Qwen-Image (text-to-image) et Qwen-Image-Edit (édition guidée par référence + par instruction, Apache-2.0), HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG et TRELLIS.2 (image-vers-3D), et plus via Amazon SageMaker — avec un catalogue extensible pour ajouter de nouveaux modèles.
 
 **[Commencer maintenant — aller aux prérequis et à l'installation ▸](#get-started)**
 
@@ -133,7 +133,7 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 - 🖼️ **Image Studio** — Génération d'images avec options x variations, workflow de prompt guidé en 3 étapes
 - 🎨 **Prompt Designer** — L'IA décompose votre prompt en composants visuels éditables (sujet, scène, éclairage, couleurs) avec bascules verrouiller/varier par champ, intégration du style et classification intelligente du type d'asset. Photorealistic, Character, Environment, et plus
 - 🗂️ **Collections (génération d'ensembles)** — transformez UN prompt **ou une image de référence** en un **ensemble cohérent d'assets distincts** (« un jeu d'échecs de style viking », « 20 personnages JRPG »). Activez le sélecteur **Collection** dans l'Image Studio — depuis l'onglet **Text** (piloté par votre prompt) ou **Image-Inspired** (le *look* de l'image de référence pilote la direction artistique) — et un **Collection Designer** dédié décompose votre brief en une **direction artistique** partagée plus un **roster** de sujets distincts dans le thème — chacun étant un **lot** avec son propre prompt éditable et indépendant du modèle. Modifiez la direction artistique pour recomposer tout l'ensemble ; verrouillez, régénérez, ajoutez ou supprimez des lots individuels ; puis générez-les tous d'un coup (options × variations chacun), avec une estimation en direct du design et du coût projeté. **Choisissez un seul modèle pour un ensemble homogène, ou plusieurs pour rendre chaque lot sur chacun** (comparaison inter-modèles). Une cohésion optionnelle **hero-** / **reference-anchor** verrouille le style de l'ensemble sur une image choisie/fournie. Les collections apparaissent comme **une seule carte** dans la Gallery ; le visualiseur de collection permet à chaque lot d'ouvrir l'Asset Viewer habituel (options / variations / versions, retouches, exports et 3D — exactement comme pour une image seule, plus la **lignée de collection** du lot) ; vous pouvez **épingler la version** représentant chaque lot, **passer tout l'ensemble en 3D** d'un coup (ou seulement les lots ou images choisis) et voir chaque modèle arriver dans la vue **3D models** propre à la collection, **télécharger** tout l'ensemble ou une sélection en un seul zip — les mêmes fichiers qu'une image seule (PNG, SVG et détourages sans arrière-plan) ou ses modèles 3D avec les mêmes presets moteur, LOD, collisions et packing de textures — ou **recharger toute la collection dans l'Image Studio** pour la revoir et la régénérer. Les modèles 3D d'une collection restent à l'intérieur de celle-ci — le **filtre 3D** de la Gallery affiche la carte de la collection avec son badge « 3D n/m ». Une collection chargée s'affiche **directement dans la zone de résultats de l'Image Studio** (mêmes cartes, aperçu et panneau de prompt qu'une image seule, regroupés par lot), et rouvrir le Collection Designer montre **le design enregistré à l'identique** (direction artistique, prompt de chaque lot et prompts réellement reçus par chaque modèle) — rien n'est régénéré sans votre demande, et **avant toute dépense** le type d'asset est vérifié par rapport à votre prompt (un ensemble = Personnages ou Assets de jeu) — pour ne jamais payer un ensemble entier dans le mauvais cadrage
-- 🎬 **Video Studio** — Text-to-video avec guidance de prompt spécifique au modèle (contrôles caméra Nova Reel, langage naturel Luma Ray), multi-shot, image-to-video
+- 🎬 **Video Studio** — Text-to-video avec guidance de prompt spécifique au modèle (direction en langage naturel pour Luma Ray), image-to-video, boucle
 - ✍️ **Type Studio** — Superpositions de texte conçues par l'IA avec sélecteur de polices
 - 💬 **Chat Studio** — Chat LLM multi-modèle avec streaming, Markdown, coloration syntaxique, vision, sessions, compactage de contexte
 - 📁 **Galerie unifiée** — Disposition en maçonnerie (masonry) qui affiche chaque asset à son véritable ratio (portrait, carré, paysage — jamais recadré). Parcourez images + vidéos, filtre par média (Tout / 2D Artwork / 3D Models / Video), recherche, horodatages complets date-heure-fuseau, téléchargement, suppression. Les assets qui possèdent déjà un modèle 3D généré portent un **badge 3D**, et le filtre **3D Models** ne fait remonter que ceux-là
@@ -215,7 +215,7 @@ Après un passage d'outpainting (v3 ci-dessous), le même onglet régénère les
 
 *Les captures d'écran du pipeline 3D — génération, vérification de la source, export adapté au moteur de jeu et variantes — sont présentées plus bas, dans la section 1.9 (Génération de modèle 3D), aux côtés des fonctionnalités qu'elles illustrent.*
 
-**Video Studio** — Paramètres à gauche (modèle, mode de génération, durée, région, estimation des coûts), prompt à droite. Prend en charge Nova Reel (plan unique, multi-shot auto/manuel jusqu'à 2 minutes) et Luma AI Ray (rapports d'aspect, boucle).
+**Video Studio** — Paramètres à gauche (modèle, mode de génération, durée, région, estimation des coûts), prompt à droite. Propose les modèles vidéo que **Sync from AWS** découvre dans votre compte — actuellement Luma AI Ray (rapports d'aspect, boucle).
 
 ![Video Studio — Paramètres et prompt](docs/images/video-studio.png)
 
@@ -256,17 +256,16 @@ Les trois modes requièrent une instruction pour que vous gardiez le contrôle d
 
 ### 📝 1.6 Video Studio
 
-Générez des vidéos et animations propulsées par l'IA à partir de prompts textuels. Prend en charge **Amazon Nova Reel** (v1.0, v1.1) et **Luma AI Ray** (v2.0).
+Générez des vidéos et animations propulsées par l'IA à partir de prompts textuels. Video Studio propose les modèles vidéo que **Sync from AWS** découvre dans votre compte — actuellement **Luma AI Ray** (v2.0). Amazon Nova Reel (v1.0, v1.1) a atteint sa fin de vie chez AWS le 2026-09-30 et n'est plus proposé.
 
-| Fonctionnalité | Nova Reel | Luma Ray v2 |
-|----------------|-----------|-------------|
-| **Durée max** | 120s (2 minutes) | 9 secondes |
-| **Résolution** | 1280x720 | 720p / 540p |
-| **Rapports d'aspect** | 16:9 uniquement | 7 options (1:1, 16:9, 9:16, etc.) |
-| **Image-to-video** | Oui (frame de départ) | Oui (frame de départ + de fin) |
-| **Vidéo en boucle** | Non | Oui |
-| **Contrôle multi-shot** | Oui (auto + manuel) | Non |
-| **Prix** | ~$0.08/s | ~$1.50/s |
+| Fonctionnalité | Luma Ray v2 |
+|----------------|-------------|
+| **Durée max** | 9 secondes |
+| **Résolution** | 720p / 540p |
+| **Rapports d'aspect** | 7 options (1:1, 16:9, 9:16, etc.) |
+| **Image-to-video** | Oui (frame de départ + de fin) |
+| **Vidéo en boucle** | Oui |
+| **Prix** | ~$1.50/s |
 
 **Fonctionnement :**
 1. Sélectionnez un modèle vidéo et configurez la durée, le rapport d'aspect, la région
@@ -725,7 +724,7 @@ which potrace && echo "potrace: OK" || echo "potrace: not installed (optional)"
 
 ### 📝 2.4 Optionnel : outils de vignettes et métadonnées vidéo
 
-Video Studio génère des vidéos MP4 via Amazon Nova Reel et Luma AI Ray. Pour extraire les vignettes (première frame en JPEG) et les métadonnées vidéo (durée, résolution, FPS), **ffmpeg** et **ffprobe** doivent être installés sur la machine qui exécute le backend ArtSmoker.
+Video Studio génère des vidéos MP4 via les modèles vidéo d'Amazon Bedrock (actuellement Luma AI Ray). Pour extraire les vignettes (première frame en JPEG) et les métadonnées vidéo (durée, résolution, FPS), **ffmpeg** et **ffprobe** doivent être installés sur la machine qui exécute le backend ArtSmoker.
 
 Sans ffmpeg :
 - Les vidéos se génèrent et se lisent toujours correctement (streamées depuis S3 ou téléchargées en MP4)
@@ -1046,11 +1045,12 @@ Les templates se chargent depuis `backend/prompt_templates.json` — la source d
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
 │  Claude Sonnet       │  │  Nova Sonic (voice)      │
-│  Claude Opus         │  │  Nova Reel (video)       │
+│  Claude Opus         │  │                          │
 │  SD 3.5 Large        │  │                          │
 │  Stable Image Ultra  │  │                          │
 │  Stable Image Core   │  │                          │
 │  Stability AI (post) │  │                          │
+│  Luma AI Ray (video) │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (other regions)
              │
              ▼
@@ -1373,7 +1373,7 @@ Toute la configuration des modèles d'IA est centralisée dans `backend/model_re
 - Cliquez sur **« Model Settings »** dans la barre latérale de n'importe quel studio pour ouvrir la modale d'administration — elle s'ouvre sur l'onglet pertinent pour ce studio.
 - **9 onglets** organisés par studio :
   - **Image Studio** — Modèles de génération d'images (SD 3.5 Large, Stable Image Ultra, Stable Image Core, plus FLUX, HunyuanImage, Qwen-Image auto-hébergés), régions, niveaux de qualité, limites de prompt, sévérité de modération
-  - **Video Studio** — Modèles vidéo (Nova Reel, Luma Ray), paramètres de bucket S3, régions, tarifs
+  - **Video Studio** — Modèles vidéo (p. ex. Luma Ray), paramètres de bucket S3, régions, tarifs
   - **Chat Studio** — Modèles chat/LLM découverts (80+ de 16 fournisseurs), fenêtres de contexte, capacité vision, tarif par 1K tokens
   - **Type Studio** — Modèle LLM pour la génération de mise en page de texte (Complex ou Fast LLM)
   - **Shared Studio** — Catégories LLM inter-studios (Fast LLM, Complex LLM, Fallback LLM, Voice), modèles de post-traitement (Remove Background, Upscale)
@@ -1449,7 +1449,7 @@ Une **estimation des coûts** se met à jour dynamiquement en fonction de toutes
 | IA (Image) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core (Amazon Bedrock) ; FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image (auto-hébergés sur SageMaker) |
 | IA (Post-traitement) | Stability AI (Remove Background, Creative Upscale) |
 | IA (Chat) | 80+ LLM de 16 fournisseurs via Bedrock ConverseStream (Claude, Nova, Llama, Mistral, etc.) |
-| IA (Vidéo) | Nova Reel v1.0/v1.1 (jusqu'à 2 min), Luma AI Ray v2 (jusqu'à 9 s) |
+| IA (Vidéo) | Luma AI Ray v2 (jusqu'à 9 s) |
 | IA (Voix) | Nova Sonic (voix vers texte via streaming bidirectionnel) |
 | i18n | Fonction t() personnalisée, ~1 500 clés × 9 langues, traduction DOM par recherche inversée |
 | Conversion SVG | vtracer (principal), potrace (fallback), Pillow (dernier recours) |
@@ -1626,7 +1626,7 @@ Les paramètres de `backend/config.py` peuvent être surchargés via des variabl
 | `max_reference_images` | `ARTSMOKER_MAX_REFERENCE_IMAGES` | 100 | Nombre max d'images importées par style |
 | `max_analysis_images` | `ARTSMOKER_MAX_ANALYSIS_IMAGES` | 20 | Nombre max d'images envoyées à l'IA par appel d'analyse |
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Région pour les modèles Claude + Stability AI |
-| `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Région pour Amazon (voix Nova Sonic, vidéo Nova Reel) |
+| `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Région pour Amazon (voix Nova Sonic) |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | Nom du profil AWS (utilise la chaîne par défaut si non défini) |
 | `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Mise à jour avec contrôle de version au démarrage + vérification périodique 24h (git ou tarball), puis redémarrage sur place |
 
@@ -1637,7 +1637,7 @@ Réduire `max_analysis_images` réduit les coûts de vision IA par analyse. Réd
 > [!IMPORTANT]
 > **Les modèles sont dépréciés et changent rapidement.** De nouveaux modèles sortent et les anciens sont retirés fréquemment, si bien que tout nom de modèle ou tarif codé en dur dans la documentation devient vite obsolète. ArtSmoker gère cela automatiquement — chaque **Sync from AWS** redécouvre la gamme de modèles actuelle, bascule automatiquement les emplacements LLM partagés vers les Claude Sonnet/Opus les plus récents, et rafraîchit les tarifs en direct par modèle depuis l'API AWS Pricing dans `model_registry.json`. **L'application fait autorité** — à la fois sur les modèles qui existent et sur leur coût (affiché en direct dans la barre latérale de l'Image Studio selon le modèle sélectionné, le niveau de qualité, la région et la taille du lot). Les noms de modèles et tous les chiffres ci-dessous ne sont que des **exemples illustratifs** — confirmez toujours les modèles/tarifs actuels dans l'application ou sur la [page de tarification Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) officielle.
 
-Les **régions par défaut** de l'application sont `us-west-2` (Claude, Stability AI) et `us-east-1` (Amazon Nova Sonic, Nova Reel) ; les prix diffèrent selon la région. Consultez également [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) pour le modèle de coût.
+Les **régions par défaut** de l'application sont `us-west-2` (Claude, Stability AI) et `us-east-1` (Amazon Nova Sonic) ; les prix diffèrent selon la région. Consultez également [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) pour le modèle de coût.
 
 ### 📝 12.1 Tarification à l'unité
 
