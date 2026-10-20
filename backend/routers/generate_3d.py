@@ -458,7 +458,7 @@ def _variant_id(pipeline_type: str, tex_backend: str, model_key: str) -> str:
 def _variant_instance_label(pipeline_type: str, cfg: dict) -> str:
     """Disambiguating label for a variant, shown in the AssetViewer switcher.
 
-    Mirrors the 2D Image Studio model picker: pipeline name + DEPLOYMENT TIME
+    Mirrors the Image Studio model picker: pipeline name + DEPLOYMENT TIME
     (so two deployments of the same model are told apart by when they were
     deployed), e.g. "TRELLIS.2 Full (25Jun 14:18)" / "TripoSG (02Jun 12:14)".
     """

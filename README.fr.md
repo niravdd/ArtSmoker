@@ -107,7 +107,7 @@ ArtSmoker fonctionne en deux modes — **autonome** (aucune configuration de sty
 
 ### 📝 Mode autonome (démarrage rapide)
 
-Aucune configuration de style ou de thème nécessaire — ouvrez le 2D Image Studio, le Video Studio ou le Type Studio et commencez à créer immédiatement.
+Aucune configuration de style ou de thème nécessaire — ouvrez l'Image Studio, le Video Studio ou le Type Studio et commencez à créer immédiatement.
 
 1. **Décrivez ce dont vous avez besoin** — saisissez un prompt comme « hospital building » ou « fire mage character », ou utilisez l'entrée vocale. L'IA décompose votre idée en composants visuels, l'améliore avec des optimisations spécifiques au modèle, et respecte votre intention créative grâce à des contrôles intelligents verrouiller/varier. Écrivez dans n'importe quelle langue — les prompts non anglais sont traduits automatiquement.
 2. **Choisissez vos modèles et paramètres** — multi-sélection parmi tous les modèles text-to-image disponibles (Amazon Bedrock + auto-hébergés sur SageMaker), choisissez les dimensions, le niveau de qualité et la région. Cochez plusieurs modèles pour une comparaison côte à côte, ou un seul pour une génération ciblée. L'estimation des coûts se met à jour en temps réel.
@@ -130,7 +130,7 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 ### 📝 1.1 Aperçu des fonctionnalités
 
 - 🎨 **Style Library** — Téléchargez votre art, l'IA apprend votre identité visuelle
-- 🖼️ **2D Image Studio** — Génération d'images avec options x variations, workflow de prompt guidé en 3 étapes
+- 🖼️ **Image Studio** — Génération d'images avec options x variations, workflow de prompt guidé en 3 étapes
 - 🎨 **Prompt Designer** — L'IA décompose votre prompt en composants visuels éditables (sujet, scène, éclairage, couleurs) avec bascules verrouiller/varier par champ, intégration du style et classification intelligente du type d'asset. Photorealistic, Character, Environment, et plus
 - 🗂️ **Collections (génération d'ensembles)** — transformez UN prompt **ou une image de référence** en un **ensemble cohérent d'assets distincts** (« un jeu d'échecs de style viking », « 20 personnages JRPG »). Activez le sélecteur **Collection** dans l'Image Studio — depuis l'onglet **Text** (piloté par votre prompt) ou **Image-Inspired** (le *look* de l'image de référence pilote la direction artistique) — et un **Collection Designer** dédié décompose votre brief en une **direction artistique** partagée plus un **roster** de sujets distincts dans le thème — chacun étant un **lot** avec son propre prompt éditable et indépendant du modèle. Modifiez la direction artistique pour recomposer tout l'ensemble ; verrouillez, régénérez, ajoutez ou supprimez des lots individuels ; puis générez-les tous d'un coup (options × variations chacun), avec une estimation en direct du design et du coût projeté. **Choisissez un seul modèle pour un ensemble homogène, ou plusieurs pour rendre chaque lot sur chacun** (comparaison inter-modèles). Une cohésion optionnelle **hero-** / **reference-anchor** verrouille le style de l'ensemble sur une image choisie/fournie. Les collections apparaissent comme **une seule carte** dans la Gallery ; le visualiseur de collection permet à chaque lot d'ouvrir l'Asset Viewer habituel (options / variations / versions, retouches, exports et 3D — exactement comme pour une image seule, plus la **lignée de collection** du lot) ; vous pouvez **épingler la version** représentant chaque lot, **passer tout l'ensemble en 3D** d'un coup (ou seulement les lots ou images choisis) et voir chaque modèle arriver dans la vue **3D models** propre à la collection, **télécharger** tout l'ensemble ou une sélection en un seul zip — les mêmes fichiers qu'une image seule (PNG, SVG et détourages sans arrière-plan) ou ses modèles 3D avec les mêmes presets moteur, LOD, collisions et packing de textures — ou **recharger toute la collection dans l'Image Studio** pour la revoir et la régénérer. Les modèles 3D d'une collection restent à l'intérieur de celle-ci — le **filtre 3D** de la Gallery affiche la carte de la collection avec son badge « 3D n/m ». Une collection chargée s'affiche **directement dans la zone de résultats de l'Image Studio** (mêmes cartes, aperçu et panneau de prompt qu'une image seule, regroupés par lot), et rouvrir le Collection Designer montre **le design enregistré à l'identique** (direction artistique, prompt de chaque lot et prompts réellement reçus par chaque modèle) — rien n'est régénéré sans votre demande, et **avant toute dépense** le type d'asset est vérifié par rapport à votre prompt (un ensemble = Personnages ou Assets de jeu) — pour ne jamais payer un ensemble entier dans le mauvais cadrage
 - 🎬 **Video Studio** — Text-to-video avec guidance de prompt spécifique au modèle (contrôles caméra Nova Reel, langage naturel Luma Ray), multi-shot, image-to-video
@@ -155,17 +155,17 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 
 ### 📝 1.2 Captures d'écran
 
-**2D Image Studio** — Paramètres à gauche avec liste déroulante multi-sélection de modèles, type d'asset, dimensions et options de post-traitement. Workflow de prompt en 3 étapes à droite avec les boutons Prompt Designer et Generate Enhanced Prompt. Déclaration IP et estimation des coûts en bas.
+**Image Studio** — Paramètres à gauche avec liste déroulante multi-sélection de modèles, type d'asset, dimensions et options de post-traitement. Workflow de prompt en 3 étapes à droite avec les boutons Prompt Designer et Generate Enhanced Prompt. Déclaration IP et estimation des coûts en bas.
 
-![2D Image Studio — Paramètres, workflow de prompt et contrôles de génération](docs/images/image-studio-top.png)
+![Image Studio — Paramètres, workflow de prompt et contrôles de génération](docs/images/image-studio-top.png)
 
-**2D Image Studio — Résultats de génération** — Le prompt amélioré est affiché au-dessus, les résultats de comparaison multi-modèle en dessous. Chaque modèle génère indépendamment avec une optimisation du prompt spécifique à chaque modèle. Les résultats affichent le nom du modèle, les dimensions et le coût de génération.
+**Image Studio — Résultats de génération** — Le prompt amélioré est affiché au-dessus, les résultats de comparaison multi-modèle en dessous. Chaque modèle génère indépendamment avec une optimisation du prompt spécifique à chaque modèle. Les résultats affichent le nom du modèle, les dimensions et le coût de génération.
 
-![2D Image Studio — Prompt amélioré et résultats de génération](docs/images/image-studio-results.png)
+![Image Studio — Prompt amélioré et résultats de génération](docs/images/image-studio-results.png)
 
-**2D Image Studio — Comparaison de modèles** — Grille de comparaison côte à côte de tous les modèles sélectionnés (8 affichés — Amazon Bedrock et auto-hébergés à égalité). Chaque carte d'option porte sa propre bande de variations ; le prompt négatif propre au modèle est affiché pour l'option sélectionnée. Les bascules de post-traitement (Remove Background, Convert to SVG, Upscale) s'appliquent aux résultats existants sans régénération.
+**Image Studio — Comparaison de modèles** — Grille de comparaison côte à côte de tous les modèles sélectionnés (8 affichés — Amazon Bedrock et auto-hébergés à égalité). Chaque carte d'option porte sa propre bande de variations ; le prompt négatif propre au modèle est affiché pour l'option sélectionnée. Les bascules de post-traitement (Remove Background, Convert to SVG, Upscale) s'appliquent aux résultats existants sans régénération.
 
-![2D Image Studio — Grille de comparaison multi-modèle avec variations](docs/images/image-studio-comparison.png)
+![Image Studio — Grille de comparaison multi-modèle avec variations](docs/images/image-studio-comparison.png)
 
 **Image Inspiration (guidée par référence)** — Déposez 1 à 3 images de référence, dites ce que vous voulez, et choisissez leur usage : **Fidèle à la référence** (édition fidèle au pixel sur un modèle d'édition d'images déployé) ou **Inspiré de la référence** (une IA de vision écrit le prompt enrichi — fonctionne avec n'importe quelle sélection de modèles, options et variations). Le prompt dérivé est prévisualisé et entièrement modifiable avant la génération.
 
@@ -1076,9 +1076,9 @@ Les templates se chargent depuis `backend/prompt_templates.json` — la source d
        │           │           │           │           │
        ▼           ▼           ▼           ▼           ▼
   ┌──────────┐ ┌────────┐ ┌────────┐ ┌──────────┐ ┌────────┐
-  │  Style   │ │  2D    │ │ Video  │ │   Type   │ │  Chat  │
-  │ Library  │ │ Image  │ │ Studio │ │  Studio  │ │ Studio │
-  │          │ │ Studio │ │        │ │          │ │        │
+  │  Style   │ │ Image  │ │ Video  │ │   Type   │ │  Chat  │
+  │ Library  │ │ Studio │ │ Studio │ │  Studio  │ │ Studio │
+  │          │ │        │ │        │ │          │ │        │
   │ Upload   │ │Generate│ │Generate│ │ Add text │ │ Multi- │
   │ Analyze  │ │ images │ │ videos │ │ to imgs  │ │ model  │
   │ Set fonts│ │        │ │        │ │          │ │ LLM    │
@@ -1104,9 +1104,8 @@ Les templates se chargent depuis `backend/prompt_templates.json` — la source d
                     ▼              ▼              ▼
             ┌──────────────┐ ┌──────────┐ ┌──────────────┐
             │ Download     │ │ Reload   │ │ Add Text     │
-            │ PNG / SVG    │ │ in 2D    │ │ in Type      │
-            │              │ │ Image    │ │ Studio       │
-            │              │ │ Studio   │ │              │
+            │ PNG / SVG    │ │ in Image │ │ in Type      │
+            │              │ │ Studio   │ │ Studio       │
             │              │ │ (refine &│ │ (overlay     │
             │              │ │  regen)  │ │  text)       │
             └──────────────┘ └──────────┘ └──────────────┘
@@ -1115,7 +1114,7 @@ Les templates se chargent depuis `backend/prompt_templates.json` — la source d
 **Trois points d'entrée, une galerie unifiée :**
 
 - **Commencer par un style** — téléchargez de l'art de référence dans la Style Library, laissez l'IA l'analyser, puis générez dans n'importe quel studio. Le style guide toutes les sorties.
-- **Commencer sans style** — allez directement dans le 2D Image Studio, le Video Studio ou le Type Studio. L'IA use de son meilleur jugement.
+- **Commencer sans style** — allez directement dans l'Image Studio, le Video Studio ou le Type Studio. L'IA use de son meilleur jugement.
 - **Commencer depuis la Galerie** — choisissez n'importe quel asset précédemment généré et rechargez-le dans le studio approprié pour l'affiner, ajoutez-y du texte, lisez une vidéo, ou téléchargez en PNG/SVG/MP4.
 
 Tous les assets générés (images, vidéos, superpositions de texte, texte autonome) atterrissent dans la Galerie unifiée. Rien n'est écrasé — chaque génération crée de nouveaux assets.
@@ -1224,9 +1223,9 @@ dialog     dialog
  rewrite)   prompt area)
 ```
 
-### 📝 6.4 2D Image Studio (générer des assets)
+### 📝 6.4 Image Studio (générer des assets)
 
-Le 2D Image Studio utilise un workflow guidé en 3 étapes :
+L'Image Studio utilise un workflow guidé en 3 étapes :
 
 **Étape 1 — Décrivez votre idée** : Saisissez un prompt dans la zone de texte. Le placeholder montre un exemple réaliste qui change selon le type d'asset sélectionné (par ex. « A young female warrior in ornate silver armor... » pour Character, ou « A misty Japanese garden at dawn... » pour Environment). Utilisez l'entrée vocale (bouton micro) pour dicter au lieu de taper.
 
@@ -1258,7 +1257,7 @@ Avant l'ouverture du Prompt Designer, une **classification IA du type d'asset** 
 
 La progression de la génération est streamée en temps réel via SSE — l'UI affiche quelle image est en cours de génération (par ex. « Generating images... 12/25 »), le temps écoulé et l'étape actuelle du pipeline. Si l'API est limitée (throttled), vous verrez « API throttled — waiting to retry... » avec le délai, puis « Retrying... (attempt 2/3) » — chaque image réessaie jusqu'à 3 fois avec un backoff exponentiel afin que les gros lots ne perdent pas de variantes à cause d'une limitation transitoire.
 
-Les résultats générés survivent à la navigation — passer d'un onglet à l'autre et revenir préserve l'état DOM du 2D Image Studio. Seul le bouton de réinitialisation l'efface.
+Les résultats générés survivent à la navigation — passer d'un onglet à l'autre et revenir préserve l'état DOM de l'Image Studio. Seul le bouton de réinitialisation l'efface.
 
 **Modération de contenu intelligente** : Lorsque votre prompt est bloqué par les filtres de modération d'un modèle, ArtSmoker le gère progressivement via trois boîtes de dialogue à code couleur :
 
@@ -1281,7 +1280,7 @@ Les déclencheurs courants incluent les noms d'IP protégés et les références
 5. Dans la vue de détail du style, utilisez **« Import & Analyze »** pour ajouter plus de références et déclencher l'analyse en une seule étape. Le téléchargement par glisser-déposer est aussi supporté et **relance automatiquement l'analyse** lorsque de nouvelles images sont ajoutées.
 6. **« Re-Analyze Style »** apparaît après l'analyse initiale, vous permettant de relancer manuellement l'analyse à tout moment.
 7. **Les indications de génération** font partie du contexte d'analyse — l'IA reçoit à la fois les images de référence et vos indications comme « Artist's Guidance » lors de l'analyse, afin que le profil de style comprenne l'intention, pas seulement l'apparence visuelle. Modifier les indications de génération déclenche aussi une **réanalyse automatique**.
-8. De retour dans le **2D Image Studio**, sélectionnez votre style dans le menu déroulant — tous les assets générés correspondront à son identité visuelle (palette, perspective, style de rendu, ambiance).
+8. De retour dans l'**Image Studio**, sélectionnez votre style dans le menu déroulant — tous les assets générés correspondront à son identité visuelle (palette, perspective, style de rendu, ambiance).
 
 ### 📝 6.6 Flux d'analyse de style
 
@@ -1335,7 +1334,7 @@ Ajoutez du texte aux images ou générez des assets de texte autonomes avec une 
 - **Éditeur de texte multi-lignes** avec sélection de police par ligne, contrôles de positionnement, et **entrée vocale** (bouton micro par ligne — dictez le texte via la transcription Nova Sonic).
 - **Mises en page conçues par l'IA** — l'IA suggère les couleurs, tailles, positions et effets (ombre, contour, lueur). Demandez 1 à 5 options de mise en page pour différentes directions créatives. Le **modèle LLM** utilisé pour la mise en page est configurable (Complex LLM pour la meilleure qualité, Fast LLM pour moins cher) — lit depuis les catégories du registre.
 - **Sélecteur de polices avec aperçu en direct** — polices de style, 8 polices intégrées (Roboto, Open Sans, Lato, Montserrat, Playfair Display, Oswald, Raleway, Source Code Pro), polices système, et **polices détectées côté client** (via la Local Font Access API ou le sondage canvas).
-- **Pré-traitement / Post-traitement** — même workflow que le 2D Image Studio, avec un bouton « Apply » pour le post-traitement. La conversion SVG est activée par défaut.
+- **Pré-traitement / Post-traitement** — même workflow que l'Image Studio, avec un bouton « Apply » pour le post-traitement. La conversion SVG est activée par défaut.
 - **Cliquer pour zoomer** — cliquer sur l'aperçu du résultat ouvre l'AssetViewer avec zoom/panoramique complet, métadonnées, téléchargement et outils d'édition d'image.
 - Les résultats sont enregistrés comme de nouveaux assets de la galerie (les originaux ne sont jamais écrasés).
 
@@ -1348,7 +1347,7 @@ Ajoutez du texte aux images ou générez des assets de texte autonomes avec une 
 - Support de la pagination (limit/offset) pour les grandes collections.
 - La Galerie se rafraîchit automatiquement lorsque vous y revenez, et après toute édition ou génération vidéo terminée.
 - **Les cartes vidéo** affichent une vignette avec une superposition de lecture, un badge VIDEO et un indicateur de durée. Cliquez pour ouvrir la modale du lecteur vidéo.
-- **Boutons d'action contextuels** par asset selon le type : **« 2D Studio »** (indigo) pour recharger dans l'image studio, **« Add Text »** (emerald) pour ouvrir dans Type Studio, **« Edit in Type Studio »** (purple) pour les assets de texte.
+- **Boutons d'action contextuels** par asset selon le type : **« Image Studio »** (indigo) pour recharger dans l'Image Studio, **« Add Text »** (emerald) pour ouvrir dans Type Studio, **« Edit in Type Studio »** (purple) pour les assets de texte.
 - Cliquez sur n'importe quelle image pour ouvrir la modale **AssetViewer** avec :
   - **Zoom/panoramique** — molette de la souris pour zoomer, glisser pour se déplacer, boutons Fit/1:1 avec mise en évidence du mode actif.
   - **Onglet Edit** — inpaint, erase, outpaint, search & replace, ou recolor de l'image directement. Deux types d'éditeurs sont proposés par mode : **basé sur masque** (Stability) — peignez un masque avec l'outil pinceau, entrez un prompt, et appliquez ; et **éditeurs à instructions sans masque** (Qwen-Image-Edit, une fois déployés) — décrivez simplement le changement en mots, aucun masque nécessaire. Les contrôles du pinceau se cachent automatiquement pour un modèle sans masque. Choisissez le modèle d'édition, appliquez ; par défaut cela remplace l'image originale, décochez « Replace original » pour enregistrer comme un nouvel asset (chaque édition préserve l'historique des versions).
@@ -1365,7 +1364,7 @@ Cliquez sur le bouton microphone à côté de l'éditeur de prompt pour dicter v
 
 ### 📝 6.10 Préservation de l'état des vues
 
-Ordre de navigation : **Style Library → 2D Image Studio → Type Studio → Video Studio → Gallery**. Passer d'une vue à l'autre préserve l'état DOM de chaque vue. Les résultats générés, les saisies de formulaire et les positions de défilement survivent à la navigation. Le bouton de réinitialisation ambre dans le 2D Image Studio et le Video Studio est le seul moyen d'effacer leur état.
+Ordre de navigation : **Style Library → Image Studio → Type Studio → Video Studio → Gallery**. Passer d'une vue à l'autre préserve l'état DOM de chaque vue. Les résultats générés, les saisies de formulaire et les positions de défilement survivent à la navigation. Le bouton de réinitialisation ambre dans l'Image Studio et le Video Studio est le seul moyen d'effacer leur état.
 
 ### 📝 6.11 Gestion des modèles
 
@@ -1406,7 +1405,7 @@ ArtSmoker peut déployer des modèles d'IA open source sur **Amazon SageMaker** 
 
 **CPU offloading :** Les grands modèles de diffusion utilisent un offloading CPU intelligent pour tenir sur des instances GPU plus petites. L'entrée de catalogue de chaque modèle spécifie la stratégie — `model_cpu_offload` (garde les couches actives sur le GPU) ou `sequential_cpu_offload` (offload agressif couche par couche pour les très grands modèles). Appliqué automatiquement par le gestionnaire d'inférence.
 
-**Génération asynchrone avec Pending Jobs :** Les modèles auto-hébergés génèrent de manière asynchrone. Un panneau **Pending Jobs** apparaît dans le 2D Image Studio montrant les jobs actifs avec des indicateurs de progression. Les images terminées arrivent dans la Galerie automatiquement — aucun polling ni rafraîchissement de page nécessaire.
+**Génération asynchrone avec Pending Jobs :** Les modèles auto-hébergés génèrent de manière asynchrone. Un panneau **Pending Jobs** apparaît dans l'Image Studio montrant les jobs actifs avec des indicateurs de progression. Les images terminées arrivent dans la Galerie automatiquement — aucun polling ni rafraîchissement de page nécessaire.
 
 **Gestion des jetons HuggingFace :** Les modèles à accès restreint nécessitent un jeton HuggingFace en lecture seule. Le jeton est stocké chiffré dans **AWS Secrets Manager** de votre compte, géré via l'UI (définir/mettre à jour/supprimer), et partagé entre tous les modèles qui en ont besoin. Les jetons sont automatiquement nettoyés lorsque vous démantelez tous les modèles.
 
@@ -1599,7 +1598,7 @@ ArtSmoker/
 │       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 traductions
 │       ├── services/api.js      # Backend API client
 │       └── components/
-│           ├── ImageStudio.js   # 2D Image Studio (options × variations)
+│           ├── ImageStudio.js   # Image Studio (options × variations)
 │           ├── TypeStudio.js    # Type Studio (text overlay)
 │           ├── VideoStudio.js   # Video Studio (text-to-video generation)
 │           ├── ChatStudio.js    # Chat Studio (multi-model LLM chat)

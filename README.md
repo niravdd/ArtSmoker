@@ -107,7 +107,7 @@ ArtSmoker works in two modes — **standalone** (no art style or theme setup nee
 
 ### 📝 Standalone Mode (Quick Start)
 
-No style or theme setup needed — open the 2D Image Studio, Video Studio, or Type Studio and start creating immediately.
+No style or theme setup needed — open the Image Studio, Video Studio, or Type Studio and start creating immediately.
 
 1. **Describe what you need** — type a prompt like "hospital building" or "fire mage character", or use voice input. The AI decomposes your idea into visual components, enhances it with model-specific optimisations, and respects your creative intent through smart lock/vary controls. Write in any language — non-English prompts are auto-translated.
 2. **Choose your models and settings** — multi-select from all available text-to-image models (Amazon Bedrock + self-hosted on SageMaker), pick dimensions, quality tier, and region. Check multiple models for side-by-side comparison, or select one for focused generation. Cost estimate updates live.
@@ -130,7 +130,7 @@ For teams that want every generated asset to match an existing art style — upl
 ### 📝 1.1 Features at a Glance
 
 - 🎨 **Style Library** — Upload art, AI learns your visual identity
-- 🖼️ **2D Image Studio** — Generate images with options x variations, guided 3-step prompt workflow
+- 🖼️ **Image Studio** — Generate images with options x variations, guided 3-step prompt workflow
 - 🎨 **Prompt Designer** — AI decomposes your prompt into editable visual components (subject, scene, lighting, colours) with lock/vary toggles per field, style integration, and smart asset type classification. Photorealistic, Character, Environment, and more
 - 🗂️ **Collections (Set Generation)** — Turn ONE prompt **or a reference image** into a coherent **set of distinct assets** ("a Viking-styled chess set", "20 JRPG characters"). Flip the **Collection** toggle in the Image Studio — from the **Text** tab (your prompt drives it) or the **Image-Inspired** tab (a reference image's *look* drives the art direction) — and a dedicated **Collection Designer** decomposes your brief into a shared **art direction** plus a **roster** of distinct, in-theme subjects — each one a **Batch** with its own editable, model-agnostic prompt. Edit the art direction to recompose the whole set; lock, regenerate, add, or delete individual Batches; then generate them all (options × variations each) in one go, with a live design + projected-cost estimate. **Pick one model for a cohesive set, or several to render every Batch on each** (a cross-model comparison). Optional **hero-** or **reference-anchor** cohesion style-locks the set to a chosen/supplied image. Collections appear as **one card** in the Gallery, opening a Collection viewer where each Batch drills into the normal Asset Viewer (options / variations / versions, edits, exports and 3D — exactly as for a single image, plus the Batch's **collection lineage**); you can **pin which version** represents each Batch, **3D the whole set** at once (or just the Batches or images you pick) and watch every model arrive on the collection's own **3D models** view, **download** the whole set or a selection as one zip — the same files a single image offers (PNG, SVG and background-removed cutouts) or its 3D models with the same engine presets, LODs, collision and texture packing — or **load the whole collection back into the Image Studio** to review and regenerate. A collection's 3D models stay inside it — the Gallery's **3D filter** shows the collection card with its "3D n/m" badge. A loaded collection shows **right in the Image Studio results area** — the same cards, preview and prompt panel as a single image, grouped per Batch — and reopening the Collection Designer shows the **exact saved design** (art direction, every Batch's prompt, and the prompts each model actually received), regenerating only when you ask, and **before anything is spent** the Asset Type is checked against your prompt (a set is Characters or Game Assets) — so you never pay for a whole set in the wrong framing
 - 🎬 **Video Studio** — Text-to-video with model-specific prompt guidance (Nova Reel camera controls, Luma Ray natural language), multi-shot, image-to-video
@@ -155,17 +155,17 @@ For teams that want every generated asset to match an existing art style — upl
 
 ### 📝 1.2 Screenshots
 
-**2D Image Studio** — Settings on the left with multi-select model dropdown, asset type, dimensions, and post-processing options. 3-step prompt workflow on the right with Prompt Designer and Generate Enhanced Prompt buttons. IP declaration and cost estimate at the bottom.
+**Image Studio** — Settings on the left with multi-select model dropdown, asset type, dimensions, and post-processing options. 3-step prompt workflow on the right with Prompt Designer and Generate Enhanced Prompt buttons. IP declaration and cost estimate at the bottom.
 
-![2D Image Studio — Settings, prompt workflow, and generation controls](docs/images/image-studio-top.png)
+![Image Studio — Settings, prompt workflow, and generation controls](docs/images/image-studio-top.png)
 
-**2D Image Studio — Generation Results** — Enhanced prompt shown above, multi-model comparison results below. Each model generates independently with per-model prompt optimization. Results display model name, dimensions, and generation cost.
+**Image Studio — Generation Results** — Enhanced prompt shown above, multi-model comparison results below. Each model generates independently with per-model prompt optimization. Results display model name, dimensions, and generation cost.
 
-![2D Image Studio — Enhanced prompt and generation results](docs/images/image-studio-results.png)
+![Image Studio — Enhanced prompt and generation results](docs/images/image-studio-results.png)
 
-**2D Image Studio — Model Comparison** — Side-by-side comparison grid across all selected models (8 shown — Amazon Bedrock and self-hosted alike). Each option card carries its own variation filmstrip; the per-model negative prompt is shown for the selected option. Post-processing toggles (Remove Background, Convert to SVG, Upscale) apply to existing results without regenerating.
+**Image Studio — Model Comparison** — Side-by-side comparison grid across all selected models (8 shown — Amazon Bedrock and self-hosted alike). Each option card carries its own variation filmstrip; the per-model negative prompt is shown for the selected option. Post-processing toggles (Remove Background, Convert to SVG, Upscale) apply to existing results without regenerating.
 
-![2D Image Studio — Multi-model comparison grid with variations](docs/images/image-studio-comparison.png)
+![Image Studio — Multi-model comparison grid with variations](docs/images/image-studio-comparison.png)
 
 **Image Inspiration (reference-guided)** — Drop 1–3 reference images, say what you want, and pick how they're used: **Match the reference** (pixel-faithful edit on a deployed image-editing model) or **Inspired by the reference** (a vision AI writes the enhanced prompt — works with any model selection, options, and variations). The derived prompt is previewed and fully editable before generating.
 
@@ -1083,9 +1083,9 @@ Templates load from `backend/prompt_templates.json` — the runtime source of tr
        │           │           │           │           │
        ▼           ▼           ▼           ▼           ▼
   ┌──────────┐ ┌────────┐ ┌────────┐ ┌──────────┐ ┌────────┐
-  │  Style   │ │  2D    │ │ Video  │ │   Type   │ │  Chat  │
-  │ Library  │ │ Image  │ │ Studio │ │  Studio  │ │ Studio │
-  │          │ │ Studio │ │        │ │          │ │        │
+  │  Style   │ │ Image  │ │ Video  │ │   Type   │ │  Chat  │
+  │ Library  │ │ Studio │ │ Studio │ │  Studio  │ │ Studio │
+  │          │ │        │ │        │ │          │ │        │
   │ Upload   │ │Generate│ │Generate│ │ Add text │ │ Multi- │
   │ Analyze  │ │ images │ │ videos │ │ to imgs  │ │ model  │
   │ Set fonts│ │        │ │        │ │          │ │ LLM    │
@@ -1111,9 +1111,8 @@ Templates load from `backend/prompt_templates.json` — the runtime source of tr
                     ▼              ▼              ▼
             ┌──────────────┐ ┌──────────┐ ┌──────────────┐
             │ Download     │ │ Reload   │ │ Add Text     │
-            │ PNG / SVG    │ │ in 2D    │ │ in Type      │
-            │              │ │ Image    │ │ Studio       │
-            │              │ │ Studio   │ │              │
+            │ PNG / SVG    │ │ in Image │ │ in Type      │
+            │              │ │ Studio   │ │ Studio       │
             │              │ │ (refine &│ │ (overlay     │
             │              │ │  regen)  │ │  text)       │
             └──────────────┘ └──────────┘ └──────────────┘
@@ -1122,7 +1121,7 @@ Templates load from `backend/prompt_templates.json` — the runtime source of tr
 **Three entry points, one unified gallery:**
 
 - **Start with a style** — upload reference art in the Style Library, let AI analyze it, then generate in any studio. The style guides all output.
-- **Start without a style** — jump straight into 2D Image Studio, Video Studio, or Type Studio. AI uses its best judgement.
+- **Start without a style** — jump straight into Image Studio, Video Studio, or Type Studio. AI uses its best judgement.
 - **Start from the Gallery** — pick any previously generated asset and reload it in the appropriate studio for refinement, add text to it, play a video, or download as PNG/SVG/MP4.
 
 All generated assets (images, videos, text overlays, standalone text) land in the unified Gallery. Nothing is overwritten — each generation creates new assets.
@@ -1231,9 +1230,9 @@ dialog     dialog
  rewrite)   prompt area)
 ```
 
-### 📝 6.4 2D Image Studio (Generate Assets)
+### 📝 6.4 Image Studio (Generate Assets)
 
-The 2D Image Studio uses a guided 3-step workflow:
+The Image Studio uses a guided 3-step workflow:
 
 **Step 1 — Describe your idea**: Type a prompt in the textarea. The placeholder shows a realistic example that changes based on your selected Asset Type (e.g., "A young female warrior in ornate silver armor..." for Character, or "A misty Japanese garden at dawn..." for Environment). Use voice input (mic button) to dictate instead of typing.
 
@@ -1265,7 +1264,7 @@ Before the Prompt Designer opens, an **AI asset type classification** runs — i
 
 Generation progress is streamed in real time via SSE — the UI shows which image is being generated (e.g. "Generating images... 12/25"), elapsed time, and current pipeline stage. If the API is throttled, you'll see "API throttled — waiting to retry..." with the delay, then "Retrying... (attempt 2/3)" — each image retries up to 3 times with exponential backoff so large batches don't lose variants to transient throttling.
 
-Generated results survive navigation — switching tabs and back preserves the 2D Image Studio's DOM state. Only the reset button clears it.
+Generated results survive navigation — switching tabs and back preserves the Image Studio's DOM state. Only the reset button clears it.
 
 **Smart content moderation**: When your prompt is blocked by a model's content moderation filters, ArtSmoker handles it progressively through three colour-coded dialogs:
 
@@ -1288,7 +1287,7 @@ Common triggers include copyrighted IP names and character references, violence/
 5. In the style detail view, use **"Import & Analyze"** to add more references and trigger analysis in one step. Drag-and-drop upload is also supported and **auto re-analyzes** when new images are added.
 6. **"Re-Analyze Style"** appears after the initial analysis, letting you manually re-run analysis at any time.
 7. **Generation hints** are part of the analysis context — the AI receives both reference images and your hints as "Artist's Guidance" when analyzing, so the style profile understands intent, not just visual appearance. Editing generation hints also triggers **automatic re-analysis**.
-8. Back in the **2D Image Studio**, select your style from the dropdown — all generated assets will match its visual identity (palette, perspective, rendering style, mood).
+8. Back in the **Image Studio**, select your style from the dropdown — all generated assets will match its visual identity (palette, perspective, rendering style, mood).
 
 ### 📝 6.6 Style Analysis Flow
 
@@ -1342,7 +1341,7 @@ Add text to images or generate standalone text assets with AI-designed typograph
 - **Multi-line text editor** with per-line font selection, positioning controls, and **voice input** (mic button per line — dictate text via Nova Sonic transcription).
 - **AI-designed layouts** — the AI suggests colors, sizes, positions, and effects (shadow, outline, glow). Request 1–5 layout options for different creative directions. The **LLM model** used for layout is configurable (Complex LLM for best quality, Fast LLM for cheaper) — reads from the registry categories.
 - **Font picker with live preview** — style fonts, 8 bundled fonts (Roboto, Open Sans, Lato, Montserrat, Playfair Display, Oswald, Raleway, Source Code Pro), system fonts, and **client-side detected fonts** (via Local Font Access API or canvas probing).
-- **Pre-Processing / Post-Processing** — same workflow as 2D Image Studio, with an "Apply" button for post-processing. SVG conversion is on by default.
+- **Pre-Processing / Post-Processing** — same workflow as Image Studio, with an "Apply" button for post-processing. SVG conversion is on by default.
 - **Click to zoom** — clicking the result preview opens the AssetViewer with full zoom/pan, metadata, download, and image editing tools.
 - Results are saved as new gallery assets (originals are never overwritten).
 
@@ -1355,7 +1354,7 @@ Add text to images or generate standalone text assets with AI-designed typograph
 - Pagination support (limit/offset) for large collections.
 - Gallery auto-refreshes when you navigate back to it, and after any edit or video generation completes.
 - **Video cards** display a thumbnail with a play overlay, VIDEO badge, and duration indicator. Click to open the video player modal.
-- **Contextual action buttons** per asset based on type: **"2D Studio"** (indigo) to reload in the image studio, **"Add Text"** (emerald) to open in Type Studio, **"Edit in Type Studio"** (purple) for text assets.
+- **Contextual action buttons** per asset based on type: **"Image Studio"** (indigo) to reload in the Image Studio, **"Add Text"** (emerald) to open in Type Studio, **"Edit in Type Studio"** (purple) for text assets.
 - Click any image to open the **AssetViewer** modal with:
   - **Zoom/pan** — mouse wheel to zoom, drag to pan, Fit/1:1 buttons with active mode highlighting.
   - **Edit tab** — inpaint, erase, outpaint, search & replace, or recolor the image directly. Two kinds of editor are offered per mode: **mask-based** (Stability) — paint a mask with the brush tool, enter a prompt, and apply; and **mask-free instruction editors** (Qwen-Image-Edit, when deployed) — just describe the change in words, no mask needed. The brush controls hide automatically for a mask-free model. Choose the editing model, apply; default replaces the original image, uncheck "Replace original" to save as a new asset (every edit preserves version history).
@@ -1372,7 +1371,7 @@ Click the microphone button next to the prompt editor to dictate your prompt. Th
 
 ### 📝 6.10 View State Preservation
 
-Navigation order: **Style Library → 2D Image Studio → Type Studio → Video Studio → Gallery**. Switching between views preserves each view's DOM state. Generated results, form inputs, and scroll positions survive navigation. The amber reset button in 2D Image Studio and Video Studio is the only way to clear their state.
+Navigation order: **Style Library → Image Studio → Type Studio → Video Studio → Gallery**. Switching between views preserves each view's DOM state. Generated results, form inputs, and scroll positions survive navigation. The amber reset button in Image Studio and Video Studio is the only way to clear their state.
 
 ### 📝 6.11 Model Management
 
@@ -1413,7 +1412,7 @@ ArtSmoker can deploy open-source AI models on **Amazon SageMaker** in your own A
 
 **CPU offloading:** Large diffusion models use intelligent CPU offloading to fit on smaller GPU instances. Each model's catalog entry specifies the strategy — `model_cpu_offload` (keeps active layers on GPU) or `sequential_cpu_offload` (aggressive per-layer offload for very large models). Applied automatically by the inference handler.
 
-**Async generation with Pending Jobs:** Self-hosted models generate asynchronously. A **Pending Jobs** panel appears in the 2D Image Studio showing active jobs with progress indicators. Completed images arrive in the Gallery automatically — no polling or page refresh needed.
+**Async generation with Pending Jobs:** Self-hosted models generate asynchronously. A **Pending Jobs** panel appears in the Image Studio showing active jobs with progress indicators. Completed images arrive in the Gallery automatically — no polling or page refresh needed.
 
 **HuggingFace token management:** Gated models require a Read-only HuggingFace token. The token is stored encrypted in **AWS Secrets Manager** in your account, managed via the UI (set/update/delete), and shared across all models that need it. Tokens are automatically cleaned up when you tear down all models.
 
@@ -1610,7 +1609,7 @@ ArtSmoker/
 │       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 translations
 │       ├── services/api.js      # Backend API client
 │       └── components/
-│           ├── ImageStudio.js   # 2D Image Studio (options × variations, multi-model)
+│           ├── ImageStudio.js   # Image Studio (options × variations, multi-model)
 │           ├── PromptEditor.js  # Two-area prompt editor + compose
 │           ├── PromptDesigner.js # Structured prompt decomposition (lock/vary fields)
 │           ├── ReferenceStudio.js # Image Inspiration tab (reference-guided generation)

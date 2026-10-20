@@ -54,11 +54,11 @@
                             <span id="cv-selinfo" class="text-[11px] text-cyan-300"></span>
                             <!-- Primary + default action (first, focused → Enter): reload the set
                                  into the Image Studio — the same button as the AssetViewer's. -->
-                            <button id="cv-reload" class="btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white" title="${t('collection.reload_studio')}">
+                            <button id="cv-reload" class="btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white" title="${t('collection.reload_studio', { studio: t('nav.image_studio') })}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                                 </svg>
-                                ${t('asset_viewer.to_studio')}
+                                ${t('nav.image_studio')}
                             </button>
                             <button id="cv-3d" class="btn btn-sm bg-violet-700/70 hover:bg-violet-600 text-white">${t('collection.convert_3d')}</button>
                             <button id="cv-dl-images" class="btn btn-sm bg-brand-bg border border-brand-border">${t('collection.download_images')}</button>

@@ -107,7 +107,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 ### 📝 独立模式（快速开始）
 
-无需风格或主题设置 —— 打开 2D Image Studio、Video Studio 或 Type Studio 即可立即开始创作。
+无需风格或主题设置 —— 打开 Image Studio、Video Studio 或 Type Studio 即可立即开始创作。
 
 1. **描述您的需求** —— 输入如 "hospital building" 或 "fire mage character" 的提示词，或使用语音输入。AI 将您的想法分解为视觉组件，用模型特定的优化进行增强，并通过智能锁定/变化控制尊重您的创意意图。支持任何语言输入 —— 非英语提示词会自动翻译。
 2. **选择模型和设置** —— 从所有可用的文生图模型（Amazon Bedrock + SageMaker 自托管）中多选，设定尺寸、质量等级和区域。勾选多个模型进行并排比较，或选择一个进行专注生成。成本估算随选择实时更新。
@@ -130,7 +130,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 ### 📝 1.1 功能一览
 
 - 🎨 **Style Library** —— 上传美术作品，AI 学习您的视觉标识
-- 🖼️ **2D Image Studio** —— 以选项 x 变体生成图像，引导式 3 步提示词工作流
+- 🖼️ **Image Studio** —— 以选项 x 变体生成图像，引导式 3 步提示词工作流
 - 🎨 **Prompt Designer** —— AI 将提示词分解为可编辑的视觉组件（主体、场景、光照、颜色），每个字段可锁定/变化切换，风格集成，智能资产类型分类。Photorealistic、Character、Environment 等
 - 🗂️ **合集（成套生成）** — 将一条提示词**或一张参考图**变成一整套风格一致的**不同资产**（如「维京风格国际象棋套装」「20 个 JRPG 角色」）。在 Image Studio 打开 **Collection** 开关——从 **Text** 标签（由你的提示词驱动）或 **Image-Inspired** 标签（由参考图的*外观*驱动美术方向）——专用的 **Collection Designer** 会将你的构思分解为共享的**美术方向**加一份主题一致的不同主体**清单**——每个主体都是一个**批次**，带有可编辑的、与模型无关的提示词。编辑美术方向即可重构整套；对单个批次进行锁定、重生成、新增或删除；然后一次性生成全部（每个批次 选项×变体），并实时显示设计＋预估成本。**可选一个模型得到统一的一套，或选多个模型让每个批次都由各模型分别生成**（跨模型对比）。可选的 **hero-**／**reference-anchor** 一致性会将整套的风格锁定到所选／所提供的图像。合集在 Gallery 中显示为**一张卡片**，打开合集查看器后，每个批次都可下钻到常规的 Asset Viewer（选项／变体／版本、编辑、导出和 3D——与单张图片完全相同，另有该批次的**合集谱系**）；你可以**固定代表每个批次的版本**、**一次性把整套转 3D**（或只转你挑选的批次或图片），并在合集自己的 **3D models** 视图中看着每个模型陆续到位、将整套或所选内容打包为一个 zip **下载**——与单张图片提供的文件相同（PNG、SVG 和去背景抠图），或其 3D 模型（采用相同的引擎预设、LOD、碰撞体和纹理打包）——或**将整个合集重新载入 Image Studio** 以复查和重新生成。合集的 3D 模型始终保留在合集内——Gallery 的 **3D 筛选**会显示带「3D n/m」徽章的合集卡片。载入的合集会**直接显示在 Image Studio 的结果区域**（与单张图片相同的卡片、预览和提示词面板，按批次分组）；重新打开 Collection Designer 会显示**保存的原始设计**（艺术指导、每个批次的提示词，以及各模型实际收到的提示词），只有在你要求时才会重新生成;并且在**产生任何费用之前**会根据提示词检查资产类型(合集为角色或游戏资产)——绝不会为错误类型的整套作品付费
 - 🎬 **Video Studio** —— 模型特定的提示词引导（Nova Reel 摄像机控制、Luma Ray 自然语言）的文生视频，多镜头、图生视频
@@ -155,17 +155,17 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 ### 📝 1.2 屏幕截图
 
-**2D Image Studio** —— 左侧为设置区域，包含多选模型下拉菜单、资产类型、尺寸和后处理选项。右侧为 3 步提示词工作流，带有 Prompt Designer 和 Generate Enhanced Prompt 按钮。底部为 IP 声明和成本估算。
+**Image Studio** —— 左侧为设置区域，包含多选模型下拉菜单、资产类型、尺寸和后处理选项。右侧为 3 步提示词工作流，带有 Prompt Designer 和 Generate Enhanced Prompt 按钮。底部为 IP 声明和成本估算。
 
-![2D Image Studio — 设置、提示词工作流和生成控制](docs/images/image-studio-top.png)
+![Image Studio — 设置、提示词工作流和生成控制](docs/images/image-studio-top.png)
 
-**2D Image Studio — 生成结果** —— 上方显示增强提示词，下方为多模型比较结果。每个模型独立生成，并进行模型专属的提示词优化。结果显示模型名称、尺寸和生成成本。
+**Image Studio — 生成结果** —— 上方显示增强提示词，下方为多模型比较结果。每个模型独立生成，并进行模型专属的提示词优化。结果显示模型名称、尺寸和生成成本。
 
-![2D Image Studio — 增强提示词和生成结果](docs/images/image-studio-results.png)
+![Image Studio — 增强提示词和生成结果](docs/images/image-studio-results.png)
 
-**2D Image Studio — 模型比较** —— 所有选定模型的并排比较网格（展示 8 个模型 —— Amazon Bedrock 与自托管模型一视同仁）。每个选项卡片带有自己的变体缩略条；所选选项显示对应模型的负面提示词。后处理开关（移除背景、转换为 SVG、放大）可直接应用于现有结果，无需重新生成。
+**Image Studio — 模型比较** —— 所有选定模型的并排比较网格（展示 8 个模型 —— Amazon Bedrock 与自托管模型一视同仁）。每个选项卡片带有自己的变体缩略条；所选选项显示对应模型的负面提示词。后处理开关（移除背景、转换为 SVG、放大）可直接应用于现有结果，无需重新生成。
 
-![2D Image Studio — 多模型比较网格与变体](docs/images/image-studio-comparison.png)
+![Image Studio — 多模型比较网格与变体](docs/images/image-studio-comparison.png)
 
 **Image Inspiration（参考图引导）** —— 拖入 1–3 张参考图，说明你想要什么，并选择使用方式：**忠于参考图**（在已部署的图像编辑模型上进行像素级忠实编辑）或**受参考图启发**（视觉 AI 撰写增强提示词 —— 适用于任意模型组合、选项和变体数量）。派生的提示词在生成前可预览并完全编辑。
 
@@ -1078,9 +1078,9 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
        │           │           │           │           │
        ▼           ▼           ▼           ▼           ▼
   ┌──────────┐ ┌────────┐ ┌────────┐ ┌──────────┐ ┌────────┐
-  │  Style   │ │  2D    │ │ Video  │ │   Type   │ │  Chat  │
-  │ Library  │ │ Image  │ │ Studio │ │  Studio  │ │ Studio │
-  │          │ │ Studio │ │        │ │          │ │        │
+  │  Style   │ │ Image  │ │ Video  │ │   Type   │ │  Chat  │
+  │ Library  │ │ Studio │ │ Studio │ │  Studio  │ │ Studio │
+  │          │ │        │ │        │ │          │ │        │
   │ 上传     │ │生成    │ │生成    │ │ 添加文字 │ │ 多模型 │
   │ 分析     │ │ 图像   │ │ 视频   │ │ 到图像   │ │ LLM    │
   │ 设置字体 │ │        │ │        │ │          │ │ 聊天   │
@@ -1105,10 +1105,9 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
                     │              │              │
                     ▼              ▼              ▼
             ┌──────────────┐ ┌──────────┐ ┌──────────────┐
-            │ 下载         │ │ 在 2D    │ │ 在 Type      │
-            │ PNG / SVG    │ │ Image    │ │ Studio 中    │
-            │              │ │ Studio   │ │ 添加文字     │
-            │              │ │ 重新载入 │ │              │
+            │ 下载         │ │ 在 Image │ │ 在 Type      │
+            │ PNG / SVG    │ │ Studio   │ │ Studio 中    │
+            │              │ │ 重新载入 │ │ 添加文字     │
             │              │ │ (精调 &  │ │ (叠加文字)   │
             │              │ │  重生成) │ │              │
             └──────────────┘ └──────────┘ └──────────────┘
@@ -1117,7 +1116,7 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 **三个入口，一个统一画廊：**
 
 - **从风格开始** —— 在 Style Library 上传参考美术作品，让 AI 分析它，然后在任意工作室中生成。风格会引导所有输出。
-- **无风格开始** —— 直接进入 2D Image Studio、Video Studio 或 Type Studio。AI 使用其最佳判断。
+- **无风格开始** —— 直接进入 Image Studio、Video Studio 或 Type Studio。AI 使用其最佳判断。
 - **从画廊开始** —— 选择任意先前生成的资产，在合适的工作室中重新载入以进行精调、添加文字、播放视频，或下载为 PNG/SVG/MP4。
 
 所有生成的资产（图像、视频、文字叠加、独立文字）都汇入统一画廊。任何内容都不会被覆盖 —— 每次生成都会创建新资产。
@@ -1226,9 +1225,9 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
  改写)      提示词区域)
 ```
 
-### 📝 6.4 2D Image Studio（生成资产）
+### 📝 6.4 Image Studio（生成资产）
 
-2D Image Studio 使用引导式的 3 步工作流：
+Image Studio 使用引导式的 3 步工作流：
 
 **步骤 1 —— 描述您的想法**：在文本框中输入提示词。占位符会根据您选择的资产类型显示一个真实示例（例如 Character 显示 "A young female warrior in ornate silver armor..."，Environment 显示 "A misty Japanese garden at dawn..."）。使用语音输入（麦克风按钮）代替打字来口述。
 
@@ -1260,7 +1259,7 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 
 生成进度通过 SSE 实时流式传输 —— UI 显示正在生成哪张图像（例如 "Generating images... 12/25"）、已用时间和当前管线阶段。如果 API 被限流，您会看到 "API throttled — waiting to retry..." 及延迟，然后 "Retrying... (attempt 2/3)" —— 每张图像最多以指数退避重试 3 次，因此大批量不会因瞬时限流而丢失变体。
 
-生成的结果在导航后仍然保留 —— 切换选项卡后返回会保留 2D Image Studio 的 DOM 状态。只有重置按钮才会清除它。
+生成的结果在导航后仍然保留 —— 切换选项卡后返回会保留 Image Studio 的 DOM 状态。只有重置按钮才会清除它。
 
 **智能内容审核**：当您的提示词被某个模型的内容审核过滤器阻止时，ArtSmoker 会通过三个颜色编码的对话框逐步处理：
 
@@ -1283,7 +1282,7 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 5. 在风格详情视图中，使用 **"Import & Analyze"** 一步添加更多参考并触发分析。也支持拖放上传，并在添加新图像时**自动重新分析**。
 6. **"Re-Analyze Style"** 在初次分析后出现，让您随时手动重新运行分析。
 7. **生成提示**是分析上下文的一部分 —— AI 在分析时会同时接收参考图像和您的提示作为"艺术家指导"，因此风格档案理解的是意图，而不仅仅是视觉外观。编辑生成提示也会触发**自动重新分析**。
-8. 回到 **2D Image Studio**，从下拉菜单中选择您的风格 —— 所有生成的资产都会匹配其视觉标识（调板、透视、渲染风格、氛围）。
+8. 回到 **Image Studio**，从下拉菜单中选择您的风格 —— 所有生成的资产都会匹配其视觉标识（调板、透视、渲染风格、氛围）。
 
 ### 📝 6.6 风格分析流程
 
@@ -1337,7 +1336,7 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 - **多行文本编辑器**，支持逐行字体选择、定位控件，以及**语音输入**（每行一个麦克风按钮 —— 通过 Nova Sonic 转写口述文字）。
 - **AI 设计的布局** —— AI 建议颜色、大小、位置和效果（阴影、描边、发光）。请求 1–5 个布局选项以获得不同的创意方向。用于布局的 **LLM 模型**可配置（Complex LLM 获得最佳质量，Fast LLM 更便宜）—— 读取自注册表分类。
 - **带实时预览的字体选择器** —— 风格字体、8 种内置字体（Roboto、Open Sans、Lato、Montserrat、Playfair Display、Oswald、Raleway、Source Code Pro）、系统字体，以及**客户端检测到的字体**（通过 Local Font Access API 或 canvas 探测）。
-- **预处理 / 后处理** —— 与 2D Image Studio 相同的工作流，后处理带 "Apply" 按钮。SVG 转换默认开启。
+- **预处理 / 后处理** —— 与 Image Studio 相同的工作流，后处理带 "Apply" 按钮。SVG 转换默认开启。
 - **点击缩放** —— 点击结果预览会打开 AssetViewer，带完整的缩放/平移、元数据、下载和图像编辑工具。
 - 结果保存为新的画廊资产（原始图像永不被覆盖）。
 
@@ -1350,7 +1349,7 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 - 支持分页（limit/offset）以处理大型集合。
 - 当您导航回画廊时，以及在任何编辑或视频生成完成后，画廊会自动刷新。
 - **视频卡片**显示带播放叠加、VIDEO 徽章和时长指示器的缩略图。点击打开视频播放器模态框。
-- 根据类型为每个资产提供**上下文操作按钮**：**"2D Studio"**（靛蓝色）在图像工作室中重新载入，**"Add Text"**（翠绿色）在 Type Studio 中打开，**"Edit in Type Studio"**（紫色）用于文字资产。
+- 根据类型为每个资产提供**上下文操作按钮**：**"Image Studio"**（靛蓝色）在 Image Studio 中重新载入，**"Add Text"**（翠绿色）在 Type Studio 中打开，**"Edit in Type Studio"**（紫色）用于文字资产。
 - 点击任意图像打开 **AssetViewer** 模态框，包含：
   - **缩放/平移** —— 鼠标滚轮缩放，拖动平移，Fit/1:1 按钮并高亮当前激活模式。
   - **Edit 选项卡** —— 直接对图像进行局部重绘、擦除、外绘、搜索替换或重新着色。每种模式提供两类编辑器：**基于蒙版**（Stability）—— 用画笔工具绘制蒙版，输入提示词并应用；以及**无蒙版指令编辑器**（Qwen-Image-Edit，已部署时）—— 只需用文字描述更改，无需蒙版。对于无蒙版模型，画笔控件会自动隐藏。选择编辑模型并应用；默认替换原始图像，取消勾选 "Replace original" 可另存为新资产（每次编辑都保留版本历史）。
@@ -1367,7 +1366,7 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 
 ### 📝 6.10 视图状态保留
 
-导航顺序：**Style Library → 2D Image Studio → Type Studio → Video Studio → Gallery**。在视图之间切换会保留每个视图的 DOM 状态。生成的结果、表单输入和滚动位置在导航后仍然保留。2D Image Studio 和 Video Studio 中的琥珀色重置按钮是清除它们状态的唯一方式。
+导航顺序：**Style Library → Image Studio → Type Studio → Video Studio → Gallery**。在视图之间切换会保留每个视图的 DOM 状态。生成的结果、表单输入和滚动位置在导航后仍然保留。Image Studio 和 Video Studio 中的琥珀色重置按钮是清除它们状态的唯一方式。
 
 ### 📝 6.11 模型管理
 
@@ -1408,7 +1407,7 @@ ArtSmoker 可以在您自己的 AWS 账户中于 **Amazon SageMaker** 上部署�
 
 **CPU 卸载：** 大型扩散模型使用智能 CPU 卸载以适配较小的 GPU 实例。每个模型的目录条目指定策略 —— `model_cpu_offload`（将活跃层保留在 GPU 上）或 `sequential_cpu_offload`（针对超大模型的激进逐层卸载）。由推理处理器自动应用。
 
-**带 Pending Jobs 的异步生成：** 自托管模型异步生成。2D Image Studio 中会出现一个 **Pending Jobs** 面板，显示带进度指示器的活跃任务。完成的图像会自动到达画廊 —— 无需轮询或刷新页面。
+**带 Pending Jobs 的异步生成：** 自托管模型异步生成。Image Studio 中会出现一个 **Pending Jobs** 面板，显示带进度指示器的活跃任务。完成的图像会自动到达画廊 —— 无需轮询或刷新页面。
 
 **HuggingFace token 管理：** 受限模型需要只读 HuggingFace token。该 token 加密存储在您账户的 **AWS Secrets Manager** 中，通过 UI 管理（设置/更新/删除），并在所有需要它的模型间共享。当您拆除所有模型时，token 会被自动清理。
 
@@ -1601,7 +1600,7 @@ ArtSmoker/
 │       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 种翻译
 │       ├── services/api.js      # 后端 API 客户端
 │       └── components/
-│           ├── ImageStudio.js   # 2D Image Studio（选项 × 变体）
+│           ├── ImageStudio.js   # Image Studio（选项 × 变体）
 │           ├── TypeStudio.js    # Type Studio（文字叠加）
 │           ├── VideoStudio.js   # Video Studio（文生视频生成）
 │           ├── ChatStudio.js    # Chat Studio（多模型 LLM 聊天）

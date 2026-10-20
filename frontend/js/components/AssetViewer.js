@@ -2,7 +2,7 @@
  * ArtSmoker — AssetViewer Component
  *
  * Modal overlay showing full-size image, complete metadata,
- * and a "Reload in 2D Image Studio" button.
+ * and a "Reload in Image Studio" button.
  *
  * Usage:
  *   AssetViewer.open(galleryItem)   // opens modal, fetches full metadata
@@ -289,11 +289,11 @@
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
                         <h2 class="text-lg font-semibold truncate flex-1">${item.png_filename || t('artsmoker.ui.asset_viewer.generated_asset')}</h2>
                         <div class="flex items-center gap-2 ml-4">
-                            <button class="btn-reload btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white" title="${t('artsmoker.ui.asset_viewer.reload_studio_title')}">
+                            <button class="btn-reload btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white" title="${t('artsmoker.ui.asset_viewer.reload_studio_title', { studio: t('artsmoker.ui.nav.image_studio') })}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                                 </svg>
-                                ${t('artsmoker.ui.asset_viewer.to_studio')}
+                                ${t('artsmoker.ui.nav.image_studio')}
                             </button>
                             <button class="btn-add-text btn btn-sm bg-emerald-600 hover:bg-emerald-500 text-white" title="${t('artsmoker.ui.asset_viewer.add_text_title')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -627,7 +627,7 @@
             const addTextBtn = this._overlay?.querySelector('.btn-add-text');
             const reloadTypeBtn = this._overlay?.querySelector('.btn-reload-type');
 
-            // 2D Studio: show for image assets, hide for Type Studio assets
+            // Image Studio: show for image assets, hide for Type Studio assets
             if (reloadBtn) reloadBtn.classList.toggle('hidden', isTS);
             // Add Text: show for image assets, hide for Type Studio assets (use Edit instead)
             if (addTextBtn) addTextBtn.classList.toggle('hidden', isTS);
@@ -1759,7 +1759,7 @@
             // ── 3D Model tab ───────────────────────────────────────────
             this._init3DTab();
 
-            // Reload in 2D Image Studio
+            // Reload in Image Studio
             this._overlay.querySelector('.btn-reload')?.addEventListener('click', async () => {
                 const meta = this._meta;
                 if (!meta) {

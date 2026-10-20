@@ -5,7 +5,7 @@
  * Supported languages: en, ja, zh, ko, hi, ru, fr, es, de
  *
  * Usage:
- *   t('nav.image_studio')          → "2D Image Studio" (or translated equivalent)
+ *   t('nav.image_studio')          → "Image Studio" (or translated equivalent)
  *   t('gallery.selected_count', {count: 5, plural: 's'})  → "5 items selected"
  *   I18n.setLang('ja')             → Switch to Japanese, reloads UI
  *   I18n.getLang()                  → Current language code
@@ -29,7 +29,7 @@
     const DEFAULT_LANG = 'en';
 
     let _currentLang = DEFAULT_LANG;
-    let _strings = {};       // Current language strings (flat: "nav.image_studio" → "2D Image Studio")
+    let _strings = {};       // Current language strings (flat: "nav.image_studio" → "Image Studio")
     let _fallback = {};      // English fallback strings
     let _loaded = false;
     let _onChangeCallbacks = [];
