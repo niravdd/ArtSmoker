@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-10-06T03:40:14.415826+00:00",
+  "last_updated": "2026-10-20T23:33:08.652679+00:00",
   "api_compatibility": {
     "_comment": "Registry-driven Bedrock API-surface matrix. AWS does not report which API surfaces a model exposes, so this is operator-maintained data: edit here (or override a single model via chat_models[].apis in model_registry.user.json) and re-Sync. mantle_client.derive_model_apis() is a GENERIC engine over these rules and holds no per-model facts. Matching: each rule's 'match' substrings are tested (lowercased) against the model's provider then model_id; the FIRST matching rule wins, else 'default'. Per rule: 'always' APIs always apply, 'runtime' apply when the model is listed on bedrock-runtime, 'mantle' when on bedrock-mantle; 'mantle_only' (optional) REPLACES the set for a mantle-only model. resolve_invoke_path() then picks ONE (endpoint, api) via 'api_priority' (Converse-first), mapping api->endpoint via 'endpoint_for_api'. Per rule, 'mantle_base' selects the Mantle base path for the OpenAI SDK (/v1 for most; /openai/v1 for openai/xai/google) \u2014 the two paths serve DISJOINT model sets, verified live 2026-09-07.",
     "api_priority": [
@@ -179,7 +179,44 @@
       "current": "amazon.nova-2-5-sonic",
       "region": "us-east-1",
       "provider": "Amazon",
-      "api_type": "bidirectional_stream"
+      "api_type": "bidirectional_stream",
+      "input_price_per_1k": 0.000319,
+      "output_price_per_1k": 0.002651,
+      "token_pricing": {
+        "source": "price_list",
+        "rates": {
+          "input_per_1k": 0.000319,
+          "speech_input_per_1k": 0.0031832,
+          "speech_output_per_1k": 0.0127329,
+          "output_per_1k": 0.002651
+        },
+        "by_region": {
+          "ap-northeast-1": {
+            "speech_output_per_1k": 0.0149643,
+            "output_per_1k": 0.003311,
+            "input_per_1k": 0.000396,
+            "speech_input_per_1k": 0.0037411
+          },
+          "us-east-1": {
+            "speech_input_per_1k": 0.003,
+            "input_per_1k": 0.00033,
+            "speech_output_per_1k": 0.012,
+            "output_per_1k": 0.00275
+          },
+          "us-west-2": {
+            "input_per_1k": 0.000319,
+            "speech_input_per_1k": 0.0031832,
+            "speech_output_per_1k": 0.0127329,
+            "output_per_1k": 0.002651
+          },
+          "eu-north-1": {
+            "speech_output_per_1k": 0.0133066,
+            "speech_input_per_1k": 0.0033266,
+            "output_per_1k": 0.002992,
+            "input_per_1k": 0.000363
+          }
+        }
+      }
     }
   },
   "image_models": {
@@ -987,16 +1024,34 @@
       "price_usd": 0.04,
       "usage_type": "USE1-NovaCanvas-T2I-1024-Standard"
     },
+    "SD3LargeV1|us-east-1": {
+      "model_name": "SD3LargeV1",
+      "region": "us-east-1",
+      "price_usd": 0.08,
+      "usage_type": "USE1-MP:USE1_created_image-Units"
+    },
     "Stable Diffusion 3 Large v1.0|us-east-1": {
       "model_name": "Stable Diffusion 3 Large v1.0",
       "region": "us-east-1",
       "price_usd": 0.08,
       "usage_type": "USE1-MP:USE1_created_image-Units"
     },
+    "SI-Core-V1|us-west-2": {
+      "model_name": "SI-Core-V1",
+      "region": "us-west-2",
+      "price_usd": 0.04,
+      "usage_type": "USW2-MP:USW2_Created_image-Units"
+    },
     "Stable Image Core|us-west-2": {
       "model_name": "Stable Image Core",
       "region": "us-west-2",
       "price_usd": 0.04,
+      "usage_type": "USW2-MP:USW2_Created_image-Units"
+    },
+    "SD3.5LargeV1|us-west-2": {
+      "model_name": "SD3.5LargeV1",
+      "region": "us-west-2",
+      "price_usd": 0.08,
       "usage_type": "USW2-MP:USW2_Created_image-Units"
     },
     "Stable Diffusion 3.5 Large v1.0|us-west-2": {
@@ -1005,10 +1060,22 @@
       "price_usd": 0.08,
       "usage_type": "USW2-MP:USW2_Created_image-Units"
     },
+    "SI-Core-V1|us-east-1": {
+      "model_name": "SI-Core-V1",
+      "region": "us-east-1",
+      "price_usd": 0.04,
+      "usage_type": "USE1-MP:USE1_created_image-Units"
+    },
     "Stable Image Core|us-east-1": {
       "model_name": "Stable Image Core",
       "region": "us-east-1",
       "price_usd": 0.04,
+      "usage_type": "USE1-MP:USE1_created_image-Units"
+    },
+    "SD3.5LargeV1|us-east-1": {
+      "model_name": "SD3.5LargeV1",
+      "region": "us-east-1",
+      "price_usd": 0.08,
       "usage_type": "USE1-MP:USE1_created_image-Units"
     },
     "Stable Diffusion 3.5 Large v1.0|us-east-1": {
@@ -1017,17 +1084,35 @@
       "price_usd": 0.08,
       "usage_type": "USE1-MP:USE1_created_image-Units"
     },
+    "SI-Ultra-V1|us-west-2": {
+      "model_name": "SI-Ultra-V1",
+      "region": "us-west-2",
+      "price_usd": 0.14,
+      "usage_type": "USW2-MP:USW2_created_image-Units"
+    },
     "Stable Image Ultra|us-west-2": {
       "model_name": "Stable Image Ultra",
       "region": "us-west-2",
       "price_usd": 0.14,
       "usage_type": "USW2-MP:USW2_created_image-Units"
     },
+    "SD3LargeV1|us-west-2": {
+      "model_name": "SD3LargeV1",
+      "region": "us-west-2",
+      "price_usd": 0.08,
+      "usage_type": "USW2-MP:USW2_Created_image-Units"
+    },
     "Stable Diffusion 3 Large v1.0|us-west-2": {
       "model_name": "Stable Diffusion 3 Large v1.0",
       "region": "us-west-2",
       "price_usd": 0.08,
       "usage_type": "USW2-MP:USW2_Created_image-Units"
+    },
+    "SI-Ultra-V1|us-east-1": {
+      "model_name": "SI-Ultra-V1",
+      "region": "us-east-1",
+      "price_usd": 0.14,
+      "usage_type": "USE1-MP:USE1_Created_image-Units"
     },
     "Stable Image Ultra|us-east-1": {
       "model_name": "Stable Image Ultra",
@@ -2439,76 +2524,6 @@
     }
   },
   "video_models": {
-    "nova_reel_v1_0": {
-      "label": "Nova Reel v1.0",
-      "model_id": "amazon.nova-reel-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "eu-west-1",
-        "us-east-1"
-      ],
-      "provider": "Amazon",
-      "model_purpose": "text_to_video",
-      "format_family": "nova_reel",
-      "prompt_limit": 512,
-      "supports_image_input": true,
-      "base_price_per_second_usd": 0.08,
-      "inference_types": [
-        "ON_DEMAND"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "VIDEO"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-reel-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation",
-      "prompt_guidance": "Nova Reel generates video from descriptive captions \u2014 describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) \u2014 the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
-      "optimal_prompt_words": 50,
-      "lifecycle_status": "LEGACY",
-      "legacy_time": "2026-03-30T08:00:00+00:00",
-      "end_of_life_time": "2026-09-30T08:00:00+00:00"
-    },
-    "nova_reel_v1_1": {
-      "label": "Nova Reel v1.1",
-      "model_id": "amazon.nova-reel-v1:1",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1"
-      ],
-      "provider": "Amazon",
-      "model_purpose": "text_to_video",
-      "format_family": "nova_reel",
-      "prompt_limit": 512,
-      "supports_image_input": true,
-      "base_price_per_second_usd": 0.08,
-      "inference_types": [
-        "ON_DEMAND"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "VIDEO"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-reel-v1:1",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation",
-      "prompt_guidance": "Nova Reel generates video from descriptive captions \u2014 describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) \u2014 the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
-      "optimal_prompt_words": 50,
-      "lifecycle_status": "LEGACY",
-      "legacy_time": "2026-03-30T08:00:00+00:00",
-      "end_of_life_time": "2026-09-30T08:00:00+00:00"
-    },
     "ray_v2_0": {
       "label": "Ray v2.0",
       "model_id": "luma.ray-v2:0",
@@ -2679,213 +2694,6 @@
         "us-east-2",
         "us-west-2"
       ]
-    },
-    "claude_sonnet_4_20250514_v1": {
-      "label": "Claude Sonnet 4",
-      "model_id": "global.anthropic.claude-sonnet-4-20250514-v1:0",
-      "region": "us-west-2",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "LEGACY",
-      "endpoints": [
-        "bedrock-runtime"
-      ],
-      "apis": [
-        "converse",
-        "invoke"
-      ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse",
-      "lifecycle_status": "LEGACY",
-      "legacy_time": "2026-04-14T08:00:00+00:00",
-      "end_of_life_time": "2026-10-14T08:00:00+00:00",
-      "input_price_per_1k": 0.003,
-      "output_price_per_1k": 0.015,
-      "residency_scope": "global",
-      "inference_profiles": [
-        "apac",
-        "eu",
-        "global",
-        "us"
-      ],
-      "token_pricing": {
-        "source": "agreement_offer",
-        "rates": {
-          "input_per_1k": 0.003,
-          "output_per_1k": 0.015,
-          "long_input_per_1k": 0.006,
-          "long_output_per_1k": 0.0225,
-          "global_input_per_1k": 0.003,
-          "global_output_per_1k": 0.015,
-          "long_global_input_per_1k": 0.006,
-          "long_global_output_per_1k": 0.0225
-        },
-        "by_region": {
-          "us-east-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015,
-            "long_input_per_1k": 0.006,
-            "long_output_per_1k": 0.0225,
-            "global_input_per_1k": 0.003,
-            "global_output_per_1k": 0.015,
-            "long_global_input_per_1k": 0.006,
-            "long_global_output_per_1k": 0.0225
-          },
-          "us-west-2": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015,
-            "long_input_per_1k": 0.006,
-            "long_output_per_1k": 0.0225,
-            "global_input_per_1k": 0.003,
-            "global_output_per_1k": 0.015,
-            "long_global_input_per_1k": 0.006,
-            "long_global_output_per_1k": 0.0225
-          },
-          "us-east-2": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015,
-            "long_input_per_1k": 0.006,
-            "long_output_per_1k": 0.0225,
-            "global_input_per_1k": 0.003,
-            "global_output_per_1k": 0.015,
-            "long_global_input_per_1k": 0.006,
-            "long_global_output_per_1k": 0.0225
-          },
-          "ap-south-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "ap-south-2": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "ap-southeast-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "ap-southeast-2": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "ap-northeast-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015,
-            "global_input_per_1k": 0.003,
-            "global_output_per_1k": 0.015,
-            "long_global_input_per_1k": 0.006,
-            "long_global_output_per_1k": 0.0225
-          },
-          "ap-northeast-2": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "ap-northeast-3": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "eu-central-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "eu-north-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "eu-south-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "eu-south-2": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "geo:EU": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015,
-            "global_input_per_1k": 0.003,
-            "global_output_per_1k": 0.015,
-            "long_global_input_per_1k": 0.006,
-            "long_global_output_per_1k": 0.0225
-          },
-          "eu-west-3": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "us-west-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015,
-            "long_input_per_1k": 0.006,
-            "long_output_per_1k": 0.0225
-          },
-          "ap-southeast-4": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "ap-southeast-3": {
-            "long_input_per_1k": 0.006,
-            "long_output_per_1k": 0.0225,
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "ca-west-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015,
-            "long_input_per_1k": 0.006,
-            "long_output_per_1k": 0.0225
-          },
-          "ca-central-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015,
-            "long_input_per_1k": 0.006,
-            "long_output_per_1k": 0.0225
-          },
-          "ap-southeast-7": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "ap-southeast-5": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "ap-east-2": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "me-central-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          },
-          "il-central-1": {
-            "input_per_1k": 0.003,
-            "output_per_1k": 0.015
-          }
-        }
-      },
-      "on_demand_regions": []
     },
     "claude_haiku_4_5_20251001_v1": {
       "label": "Claude Haiku 4.5",
@@ -3531,7 +3339,7 @@
     "qwen3_next_80b_a3b": {
       "label": "Qwen3 Next 80B A3B",
       "model_id": "qwen.qwen3-next-80b-a3b",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
@@ -3573,8 +3381,8 @@
       "token_pricing": {
         "source": "price_list",
         "rates": {
-          "output_per_1k": 0.0012,
-          "input_per_1k": 0.00014
+          "input_per_1k": 0.00014,
+          "output_per_1k": 0.0012
         },
         "by_region": {
           "ap-south-1": {
@@ -5355,6 +5163,7 @@
         "ap-south-1",
         "ap-southeast-1",
         "ap-southeast-2",
+        "eu-central-1",
         "eu-north-1",
         "eu-west-1",
         "eu-west-2",
@@ -6251,6 +6060,7 @@
         "ap-south-1",
         "ap-southeast-1",
         "ap-southeast-2",
+        "eu-central-1",
         "eu-north-1",
         "eu-west-1",
         "eu-west-2",
@@ -6739,6 +6549,7 @@
         "ap-south-1",
         "ap-southeast-1",
         "ap-southeast-2",
+        "eu-central-1",
         "eu-north-1",
         "eu-west-1",
         "eu-west-2",
@@ -7394,6 +7205,7 @@
         "ap-south-1",
         "ap-southeast-1",
         "ap-southeast-2",
+        "eu-central-1",
         "eu-north-1",
         "eu-west-1",
         "eu-west-2",
@@ -8205,9 +8017,9 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "supports_temperature": true,
-      "lifecycle_status": "ACTIVE",
-      "legacy_time": "",
-      "end_of_life_time": "",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-10-08T08:00:00+00:00",
+      "end_of_life_time": "2027-04-08T08:00:00+00:00",
       "input_price_per_1k": 0.003,
       "output_price_per_1k": 0.015,
       "residency_scope": "global",
@@ -9226,6 +9038,7 @@
         "ap-south-1",
         "ap-southeast-1",
         "ap-southeast-2",
+        "eu-central-1",
         "eu-north-1",
         "eu-west-1",
         "eu-west-2",
@@ -10190,7 +10003,7 @@
       ],
       "provider": "Anthropic",
       "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:sa-east-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+      "model_arn": "arn:aws:bedrock:ca-central-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
       "has_vision": true,
       "streaming_supported": true,
       "max_context_tokens": 128000,
@@ -10210,9 +10023,9 @@
       "invoke_api": "converse",
       "input_price_per_1k": 0.00025,
       "output_price_per_1k": 0.00125,
-      "lifecycle_status": "ACTIVE",
-      "legacy_time": "",
-      "end_of_life_time": "",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-10-10T08:00:00+00:00",
+      "end_of_life_time": "2026-11-13T08:00:00+00:00",
       "residency_scope": "geo:apac",
       "inference_profiles": [
         "apac",
@@ -10348,9 +10161,9 @@
           "input_per_1k": 0.003
         }
       },
-      "lifecycle_status": "ACTIVE",
-      "legacy_time": "",
-      "end_of_life_time": "",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-10-10T08:00:00+00:00",
+      "end_of_life_time": "2026-11-13T08:00:00+00:00",
       "on_demand_regions": [
         "ap-northeast-2",
         "ap-southeast-1"
@@ -10369,7 +10182,7 @@
       ],
       "provider": "Anthropic",
       "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+      "model_arn": "arn:aws:bedrock:ca-central-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
       "has_vision": true,
       "streaming_supported": true,
       "max_context_tokens": 128000,
@@ -10402,9 +10215,9 @@
           "input_per_1k": 0.003
         }
       },
-      "lifecycle_status": "ACTIVE",
-      "legacy_time": "",
-      "end_of_life_time": "",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-10-10T08:00:00+00:00",
+      "end_of_life_time": "2026-11-13T08:00:00+00:00",
       "on_demand_regions": [
         "ap-south-1",
         "ca-central-1",
@@ -10525,9 +10338,9 @@
           }
         }
       },
-      "lifecycle_status": "ACTIVE",
-      "legacy_time": "",
-      "end_of_life_time": "",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-10-10T08:00:00+00:00",
+      "end_of_life_time": "2026-11-13T08:00:00+00:00",
       "on_demand_regions": [
         "eu-west-2"
       ]
@@ -11192,9 +11005,9 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "lifecycle_status": "ACTIVE",
-      "legacy_time": "",
-      "end_of_life_time": "",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-09-21T08:00:00+00:00",
+      "end_of_life_time": "2027-03-21T08:00:00+00:00",
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
@@ -11240,9 +11053,9 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "lifecycle_status": "ACTIVE",
-      "legacy_time": "",
-      "end_of_life_time": "",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-09-09T08:00:00+00:00",
+      "end_of_life_time": "2027-03-09T08:00:00+00:00",
       "residency_scope": "geo:us",
       "inference_profiles": [
         "us"
@@ -13819,7 +13632,7 @@
     "qwen3_next_80b_a3b_instruct": {
       "label": "qwen.qwen3-next-80b-a3b-instruct",
       "model_id": "qwen.qwen3-next-80b-a3b-instruct",
-      "region": "us-east-1",
+      "region": "us-west-2",
       "available_regions": [],
       "provider": "Qwen",
       "model_source": "foundation",
@@ -13845,8 +13658,8 @@
       "token_pricing": {
         "source": "price_list",
         "rates": {
-          "output_per_1k": 0.0012,
-          "input_per_1k": 0.00014
+          "input_per_1k": 0.00014,
+          "output_per_1k": 0.0012
         },
         "by_region": {
           "sa-east-1": {
@@ -14665,6 +14478,7 @@
       ],
       "inference_profiles": [
         "global",
+        "in",
         "us"
       ],
       "residency_scope": "global",
@@ -15354,6 +15168,7 @@
         "INFERENCE_PROFILE"
       ],
       "inference_profiles": [
+        "au",
         "eu",
         "global",
         "us"
@@ -15711,6 +15526,429 @@
       "mantle_regions": [
         "us-east-1"
       ]
+    },
+    "glm_5_3": {
+      "label": "GLM 5.3",
+      "model_id": "global.zai.glm-5.3",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Z.AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/zai.glm-5.3",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "on_demand_regions": [],
+      "inference_profiles": [
+        "global",
+        "us"
+      ],
+      "residency_scope": "global",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
+      "supports_temperature": true
+    },
+    "claude_haiku_5_5": {
+      "label": "Claude Haiku 5.5",
+      "model_id": "global.anthropic.claude-haiku-5-5",
+      "region": "us-west-2",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-haiku-5-5",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "on_demand_regions": [],
+      "inference_profiles": [
+        "au",
+        "eu",
+        "global",
+        "jp",
+        "us"
+      ],
+      "residency_scope": "global",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": "",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse",
+      "supports_temperature": false,
+      "input_price_per_1k": 0.0001,
+      "output_price_per_1k": 0.0005,
+      "token_pricing": {
+        "source": "agreement_offer",
+        "rates": {
+          "global_input_per_1k": 0.0001,
+          "global_output_per_1k": 0.0005,
+          "long_global_input_per_1k": 0.0005,
+          "long_global_output_per_1k": 0.0025,
+          "input_per_1k": 0.00011,
+          "output_per_1k": 0.00055,
+          "long_input_per_1k": 0.00055,
+          "long_output_per_1k": 0.00275
+        },
+        "by_region": {
+          "af-south-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "ap-east-2": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "ap-northeast-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "ap-northeast-2": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "ap-northeast-3": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "ap-southeast-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "ap-southeast-2": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "ap-southeast-3": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "ap-southeast-4": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "ap-southeast-5": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "ap-southeast-6": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "ap-southeast-7": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "ap-south-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "ap-south-2": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "ca-central-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "ca-west-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "eu-central-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "eu-central-2": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "eu-north-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "eu-south-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "eu-south-2": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "geo:EU": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "eu-west-2": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "eu-west-3": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "il-central-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "me-central-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "me-south-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "mx-central-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "sa-east-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025
+          },
+          "us-east-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "us-east-2": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "us-west-1": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "us-west-2": {
+            "global_input_per_1k": 0.0001,
+            "global_output_per_1k": 0.0005,
+            "long_global_input_per_1k": 0.0005,
+            "long_global_output_per_1k": 0.0025,
+            "input_per_1k": 0.00011,
+            "output_per_1k": 0.00055,
+            "long_input_per_1k": 0.00055,
+            "long_output_per_1k": 0.00275
+          },
+          "us-gov-east-1": {
+            "input_per_1k": 0.00012,
+            "output_per_1k": 0.0006,
+            "long_input_per_1k": 0.0006,
+            "long_output_per_1k": 0.003
+          },
+          "us-gov-west-1": {
+            "input_per_1k": 0.00012,
+            "output_per_1k": 0.0006,
+            "long_input_per_1k": 0.0006,
+            "long_output_per_1k": 0.003
+          }
+        }
+      }
     }
   },
   "custom_model_catalog": {
@@ -18262,6 +18500,7 @@
     "ml.g5.4xlarge|us-east-1": 2.03,
     "ml.g5.16xlarge|ap-northeast-2": 6.2957,
     "ml.g5.2xlarge|eu-central-1": 1.895,
+    "ml.p5.4xlarge|us-east-2": 7.91,
     "ml.g5.8xlarge|eu-north-1": 3.2456,
     "ml.g6.8xlarge|ap-northeast-2": 3.0962,
     "ml.g5.12xlarge|ca-central-1": 7.872,
@@ -18465,6 +18704,7 @@
     "ml.g6e.4xlarge|us-east-2": 3.7553,
     "ml.g5.48xlarge|us-west-2": 20.36,
     "ml.g6.2xlarge|ca-central-1": 1.3568,
+    "ml.p5.4xlarge|us-west-2": 7.91,
     "ml.g6e.xlarge|ap-northeast-1": 3.7786,
     "ml.g5.xlarge|eu-north-1": 1.4938,
     "ml.g5.4xlarge|us-east-2": 2.03,
@@ -18598,8 +18838,26 @@
       "usage_type": "USW2-Ray-V2-Medfps-HDRes",
       "price_per_second": 1.5
     },
+    "Marengo Embed 3.0|ap-northeast-2": {
+      "model_name": "Marengo Embed 3.0",
+      "region": "ap-northeast-2",
+      "by_tier": {
+        "hd": 0.00014
+      },
+      "usage_type": "APN2-MP:APN2_inputAudioSecond-Units",
+      "price_per_second": 0.00014
+    },
     "TwelveLabs Marengo Embed 3.0|ap-northeast-2": {
       "model_name": "TwelveLabs Marengo Embed 3.0",
+      "region": "ap-northeast-2",
+      "by_tier": {
+        "hd": 0.00014
+      },
+      "usage_type": "APN2-MP:APN2_inputAudioSecond-Units",
+      "price_per_second": 0.00014
+    },
+    "Marengo Embed 2.7|ap-northeast-2": {
+      "model_name": "Marengo Embed 2.7",
       "region": "ap-northeast-2",
       "by_tier": {
         "hd": 0.00014
@@ -18616,6 +18874,15 @@
       "usage_type": "APN2-MP:APN2_inputAudioSecond-Units",
       "price_per_second": 0.00014
     },
+    "Pegasus 1.2|eu-west-3": {
+      "model_name": "Pegasus 1.2",
+      "region": "eu-west-3",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "EUW3-MP:EUW3_inputVideoSecond-Units",
+      "price_per_second": 0.00049
+    },
     "TwelveLabs Pegasus 1.2|eu-west-3": {
       "model_name": "TwelveLabs Pegasus 1.2",
       "region": "eu-west-3",
@@ -18623,6 +18890,15 @@
         "hd": 0.00049
       },
       "usage_type": "EUW3-MP:EUW3_inputVideoSecond-Units",
+      "price_per_second": 0.00049
+    },
+    "Pegasus 1.2|eu-north-1": {
+      "model_name": "Pegasus 1.2",
+      "region": "eu-north-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "EUN1-MP:EUN1_inputVideoSecond_Global-Units",
       "price_per_second": 0.00049
     },
     "TwelveLabs Pegasus 1.2|eu-north-1": {
@@ -18634,6 +18910,15 @@
       "usage_type": "EUN1-MP:EUN1_inputVideoSecond_Global-Units",
       "price_per_second": 0.00049
     },
+    "Pegasus 1.2|ca-central-1": {
+      "model_name": "Pegasus 1.2",
+      "region": "ca-central-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "CAN1-MP:CAN1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
     "TwelveLabs Pegasus 1.2|ca-central-1": {
       "model_name": "TwelveLabs Pegasus 1.2",
       "region": "ca-central-1",
@@ -18641,6 +18926,15 @@
         "hd": 0.00049
       },
       "usage_type": "CAN1-MP:CAN1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "Pegasus 1.2|us-east-1": {
+      "model_name": "Pegasus 1.2",
+      "region": "us-east-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "USE1-MP:USE1_inputVideoSecond-Units",
       "price_per_second": 0.00049
     },
     "TwelveLabs Pegasus 1.2|us-east-1": {
@@ -18652,6 +18946,15 @@
       "usage_type": "USE1-MP:USE1_inputVideoSecond-Units",
       "price_per_second": 0.00049
     },
+    "Pegasus 1.2|ap-northeast-1": {
+      "model_name": "Pegasus 1.2",
+      "region": "ap-northeast-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "APN1-MP:APN1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
     "TwelveLabs Pegasus 1.2|ap-northeast-1": {
       "model_name": "TwelveLabs Pegasus 1.2",
       "region": "ap-northeast-1",
@@ -18659,6 +18962,15 @@
         "hd": 0.00049
       },
       "usage_type": "APN1-MP:APN1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "Pegasus 1.2|eu-west-1": {
+      "model_name": "Pegasus 1.2",
+      "region": "eu-west-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "EU-MP:EU_inputVideoSecond-Units",
       "price_per_second": 0.00049
     },
     "TwelveLabs Pegasus 1.2|eu-west-1": {
@@ -18670,6 +18982,15 @@
       "usage_type": "EU-MP:EU_inputVideoSecond-Units",
       "price_per_second": 0.00049
     },
+    "Pegasus 1.2|eu-central-1": {
+      "model_name": "Pegasus 1.2",
+      "region": "eu-central-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "EUC1-MP:EUC1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
     "TwelveLabs Pegasus 1.2|eu-central-1": {
       "model_name": "TwelveLabs Pegasus 1.2",
       "region": "eu-central-1",
@@ -18679,6 +19000,15 @@
       "usage_type": "EUC1-MP:EUC1_inputVideoSecond_Global-Units",
       "price_per_second": 0.00049
     },
+    "Pegasus 1.2|us-west-1": {
+      "model_name": "Pegasus 1.2",
+      "region": "us-west-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "USW1-MP:USW1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
     "TwelveLabs Pegasus 1.2|us-west-1": {
       "model_name": "TwelveLabs Pegasus 1.2",
       "region": "us-west-1",
@@ -18686,6 +19016,15 @@
         "hd": 0.00049
       },
       "usage_type": "USW1-MP:USW1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|ap-southeast-2": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "ap-southeast-2",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "APS2-MP:APS2_inputVideoSecond_Global-Units",
       "price_per_second": 0.00049
     },
     "Luma Ray2|us-west-2": {
@@ -18698,6 +19037,87 @@
       "usage_type": "USW2-MP:USW2_videoMediumFpsHdRes-Units",
       "price_per_second": 1.5
     },
+    "TwelveLabs Pegasus 1.5|us-west-1": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "us-west-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "USW1-MP:USW1_inputVideoSecond-Units",
+      "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|eu-west-2": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "eu-west-2",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "EUW2-MP:EUW2_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|ap-northeast-2": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "ap-northeast-2",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "APN2-MP:APN2_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|eu-west-1": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "eu-west-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "EU-MP:EU_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|ap-northeast-3": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "ap-northeast-3",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "APN3-MP:APN3_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|us-east-1": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "us-east-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "USE1-MP:USE1_inputVideoSecond-Units",
+      "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|ca-central-1": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "ca-central-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "CAN1-MP:CAN1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|sa-east-1": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "sa-east-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "SAE1-MP:SAE1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "Pegasus 1.2|us-east-2": {
+      "model_name": "Pegasus 1.2",
+      "region": "us-east-2",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "USE2-MP:USE2_inputVideoSecond-Units",
+      "price_per_second": 0.00049
+    },
     "TwelveLabs Pegasus 1.2|us-east-2": {
       "model_name": "TwelveLabs Pegasus 1.2",
       "region": "us-east-2",
@@ -18706,6 +19126,24 @@
       },
       "usage_type": "USE2-MP:USE2_inputVideoSecond-Units",
       "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|us-west-2": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "us-west-2",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "USW2-MP:USW2_inputVideoSecond-Units",
+      "price_per_second": 0.00049
+    },
+    "Marengo Embed 2.7|us-east-1": {
+      "model_name": "Marengo Embed 2.7",
+      "region": "us-east-1",
+      "by_tier": {
+        "hd": 0.00014
+      },
+      "usage_type": "USE1-MP:USE1_inputAudioSecond-Units",
+      "price_per_second": 0.00014
     },
     "TwelveLabs Marengo Embed 2.7|us-east-1": {
       "model_name": "TwelveLabs Marengo Embed 2.7",
@@ -18716,6 +19154,24 @@
       "usage_type": "USE1-MP:USE1_inputAudioSecond-Units",
       "price_per_second": 0.00014
     },
+    "TwelveLabs Pegasus 1.5|eu-central-1": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "eu-central-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "EUC1-MP:EUC1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "Pegasus 1.2|ap-south-1": {
+      "model_name": "Pegasus 1.2",
+      "region": "ap-south-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "APS3-MP:APS3_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
     "TwelveLabs Pegasus 1.2|ap-south-1": {
       "model_name": "TwelveLabs Pegasus 1.2",
       "region": "ap-south-1",
@@ -18724,6 +19180,15 @@
       },
       "usage_type": "APS3-MP:APS3_inputVideoSecond_Global-Units",
       "price_per_second": 0.00049
+    },
+    "Marengo Embed 3.0|us-east-1": {
+      "model_name": "Marengo Embed 3.0",
+      "region": "us-east-1",
+      "by_tier": {
+        "hd": 0.0007
+      },
+      "usage_type": "USE1-MP:USE1_inputVideoSecond-Units",
+      "price_per_second": 0.0007
     },
     "TwelveLabs Marengo Embed 3.0|us-east-1": {
       "model_name": "TwelveLabs Marengo Embed 3.0",
@@ -18734,6 +19199,33 @@
       "usage_type": "USE1-MP:USE1_inputVideoSecond-Units",
       "price_per_second": 0.0007
     },
+    "TwelveLabs Pegasus 1.5|ap-northeast-1": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "ap-northeast-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "APN1-MP:APN1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|eu-west-3": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "eu-west-3",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "EUW3-MP:EUW3_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "Marengo Embed 3.0|eu-west-1": {
+      "model_name": "Marengo Embed 3.0",
+      "region": "eu-west-1",
+      "by_tier": {
+        "hd": 0.00014
+      },
+      "usage_type": "EU-MP:EU_inputAudioSecond-Units",
+      "price_per_second": 0.00014
+    },
     "TwelveLabs Marengo Embed 3.0|eu-west-1": {
       "model_name": "TwelveLabs Marengo Embed 3.0",
       "region": "eu-west-1",
@@ -18743,6 +19235,15 @@
       "usage_type": "EU-MP:EU_inputAudioSecond-Units",
       "price_per_second": 0.00014
     },
+    "Pegasus 1.2|eu-west-2": {
+      "model_name": "Pegasus 1.2",
+      "region": "eu-west-2",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "EUW2-MP:EUW2_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
     "TwelveLabs Pegasus 1.2|eu-west-2": {
       "model_name": "TwelveLabs Pegasus 1.2",
       "region": "eu-west-2",
@@ -18750,6 +19251,15 @@
         "hd": 0.00049
       },
       "usage_type": "EUW2-MP:EUW2_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "Pegasus 1.2|sa-east-1": {
+      "model_name": "Pegasus 1.2",
+      "region": "sa-east-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "SAE1-MP:SAE1_inputVideoSecond_Global-Units",
       "price_per_second": 0.00049
     },
     "TwelveLabs Pegasus 1.2|sa-east-1": {
@@ -18761,6 +19271,24 @@
       "usage_type": "SAE1-MP:SAE1_inputVideoSecond_Global-Units",
       "price_per_second": 0.00049
     },
+    "TwelveLabs Pegasus 1.5|us-east-2": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "us-east-2",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "USE2-MP:USE2_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "Pegasus 1.2|ap-northeast-2": {
+      "model_name": "Pegasus 1.2",
+      "region": "ap-northeast-2",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "APN2-MP:APN2_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
     "TwelveLabs Pegasus 1.2|ap-northeast-2": {
       "model_name": "TwelveLabs Pegasus 1.2",
       "region": "ap-northeast-2",
@@ -18769,6 +19297,15 @@
       },
       "usage_type": "APN2-MP:APN2_inputVideoSecond_Global-Units",
       "price_per_second": 0.00049
+    },
+    "Marengo Embed 2.7|eu-west-1": {
+      "model_name": "Marengo Embed 2.7",
+      "region": "eu-west-1",
+      "by_tier": {
+        "hd": 0.00014
+      },
+      "usage_type": "EU-MP:EU_inputAudioSecond-Units",
+      "price_per_second": 0.00014
     },
     "TwelveLabs Marengo Embed 2.7|eu-west-1": {
       "model_name": "TwelveLabs Marengo Embed 2.7",
@@ -18779,6 +19316,15 @@
       "usage_type": "EU-MP:EU_inputAudioSecond-Units",
       "price_per_second": 0.00014
     },
+    "Pegasus 1.2|ap-northeast-3": {
+      "model_name": "Pegasus 1.2",
+      "region": "ap-northeast-3",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "APN3-MP:APN3_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
     "TwelveLabs Pegasus 1.2|ap-northeast-3": {
       "model_name": "TwelveLabs Pegasus 1.2",
       "region": "ap-northeast-3",
@@ -18786,6 +19332,24 @@
         "hd": 0.00049
       },
       "usage_type": "APN3-MP:APN3_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "TwelveLabs Pegasus 1.5|ap-southeast-1": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "ap-southeast-1",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "APS1-MP:APS1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
+    },
+    "Pegasus 1.2|us-west-2": {
+      "model_name": "Pegasus 1.2",
+      "region": "us-west-2",
+      "by_tier": {
+        "hd": 0.00049
+      },
+      "usage_type": "USW2-MP:USW2_inputVideoSecond-Units",
       "price_per_second": 0.00049
     },
     "TwelveLabs Pegasus 1.2|us-west-2": {
@@ -18797,41 +19361,23 @@
       "usage_type": "USW2-MP:USW2_inputVideoSecond-Units",
       "price_per_second": 0.00049
     },
-    "nova_reel_v1_0|ap-northeast-1": {
-      "model_name": "nova_reel_v1_0",
-      "region": "ap-northeast-1",
+    "TwelveLabs Pegasus 1.5|ap-south-1": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "ap-south-1",
       "by_tier": {
-        "hd": 0.08
+        "hd": 0.00049
       },
-      "usage_type": "APN1-NovaReel-I2V-Medfps-HDRes",
-      "price_per_second": 0.08
+      "usage_type": "APS3-MP:APS3_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
     },
-    "nova_reel_v1_0|us-east-1": {
-      "model_name": "nova_reel_v1_0",
-      "region": "us-east-1",
+    "TwelveLabs Pegasus 1.5|eu-north-1": {
+      "model_name": "TwelveLabs Pegasus 1.5",
+      "region": "eu-north-1",
       "by_tier": {
-        "hd": 0.08
+        "hd": 0.00049
       },
-      "usage_type": "USE1-NovaReel-T2V-Medfps-HDRes",
-      "price_per_second": 0.08
-    },
-    "nova_reel_v1_1|ap-northeast-1": {
-      "model_name": "nova_reel_v1_1",
-      "region": "ap-northeast-1",
-      "by_tier": {
-        "hd": 0.08
-      },
-      "usage_type": "APN1-NovaReel-I2V-Medfps-HDRes",
-      "price_per_second": 0.08
-    },
-    "nova_reel_v1_1|us-east-1": {
-      "model_name": "nova_reel_v1_1",
-      "region": "us-east-1",
-      "by_tier": {
-        "hd": 0.08
-      },
-      "usage_type": "USE1-NovaReel-T2V-Medfps-HDRes",
-      "price_per_second": 0.08
+      "usage_type": "EUN1-MP:EUN1_inputVideoSecond_Global-Units",
+      "price_per_second": 0.00049
     },
     "ray_v2_0|us-west-2": {
       "model_name": "ray_v2_0",
@@ -19088,39 +19634,6 @@
         "eu-south-2",
         "eu-west-1",
         "eu-west-2",
-        "eu-west-3"
-      ],
-      "us": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ]
-    },
-    "anthropic.claude-sonnet-4-20250514": {
-      "apac": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-south-2",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ap-southeast-4"
-      ],
-      "global": [
-        "ap-northeast-1",
-        "eu-west-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "eu": [
-        "eu-central-1",
-        "eu-north-1",
-        "eu-south-1",
-        "eu-south-2",
-        "eu-west-1",
         "eu-west-3"
       ],
       "us": [
@@ -19431,6 +19944,14 @@
         "eu-west-3"
       ]
     },
+    "anthropic.claude-sonnet-4-20250514": {
+      "global": [
+        "ap-northeast-1",
+        "eu-west-1",
+        "us-east-2",
+        "us-west-2"
+      ]
+    },
     "anthropic.claude-opus-4-8": {
       "jp": [
         "ap-northeast-1",
@@ -19564,38 +20085,6 @@
         "us-west-2"
       ]
     },
-    "openai.gpt-5.6-luna": {
-      "global": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "in": [
-        "ap-south-1",
-        "ap-south-2"
-      ],
-      "us": [
-        "ca-central-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ]
-    },
     "xai.grok-4.6": {
       "global": [
         "ap-northeast-1",
@@ -19652,7 +20141,7 @@
         "us-west-2"
       ]
     },
-    "moonshotai.kimi-k3": {
+    "twelvelabs.pegasus-1-5": {
       "global": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -19673,7 +20162,6 @@
         "us-west-2"
       ],
       "us": [
-        "ca-central-1",
         "us-east-1",
         "us-east-2",
         "us-west-1",
@@ -19681,34 +20169,6 @@
       ]
     },
     "openai.gpt-6-sol": {
-      "global": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "us": [
-        "ca-central-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ]
-    },
-    "openai.gpt-6-luna": {
       "global": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -20007,7 +20467,184 @@
         "us-west-2"
       ]
     },
+    "zai.glm-5.3": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "us": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "moonshotai.kimi-k3": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "in": [
+        "ap-south-1",
+        "ap-south-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "anthropic.claude-haiku-5-5": {
+      "jp": [
+        "ap-northeast-1",
+        "ap-northeast-3"
+      ],
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "au": [
+        "ap-southeast-2",
+        "ap-southeast-4"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
     "anthropic.claude-sonnet-5-5": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "au": [
+        "ap-southeast-2",
+        "ap-southeast-4"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "eu": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3"
+      ]
+    },
+    "openai.gpt-5.6-luna": {
+      "global": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "in": [
+        "ap-south-1",
+        "ap-south-2"
+      ],
+      "us": [
+        "ca-central-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ]
+    },
+    "openai.gpt-6-luna": {
       "global": [
         "ap-northeast-1",
         "ap-northeast-2",
@@ -20033,15 +20670,6 @@
         "us-east-2",
         "us-west-1",
         "us-west-2"
-      ],
-      "eu": [
-        "eu-central-1",
-        "eu-north-1",
-        "eu-south-1",
-        "eu-south-2",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3"
       ]
     },
     "twelvelabs.marengo-embed-2-7": {
@@ -20438,7 +21066,44 @@
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
       "end_of_life_time": "",
-      "start_of_life_time": "2026-09-30T00:00:00+00:00"
+      "start_of_life_time": "2026-09-30T00:00:00+00:00",
+      "token_pricing": {
+        "source": "price_list",
+        "rates": {
+          "input_per_1k": 0.000319,
+          "speech_input_per_1k": 0.0031832,
+          "speech_output_per_1k": 0.0127329,
+          "output_per_1k": 0.002651
+        },
+        "by_region": {
+          "ap-northeast-1": {
+            "speech_output_per_1k": 0.0149643,
+            "output_per_1k": 0.003311,
+            "input_per_1k": 0.000396,
+            "speech_input_per_1k": 0.0037411
+          },
+          "us-east-1": {
+            "speech_input_per_1k": 0.003,
+            "input_per_1k": 0.00033,
+            "speech_output_per_1k": 0.012,
+            "output_per_1k": 0.00275
+          },
+          "us-west-2": {
+            "input_per_1k": 0.000319,
+            "speech_input_per_1k": 0.0031832,
+            "speech_output_per_1k": 0.0127329,
+            "output_per_1k": 0.002651
+          },
+          "eu-north-1": {
+            "speech_output_per_1k": 0.0133066,
+            "speech_input_per_1k": 0.0033266,
+            "output_per_1k": 0.002992,
+            "input_per_1k": 0.000363
+          }
+        }
+      },
+      "input_price_per_1k": 0.000319,
+      "output_price_per_1k": 0.002651
     }
   }
 }

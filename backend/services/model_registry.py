@@ -304,8 +304,11 @@ _USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acce
 
 
 @_registry_write
-def promote_to_base():
+def promote_to_base(prune_unlisted: bool = True):
     """Promote discovered data from in-memory registry to model_registry.json.
+
+    ``prune_unlisted=False`` keeps regionless entries in base: the Sync passes it
+    when a Region scan failed, so a model only that Region offers isn't deleted.
 
     Copies model definitions, regions, pricing, and capabilities to the
     git-tracked base file. Strips user-only fields (enabled, deployment).
@@ -383,7 +386,7 @@ def promote_to_base():
                     # model (GPT-5.x, Grok, Gemma, …) gets deleted from base each Sync.
                     if "bedrock-mantle" in (v.get("endpoints") or []):
                         continue
-                    if not v.get("available_regions"):
+                    if prune_unlisted and not v.get("available_regions"):
                         del base_section[k]
                         logger.debug("Cleanup: removed %s.%s (no available regions — deprecated)", section, k)
 

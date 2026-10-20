@@ -307,7 +307,7 @@ def select_image_models(reg: dict, include_custom: bool = False) -> list[dict]:
     gallery, but may complete after the stream returns)."""
     out = []
     for key, c in reg.get("image_models", {}).items():
-        if c.get("enabled") is False:
+        if c.get("enabled") is False or not _lifecycle_usable(c):
             continue
         if c.get("model_purpose") not in (None, "text_to_image"):
             continue
@@ -321,10 +321,18 @@ def select_image_models(reg: dict, include_custom: bool = False) -> list[dict]:
     return out
 
 
+def _lifecycle_usable(cfg: dict) -> bool:
+    """The app's own lifecycle rule (past end-of-life, or recorded unavailable for
+    this account → not offered), so the harness never tests a model no user can pick."""
+    _backend()
+    from backend.services.model_registry import _lifecycle_usable as usable
+    return usable(cfg)
+
+
 def select_video_models(reg: dict, include_custom: bool = False) -> list[dict]:
     out = []
     for key, c in reg.get("video_models", {}).items():
-        if c.get("enabled") is False:
+        if c.get("enabled") is False or not _lifecycle_usable(c):
             continue
         if not include_custom and not _is_native(c):
             continue
@@ -1412,7 +1420,21 @@ def registry_checks(base, reg) -> list[dict]:
         if not (c.get("input_price_per_1k") or c.get("output_price_per_1k") or tp):
             row("priced", k, False, f"{c.get('model_id')} has no official price", warn=True)
 
-    # 7) Chat Studio refuses requests its UI never sends — no model is called.
+    # 7) The studios never offer a retired model: what the server serves to the
+    #    Image / Video Studio pickers excludes every entry past its AWS end-of-life
+    #    (or recorded unavailable for this account). The registry keeps the entries
+    #    (Sync records AWS's lifecycle facts); exclusion is the app's job.
+    for section, path in (("image_models", "/api/admin/models/image-options"),
+                          ("video_models", "/api/admin/models/video-options")):
+        retired = {k for k, c in (reg.get(section) or {}).items()
+                   if isinstance(c, dict) and not _lifecycle_usable(c)}
+        served = {m.get("key") for m in get_json(base, path).get("models", [])}
+        leaked = sorted(retired & served)
+        row("retired-hidden", section, not leaked,
+            f"offered past end-of-life: {', '.join(leaked)}" if leaked
+            else f"{len(served)} offered, {len(retired)} retired hidden")
+
+    # 8) Chat Studio refuses requests its UI never sends — no model is called.
     known = next((c.get("model_id") for c in enabled.values() if c.get("model_id")), "")
     hi = [{"role": "user", "content": "hi"}]
     guards = [("unknown model id", "/api/chat/stream",

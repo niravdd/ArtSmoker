@@ -108,14 +108,23 @@ def on_demand_dimensions(product: dict):
             yield dim.get("unit", "") or "", price
 
 
+def product_model_names(attrs: dict) -> list:
+    """Every name a Price List product goes by, preferred first: the ``model``
+    attribute, then the Marketplace ``servicename`` minus its " (Amazon Bedrock
+    Edition)" suffix. AWS has moved some Marketplace rows from an empty ``model``
+    to a short code (e.g. 'SD3.5LargeV1'); the servicename still carries the
+    display name a model's label matches, so name-keyed prices record both."""
+    names = [attrs.get("model", "") or ""]
+    svc = attrs.get("servicename", "") or ""
+    if svc.endswith(_MP_SUFFIX):
+        names.append(svc[: -len(_MP_SUFFIX)])
+    return [n for i, n in enumerate(names) if n and n not in names[:i]]
+
+
 def product_model_name(attrs: dict) -> str:
-    """Display name of a Price List product: the ``model`` attribute, or the
-    Marketplace ``servicename`` minus its " (Amazon Bedrock Edition)" suffix."""
-    name = attrs.get("model", "") or ""
-    if not name:
-        svc = attrs.get("servicename", "") or ""
-        name = svc[: -len(_MP_SUFFIX)] if svc.endswith(_MP_SUFFIX) else ""
-    return name
+    """Display name of a Price List product (the first of ``product_model_names``)."""
+    names = product_model_names(attrs)
+    return names[0] if names else ""
 
 
 def region_code_map(products: list[dict]) -> dict:

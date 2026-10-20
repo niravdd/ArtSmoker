@@ -1714,7 +1714,7 @@ def _fetch_image_pricing() -> dict:
     Image Ultra/Core) live under AmazonBedrockFoundationModels with ONE flat
     per-image price → simple key only. Empty dict on failure.
     """
-    from backend.services.official_pricing import price_list_products, on_demand_dimensions, product_model_name
+    from backend.services.official_pricing import price_list_products, on_demand_dimensions, product_model_name, product_model_names
     try:
         products = price_list_products()
     except Exception as exc:
@@ -1730,11 +1730,13 @@ def _fetch_image_pricing() -> dict:
             if unit.lower() != "image" or not (model_name and region and price > 0):
                 continue
             if pd.get("_service_code") == "AmazonBedrockFoundationModels":
-                # e.g. 'USE1-MP:USE1_created_image-Units' — one output-image price.
-                prices.setdefault(f"{model_name}|{region}", {
-                    "model_name": model_name, "region": region,
-                    "price_usd": price, "usage_type": usage[:80],
-                })
+                # e.g. 'USE1-MP:USE1_created_image-Units' — one output-image price,
+                # recorded under each name the product goes by (code + display).
+                for name in product_model_names(attrs):
+                    prices.setdefault(f"{name}|{region}", {
+                        "model_name": name, "region": region,
+                        "price_usd": price, "usage_type": usage[:80],
+                    })
                 continue
             # Parse quality and size from usage type
             # e.g. "USE1-NovaCanvas-T2I-1024-Premium"
@@ -1884,7 +1886,7 @@ def _fetch_video_pricing(regions: list[str] | None = None) -> dict:
     default output). Returns
     { "<model>|<region>": {"model_name","region","price_per_second","by_tier","usage_type"} }.
     Empty on failure."""
-    from backend.services.official_pricing import price_list_products, on_demand_dimensions, product_model_name
+    from backend.services.official_pricing import price_list_products, on_demand_dimensions, product_model_name, product_model_names
     try:
         products = price_list_products()
     except Exception as exc:
@@ -1906,11 +1908,12 @@ def _fetch_video_pricing(regions: list[str] | None = None) -> dict:
         for unit, price in on_demand_dimensions(pd):
             if unit.lower() not in ("video", "second", "seconds") or price <= 0:
                 continue
-            e = prices.setdefault(f"{model_name}|{region}", {
-                "model_name": model_name, "region": region, "by_tier": {},
-                "usage_type": usage[:80],
-            })
-            e["by_tier"].setdefault(tier, price)
+            for name in product_model_names(attrs):  # code + display name
+                e = prices.setdefault(f"{name}|{region}", {
+                    "model_name": name, "region": region, "by_tier": {},
+                    "usage_type": usage[:80],
+                })
+                e["by_tier"].setdefault(tier, price)
     for e in prices.values():
         e["price_per_second"] = e["by_tier"].get("hd") or min(e["by_tier"].values())
     logger.info("Fetched %d video pricing entries from the AWS Price List", len(prices))
@@ -3203,6 +3206,7 @@ def _run_refresh_all_regions():
     scan_regions: list[str] = []
     regions_not_enabled: list[str] = []
     account_listregions_denied = False
+    scan_failures = 0  # Region scans that failed for a reason other than "not enabled"
 
     try:
         # Step 1: Discover regions from AWS
@@ -3261,9 +3265,15 @@ def _run_refresh_all_regions():
 
         # Step 2c: Reset all available_regions before scanning — so stale regions
         # are pruned automatically. Each region scan in Step 3 re-adds itself.
-        from backend.services.model_registry import update_image_model
+        from backend.services.model_registry import update_image_model, update_video_model
         for key in list(registry.get("image_models", {}).keys()):
             update_image_model(key, {"available_regions": []})
+        # Video too (Bedrock-discovered only: a custom-hosted endpoint isn't
+        # re-found by the Region scan), so a Region or model AWS stops listing
+        # drops out instead of being kept forever.
+        for key, cfg in list(registry.get("video_models", {}).items()):
+            if (cfg or {}).get("model_source", "foundation") == "foundation":
+                update_video_model(key, {"available_regions": []})
         # Also reset chat_models regions
         for key in list(registry.get("chat_models", {}).keys()):
             registry["chat_models"][key]["available_regions"] = []
@@ -3309,6 +3319,11 @@ def _run_refresh_all_regions():
             except Exception as exc:
                 results[region] = {"error": str(exc)[:100]}
                 errors += 1
+                # A Region the account hasn't enabled (scanned when account:ListRegions
+                # is denied) offers nothing to miss, so it doesn't make the scan incomplete.
+                from backend.services.bedrock_client import _REGION_NOT_ENABLED_CODES
+                if not any(c in str(getattr(exc, "detail", exc)) for c in _REGION_NOT_ENABLED_CODES):
+                    scan_failures += 1
                 _progress(f"Skipped {region} ({str(exc)[:40]})")
 
             # Discover custom + imported models in this region
@@ -3418,8 +3433,17 @@ def _run_refresh_all_regions():
                         len(new_model_ids), ", ".join(sorted(new_model_ids)))
 
         # Step 4d: Prune — disable models not found in any region this scan.
+        # Only after a COMPLETE scan: a Region that failed to scan would otherwise
+        # disable every model only it offers, and nothing re-enables them (voice
+        # aside). Meanwhile those models keep their pinned Region; the next clean
+        # Sync prunes.
         disabled = []
-        for key, cfg in list(registry.get("image_models", {}).items()):
+        prune = scan_failures == 0
+        if not prune:
+            logger.warning("Sync: %d Region scan(s) failed — not disabling unlisted "
+                           "image/chat/video models this run", scan_failures)
+            _progress(f"{scan_failures} Region scan(s) failed — unlisted models are kept until a complete Sync")
+        for key, cfg in (list(registry.get("image_models", {}).items()) if prune else []):
             if cfg.get("model_source") == "custom_hosted":
                 continue
             regions = cfg.get("available_regions", [])
@@ -3432,7 +3456,7 @@ def _run_refresh_all_regions():
                 registry["image_models"][key]["enabled"] = False
                 disabled.append(key)
                 logger.debug("Disabled image model %s — no longer found in any region", key)
-        for key, cfg in list(registry.get("chat_models", {}).items()):
+        for key, cfg in (list(registry.get("chat_models", {}).items()) if prune else []):
             # Mantle-reachable models are EXEMPT — they live on the bedrock-mantle
             # endpoint, which the per-region runtime scan (list_foundation_models)
             # structurally can't see, so they always have empty available_regions.
@@ -3445,7 +3469,7 @@ def _run_refresh_all_regions():
                 registry["chat_models"][key]["enabled"] = False
                 disabled.append(key)
                 logger.debug("Disabled chat model %s — no longer found in any region", key)
-        for key, cfg in list(registry.get("video_models", {}).items()):
+        for key, cfg in (list(registry.get("video_models", {}).items()) if prune else []):
             if cfg.get("model_source") == "custom_hosted":
                 continue
             regions = cfg.get("available_regions", [])
@@ -3493,7 +3517,9 @@ def _run_refresh_all_regions():
     # Auto-promote: copy discovered data to git-tracked base file,
     # rewrite user file to only user-specific overrides
     from backend.services.model_registry import promote_to_base
-    promote_result = promote_to_base()
+    # Same rule as the Step 4d prune: after an incomplete scan, keep regionless
+    # entries in base rather than delete what a failed Region alone offers.
+    promote_result = promote_to_base(prune_unlisted=scan_failures == 0)
     logger.info("Sync complete: %d new, %d updated across %d enabled regions (%d errors, %d not enabled). Promoted %d base models, %d user overrides.",
                 total_new, total_updated, len(scan_regions), errors, len(regions_not_enabled),
                 promote_result["base_models"], promote_result["user_overrides"])

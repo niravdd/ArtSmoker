@@ -909,14 +909,18 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 **Auto-discovery** (`POST /api/admin/discover/refresh-all`):
 1. Discovers all Bedrock-supported regions from AWS, filtered to the Regions **enabled** for the account
 2. Fetches per-image, SageMaker-instance, video and S3 infra pricing
-3. Resets all `available_regions` to empty (prunes stale data)
+3. Resets all `available_regions` to empty (prunes stale data): image, chat and voice models, and Bedrock-discovered video models. A custom-hosted video endpoint isn't re-found by the Region scan, so its Regions are kept.
 4. Scans each region — registers new text-to-image, video, chat and voice (speech-to-speech) models, updates `available_regions` (and `on_demand_regions`) for existing models, and **discovers the inference profiles** (`ListInferenceProfiles`, SYSTEM_DEFINED) into the top-level `inference_profiles` map
 5. Discovers custom models via `ListCustomModels`, `ListImportedModels`, `ListCustomModelDeployments`, and `ListProvisionedModelThroughputs` — custom models inherit format family from their base model
 6. **Reconciles the `bedrock-mantle` catalog** (`_reconcile_mantle_models`): queries the Mantle `models.list` in every known Mantle Region **and every other account-enabled Region** (AWS has no API listing Mantle Regions, so a Region that gains Mantle is found at the next Sync with no code change), records `mantle_regions` per model, marks discovered runtime models that are *also* on Mantle, and adds **Mantle-only** models (OpenAI GPT-5.x, Claude Mythos, GLM/Grok, …) as new `chat_models` entries — stamping `endpoints[]`/`apis[]`/`invoke_endpoint`/`invoke_api` on every entry (from the AWS API-compatibility matrix; dated aliases like `gpt-5.4-2026-03-05` are de-duped against their undated base). Skipped cleanly if Mantle is unavailable. A listing is three-way: models; `[]` = no Mantle there (an empty catalog, or the endpoint hostname doesn't resolve — AWS publishes DNS for every endpoint it runs); or *inconclusive* (timeout, throttling, 5xx, auth — may be temporary), in which case each model keeps the Region it was recorded in. `mantle_client.known_mantle_regions()` = the union of every recorded `mantle_regions` — the registry is authoritative; a small seed (`_SEED_MANTLE_REGIONS`) is used only before the first Sync. Mantle pins move like any re-pin (below), never out of the residency geo.
 7. **Pin post-pass** (`_resolve_residency_pins`) — re-derives every chat model's pinned id + Region (below)
 8. Backfills routing, lifecycle (Legacy/EOL) and `supports_temperature`
 9. **Per-Region servability probe** (`_probe_chat_servability`, below) — records the Regions that don't answer and moves pins off them
-10. Disables models no longer found in any region; settles `voice_models` (Region + enabled)
+10. Disables image, chat and video models no longer found in any region, then settles `voice_models` (Region + enabled):
+    - **Exempt:** custom-hosted models, and chat models reachable on `bedrock-mantle`.
+    - **Complete scans only.** The disable step runs only when every scanned Region listed successfully. A Region the account hasn't enabled (`UnrecognizedClientException` / `InvalidClientTokenId`, scanned when `account:ListRegions` is denied) doesn't count as a failure. Any other failure keeps unlisted models enabled for that run, because nothing re-enables an image, chat or video model once it's disabled (voice is the exception), and the next clean Sync prunes them.
+    - **Removal.** `promote_to_base` then drops a disabled, unlisted model from the base registry.
+    - **Independent rule.** Separately, every picker excludes a model past its AWS `end_of_life_time` (`_lifecycle_usable`), whatever its Regions say.
 11. **Official pricing** (`_sync_official_pricing`, §14) — token rates onto `chat_models`, per-image / per-second rates onto image and video models
 12. **Auto-rolls** `fast_llm`/`complex_llm` to the newest discovered Sonnet/Opus (respecting `pinned` categories), recording each rolled model's `supports_temperature` (see §4.8 *Auto-roll on Sync*), and `voice` to the newest ACTIVE Nova Sonic
 
