@@ -69,10 +69,14 @@ ArtSmoker는 오늘날 최고의 생성형 모델들을 하나의 아티스트 �
 - **자연어로 설명하세요** — ArtSmoker가 프롬프트 분해, 강화, 모델별 최적화를 뒷단에서 처리합니다. 가이드형 **Prompt Designer**를 통해 개별 시각 요소(주체, 씬, 조명, 색상)를 잠금/변형 컨트롤로 다듬어, 이미 잘 작동하는 것을 잃지 않으면서 진정으로 다른 방향을 탐색할 수 있습니다.
 - **기본적으로 브랜드에 맞춤** — ArtSmoker에 기존 아트를 공급하면 비전 모델이 비주얼 아이덴티티를 학습하여, 모든 에셋이 프로젝트의 룩 앤 필에 맞춰 나옵니다.
 - **2D, 편집, 그리고 3D — 엔드투엔드** — 생성한 뒤 인페인팅, 아웃페인팅, 색상 변경, 검색 및 교체, 레퍼런스 가이드 편집으로 제자리에서 다듬고; 모든 2D 에셋을 Unity, Unreal, Blender에 바로 들어가는 **완전 텍스처링된 게임 엔진 맞춤형 3D 모델**로 변환합니다 — 수동 모델링, UV 언래핑, 텍스처 페인팅이 필요 없습니다. 여기에 영화적 동영상과 아이디어 발상을 위한 멀티 모델 채팅 스튜디오까지.
-- **모든 모델, 원클릭** — 여러 리전에 걸친 최신 호스팅 모델을 사용하거나, 큐레이션된 오픈소스 모델(Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2 등)을 원클릭으로 자체 GPU에 배포하세요 — 패키징, 양자화, 오토 스케일링, 작업 추적이 모두 처리되고, 모든 모델이 출시 전 엔드투엔드로 검증됩니다.
+- **모든 모델, 원클릭** — 여러 리전에 걸친 최신 호스팅 모델을 사용하거나, 큐레이션된 오픈소스 모델(예: Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2)을 원클릭으로 자체 GPU에 배포하세요 — 패키징, 양자화, 오토 스케일링, 작업 추적이 모두 처리되고, 모든 모델이 출시 전 엔드투엔드로 검증됩니다.
 - **원하는 곳에서 실행 — 그리고 IP는 당신의 것으로 유지** — 아티스트 한 명의 데스크톱이나 팀 전체를 위한 공유 인스턴스에 설치하세요; **자체 GPU가 필요 없습니다**(무거운 연산은 관리형 AWS 서비스에서, 또는 ArtSmoker가 대신 띄우고 제로로 다시 스케일하는 오토 스케일링 엔드포인트에서 실행됩니다). 오직 당신 자신의 AWS 계정에만 연결됩니다 — 아트워크, 프롬프트, 스타일, 생성된 에셋이 당신의 환경 내에 머물고, 아무것도 서드파티 서비스로 나가지 않으며, 크리에이티브 IP에 대한 완전한 소유권을 유지합니다.
 
-**Amazon Bedrock 모델**: Claude Sonnet/Opus(프롬프트 엔지니어링 및 채팅), Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, Stability AI 서비스(이미지 편집), Luma AI Ray(동영상 생성), 그리고 Chat Studio용 16개 제공업체의 80개 이상의 LLM. **셀프 호스팅 모델**: Qwen-Image(텍스트-이미지) 및 Qwen-Image-Edit(레퍼런스 가이드 + 지시 편집, Apache-2.0), HunyuanImage 3.0(BF16/NF4), FLUX.2, FLUX.1, TripoSG 및 TRELLIS.2(이미지-투-3D) 등, Amazon SageMaker 경유 — 새 모델을 추가할 수 있는 확장 가능한 카탈로그 포함.
+**Amazon Bedrock 모델** — **Sync from AWS**가 계정에서 찾은 모든 모델. 예: 프롬프트 엔지니어링 및 채팅용 Claude Sonnet/Opus, 이미지용 Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, 이미지 편집용 Stability AI 서비스, 동영상용 Luma AI Ray, 그리고 Chat Studio용으로 여러 제공업체의 다양한 채팅 LLM. **셀프 호스팅 모델** — 릴리스마다 함께 제공되며 Amazon SageMaker에 배포되는 큐레이션 카탈로그. 예: Qwen-Image(텍스트-이미지) 및 Qwen-Image-Edit(레퍼런스 가이드 + 지시 편집, Apache-2.0), HunyuanImage 3.0(BF16/NF4), FLUX.2, FLUX.1, TripoSG 및 TRELLIS.2(이미지-투-3D) — 확장 가능하므로 직접 모델을 추가할 수도 있습니다.
+
+<a id="about-model-names"></a>
+> [!NOTE]
+> **모델 이름에 대하여.** ArtSmoker는 **Sync from AWS**가 계정과 리전에서 찾은 모델과, 릴리스마다 함께 제공되는 셀프 호스팅 카탈로그를 제공합니다. 이 README의 모델 이름은 **2026년 10월 기준의 예시**입니다 — AWS는 모델을 자주 출시하고 폐기하며, 사용할 수 있는 모델은 계정, 리전, 모델 액세스에 따라 달라집니다. 현재 무엇을 사용할 수 있는지는 앱이 진실의 원천입니다.
 
 **[지금 시작하기 — 사전 요구사항 및 설치로 이동 ▸](#get-started)**
 
@@ -133,12 +137,12 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 - 🖼️ **Image Studio** — 옵션 x 배리에이션으로 이미지 생성, 가이드형 3단계 프롬프트 워크플로
 - 🎨 **Prompt Designer** — AI가 프롬프트를 편집 가능한 시각 컴포넌트(주체, 씬, 조명, 색상)로 분해, 필드별 잠금/변형 토글, 스타일 통합, 스마트 에셋 타입 분류. Photorealistic, Character, Environment 등
 - 🗂️ **컬렉션(세트 생성)** — 하나의 프롬프트, **또는 참조 이미지**로 일관된 **서로 다른 에셋 세트**(「바이킹풍 체스 세트」, 「JRPG 캐릭터 20종」 등)를 만듭니다. Image Studio에서 **Collection** 토글을 켜고 **Text** 탭(프롬프트가 주도) 또는 **Image-Inspired** 탭(참조 이미지의 *룩*이 아트 디렉션을 주도)에서 시작합니다. 전용 **Collection Designer**가 브리프를 공유 **아트 디렉션**과 테마에 맞는 서로 다른 대상들의 **로스터**로 분해합니다 — 각 대상은 편집 가능한 모델 비의존 프롬프트를 가진 하나의 **배치**입니다. 아트 디렉션을 편집해 세트 전체를 재구성하고, 개별 배치를 잠그기/재생성/추가/삭제하며, 전부를 한 번에 생성(각 옵션×변형)합니다. 설계+예상 비용을 실시간 표시. **하나의 모델로 통일된 세트를, 또는 여러 모델로 각 배치를 모델별로** 생성(모델 교차 비교)할 수 있습니다. 선택적 **hero-** / **reference-anchor** 응집성은 선택/제공한 이미지에 세트의 스타일을 고정합니다. 컬렉션은 Gallery에 **하나의 카드**로 표시되며, 컬렉션 뷰어를 열면 각 배치가 일반 Asset Viewer(옵션/변형/버전, 편집, 내보내기, 3D — 단일 이미지와 완전히 동일 — 및 해당 배치의 **컬렉션 계보**)로 드릴다운됩니다. 각 배치의 **대표 버전 고정**, **세트 전체를 한 번에 3D화**(또는 선택한 배치나 이미지만)하고 컬렉션 전용 **3D models** 뷰에서 모델이 하나씩 도착하는 모습 확인, 세트 전체 또는 선택 항목을 하나의 zip으로 **다운로드**(단일 이미지와 동일한 파일 — PNG, SVG, 배경 제거 컷아웃 — 또는 동일한 엔진 프리셋·LOD·콜리전·텍스처 패킹을 적용한 3D 모델), 또는 **컬렉션 전체를 Image Studio로 다시 불러와** 검토·재생성할 수 있습니다. 컬렉션의 3D 모델은 컬렉션 안에 그대로 유지되며, Gallery의 **3D 필터**에는 「3D n/m」 배지가 붙은 컬렉션 카드가 표시됩니다. 불러온 컬렉션은 **Image Studio 결과 영역에 바로 표시**되며(단일 이미지와 같은 카드·미리보기·프롬프트 패널을 배치별로 묶어서), Collection Designer를 다시 열면 **저장된 디자인 그대로**(아트 디렉션, 배치별 프롬프트, 각 모델이 실제로 받은 프롬프트)가 표시되고 요청할 때만 재생성되며, **비용이 발생하기 전에** 에셋 유형을 프롬프트와 대조합니다(세트는 캐릭터 또는 게임 에셋) — 잘못된 형식으로 세트 전체에 비용을 쓰는 일이 없습니다
-- 🎬 **Video Studio** — 모델별 프롬프트 가이던스(Luma Ray 자연어 연출 지시)를 갖춘 텍스트-투-비디오, 이미지-투-비디오, 루핑
+- 🎬 **Video Studio** — 모델별 프롬프트 가이던스(예: Luma Ray용 자연어 연출 지시)를 갖춘 텍스트-투-비디오, 이미지-투-비디오, 루핑
 - ✍️ **Type Studio** — 폰트 피커가 포함된 AI 디자인 텍스트 오버레이
 - 💬 **Chat Studio** — 스트리밍, 마크다운, 코드 하이라이팅, 비전, 세션, 컨텍스트 압축을 지원하는 멀티 모델 LLM 채팅
 - 📁 **통합 갤러리** — 각 에셋을 실제 종횡비(세로, 정사각형, 가로 — 절대 잘리지 않음)로 표시하는 메이슨리 레이아웃. 이미지 + 동영상 탐색, 미디어 필터(전체 / 2D 아트워크 / 3D 모델 / 동영상), 검색, 전체 날짜-시간-시간대 스탬프, 다운로드, 삭제. 이미 3D 모델이 생성된 에셋에는 **3D 배지**가 붙으며, **3D 모델** 필터는 그런 에셋만 표시합니다
 - 📥 **이미지 가져오기** — 기존 이미지(모든 형식)를 갤러리에 일급 에셋으로 가져옵니다. 자동으로 PNG로 변환되고, 선택한 에셋 타입으로 태그되며, 즉시 편집·3D 변환이 가능합니다 — 모든 기능(버전 관리, 편집, 이미지-투-3D)이 생성 이미지와 정확히 동일하게 작동합니다
-- ✏️ **이미지 편집** — 인페인팅, 아웃페인팅, 지우기, 검색 및 교체, 리컬러(AssetViewer 내). 각 모드에는 AI **프롬프트 생성** 버튼이 있어, 비전 모델이 이미지와 원본 프롬프트를 읽고 해당 모드와 선택한 편집 모델에 맞춘 편집 프롬프트를 제안합니다(Stability 편집 모델에는 설명형 캡션, Qwen-Image-Edit에는 지시문). 확장/아웃페인트는 확정 전에 픽셀 눈금자와 함께 캔버스가 얼마나 확장될지 실시간 성장 프레임 미리보기로 보여줍니다. 지시형 에디터(Qwen-Image-Edit)는 **5가지 모드 전부를 마스크 없이** 지원합니다 — 진정한 캔버스 확장 포함: ArtSmoker가 캔버스를 사전 패딩하고, 모델이 새 영역만 완성하게 한 뒤, 원본 픽셀을 그대로 블렌딩해 되돌립니다. 편집된 각 버전에는 원본 생성 모델과 해당 버전을 편집한 에디터 **두 개의 태그**가 함께 표시됩니다
+- ✏️ **이미지 편집** — 인페인팅, 아웃페인팅, 지우기, 검색 및 교체, 리컬러(AssetViewer 내). 각 모드에는 AI **프롬프트 생성** 버튼이 있어, 비전 모델이 이미지와 원본 프롬프트를 읽고 해당 모드와 선택한 편집 모델에 맞춘 편집 프롬프트를 제안합니다(예: Stability 편집 모델에는 설명형 캡션, Qwen-Image-Edit에는 지시문). 확장/아웃페인트는 확정 전에 픽셀 눈금자와 함께 캔버스가 얼마나 확장될지 실시간 성장 프레임 미리보기로 보여줍니다. 지시형 에디터(예: Qwen-Image-Edit)는 **5가지 모드 전부를 마스크 없이** 지원합니다 — 진정한 캔버스 확장 포함: ArtSmoker가 캔버스를 사전 패딩하고, 모델이 새 영역만 완성하게 한 뒤, 원본 픽셀을 그대로 블렌딩해 되돌립니다. 편집된 각 버전에는 원본 생성 모델과 해당 버전을 편집한 에디터 **두 개의 태그**가 함께 표시됩니다
 - 📤 **내보내기 및 컷아웃** — AssetViewer에서 버전별 내보내기 산출물: 배경이 제거된 투명 PNG 컷아웃과 진정한 벡터 SVG 트레이스(배경 포함/미포함). 배경 제거 방식은 실행마다 선택 가능: **무료 온디바이스**(rembg/u2net, 클라우드 비용 없음) 또는 **유료 Amazon Bedrock** 리무버 — 3D 생성용 이미지 준비 시에도 동일한 선택지를 제공합니다
 - 🔄 **실시간 진행률** — 재시도/스로틀 가시성이 포함된 SSE 스트리밍
 - 🛡️ **스마트 콘텐츠 검토** — 카나리아 테스트, 자동 모델 전환, AI 보조 리라이트
@@ -148,7 +152,7 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 - 💰 **비용 추적** — 요청, 세션, 에셋별 추정 AWS 지출로, 지역별 실시간 AWS 가격에서 계산. 자체 호스팅 모델은 (오해를 부르는 이미지당 가격이 아니라) GPU 인스턴스의 시간당 실행 요금 + 일반적인 생성 시간을 표시
 - 🌐 **9개 언어 i18n** — 완전한 UI 번역(EN, JA, ZH, KO, HI, RU, FR, ES, DE), 비영어 프롬프트 자동 감지(영어 UI는 감지를 완전히 건너뜀), 이중 언어 미리보기
 - 🔍 **커스텀 모델 지원** — 파인튜닝, 임포트, 배포된 커스텀 Bedrock 모델을 자동으로 검색
-- 🔧 **셀프 호스팅 모델 — 원클릭 배포** — 사전 테스트된 오픈소스 모델(Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2 등)의 큐레이션 카탈로그를 탐색하고, GPU 인스턴스를 선택한 후 Deploy를 클릭합니다. ArtSmoker가 추론 핸들러 패키징, 양자화 구성, 올바른 CUDA 툴킷 선택, 오토 스케일링 설정, CloudWatch 알람 등록, 비동기 작업 추적 연결까지 모든 것을 처리합니다. 카탈로그의 모든 모델은 콜드 스타트부터 생성, 갤러리 전달까지 엔드투엔드로 검증되었으므로 — GPU 드라이버, 메모리 오버플로, 컨테이너 호환성을 디버깅할 필요가 없습니다. 최고 품질을 위한 BF16 + FlashInfer, 비용 효율을 위한 NF4, 멀티 GPU 자동 감지를 지원하고, 유휴 시 제로로 오토 스케일링($0 유휴 비용)되며, 동일 모델이 재구성 없이 다른 인스턴스 유형에서 실행됩니다
+- 🔧 **셀프 호스팅 모델 — 원클릭 배포** — 사전 테스트된 오픈소스 모델(이번 릴리스 기준, 예: Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2)의 큐레이션 카탈로그를 탐색하고, GPU 인스턴스를 선택한 후 Deploy를 클릭합니다. ArtSmoker가 추론 핸들러 패키징, 양자화 구성, 올바른 CUDA 툴킷 선택, 오토 스케일링 설정, CloudWatch 알람 등록, 비동기 작업 추적 연결까지 모든 것을 처리합니다. 카탈로그의 모든 모델은 콜드 스타트부터 생성, 갤러리 전달까지 엔드투엔드로 검증되었으므로 — GPU 드라이버, 메모리 오버플로, 컨테이너 호환성을 디버깅할 필요가 없습니다. 최고 품질을 위한 BF16 + FlashInfer, 비용 효율을 위한 NF4, 멀티 GPU 자동 감지를 지원하고, 유휴 시 제로로 오토 스케일링($0 유휴 비용)되며, 동일 모델이 재구성 없이 다른 인스턴스 유형에서 실행됩니다
 - 🧊 **이미지-투-3D 생성** — 모든 Game Asset 또는 Character 이미지를 원클릭으로 텍스처링된 3D 메시(GLB)로 변환합니다. 멀티뷰 합성 + 텍스처 베이킹으로 게임 엔진 맞춤형 에셋을 생성합니다. 오빗/줌/팬이 가능한 인터랙티브 3D 뷰어
 - 🩹 **3D용 스마트 소스 완성** — 이미지-투-3D는 보이는 부분만 생성할 수 있어, 잘린 캐릭터(다리가 잘림)는 다리 없는 메시가 됩니다. 생성 전에 ArtSmoker가 소스를 비전으로 확인하고, 잘려 있으면 아웃페인팅으로 **완성할 것을 제안**합니다(AI가 제안하고 완전히 편집 가능한 프롬프트) — 전/후를 미리 보고, 결과를 재검토하며, 다시 확장하거나 버릴 수 있고, 새 이미지 버전으로 저장됩니다. 옵트인이며 비차단형이고, 잘 구성된 이미지는 그대로 생성됩니다
 - 🔄 **Auto-Update** — 시작 시 버전 게이트 확인 + 24시간 주기 확인, `git`(checkout)로 업데이트하거나 git이 없는 설치 환경에서는 **tarball 다운로드 후 교체** 방식으로 업데이트한 뒤, 그 자리에서 재시작(감독 프로세스 재기동 / gunicorn reload)하거나 원클릭 **Restart**를 제공합니다 — `data/`나 `.env`는 절대 덮어쓰지 않습니다(`ARTSMOKER_AUTO_UPDATE=false`로 비활성화)
@@ -215,7 +219,7 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 
 *3D 파이프라인의 스크린샷 — 생성, 소스 검토, 게임 엔진 맞춤형 내보내기, 배리언트 — 은 아래 1.9절(3D 모델 생성)에서 해당 기능과 함께 보여드립니다.*
 
-**Video Studio** — 왼쪽에 설정(모델, 생성 모드, 길이, 리전, 비용 추정), 오른쪽에 프롬프트. **Sync from AWS**가 계정에서 검색한 동영상 모델을 제공합니다 — 현재는 Luma AI Ray(종횡비, 루핑).
+**Video Studio** — 왼쪽에 설정(모델, 생성 모드, 길이, 리전, 비용 추정), 오른쪽에 프롬프트. **Sync from AWS**가 계정에서 검색한 동영상 모델을 제공합니다 — 예: Luma AI Ray(종횡비, 루핑).
 
 ![Video Studio — 설정과 프롬프트](docs/images/video-studio.png)
 
@@ -247,16 +251,16 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 
 프롬프트를 처음부터 작성하는 것 외에도, **1~3장의 레퍼런스 이미지와 지시문으로** 생성할 수 있습니다 — Image Studio 프롬프트 영역 상단의 세그먼트 컨트롤로 모드를 선택하세요:
 
-- **레퍼런스에 맞추기(Match the reference)** — 레퍼런스의 주체, 제품, 캐릭터는 유지하고 나머지(테마, 배경, 의상, 조명)를 지시문 그대로 변경합니다. 여러 장면에 걸친 일관된 캐릭터나 제품 샷에 이상적입니다. 이 모드는 셀프 호스팅 지시형 에디터(Qwen-Image-Edit)에서 실행되며 **배포되어 있을 때** 나타납니다 — 배포되어 있지 않으면 ArtSmoker가 Custom Models에서 바로 배포하도록 안내합니다(원클릭, 3D 파이프라인과 동일한 흐름). 상업적으로 안전(Apache-2.0)합니다.
+- **레퍼런스에 맞추기(Match the reference)** — 레퍼런스의 주체, 제품, 캐릭터는 유지하고 나머지(테마, 배경, 의상, 조명)를 지시문 그대로 변경합니다. 여러 장면에 걸친 일관된 캐릭터나 제품 샷에 이상적입니다. 이 모드는 셀프 호스팅 지시형 에디터(이번 릴리스에서는 Qwen-Image-Edit)에서 실행되며 **배포되어 있을 때** 나타납니다 — 배포되어 있지 않으면 ArtSmoker가 Custom Models에서 바로 배포하도록 안내합니다(원클릭, 3D 파이프라인과 동일한 흐름). 상업적으로 안전(Apache-2.0)합니다.
 - **레퍼런스에서 영감받기(Inspired by the reference)** — ArtSmoker의 비전 AI가 레퍼런스와 지시문을 읽고 강화된 프롬프트를 작성한 뒤(먼저 사용자에게 표시), 평소의 텍스트-이미지 모델로 생성합니다. **항상 사용 가능** — 배포가 필요 없습니다. 주체를 복제하지 않고 룩, 팔레트, 구도를 빌려오는 데 좋습니다.
 
-- **참조 리믹스(Remix the reference)** — 고전적인 강도 기반 image-to-image: 레퍼런스의 *픽셀*이 Bedrock 모델(Stable Diffusion 3.5 Large 또는 Stable Image Ultra — 레지스트리 기능 플래그로 판별)로 곧장 전달되며 **강도 다이얼**로 조절합니다. 미묘하게는 구도·색감·분위기를 거의 유지하고, 과감하게는 느슨한 영감으로 취급합니다. 옵션을 2 이상으로 하면 **강도 사다리**가 되어 미묘함부터 과감함까지 강도별 카드가 나란히 생성됩니다. *레이아웃은 유지하지만 신원은 유지하지 않습니다*(얼굴·제품이 달라집니다 — 신원 보존이 필요하면 Match 사용). 출력 크기는 참조 이미지를 따릅니다. **항상 사용 가능** — 배포도, 비전 분석 호출도 없습니다.
+- **참조 리믹스(Remix the reference)** — 고전적인 강도 기반 image-to-image: 레퍼런스의 *픽셀*이 레지스트리가 지원 가능으로 표시한 Bedrock 모델(예: Stable Diffusion 3.5 Large, Stable Image Ultra)로 곧장 전달되며 **강도 다이얼**로 조절합니다. 미묘하게는 구도·색감·분위기를 거의 유지하고, 과감하게는 느슨한 영감으로 취급합니다. 옵션을 2 이상으로 하면 **강도 사다리**가 되어 미묘함부터 과감함까지 강도별 카드가 나란히 생성됩니다. *레이아웃은 유지하지만 신원은 유지하지 않습니다*(얼굴·제품이 달라집니다 — 신원 보존이 필요하면 Match 사용). 출력 크기는 참조 이미지를 따릅니다. **항상 사용 가능** — 배포도, 비전 분석 호출도 없습니다.
 
 세 모드 모두 지시문이 필요하므로, 레퍼런스가 *무엇을 위한 것인지*에 대한 통제권을 유지할 수 있습니다. 레퍼런스 가이드 생성은 Style Library(여러 이미지를 재사용 가능한 스타일 프로필로 분석)와는 별개입니다 — 일회성, 이미지 주도 생성에 사용하세요.
 
 ### 📝 1.6 Video Studio
 
-텍스트 프롬프트로 AI 동영상과 애니메이션을 생성합니다. Video Studio는 **Sync from AWS**가 계정에서 검색한 동영상 모델을 제공합니다 — 현재는 **Luma AI Ray**(v2.0). Amazon Nova Reel(v1.0, v1.1)은 2026-09-30에 AWS에서 지원 종료(EOL)되어 더 이상 제공되지 않습니다.
+텍스트 프롬프트로 AI 동영상과 애니메이션을 생성합니다. Video Studio는 **Sync from AWS**가 계정에서 검색한 동영상 모델을 제공합니다([모델 이름에 대하여](#about-model-names) 참조). 예를 들어 **Luma AI Ray v2**:
 
 | 기능 | Luma Ray v2 |
 |------|-------------|
@@ -293,7 +297,7 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 풀 기능 LLM 채팅 인터페이스 — 셀프 호스팅 대화형 AI처럼, 서드파티 데이터 접근 없이 자체 AWS 계정에서 실행됩니다.
 
-**16개 제공업체의 80개 이상 모델** — Claude(Sonnet, Opus, Haiku), Amazon Nova, Meta Llama, Mistral, Cohere, Qwen, DeepSeek, Google Gemma, NVIDIA Nemotron 등. 계정 내 커스텀/임포트 모델도 포함. 모두 Sync from AWS로 자동 검색됩니다.
+**Sync from AWS가 계정에서 찾은 모든 채팅 모델**([모델 이름에 대하여](#about-model-names) 참조) — 예: Claude(Sonnet, Opus, Haiku), Amazon Nova, Meta Llama, Mistral, Cohere, Qwen, DeepSeek, Google Gemma, NVIDIA Nemotron — 계정 내 커스텀/임포트 모델도 포함.
 
 **핵심 기능:**
 - **스트리밍 응답** — Bedrock ConverseStream을 통한 실시간 토큰 단위 렌더링
@@ -503,6 +507,8 @@ aws sts get-caller-identity
 aws bedrock list-foundation-models --region us-east-1 --query "modelSummaries[0].modelId" --output text
 
 # Test 2: Can you invoke an image model? (requires bedrock:InvokeModel)
+# (e.g. Stable Diffusion 3.5 Large — substitute any image model ID from Test 1's
+#  list if this one isn't offered in your account or Region.)
 aws bedrock-runtime invoke-model --region us-west-2 \
   --model-id stability.sd3-5-large-v1:0 \
   --content-type application/json --accept application/json \
@@ -546,7 +552,7 @@ IAM 사용자, 역할, 인스턴스 프로필에는 다음 권한이 필요합�
 | `bedrock:GetImportedModel` | 임포트된 모델 세부정보 읽기(아키텍처, 상태) |
 | `bedrock:ListProvisionedModelThroughputs` | 프로비저닝된 처리량으로 호출 가능한 커스텀 모델 찾기 |
 | `bedrock:ListCustomModelDeployments` | 온디맨드 배포가 있는 커스텀 모델 찾기 |
-| `bedrock:CreateInference` *(또는 정책 `AmazonBedrockMantleInferenceAccess`)* | **Amazon Bedrock Mantle** — Mantle 엔드포인트를 통해서만 도달 가능한 프런티어 모델(OpenAI GPT‑5.x, Claude Mythos, GLM, Grok, Qwen, Gemma…). 없으면 해당 모델에만 영향을 미치며, Converse를 통한 Claude는 계속 작동합니다. |
+| `bedrock:CreateInference` *(또는 정책 `AmazonBedrockMantleInferenceAccess`)* | **Amazon Bedrock Mantle** — Mantle 엔드포인트를 통해서만 도달 가능한 프런티어 모델(예: OpenAI GPT‑5.x, Claude Mythos, GLM, Grok, Qwen, Gemma). 없으면 해당 모델에만 영향을 미치며, Converse를 통한 Claude는 계속 작동합니다. |
 | `account:ListRegions` | Sync 중 계정의 **활성화된** 리전만 스캔(빠르고, 옵트인 리전에서 오류 없음). 선택 — 없으면 모든 리전 스캔으로 폴백. |
 | `account:GetRegionOptStatus` | 리전별 옵트인 상태 읽기(`account:ListRegions`의 동반 권한). 선택. |
 | `s3:CreateBucket` | 동영상 저장용 S3 버킷 생성(선택, UI 경유) |
@@ -569,8 +575,8 @@ IAM 사용자, 역할, 인스턴스 프로필에는 다음 권한이 필요합�
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
 
-# Amazon Bedrock Mantle endpoint — needed for frontier models (OpenAI GPT-5.x,
-# Claude Mythos, GLM, Grok, etc.). Skip only if you won't use Mantle-only models.
+# Amazon Bedrock Mantle endpoint — needed for frontier models (e.g. OpenAI GPT-5.x,
+# Claude Mythos, GLM, Grok). Skip only if you won't use Mantle-only models.
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockMantleInferenceAccess
 
@@ -724,7 +730,7 @@ which potrace && echo "potrace: OK" || echo "potrace: not installed (optional)"
 
 ### 📝 2.4 선택: 동영상 썸네일 및 메타데이터 도구
 
-Video Studio는 Amazon Bedrock 동영상 모델(현재는 Luma AI Ray)을 통해 MP4 동영상을 생성합니다. 썸네일(첫 프레임을 JPEG로)과 동영상 메타데이터(길이, 해상도, FPS)를 추출하려면, ArtSmoker 백엔드를 실행하는 머신에 **ffmpeg**와 **ffprobe**가 설치되어 있어야 합니다.
+Video Studio는 Amazon Bedrock 동영상 모델(예: Luma AI Ray)을 통해 MP4 동영상을 생성합니다. 썸네일(첫 프레임을 JPEG로)과 동영상 메타데이터(길이, 해상도, FPS)를 추출하려면, ArtSmoker 백엔드를 실행하는 머신에 **ffmpeg**와 **ffprobe**가 설치되어 있어야 합니다.
 
 ffmpeg 없이:
 - 동영상은 여전히 올바르게 생성되고 재생됩니다(S3에서 스트리밍 또는 MP4로 다운로드)
@@ -1044,13 +1050,11 @@ ArtSmoker가 실행되면, 최상의 결과를 얻기 위해 다음 단계를 �
 ┌──────────────────────┐  ┌──────────────────────────┐
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
-│  Claude Sonnet       │  │  Nova Sonic (voice)      │
-│  Claude Opus         │  │                          │
-│  SD 3.5 Large        │  │                          │
-│  Stable Image Ultra  │  │                          │
-│  Stable Image Core   │  │                          │
-│  Stability AI (post) │  │                          │
-│  Luma AI Ray (video) │  │                          │
+│  LLMs (e.g. Claude)  │  │  Voice (Nova Sonic)      │
+│  Image generation    │  │                          │
+│  Image editing       │  │                          │
+│    e.g. Stability AI │  │                          │
+│  Video (e.g. Luma)   │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (other regions)
              │
              ▼
@@ -1062,6 +1066,8 @@ ArtSmoker가 실행되면, 최상의 결과를 얻기 위해 다음 단계를 �
 │  data/chat/           │
 └──────────────────────┘
 ```
+
+표시된 리전은 기본값이며, Sync는 각 모델을 AWS가 해당 모델을 제공하는 리전에 고정합니다. 모델 이름은 예시입니다 — [모델 이름에 대하여](#about-model-names)를 참조하세요.
 
 ## 📌 6. 사용법
 
@@ -1126,8 +1132,8 @@ User prompt: "hospital building"
          │
          ▼
 ┌────────────────────────────────────────────────────────┐
-│ 1. Prompt Composition            Claude Sonnet (1 opt) │
-│    (optional "Compose" button)   or Opus (2-5 options) │
+│ 1. Prompt Composition                 Fast LLM (1 opt) │
+│    (optional "Compose" button)   or Complex LLM (2-5)  │
 │    + style + asset type                                │
 └────────────────────────┬───────────────────────────────┘
                          │
@@ -1184,8 +1190,7 @@ User clicks Generate
     │            │
     ▼            │
 ┌──────────┐     │
-│ Claude   │     │
-│ Sonnet   │     │
+│ Fast LLM │     │
 │ screens  │     │
 │ prompt   │     │
 └───┬────┬─┘     │
@@ -1276,7 +1281,7 @@ Prompt Designer가 열리기 전에, **AI 에셋 타입 분류**가 실행됩니
 1. **Style Library** 탭으로 이동합니다.
 2. **Create New Style**을 클릭 — 이름을 입력하고 선택적으로 생성 힌트를 추가합니다. 생성 모달에서 **Local**과 **S3** 탐색 버튼이 있는 **"Import References From"** 섹션을 사용하여 소스 디렉터리나 버킷 경로를 선택합니다. 탐색은 서버 사이드 파일/디렉터리 브라우저 모달을 엽니다(싱글 클릭으로 항목 선택, 더블 클릭으로 디렉터리 진입). 가져온 레퍼런스는 생성 시 자동 분석됩니다.
 3. 로컬 디렉터리 가져오기는 모든 하위 디렉터리를 통해 **재귀적으로** 이미지(.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg)와 3D 모델(.glb, .gltf)을 스캔합니다. 이미지 파일은 **상대 심볼릭 링크**를 사용하여 **심볼릭 링크**됩니다(중복 없음, 머신 간 이식성). 3D 모델 파일(.glb/.gltf)은 내장 텍스처가 **자동으로 추출**됩니다 — base64 데이터 URI, 바이너리 버퍼 청크, 외부 텍스처 레퍼런스 모두 처리됩니다. 추출된 텍스처는 사본으로 저장됩니다(충돌 방지를 위해 모델명이 접두사로 붙음). S3 가져오기는 페이지네이션으로 재귀 목록을 조회하고 파일을 로컬로 **다운로드**합니다. 스타일당 최대 **100개의 레퍼런스 이미지**가 가져와집니다. 지원 확장자는 `backend/config.py`(`IMAGE_EXTENSIONS` 및 `MODEL_EXTENSIONS_WITH_TEXTURES`)에 중앙화되어 있습니다.
-4. **2단계 응집도 인식 분석**: 1단계는 8개 이미지를 Claude Sonnet에 보내 응집도 레벨(high/medium/low)을 판단합니다 — high는 통일된 스타일, medium은 다른 테마를 가진 공유 구조, low는 다양한 스타일을 의미합니다. 2단계는 응집도 평가를 레퍼런스 이미지와 함께 Claude Opus에 공급하여, 컬렉션 유형에 맞게 적절히 분석하도록 가이드합니다. 스타일에 레퍼런스가 20개를 초과하면, 분석기는 Opus 비전 호출을 위해 다양한 대표 부분집합 20개를 선택합니다 — 파일명 그룹과 파일 크기 다양성 전반의 커버리지를 보장합니다. AI는 총 몇 개의 이미지가 존재하는지 대비 몇 개를 보고 있는지를 전달받습니다. 분석 프롬프트는 투명 배경의 게임 에셋용으로 특별히 설계되어 — 재질별 렌더링 세부사항, 비율 시스템, 그림자/조명 세부사항을 요청합니다. `materials`(돌, 나무, 금속이 렌더링되는 방식)와 `detail_level`(어떤 표면 디테일이 보이는지 대 단순화되는지)을 포함한 9개 스타일 속성을 추출합니다. 생성 힌트는 8개 차원을 다루는 200단어로 확장됩니다: 원근법, 렌더링, 재질, 컬러 팔레트, 비율, 에지 처리, 그림자/조명, 디테일 레벨, 배경 — 생성된 에셋이 기존 레퍼런스와 시각적으로 어우러질 만큼 구체적입니다.
+4. **2단계 응집도 인식 분석**: 1단계는 8개 이미지를 Fast LLM에 보내 응집도 레벨(high/medium/low)을 판단합니다 — high는 통일된 스타일, medium은 다른 테마를 가진 공유 구조, low는 다양한 스타일을 의미합니다. 2단계는 응집도 평가를 레퍼런스 이미지와 함께 Complex LLM에 공급하여, 컬렉션 유형에 맞게 적절히 분석하도록 가이드합니다. 스타일에 레퍼런스가 20개를 초과하면, 분석기는 Opus 비전 호출을 위해 다양한 대표 부분집합 20개를 선택합니다 — 파일명 그룹과 파일 크기 다양성 전반의 커버리지를 보장합니다. AI는 총 몇 개의 이미지가 존재하는지 대비 몇 개를 보고 있는지를 전달받습니다. 분석 프롬프트는 투명 배경의 게임 에셋용으로 특별히 설계되어 — 재질별 렌더링 세부사항, 비율 시스템, 그림자/조명 세부사항을 요청합니다. `materials`(돌, 나무, 금속이 렌더링되는 방식)와 `detail_level`(어떤 표면 디테일이 보이는지 대 단순화되는지)을 포함한 9개 스타일 속성을 추출합니다. 생성 힌트는 8개 차원을 다루는 200단어로 확장됩니다: 원근법, 렌더링, 재질, 컬러 팔레트, 비율, 에지 처리, 그림자/조명, 디테일 레벨, 배경 — 생성된 에셋이 기존 레퍼런스와 시각적으로 어우러질 만큼 구체적입니다.
 5. 스타일 상세 뷰에서, **"Import & Analyze"**를 사용하여 레퍼런스를 더 추가하고 한 번에 분석을 트리거합니다. 드래그 앤 드롭 업로드도 지원되며 새 이미지가 추가되면 **자동 재분석**됩니다.
 6. **"Re-Analyze Style"**은 초기 분석 후 나타나, 언제든 수동으로 분석을 다시 실행할 수 있게 합니다.
 7. **생성 힌트**는 분석 컨텍스트의 일부입니다 — AI는 분석 시 레퍼런스 이미지와 힌트를 모두 "아티스트의 가이던스"로 받아들이므로, 스타일 프로필이 시각적 외관뿐만 아니라 의도를 이해합니다. 생성 힌트를 편집하면 **자동 재분석**도 트리거됩니다.
@@ -1293,7 +1298,7 @@ Prompt Designer가 열리기 전에, **AI 에셋 타입 분류**가 실행됩니
                      ▼
 ┌──────────────────────────────────────────┐
 │ Phase 1: Cohesion Check                  │
-│ Claude Sonnet — 8 images — ~$0.01        │
+│ Fast LLM — 8 images — ~$0.01             │
 │ Determines: high / medium / low          │
 │   high   = unified style                 │
 │   medium = shared structure, diff themes │
@@ -1303,7 +1308,7 @@ Prompt Designer가 열리기 전에, **AI 에셋 타입 분류**가 실행됩니
                      ▼
 ┌──────────────────────────────────────────┐
 │ Phase 2: Full Analysis                   │
-│ Claude Opus — up to 20 images            │
+│ Complex LLM — up to 20 images            │
 │ Guided by cohesion level                 │
 │ + Artist's Guidance (user hints)         │
 │ Extracts 9 style attributes              │
@@ -1312,7 +1317,7 @@ Prompt Designer가 열리기 전에, **AI 에셋 타입 분류**가 실행됩니
                      ▼
 ┌──────────────────────────────────────────┐
 │ Phase 3: Hint Generation                 │
-│ Claude Sonnet — 200-word hints           │
+│ Fast LLM — 200-word hints                │
 │ 8 dimensions: perspective, rendering,    │
 │ materials, palette, proportions, edges,  │
 │ shadow/lighting, detail level            │
@@ -1350,7 +1355,7 @@ AI가 디자인한 타이포그래피로 이미지에 텍스트를 추가하거�
 - 타입에 따른 에셋별 **컨텍스트 액션 버튼**: Image Studio에서 다시 로드하는 **"Image Studio"**(인디고), Type Studio에서 열기 위한 **"Add Text"**(에메랄드), 텍스트 에셋용 **"Edit in Type Studio"**(퍼플).
 - 임의의 이미지를 클릭하면 다음이 있는 **AssetViewer** 모달이 열립니다:
   - **줌/팬** — 마우스 휠로 줌, 드래그로 팬, 활성 모드 하이라이팅이 있는 Fit/1:1 버튼.
-  - **Edit 탭** — 이미지를 직접 인페인트, 지우기, 아웃페인트, 검색 및 교체, 리컬러. 모드별로 두 종류의 에디터가 제공됩니다: **마스크 기반**(Stability) — 브러시 도구로 마스크를 페인트하고, 프롬프트를 입력한 뒤 적용; 그리고 **마스크 없는 지시형 에디터**(Qwen-Image-Edit, 배포 시) — 변경 사항을 말로 설명만 하면 되고 마스크 불필요. 마스크 없는 모델에서는 브러시 컨트롤이 자동으로 숨겨집니다. 편집 모델을 선택하고 적용; 기본값은 원본 이미지를 대체하며, "Replace original" 체크를 해제하면 새 에셋으로 저장(모든 편집은 버전 히스토리를 보존).
+  - **Edit 탭** — 이미지를 직접 인페인트, 지우기, 아웃페인트, 검색 및 교체, 리컬러. 모드별로 두 종류의 에디터가 제공됩니다: **마스크 기반**(예: Stability) — 브러시 도구로 마스크를 페인트하고, 프롬프트를 입력한 뒤 적용; 그리고 **마스크 없는 지시형 에디터**(예: Qwen-Image-Edit, 배포 시) — 변경 사항을 말로 설명만 하면 되고 마스크 불필요. 마스크 없는 모델에서는 브러시 컨트롤이 자동으로 숨겨집니다. 편집 모델을 선택하고 적용; 기본값은 원본 이미지를 대체하며, "Replace original" 체크를 해제하면 새 에셋으로 저장(모든 편집은 버전 히스토리를 보존).
   - **Previous / Next** — 뷰어를 닫지 않고 목록을 탐색하는 화살표 버튼과 키보드 좌/우.
   - **전체 메타데이터**: 원본 프롬프트, AI 개선 프롬프트, 생성 프롬프트, 네거티브 프롬프트, 스타일, 에셋 타입, 이미지 모델(친숙한 이름), 크기, 시드, 배치 ID, 옵션/배리에이션 인덱스, IP 선언 상태, 파일명, 생성 날짜.
 - **스타일 스냅샷**: 각 에셋은 생성 시점에 사용된 스타일의 스냅샷(이름, 설명, 힌트, 분석)을 저장합니다. 원본 스타일이 나중에 삭제되어도, 에셋은 전체 컨텍스트를 유지합니다. 하위 호환 — 스냅샷이 없는 오래된 에셋도 정상적으로 표시됩니다.
@@ -1372,9 +1377,9 @@ AI가 디자인한 타이포그래피로 이미지에 텍스트를 추가하거�
 
 - 임의의 스튜디오 사이드바에서 **"Model Settings"**를 클릭하면 관리 모달이 열립니다 — 해당 스튜디오와 관련된 탭으로 열립니다.
 - 스튜디오별로 정리된 **9개 탭**:
-  - **Image Studio** — 이미지 생성 모델(SD 3.5 Large, Stable Image Ultra, Stable Image Core, 그리고 셀프 호스팅 FLUX, HunyuanImage, Qwen-Image), 리전, 품질 티어, 프롬프트 제한, 모더레이션 엄격도
+  - **Image Studio** — 이미지 생성 모델(예: SD 3.5 Large, Stable Image Ultra, Stable Image Core, 그리고 셀프 호스팅 FLUX, HunyuanImage, Qwen-Image), 리전, 품질 티어, 프롬프트 제한, 모더레이션 엄격도
   - **Video Studio** — 동영상 모델(예: Luma Ray), S3 버킷 설정, 리전, 요금
-  - **Chat Studio** — 검색된 채팅/LLM 모델(16개 제공업체의 80개 이상), 컨텍스트 윈도우, 비전 능력, 1K 토큰당 요금
+  - **Chat Studio** — 검색된 채팅/LLM 모델, 컨텍스트 윈도우, 비전 능력, 1K 토큰당 요금
   - **Type Studio** — 텍스트 레이아웃 생성용 LLM 모델(Complex 또는 Fast LLM)
   - **Shared Studio** — 스튜디오 간 LLM 카테고리(Fast LLM, Complex LLM, Fallback LLM, Voice), 후처리 모델(배경 제거, 업스케일)
   - **Custom Models** — 셀프 호스팅 모델 카탈로그: SageMaker 엔드포인트의 배포, 모니터링, 해제(6.12절 참조)
@@ -1437,7 +1442,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 **모델 최적화 프롬프트 엔지니어링**: 프롬프트는 [AWS 문서](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html)에 따라 자동으로 설명적 캡션(명령이 아님)으로 구조화됩니다. 부정 단어는 메인 프롬프트에서 제거되고 제외 용어는 별도의 **네거티브 프롬프트**로 전송됩니다. 프롬프트는 레지스트리의 각 모델별 `prompt_limit`으로 잘립니다.
 
 > [!NOTE]
-> **모더레이션 민감도는 모델별로 다르며** 레지스트리(`moderation_strictness`)에 추적됩니다. Amazon Bedrock Stability 모델(SD 3.5 Large, Stable Image Ultra, Stable Image Core)은 AWS 플랫폼 모더레이션을 적용하며 "moderate"로 튜닝됩니다; 셀프 호스팅 모델(FLUX, HunyuanImage, Qwen-Image)은 플랫폼이 강제하는 콘텐츠 필터 없이 당신의 계정에서 실행됩니다. ArtSmoker는 차단을 자동으로 처리합니다 — 프롬프트가 거부되면, 시스템은 리라이트를 제안하기 전에 엄격도 순으로 정렬된 대체 모델을 시도합니다.
+> **모더레이션 민감도는 모델별로 다르며** 레지스트리(`moderation_strictness`)에 추적됩니다. Amazon Bedrock Stability 모델(예: SD 3.5 Large, Stable Image Ultra, Stable Image Core)은 AWS 플랫폼 모더레이션을 적용하며 "moderate"로 튜닝됩니다; 셀프 호스팅 모델(예: FLUX, HunyuanImage, Qwen-Image)은 플랫폼이 강제하는 콘텐츠 필터 없이 당신의 계정에서 실행됩니다. ArtSmoker는 차단을 자동으로 처리합니다 — 프롬프트가 거부되면, 시스템은 리라이트를 제안하기 전에 엄격도 순으로 정렬된 대체 모델을 시도합니다.
 
 ## 📌 7. 기술 스택
 
@@ -1445,12 +1450,12 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 |--------|------|
 | 백엔드 | FastAPI (Python 3.12–3.14), boto3, Pydantic |
 | 프론트엔드 | Vanilla JS, Tailwind CSS (CDN) |
-| AI (LLM) | Claude Sonnet(빠른 작업), Claude Opus(복잡한 작업) |
-| AI (이미지) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core (Amazon Bedrock); FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image (SageMaker 셀프 호스팅) |
-| AI (후처리) | Stability AI(배경 제거, Creative Upscale) |
-| AI (채팅) | Bedrock ConverseStream을 통한 16개 제공업체의 80개 이상 LLM(Claude, Nova, Llama, Mistral 등) |
-| AI (동영상) | Luma AI Ray v2(최대 9초) |
-| AI (음성) | Nova Sonic(양방향 스트리밍을 통한 음성-텍스트 변환) |
+| AI (LLM) | Fast LLM 및 Complex LLM — 각 Sync마다 최신 Claude Sonnet 및 Opus로 자동 롤링 |
+| AI (이미지) | Sync가 찾은 Amazon Bedrock 이미지 모델(예: Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core); SageMaker 셀프 호스팅 카탈로그(예: FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image) |
+| AI (후처리) | Amazon Bedrock 편집 모델(예: Stability AI 배경 제거, Creative Upscale) |
+| AI (채팅) | Sync가 찾은 모든 채팅 LLM, Bedrock ConverseStream 또는 Mantle 경유(예: Claude, Nova, Llama, Mistral) |
+| AI (동영상) | Sync가 찾은 Amazon Bedrock 동영상 모델(예: Luma AI Ray v2, 최대 9초) |
+| AI (음성) | Amazon Nova Sonic, 최신 활성 버전(양방향 스트리밍을 통한 음성-텍스트 변환) |
 | i18n | 커스텀 t() 함수, 약 1,500개 키 × 9개 언어, 역방향 조회 DOM 번역 |
 | SVG 변환 | vtracer(기본), potrace(폴백), Pillow(최후 수단) |
 | 텍스트 렌더링 | Pillow(그림자, 아웃라인, 글로우 효과) |
@@ -1635,9 +1640,9 @@ ArtSmoker/
 ## 📌 12. Amazon Bedrock 요금 및 비용 내역
 
 > [!IMPORTANT]
-> **모델은 빠르게 지원 중단되고 변경됩니다.** 새 모델이 자주 출시되고 오래된 모델은 자주 폐기되므로, 문서에 하드코딩된 특정 모델 이름이나 요금은 금방 오래된 정보가 됩니다. ArtSmoker는 이를 자동으로 처리합니다 — 각 **Sync from AWS**는 현재 모델 라인업을 다시 검색하고, 공유 LLM 슬롯을 최신 Claude Sonnet/Opus로 자동 롤링하며, AWS Pricing API에서 실시간 모델별 요금을 `model_registry.json`으로 새로 고칩니다. **앱이 진실의 원천**입니다 — 어떤 모델이 존재하는지와 각각이 얼마인지(선택한 모델, 품질 티어, 리전, 배치 크기에 따라 Image Studio 사이드바에 실시간 표시) 모두에 대해. 아래의 모델 이름과 숫자는 **예시일 뿐**입니다 — 항상 앱 내 또는 공식 [Amazon Bedrock 요금 페이지](https://aws.amazon.com/bedrock/pricing/)에서 현재 모델/요금을 확인하세요.
+> **모델은 빠르게 지원 중단되고 변경됩니다.** 새 모델이 자주 출시되고 오래된 모델은 자주 폐기되므로, 문서에 하드코딩된 특정 모델 이름이나 요금은 금방 오래된 정보가 됩니다. ArtSmoker는 이를 자동으로 처리합니다 — 각 **Sync from AWS**는 현재 모델 라인업을 다시 검색하고, 공유 LLM 슬롯을 최신 Claude Sonnet/Opus로 자동 롤링하며, AWS Pricing API에서 실시간 모델별 요금을 `model_registry.json`으로 새로 고칩니다. **앱이 진실의 원천**입니다 — 어떤 모델이 존재하는지와 각각이 얼마인지(선택한 모델, 품질 티어, 리전, 배치 크기에 따라 Image Studio 사이드바에 실시간 표시) 모두에 대해. 아래의 모델 이름과 숫자는 **예시일 뿐**입니다([모델 이름에 대하여](#about-model-names) 참조) — 항상 앱 내 또는 공식 [Amazon Bedrock 요금 페이지](https://aws.amazon.com/bedrock/pricing/)에서 현재 모델/요금을 확인하세요.
 
-앱의 **기본 리전**은 `us-west-2`(Claude, Stability AI)와 `us-east-1`(Amazon Nova Sonic)입니다; 가격은 리전별로 다릅니다. 비용 모델은 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)도 참조하세요.
+앱의 **기본 홈 리전**은 `us-west-2`(예: Claude, Stability AI)와 `us-east-1`(예: Amazon Nova Sonic)입니다. Sync는 각 모델을 AWS가 해당 모델을 제공하는 리전에 고정하며, 가격은 리전별로 다릅니다. 비용 모델은 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)도 참조하세요.
 
 ### 📝 12.1 단위당 요금
 
@@ -1645,9 +1650,9 @@ ArtSmoker/
 
 | 서비스 | 과금 | 비고 |
 |--------|------|------|
-| **LLM 프롬프트 엔지니어링 및 채팅**(Claude Sonnet / Opus, Sync 시 최신으로 자동 롤링) | 입력 / 출력 토큰당 | 프롬프트 정제, 컨셉, 채팅, 스타일 분석, 모더레이션 |
-| **Bedrock 이미지 생성**(Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) | 이미지당 | 가격은 Ultra ≫ SD 3.5 ≫ Core; 실시간 수치는 앱 내 표시 |
-| **셀프 호스팅 이미지 / 3D**(FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2) | SageMaker 인스턴스의 GPU-초당 | 유휴 시 scale-to-zero($0); 이미지당 과금 아님 |
+| **LLM 프롬프트 엔지니어링 및 채팅**(Fast / Complex LLM — 예: Claude Sonnet / Opus, Sync 시 최신으로 자동 롤링) | 입력 / 출력 토큰당 | 프롬프트 정제, 컨셉, 채팅, 스타일 분석, 모더레이션 |
+| **Bedrock 이미지 생성**(예: Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) | 이미지당 | 가격은 Ultra ≫ SD 3.5 ≫ Core; 실시간 수치는 앱 내 표시 |
+| **셀프 호스팅 이미지 / 3D**(예: FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2) | SageMaker 인스턴스의 GPU-초당 | 유휴 시 scale-to-zero($0); 이미지당 과금 아님 |
 | **후처리**(배경 제거, Creative Upscale) | 이미지당 | Stability AI 서비스 |
 | **SVG 변환** | 무료 | 로컬(vtracer/potrace) — $0.00 |
 
@@ -1660,15 +1665,15 @@ ArtSmoker/
 
 | 호출 | 모델 | 시점 | 대략적 비용 |
 |------|------|------|-------------|
-| **Prompt Pre-Check** | Claude Sonnet | 생성 전(토글 활성화 시) | ~$0.005 |
-| **Moderation Rewrite** | Claude Sonnet | 모든 모델이 프롬프트를 거부할 때만 | ~$0.005 |
-| **Type Studio Layout** | Claude Opus | 각 AI 레이아웃 제안 요청 | ~$0.02–$0.05 |
+| **Prompt Pre-Check** | Fast LLM (예: Claude Sonnet) | 생성 전(토글 활성화 시) | ~$0.005 |
+| **Moderation Rewrite** | Fast LLM (예: Claude Sonnet) | 모든 모델이 프롬프트를 거부할 때만 | ~$0.005 |
+| **Type Studio Layout** | Complex LLM (예: Claude Opus) | 각 AI 레이아웃 제안 요청 | ~$0.02–$0.05 |
 
 이들은 작습니다 — 사전 검토와 모더레이션 리라이트는 각각 1센트의 일부입니다. Type Studio 레이아웃은 단일 옵션 프롬프트 정제와 비슷합니다.
 
 ### 📝 12.3 스타일 분석 비용(스타일당 일회성)
 
-스타일당 ~**$0.14**(Claude Opus에 보내는 20개 이미지 + Claude Sonnet의 8개 이미지 응집도 검사). 응집도 검사는 ~$0.01을 추가합니다(8개 이미지의 Sonnet은 매우 저렴).
+스타일당 ~**$0.14**(Complex LLM(예: Claude Opus)에 보내는 20개 이미지 + Fast LLM(예: Claude Sonnet)에서의 8개 이미지 응집도 검사). 응집도 검사는 ~$0.01을 추가합니다.
 
 ### 📝 12.4 배치 크기별 생성 비용
 
@@ -1680,7 +1685,7 @@ ArtSmoker/
 | 1 option × 5 variations | ~$0.21 | ~$0.41 | ~$0.71 |
 | 5 options × 5 variations | ~$1.05 | ~$2.05 | ~$3.55 |
 
-셀프 호스팅 SageMaker 모델(FLUX, HunyuanImage, Qwen-Image)은 이미지당이 아니라 자체 인스턴스의 GPU 시간으로 과금됩니다(유휴 시 scale-to-zero) — 컴퓨팅 비용 모델은 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)를 참조하세요.
+셀프 호스팅 SageMaker 모델(예: FLUX, HunyuanImage, Qwen-Image)은 이미지당이 아니라 자체 인스턴스의 GPU 시간으로 과금됩니다(유휴 시 scale-to-zero) — 컴퓨팅 비용 모델은 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)를 참조하세요.
 
 ### 📝 12.5 후처리 애드온(이미지당)
 

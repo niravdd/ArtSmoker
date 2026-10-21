@@ -142,17 +142,15 @@ FastAPI Backend (Python)
     +-- /api/log            — Client-side error logging
     |
     v
-AI Pipeline (Amazon Bedrock)
+AI Pipeline (Amazon Bedrock) — the models Sync from AWS finds; names are examples
     |
-    +-- Claude Sonnet          — Fast tasks: prompt refinement, generation hints, cohesion check (Phase 1), chat
-    +-- Claude Opus            — Complex tasks: style analysis (Phase 2), concept generation, marketing copy, chat
-    +-- 80+ LLMs              — Chat Studio: Claude, Nova, Llama, Mistral, Cohere, Qwen, DeepSeek, etc.
-    +-- Stable Diffusion 3.5 Large — Primary image generation (text-to-image)
-    +-- Stable Image Ultra      — Image generation (Stability AI premium)
-    +-- Stable Image Core       — Image generation (Stability AI fast)
-    +-- Stability AI            — Background removal, upscaling, inpainting, style transfer
-    +-- Luma AI Ray v2.0       — Video generation (text-to-video, flexible aspect ratios)
-    +-- Nova Sonic              — Speech-to-text transcription (bidirectional streaming)
+    +-- Fast LLM (e.g. newest Claude Sonnet)  — prompt refinement, generation hints, cohesion check (Phase 1)
+    +-- Complex LLM (e.g. newest Claude Opus) — style analysis (Phase 2), concept generation, marketing copy
+    +-- Chat LLMs             — Chat Studio: every chat model Sync finds (e.g. Claude, Nova, Llama, Mistral, Qwen)
+    +-- Image models          — text-to-image (e.g. Stable Diffusion 3.5 Large, Stable Image Ultra / Core)
+    +-- Editing models        — background removal, upscaling, inpainting, style transfer (e.g. Stability AI)
+    +-- Video models          — text-to-video, image-to-video (e.g. Luma AI Ray v2.0)
+    +-- Voice (Nova Sonic)    — speech-to-text transcription (bidirectional streaming; newest active Sonic)
     |
     v
 Self-Hosted (Amazon SageMaker)
@@ -413,7 +411,7 @@ User prompt: "hospital building"
     For each enhanced prompt, generate num_variations images in parallel:
          |
          v
-    [Image Generation — Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, or a self-hosted model]
+    [Image Generation — e.g. Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, or a self-hosted model]
     Input: enhanced prompt + negative prompt + the slot's derived seed (§4.6 Seed)
     Output: PNG image (default 1024x1024)
          |
@@ -451,7 +449,7 @@ User prompt: "hospital building"
 
 **Smart filenames**: Each generated image gets a human-readable filename derived from the user's prompt slug plus the option/variation indices: `a-fierce-dragon_opt1_var2.png`. These filenames are stored in per-asset `metadata.json` and served via `Content-Disposition` headers on the gallery file endpoints. This applies **uniformly** to both synchronous (Bedrock) generations and asynchronous custom-model (SageMaker) completions — the async completion path builds the same slug-based name, so every downloaded image carries a descriptive filename regardless of the generating model (the on-disk file is always `asset.png`; the smart name is metadata only, used as the download filename). The Image Studio download bar shows this name without the file extension.
 
-**Dynamic prompt length limits by model**: Each image model has a different prompt capacity, stored in the model registry (`prompt_limit` field per model):
+**Dynamic prompt length limits by model**: Each image model has a different prompt capacity, stored in the model registry (`prompt_limit` field per model). For example:
 
 | Model | Prompt Limit (chars) |
 |-------|---------------------|
@@ -462,6 +460,8 @@ User prompt: "hospital building"
 The active limit is passed to all prompt refinement functions (`refine_prompt()`, `refine_marketing_prompt()`, `generate_concept_prompts()`) and adjusts automatically when the user switches models. If the LLM's output still exceeds the limit, it is truncated on a word boundary.
 
 **Model-optimized prompt engineering**: Prompts are written as descriptive **captions**, not imperative commands, following the structure recommended by [AWS Nova Canvas documentation](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html): Subject, Environment, Pose/Action, Lighting, Camera angle, Style. Negation words ("no", "not", "without", "DO NOT") are removed from the main prompt — exclusions are separated into a dedicated negative prompt instead. Model-specific instructions come from each model's registry entry (`prompt_guidance`, `optimal_prompt_words`, `prompt_limit` / `max_prompt_length`, `supports_negative_prompt`) — no per-model prompt rules live in code. For example:
+
+For example (registry values):
 
 | Model | `prompt_limit` | `optimal_prompt_words` | Guidance (summary of `prompt_guidance`) |
 |-------|---------------|------------------------|------------------------------------------|
@@ -479,6 +479,8 @@ The active limit is passed to all prompt refinement functions (`refine_prompt()`
 3. **Pre-composed prompts**: When the user clicks "Preview Enhanced Prompt" first, the `/api/refine-prompt` endpoint returns `negative_prompt` in its response. The frontend sends this back in the `GenerationRequest.negative_prompt` field so it survives the pre-composed path (which skips backend refinement).
 
 The negative prompt is stored in per-variant `metadata.json`, included in SSE events (`prompts_ready` and `complete`), and displayed in the ImageStudio (red-labeled "Negative prompt — exclusions sent to model" section) and AssetViewer (metadata tab). Per AWS documentation, negation words should not appear in negative prompts either — only the terms to exclude (e.g. "blurry, text, watermark" not "no blurry, no text").
+
+For example:
 
 | Model | Negative Prompt Parameter |
 |-------|--------------------------|
@@ -758,7 +760,7 @@ If there is only one option, the options row is hidden. If there is only one var
 |-----------|-----------|--------|
 | Backend | FastAPI (Python 3.12–3.14) | Async, fast, Pydantic models, auto-docs |
 | Frontend | Vanilla JS + Tailwind CSS | No build step, fast to iterate, lightweight |
-| AI Models | Bedrock (boto3) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, Claude, Nova Sonic, Stability |
+| AI Models | Bedrock (boto3) | Whatever Sync from AWS finds — e.g. Claude, Stable Diffusion 3.5 Large, Stable Image Ultra / Core, Stability AI editing, Nova Sonic |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) | Cascade of vector tracing methods |
 | Text Rendering | Pillow (Python Imaging Library) | Text overlay composition with shadow, outline, glow effects |
 | Storage | Local filesystem | Simple start, S3-compatible interface for later migration |
@@ -768,7 +770,7 @@ If there is only one option, the options row is hidden. If there is only one var
 **Default AWS Profile**: None — uses the standard AWS credential chain (configurable via `ARTSMOKER_AWS_PROFILE`).
 
 **Two-region architecture**:
-- `us-west-2` (`aws_region_models`): Claude models, Stability AI models (including Stable Diffusion 3.5 Large, Stable Image Ultra).
+- `us-west-2` (`aws_region_models`): e.g. Claude models and Stability AI models (Stable Diffusion 3.5 Large, Stable Image Ultra).
 - `us-east-1` (`aws_region_images`): Nova Sonic.
 
 **Bedrock client** (`backend/services/bedrock_client.py`):
@@ -809,6 +811,8 @@ Why both matter: the newest **frontier models are Mantle-only** — OpenAI **GPT
 **Mantle auth** (`mantle_client.get_bedrock_token`): Mantle uses a **Bedrock bearer token**, not SigV4. By default a **short-term token** (≤12h, inherits the caller's IAM permissions) is derived from the active AWS credentials via `aws-bedrock-token-generator` — **nothing is stored**, and it's cached per-region + refreshed in-process (8h TTL, inside the ≤12h lifetime). An explicit `AWS_BEARER_TOKEN_BEDROCK` env var takes precedence if set (an operator-owned override). Token values are never logged. If neither the SDK nor a token is available, Mantle is cleanly reported unavailable and the Converse path is unaffected. Mantle is not offered in every region; `mantle_region_for` maps an arbitrary region to the nearest supported one (default fallback `us-west-2`).
 
 **Self-healing on auth failure** (`_mantle_call`): every Mantle invoker runs through a wrapper that, on a `401`/`403`/expired-token error, discards the cached/env token, **force-derives** a fresh short-term token from the AWS credentials, and retries the call **once**. This recovers automatically from a stale `AWS_BEARER_TOKEN_BEDROCK` (e.g. an operator-set short-term token that lapsed) without ever mutating `os.environ` — the operator's value stays as they set it, and the retry simply uses an in-memory derived token. Applies to all three Mantle APIs (Chat Completions, Responses, Messages).
+
+**Models by role** — illustrative entries; the actual ids, Regions and lineup come from the registry, which Sync from AWS keeps current:
 
 | Model | ID | Region | Purpose |
 |-------|----|--------|---------|
@@ -2463,7 +2467,7 @@ Real-HTTP checks against a running server, every model and route read from the r
 >
 > **Custom-hosted (SageMaker) display vs actual cost:** the UI shows the instance's **hourly running rate + typical generation time** in Model Settings / the catalog (a per-image price is misleading — idle + spin-up bill on top of the generation); the Image Studio estimate uses the derived per-generation compute cost (`hourly × typical_latency/3600`). The **actual incurred cost of a job** = `hourly × (submit→completion runtime, incl. cold-start) + amortized cooldown share` (cooldown is latency-derived, `max(600, typical×2)`), computed at the same rate shown. Standalone auxiliary LLM operations (prompt classify/decompose/recompose, analyze-reference, pre-screen, analyze-moderation, suggest-edit-prompt, template enhance/auto-fix, chat compact/title, typestudio suggest) each scope their own cost via `reset_costs()` / `get_total_cost()`.
 
-Model lineups and prices change frequently (deprecations, launches, revisions), so **any dollar figure written into this doc is an illustrative snapshot, not authoritative**. The application is the source of truth: it reads live, per-region pricing from the AWS Pricing API into `model_registry.json` (per-model `base_price_usd` / `quality_prices`) on each Sync and displays the cost for your actual configured region. Confirm current pricing in-app or on the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/). The app's default regions are `us-west-2` (Claude, Stability AI) and `us-east-1` (Nova Sonic, Nova Reel).
+Model lineups and prices change frequently (deprecations, launches, revisions), so **any dollar figure written into this doc is an illustrative snapshot, not authoritative**. The application is the source of truth: it reads live, per-region pricing from the AWS Pricing API into `model_registry.json` (per-model `base_price_usd` / `quality_prices`) on each Sync and displays the cost for your actual configured region. Confirm current pricing in-app or on the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/). The app's default home regions are `us-west-2` (e.g. Claude, Stability AI) and `us-east-1` (e.g. Nova Sonic); Sync pins each model to a Region where AWS offers it.
 
 ### 14.1 Per-Unit Pricing
 

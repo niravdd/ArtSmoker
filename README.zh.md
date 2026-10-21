@@ -69,10 +69,14 @@ ArtSmoker 是一个自托管的创意工作室，将当今最好的生成式模�
 - **用自然语言描述** —— ArtSmoker 在幕后处理提示词分解、增强和模型特定优化。引导式 **Prompt Designer** 让您塑造每个视觉元素 —— 主体、场景、光照、颜色 —— 并借助锁定/变化控制去探索真正不同的方向，同时不丢失已经奏效的部分。
 - **默认贴合品牌** —— 把您现有的美术作品交给 ArtSmoker，它的视觉模型会学习您的视觉标识，因此每个资产产出时都会匹配您项目的外观与风格。
 - **2D、编辑与 3D —— 端到端** —— 先生成，再用局部重绘、扩展绘制、重新着色、搜索替换和参考引导编辑就地精调；将任意 2D 资产转换为**完全纹理化、为游戏引擎量身定制的 3D 模型**，可直接放入 Unity、Unreal 或 Blender —— 无需手动建模、UV 展开或纹理绘制。另外还有电影级视频和用于构思的多模型聊天工作室。
-- **每个模型，一键搞定** —— 跨区域使用最新的托管模型，或将精选的开源模型（Qwen-Image、FLUX.2、HunyuanImage、TripoSG、TRELLIS.2 等）一键部署到您自己的 GPU 上 —— 打包、量化、自动缩放和任务跟踪全部处理妥当，每个模型在发布前都经过端到端验证。
+- **每个模型，一键搞定** —— 跨区域使用最新的托管模型，或将精选的开源模型（例如 Qwen-Image、FLUX.2、HunyuanImage、TripoSG、TRELLIS.2）一键部署到您自己的 GPU 上 —— 打包、量化、自动缩放和任务跟踪全部处理妥当，每个模型在发布前都经过端到端验证。
 - **在您想要的地方运行 —— 您的 IP 始终归您所有** —— 将它安装在单个艺术家的桌面上，或安装在供整个团队共享的实例上；**无需您自己的 GPU**（繁重的计算运行在托管的 AWS 服务上，或运行在 ArtSmoker 为您启动并在空闲时缩回至零的自动缩放端点上）。它只连接到您自己的 AWS 账户 —— 作品、提示词、风格和生成的资产都留在您的环境中，没有任何内容流向第三方服务，您对自己的创意 IP 保留完全的所有权。
 
-**Amazon Bedrock 模型**：Claude Sonnet/Opus（提示词工程和聊天）、Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core、Stability AI 服务（图像编辑）、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。**自托管模型**：Qwen-Image（文生图）与 Qwen-Image-Edit（参考引导 + 指令编辑，Apache-2.0）、HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSG 与 TRELLIS.2（图像转 3D）等，通过 Amazon SageMaker 提供 —— 并附带可扩展目录以添加新模型。
+**Amazon Bedrock 模型** —— **Sync from AWS** 在您账户中发现的所有模型，例如用于提示词工程和聊天的 Claude Sonnet/Opus，用于图像的 Stable Diffusion 3.5 Large、Stable Image Ultra 和 Stable Image Core，用于图像编辑的 Stability AI 服务，用于视频的 Luma AI Ray，以及 Chat Studio 可用的、来自众多供应商的各类聊天 LLM。**自托管模型** —— 随每个版本发布、部署到 Amazon SageMaker 的精选目录，例如 Qwen-Image（文生图）与 Qwen-Image-Edit（参考引导 + 指令编辑，Apache-2.0）、HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSG 与 TRELLIS.2（图像转 3D）—— 而且目录可扩展，您可以添加自己的模型。
+
+<a id="about-model-names"></a>
+> [!NOTE]
+> **关于模型名称。** ArtSmoker 提供 **Sync from AWS** 在您的账户和区域中发现的所有模型，以及随每个版本发布的自托管目录。本 README 中的模型名称是**截至 2026年10月的示例** —— AWS 经常推出和退役模型，您能使用哪些模型取决于您的账户、区域和模型访问权限。当前可用的模型以应用为准。
 
 **[立即开始 —— 跳转至前置条件和安装 ▸](#get-started)**
 
@@ -133,12 +137,12 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 - 🖼️ **Image Studio** —— 以选项 x 变体生成图像，引导式 3 步提示词工作流
 - 🎨 **Prompt Designer** —— AI 将提示词分解为可编辑的视觉组件（主体、场景、光照、颜色），每个字段可锁定/变化切换，风格集成，智能资产类型分类。Photorealistic、Character、Environment 等
 - 🗂️ **合集（成套生成）** — 将一条提示词**或一张参考图**变成一整套风格一致的**不同资产**（如「维京风格国际象棋套装」「20 个 JRPG 角色」）。在 Image Studio 打开 **Collection** 开关——从 **Text** 标签（由你的提示词驱动）或 **Image-Inspired** 标签（由参考图的*外观*驱动美术方向）——专用的 **Collection Designer** 会将你的构思分解为共享的**美术方向**加一份主题一致的不同主体**清单**——每个主体都是一个**批次**，带有可编辑的、与模型无关的提示词。编辑美术方向即可重构整套；对单个批次进行锁定、重生成、新增或删除；然后一次性生成全部（每个批次 选项×变体），并实时显示设计＋预估成本。**可选一个模型得到统一的一套，或选多个模型让每个批次都由各模型分别生成**（跨模型对比）。可选的 **hero-**／**reference-anchor** 一致性会将整套的风格锁定到所选／所提供的图像。合集在 Gallery 中显示为**一张卡片**，打开合集查看器后，每个批次都可下钻到常规的 Asset Viewer（选项／变体／版本、编辑、导出和 3D——与单张图片完全相同，另有该批次的**合集谱系**）；你可以**固定代表每个批次的版本**、**一次性把整套转 3D**（或只转你挑选的批次或图片），并在合集自己的 **3D models** 视图中看着每个模型陆续到位、将整套或所选内容打包为一个 zip **下载**——与单张图片提供的文件相同（PNG、SVG 和去背景抠图），或其 3D 模型（采用相同的引擎预设、LOD、碰撞体和纹理打包）——或**将整个合集重新载入 Image Studio** 以复查和重新生成。合集的 3D 模型始终保留在合集内——Gallery 的 **3D 筛选**会显示带「3D n/m」徽章的合集卡片。载入的合集会**直接显示在 Image Studio 的结果区域**（与单张图片相同的卡片、预览和提示词面板，按批次分组）；重新打开 Collection Designer 会显示**保存的原始设计**（艺术指导、每个批次的提示词，以及各模型实际收到的提示词），只有在你要求时才会重新生成;并且在**产生任何费用之前**会根据提示词检查资产类型(合集为角色或游戏资产)——绝不会为错误类型的整套作品付费
-- 🎬 **Video Studio** —— 模型特定的提示词引导（Luma Ray 自然语言导演式描述）的文生视频，图生视频、循环
+- 🎬 **Video Studio** —— 模型特定的提示词引导（例如 Luma Ray 的自然语言导演式描述）的文生视频，图生视频、循环
 - ✍️ **Type Studio** —— 带字体选择器的 AI 设计文字叠加
 - 💬 **Chat Studio** —— 支持流式输出、Markdown、代码高亮、视觉、会话、上下文压缩的多模型 LLM 聊天
 - 📁 **统一画廊** —— 瀑布流布局，以每个资产的真实纵横比展示（竖版、方形、横版 —— 从不裁剪）。浏览图像 + 视频、媒体过滤（全部 / 2D 作品 / 3D 模型 / 视频）、搜索、完整的日期-时间-时区戳、下载、删除。已生成 3D 模型的资产带有 **3D 徽章**，**3D 模型**过滤器则专门列出这些资产
 - 📥 **导入图像** —— 将现有图像（任意格式）作为一等资产导入图库。自动转换为 PNG，标记您所选的资产类型，并立即可编辑、可转 3D —— 一切（版本管理、编辑、图像转 3D）都与生成图像的行为完全一致
-- ✏️ **图像编辑** —— 局部重绘、扩展绘制、擦除、搜索替换、重新着色（在 AssetViewer 中）。每种模式都有 AI **生成提示词**按钮：视觉模型读取图像及其原始提示词，为该模式和所选编辑模型量身定制编辑提示词（Stability 编辑器用描述性说明，Qwen-Image-Edit 用指令）。扩展/外绘会以像素标尺实时预览画布扩展效果，让您在提交前看清画布将扩展多少。指令型编辑器（Qwen-Image-Edit）**无需蒙版即支持全部五种模式** —— 包括真正的画布扩展：ArtSmoker 预先填充画布，让模型只补全新区域，并将您的原始像素原样混合回去。每个编辑版本都会显示**两个模型标签** —— 原始生成模型和制作该版本的编辑器
+- ✏️ **图像编辑** —— 局部重绘、扩展绘制、擦除、搜索替换、重新着色（在 AssetViewer 中）。每种模式都有 AI **生成提示词**按钮：视觉模型读取图像及其原始提示词，为该模式和所选编辑模型量身定制编辑提示词（例如 Stability 编辑器用描述性说明，Qwen-Image-Edit 用指令）。扩展/外绘会以像素标尺实时预览画布扩展效果，让您在提交前看清画布将扩展多少。指令型编辑器（例如 Qwen-Image-Edit）**无需蒙版即支持全部五种模式** —— 包括真正的画布扩展：ArtSmoker 预先填充画布，让模型只补全新区域，并将您的原始像素原样混合回去。每个编辑版本都会显示**两个模型标签** —— 原始生成模型和制作该版本的编辑器
 - 📤 **导出与抠图** —— AssetViewer 中按版本提供导出产物：去背景的透明 PNG 抠图，以及真正的矢量 SVG 描摹（含背景与不含背景）。背景去除方式每次可选：**免费本地处理**（rembg/u2net，无云端费用）或**付费 Amazon Bedrock** 去除器 —— 为 3D 生成准备图像时也提供同样的选择
 - 🔄 **实时进度** —— 带重试/限流可见性的 SSE 流式传输
 - 🛡️ **智能审核** —— 金丝雀测试、自动模型切换、AI 辅助改写
@@ -148,7 +152,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 - 💰 **成本追踪** —— 每请求、每会话、每资产的预估 AWS 支出，基于分区域实时 AWS 定价计算；自托管模型显示 GPU 实例的每小时运行费率 + 典型生成时长（而非易误导的每张图片价格）
 - 🌐 **9 语言 i18n** —— 完整 UI 翻译（EN、JA、ZH、KO、HI、RU、FR、ES、DE），自动检测非英语提示词（英语 UI 完全跳过检测），双语预览
 - 🔍 **自定义模型支持** —— 自动发现微调、导入和已部署的自定义 Bedrock 模型
-- 🔧 **自托管模型 —— 一键部署** —— 浏览精选的预测试开源模型目录（Qwen-Image、Qwen-Image-Edit、HunyuanImage 3.0、FLUX.2、FLUX.1、TripoSG、TRELLIS.2 等），选择 GPU 实例，点击 Deploy。ArtSmoker 处理一切：打包推理处理器、配置量化、选择正确的 CUDA 工具包、设置自动缩放、注册 CloudWatch 告警，以及连接异步任务跟踪。目录中每个模型从冷启动到生成再到画廊交付都经过端到端验证 —— 因此您无需调试 GPU 驱动、内存溢出或容器兼容性问题。支持 BF16 + FlashInfer 获得最佳质量，NF4 实现成本效率，多 GPU 自动检测，空闲时自动缩容至零（$0），同一模型无需重新配置即可在不同实例类型上运行
+- 🔧 **自托管模型 —— 一键部署** —— 浏览精选的预测试开源模型目录（本版本中，例如 Qwen-Image、Qwen-Image-Edit、HunyuanImage 3.0、FLUX.2、FLUX.1、TripoSG、TRELLIS.2），选择 GPU 实例，点击 Deploy。ArtSmoker 处理一切：打包推理处理器、配置量化、选择正确的 CUDA 工具包、设置自动缩放、注册 CloudWatch 告警，以及连接异步任务跟踪。目录中每个模型从冷启动到生成再到画廊交付都经过端到端验证 —— 因此您无需调试 GPU 驱动、内存溢出或容器兼容性问题。支持 BF16 + FlashInfer 获得最佳质量，NF4 实现成本效率，多 GPU 自动检测，空闲时自动缩容至零（$0），同一模型无需重新配置即可在不同实例类型上运行
 - 🧊 **图像到 3D 生成** —— 将任何 Game Asset 或 Character 图像一键转换为带纹理的 3D 网格（GLB）。多视图合成 + 纹理烘焙生成为游戏引擎量身定制的资产。交互式 3D 查看器支持轨道旋转/缩放/平移
 - 🩹 **面向 3D 的智能源图补全** —— 图像转 3D 只能构建可见部分，因此被裁剪的角色（腿被截断）会生成没有腿的网格。生成前，ArtSmoker 会用视觉模型检查源图，若被裁剪则**提供**通过外绘补全（AI 建议且可完全编辑的提示词）—— 预览补全前后、重新审查结果、可再次扩展或放弃，并另存为新的图像版本。选择性启用且非阻塞；构图完整的图像直接生成
 - 🔄 **Auto-Update** —— 启动时进行版本门控更新 + 每 24 小时定期检查；通过 `git`（checkout）更新，或对没有 git 的安装采用**下载 tarball 并替换**的方式，然后原地重启（受监督的子进程重生 / gunicorn 重载），或提供一键**重启**（Restart）—— 绝不会覆盖您的 `data/` 或 `.env`（`ARTSMOKER_AUTO_UPDATE=false` 可禁用）
@@ -215,7 +219,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 *3D 管线的截图 —— 生成、源图审查、面向游戏引擎定制的导出与变体 —— 展示在下方第 1.9 节（3D 模型生成）中，与其对应的功能相伴呈现。*
 
-**Video Studio** —— 左侧为设置（模型、生成模式、时长、区域、成本估算），右侧为提示词。提供 **Sync from AWS** 在您账户中发现的视频模型 —— 目前为 Luma AI Ray（宽高比、循环）。
+**Video Studio** —— 左侧为设置（模型、生成模式、时长、区域、成本估算），右侧为提示词。提供 **Sync from AWS** 在您账户中发现的视频模型 —— 例如 Luma AI Ray（宽高比、循环）。
 
 ![Video Studio — 设置和提示词](docs/images/video-studio.png)
 
@@ -247,16 +251,16 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 除了从零编写提示词之外，您还可以**从 1–3 张参考图像加一条指令**生成 —— 用 Image Studio 提示词区域顶部的分段控件选择模式：
 
-- **匹配参考** —— 保留参考图中的主体、产品或角色，并按您的指令改变其余部分（主题、背景、服装、光照）。非常适合在不同场景间保持一致的角色或产品镜头。此模式运行于自托管的指令编辑器（Qwen-Image-Edit），**在其部署后**才会出现 —— 若尚未部署，ArtSmoker 会直接引导您从 Custom Models 部署它（一键，与 3D 流程相同）。商业安全（Apache-2.0）。
+- **匹配参考** —— 保留参考图中的主体、产品或角色，并按您的指令改变其余部分（主题、背景、服装、光照）。非常适合在不同场景间保持一致的角色或产品镜头。此模式运行于自托管的指令编辑器（本版本中为 Qwen-Image-Edit），**在其部署后**才会出现 —— 若尚未部署，ArtSmoker 会直接引导您从 Custom Models 部署它（一键，与 3D 流程相同）。商业安全（Apache-2.0）。
 - **受参考启发** —— ArtSmoker 的视觉 AI 读取您的参考图和指令，编写一段增强提示词（先展示给您），然后用您常用的文生图模型进行生成。**始终可用** —— 无需部署。非常适合借鉴某种外观、调色或构图而不复制主体。
 
-- **重绘参考图（Remix the reference）** —— 经典的基于强度的图生图：参考图的*像素*直接送入 Bedrock 模型（Stable Diffusion 3.5 Large 或 Stable Image Ultra —— 由注册表能力标志判定），并通过**强度旋钮**控制。细微档几乎保留构图、配色与氛围；大胆档则将其视作松散的灵感。选项数大于 1 时变为**强度阶梯** —— 每个强度一张卡片，从细微到大胆并排展示。*保留布局，但不保留身份*（人脸和产品会漂移 —— 需要身份精确请用忠于参考图模式）。输出尺寸跟随参考图。**始终可用** —— 无需部署，也没有视觉分析调用。
+- **重绘参考图（Remix the reference）** —— 经典的基于强度的图生图：参考图的*像素*直接送入注册表标记为具备该能力的 Bedrock 模型（例如 Stable Diffusion 3.5 Large、Stable Image Ultra），并通过**强度旋钮**控制。细微档几乎保留构图、配色与氛围；大胆档则将其视作松散的灵感。选项数大于 1 时变为**强度阶梯** —— 每个强度一张卡片，从细微到大胆并排展示。*保留布局，但不保留身份*（人脸和产品会漂移 —— 需要身份精确请用忠于参考图模式）。输出尺寸跟随参考图。**始终可用** —— 无需部署，也没有视觉分析调用。
 
 三种模式都需要一条指令，以便您始终掌控参考图的*用途*。参考引导生成与 Style Library（它将许多图像分析为可复用的风格档案）是分开的 —— 用它进行一次性的、由图像驱动的生成。
 
 ### 📝 1.6 Video Studio
 
-从文本提示词生成 AI 驱动的视频和动画。Video Studio 提供 **Sync from AWS** 在您账户中发现的视频模型 —— 目前为 **Luma AI Ray**（v2.0）。Amazon Nova Reel（v1.0、v1.1）已于 2026-09-30 在 AWS 达到生命周期终止（EOL），不再提供。
+从文本提示词生成 AI 驱动的视频和动画。Video Studio 提供 **Sync from AWS** 在您账户中发现的视频模型（参阅[关于模型名称](#about-model-names)）。例如 **Luma AI Ray v2**：
 
 | 功能 | Luma Ray v2 |
 |---------|-------------|
@@ -293,7 +297,7 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 全功能 LLM 聊天界面 —— 就像一个自托管的对话式 AI，在您自己的 AWS 账户上运行，没有第三方数据访问。
 
-**来自 16 个供应商的 80 多个模型** —— Claude（Sonnet、Opus、Haiku）、Amazon Nova、Meta Llama、Mistral、Cohere、Qwen、DeepSeek、Google Gemma、NVIDIA Nemotron 等。以及您账户中的任何自定义/导入模型。全部通过 Sync from AWS 自动发现。
+**Sync from AWS 在您账户中发现的每一个聊天模型**（参阅[关于模型名称](#about-model-names)）—— 例如 Claude（Sonnet、Opus、Haiku）、Amazon Nova、Meta Llama、Mistral、Cohere、Qwen、DeepSeek、Google Gemma 和 NVIDIA Nemotron —— 以及您账户中的任何自定义/导入模型。
 
 **核心功能：**
 - **流式响应** —— 通过 Bedrock ConverseStream 实时逐 token 渲染
@@ -505,6 +509,8 @@ aws sts get-caller-identity
 aws bedrock list-foundation-models --region us-east-1 --query "modelSummaries[0].modelId" --output text
 
 # 测试 2：能否调用图像模型？（需要 bedrock:InvokeModel）
+# （例如 Stable Diffusion 3.5 Large —— 如果您的账户或区域未提供此模型，
+#  请替换为测试 1 列表中的任意图像模型 ID。）
 aws bedrock-runtime invoke-model --region us-west-2 \
   --model-id stability.sd3-5-large-v1:0 \
   --content-type application/json --accept application/json \
@@ -548,7 +554,7 @@ aws bedrock list-custom-models --region us-east-1 \
 | `bedrock:GetImportedModel` | 读取导入模型详情（架构、状态） |
 | `bedrock:ListProvisionedModelThroughputs` | 查找具有预置吞吐量的可调用自定义模型 |
 | `bedrock:ListCustomModelDeployments` | 查找具有按需部署的自定义模型 |
-| `bedrock:CreateInference` *(或策略 `AmazonBedrockMantleInferenceAccess`)* | **Amazon Bedrock Mantle** —— 仅通过 Mantle 端点可达的前沿模型（OpenAI GPT‑5.x、Claude Mythos、GLM、Grok、Qwen、Gemma 等）。缺少它只影响这些模型；通过 Converse 的 Claude 仍可正常工作。 |
+| `bedrock:CreateInference` *(或策略 `AmazonBedrockMantleInferenceAccess`)* | **Amazon Bedrock Mantle** —— 仅通过 Mantle 端点可达的前沿模型（例如 OpenAI GPT‑5.x、Claude Mythos、GLM、Grok、Qwen、Gemma）。缺少它只影响这些模型；通过 Converse 的 Claude 仍可正常工作。 |
 | `account:ListRegions` | 在 Sync 期间仅扫描您账户**已启用**的区域（快速，opt‑in 区域不会报错）。可选 —— 缺少时回退为扫描所有区域。 |
 | `account:GetRegionOptStatus` | 读取每个区域的 opt‑in 状态（`account:ListRegions` 的配套）。可选。 |
 | `s3:CreateBucket` | 为视频存储创建 S3 存储桶（可选，通过 UI） |
@@ -571,8 +577,8 @@ aws bedrock list-custom-models --region us-east-1 \
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
 
-# Amazon Bedrock Mantle 端点 —— 前沿模型（OpenAI GPT-5.x、
-# Claude Mythos、GLM、Grok 等）需要它。仅当您不使用仅 Mantle 的模型时才跳过。
+# Amazon Bedrock Mantle 端点 —— 前沿模型（例如 OpenAI GPT-5.x、
+# Claude Mythos、GLM、Grok）需要它。仅当您不使用仅 Mantle 的模型时才跳过。
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockMantleInferenceAccess
 
@@ -726,7 +732,7 @@ which potrace && echo "potrace: OK" || echo "potrace: not installed (optional)"
 
 ### 📝 2.4 可选：视频缩略图与元数据工具
 
-Video Studio 通过 Amazon Bedrock 视频模型（目前为 Luma AI Ray）生成 MP4 视频。要提取缩略图（首帧为 JPEG）和视频元数据（时长、分辨率、FPS），运行 ArtSmoker 后端的机器上必须安装 **ffmpeg** 和 **ffprobe**。
+Video Studio 通过 Amazon Bedrock 视频模型（例如 Luma AI Ray）生成 MP4 视频。要提取缩略图（首帧为 JPEG）和视频元数据（时长、分辨率、FPS），运行 ArtSmoker 后端的机器上必须安装 **ffmpeg** 和 **ffprobe**。
 
 没有 ffmpeg 时：
 - 视频仍能正确生成和播放（从 S3 流式传输或下载为 MP4）
@@ -1046,13 +1052,11 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 ┌──────────────────────┐  ┌──────────────────────────┐
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
-│  Claude Sonnet       │  │  Nova Sonic (voice)      │
-│  Claude Opus         │  │                          │
-│  SD 3.5 Large        │  │                          │
-│  Stable Image Ultra  │  │                          │
-│  Stable Image Core   │  │                          │
-│  Stability AI (post) │  │                          │
-│  Luma AI Ray (video) │  │                          │
+│  LLMs (e.g. Claude)  │  │  Voice (Nova Sonic)      │
+│  Image generation    │  │                          │
+│  Image editing       │  │                          │
+│    e.g. Stability AI │  │                          │
+│  Video (e.g. Luma)   │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (其他区域)
              │
              ▼
@@ -1064,6 +1068,8 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 │  data/chat/           │
 └──────────────────────┘
 ```
+
+图中显示的区域为默认值；Sync 会将每个模型固定到 AWS 提供该模型的区域。模型名称仅为示例 —— 请参阅[关于模型名称](#about-model-names)。
 
 ## 📌 6. 使用方法
 
@@ -1128,9 +1134,9 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
          │
          ▼
 ┌────────────────────────────────────────────────────────┐
-│ 1. 提示词组合                    Claude Sonnet (1 个选项) │
-│    （可选的 "Compose" 按钮）     或 Opus (2-5 个选项)    │
-│    + 风格 + 资产类型                                    │
+│ 1. 提示词组合                      Fast LLM (1 个选项) │
+│    （可选的 "Compose" 按钮）     或 Complex LLM (2-5)  │
+│    + 风格 + 资产类型                                   │
 └────────────────────────┬───────────────────────────────┘
                          │
                          ▼
@@ -1186,8 +1192,7 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
     │            │
     ▼            │
 ┌──────────┐     │
-│ Claude   │     │
-│ Sonnet   │     │
+│ Fast LLM │     │
 │ 筛查     │     │
 │ 提示词   │     │
 └───┬────┬─┘     │
@@ -1278,7 +1283,7 @@ Image Studio 使用引导式的 3 步工作流：
 1. 进入 **Style Library** 选项卡。
 2. 点击 **Create New Style** —— 输入名称并可选地添加生成提示。在创建模态框中，使用带 **Local** 和 **S3** 浏览按钮的 **"Import References From"** 部分来选择源目录或存储桶路径。浏览会打开服务器端的文件/目录浏览器模态框（单击选择项目，双击进入目录）。导入的参考图会在创建时自动分析。
 3. 本地目录导入会**递归**扫描所有子目录中的图像（.png、.jpg、.jpeg、.gif、.bmp、.webp、.tiff、.tif、.tga、.ico、.svg）和 3D 模型（.glb、.gltf）。图像文件使用**相对符号链接**进行**符号链接**（无重复，可跨机器移植）。3D 模型文件（.glb/.gltf）的内嵌纹理会被**自动提取** —— base64 data URI、二进制缓冲区块和外部纹理引用都会被处理。提取的纹理会保存为副本（以模型名称为前缀以避免冲突）。S3 导入会带分页递归列出并将文件**下载**到本地。每个风格最多导入 **100 张参考图像**。支持的扩展名集中定义在 `backend/config.py`（`IMAGE_EXTENSIONS` 和 `MODEL_EXTENSIONS_WITH_TEXTURES`）。
-4. **两阶段一致性感知分析**：阶段 1 向 Claude Sonnet 发送 8 张图像以确定一致性级别（高/中/低）—— 高表示统一风格，中表示结构共享但主题不同，低表示风格多样。阶段 2 将一致性评估连同参考图像一起提供给 Claude Opus，引导它针对该集合类型进行恰当分析。当风格拥有超过 20 张参考图时，分析器会为 Opus 视觉调用选取 20 张多样化的代表性子集 —— 确保覆盖各文件名分组和文件大小的多样性。AI 会被告知总共有多少张图像以及它实际看到多少张。分析提示词专为透明背景上的游戏资产设计 —— 会要求提供材质特定的渲染细节、比例系统以及阴影/光照细节。提取 9 个风格属性，包括 `materials`（石头、木头、金属如何渲染）和 `detail_level`（哪些表面细节可见、哪些被简化）。生成提示会被扩展为涵盖 8 个维度的 200 字内容：透视、渲染、材质、色彩调板、比例、边缘处理、阴影/光照、细节级别和背景 —— 足够具体，使生成的资产在视觉上与现有参考融为一体。
+4. **两阶段一致性感知分析**：阶段 1 向 Fast LLM 发送 8 张图像以确定一致性级别（高/中/低）—— 高表示统一风格，中表示结构共享但主题不同，低表示风格多样。阶段 2 将一致性评估连同参考图像一起提供给 Complex LLM，引导它针对该集合类型进行恰当分析。当风格拥有超过 20 张参考图时，分析器会为 Opus 视觉调用选取 20 张多样化的代表性子集 —— 确保覆盖各文件名分组和文件大小的多样性。AI 会被告知总共有多少张图像以及它实际看到多少张。分析提示词专为透明背景上的游戏资产设计 —— 会要求提供材质特定的渲染细节、比例系统以及阴影/光照细节。提取 9 个风格属性，包括 `materials`（石头、木头、金属如何渲染）和 `detail_level`（哪些表面细节可见、哪些被简化）。生成提示会被扩展为涵盖 8 个维度的 200 字内容：透视、渲染、材质、色彩调板、比例、边缘处理、阴影/光照、细节级别和背景 —— 足够具体，使生成的资产在视觉上与现有参考融为一体。
 5. 在风格详情视图中，使用 **"Import & Analyze"** 一步添加更多参考并触发分析。也支持拖放上传，并在添加新图像时**自动重新分析**。
 6. **"Re-Analyze Style"** 在初次分析后出现，让您随时手动重新运行分析。
 7. **生成提示**是分析上下文的一部分 —— AI 在分析时会同时接收参考图像和您的提示作为"艺术家指导"，因此风格档案理解的是意图，而不仅仅是视觉外观。编辑生成提示也会触发**自动重新分析**。
@@ -1295,7 +1300,7 @@ Image Studio 使用引导式的 3 步工作流：
                      ▼
 ┌──────────────────────────────────────────┐
 │ 阶段 1：一致性检查                       │
-│ Claude Sonnet — 8 张图像 — ~$0.01        │
+│ Fast LLM — 8 张图像 — ~$0.01             │
 │ 确定：高 / 中 / 低                       │
 │   高   = 统一风格                        │
 │   中   = 结构共享，主题不同              │
@@ -1305,7 +1310,7 @@ Image Studio 使用引导式的 3 步工作流：
                      ▼
 ┌──────────────────────────────────────────┐
 │ 阶段 2：完整分析                         │
-│ Claude Opus — 最多 20 张图像             │
+│ Complex LLM — 最多 20 张图像             │
 │ 由一致性级别引导                         │
 │ + 艺术家指导（用户提示）                 │
 │ 提取 9 个风格属性                        │
@@ -1314,10 +1319,10 @@ Image Studio 使用引导式的 3 步工作流：
                      ▼
 ┌──────────────────────────────────────────┐
 │ 阶段 3：提示生成                         │
-│ Claude Sonnet — 200 字提示               │
-│ 8 个维度：透视、渲染、                    │
-│ 材质、调板、比例、边缘、                  │
-│ 阴影/光照、细节级别                       │
+│ Fast LLM — 200 字提示                    │
+│ 8 个维度：透视、渲染、                   │
+│ 材质、调板、比例、边缘、                 │
+│ 阴影/光照、细节级别                      │
 └────────────────────┬─────────────────────┘
                      │
                      ▼
@@ -1352,7 +1357,7 @@ Image Studio 使用引导式的 3 步工作流：
 - 根据类型为每个资产提供**上下文操作按钮**：**"Image Studio"**（靛蓝色）在 Image Studio 中重新载入，**"Add Text"**（翠绿色）在 Type Studio 中打开，**"Edit in Type Studio"**（紫色）用于文字资产。
 - 点击任意图像打开 **AssetViewer** 模态框，包含：
   - **缩放/平移** —— 鼠标滚轮缩放，拖动平移，Fit/1:1 按钮并高亮当前激活模式。
-  - **Edit 选项卡** —— 直接对图像进行局部重绘、擦除、外绘、搜索替换或重新着色。每种模式提供两类编辑器：**基于蒙版**（Stability）—— 用画笔工具绘制蒙版，输入提示词并应用；以及**无蒙版指令编辑器**（Qwen-Image-Edit，已部署时）—— 只需用文字描述更改，无需蒙版。对于无蒙版模型，画笔控件会自动隐藏。选择编辑模型并应用；默认替换原始图像，取消勾选 "Replace original" 可另存为新资产（每次编辑都保留版本历史）。
+  - **Edit 选项卡** —— 直接对图像进行局部重绘、擦除、外绘、搜索替换或重新着色。每种模式提供两类编辑器：**基于蒙版**（例如 Stability）—— 用画笔工具绘制蒙版，输入提示词并应用；以及**无蒙版指令编辑器**（例如 Qwen-Image-Edit，已部署时）—— 只需用文字描述更改，无需蒙版。对于无蒙版模型，画笔控件会自动隐藏。选择编辑模型并应用；默认替换原始图像，取消勾选 "Replace original" 可另存为新资产（每次编辑都保留版本历史）。
   - **Previous / Next** —— 箭头按钮和键盘左/右键可在列表中导航而无需关闭查看器。
   - **完整元数据**：原始提示词、AI 改进的提示词、生成提示词、负面提示词、风格、资产类型、图像模型（友好名称）、尺寸、种子、批次 ID、选项/变体索引、IP 声明状态、文件名和创建日期。
 - **风格快照**：每个资产都存储生成时所用风格的快照（名称、描述、提示、分析）。如果原始风格后来被删除，资产仍保留完整上下文。向后兼容 —— 没有快照的旧资产也能正常显示。
@@ -1374,9 +1379,9 @@ Image Studio 使用引导式的 3 步工作流：
 
 - 点击任意工作室侧边栏中的 **"Model Settings"** 打开管理模态框 —— 它会打开到该工作室的相关选项卡。
 - 按工作室组织的 **9 个选项卡**：
-  - **Image Studio** —— 图像生成模型（SD 3.5 Large、Stable Image Ultra、Stable Image Core，以及自托管的 FLUX、HunyuanImage、Qwen-Image）、区域、质量等级、提示词限制、审核严格度
+  - **Image Studio** —— 图像生成模型（例如 SD 3.5 Large、Stable Image Ultra、Stable Image Core，以及自托管的 FLUX、HunyuanImage、Qwen-Image）、区域、质量等级、提示词限制、审核严格度
   - **Video Studio** —— 视频模型（例如 Luma Ray）、S3 存储桶设置、区域、定价
-  - **Chat Studio** —— 发现的聊天/LLM 模型（来自 16 个供应商的 80 多个）、上下文窗口、视觉能力、每 1K token 定价
+  - **Chat Studio** —— 发现的聊天/LLM 模型、上下文窗口、视觉能力、每 1K token 定价
   - **Type Studio** —— 用于文字布局生成的 LLM 模型（Complex 或 Fast LLM）
   - **Shared Studio** —— 跨工作室的 LLM 分类（Fast LLM、Complex LLM、Fallback LLM、Voice）、后处理模型（移除背景、放大）
   - **Custom Models** —— 自托管模型目录：部署、监控和拆除 SageMaker 端点（见第 6.12 节）
@@ -1439,7 +1444,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 **模型优化的提示词工程**：提示词会按照 [AWS 文档](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html)自动构造为描述性说明（而非命令）。否定词会从主提示词中移除，排除术语作为单独的**负面提示词**发送。提示词会截断到注册表中每个模型特定的 `prompt_limit`。
 
 > [!NOTE]
-> **审核敏感度因模型而异**，并在注册表中跟踪（`moderation_strictness`）。Amazon Bedrock 的 Stability 模型（SD 3.5 Large、Stable Image Ultra、Stable Image Core）应用 AWS 平台审核并被调校为 "moderate"；自托管模型（FLUX、HunyuanImage、Qwen-Image）在您自己的账户中运行，没有平台强加的内容过滤器。ArtSmoker 会自动处理阻止 —— 当提示词被拒绝时，系统会按严格度排序尝试备用模型，然后才建议改写。
+> **审核敏感度因模型而异**，并在注册表中跟踪（`moderation_strictness`）。Amazon Bedrock 的 Stability 模型（例如 SD 3.5 Large、Stable Image Ultra、Stable Image Core）应用 AWS 平台审核并被调校为 "moderate"；自托管模型（例如 FLUX、HunyuanImage、Qwen-Image）在您自己的账户中运行，没有平台强加的内容过滤器。ArtSmoker 会自动处理阻止 —— 当提示词被拒绝时，系统会按严格度排序尝试备用模型，然后才建议改写。
 
 ## 📌 7. 技术栈
 
@@ -1447,12 +1452,12 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 |-------|-----------|
 | 后端 | FastAPI (Python 3.12–3.14)、boto3、Pydantic |
 | 前端 | Vanilla JS、Tailwind CSS (CDN) |
-| AI (LLM) | Claude Sonnet（快速任务）、Claude Opus（复杂任务） |
-| AI (图像) | Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core（Amazon Bedrock）；FLUX.2/FLUX.1、HunyuanImage 3.0、Qwen-Image（SageMaker 自托管） |
-| AI (后处理) | Stability AI（移除背景、Creative Upscale） |
-| AI (聊天) | 通过 Bedrock ConverseStream 的来自 16 个供应商的 80 多个 LLM（Claude、Nova、Llama、Mistral 等） |
-| AI (视频) | Luma AI Ray v2（最长 9 秒） |
-| AI (语音) | Nova Sonic（通过双向流式传输的语音转文字） |
+| AI (LLM) | Fast LLM 和 Complex LLM —— 每次 Sync 时自动滚动到最新的 Claude Sonnet 和 Opus |
+| AI (图像) | Sync 发现的 Amazon Bedrock 图像模型（例如 Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core）；SageMaker 上的自托管目录（例如 FLUX.2/FLUX.1、HunyuanImage 3.0、Qwen-Image） |
+| AI (后处理) | Amazon Bedrock 编辑模型（例如 Stability AI 移除背景、Creative Upscale） |
+| AI (聊天) | Sync 发现的每一个聊天 LLM，通过 Bedrock ConverseStream 或 Mantle 调用（例如 Claude、Nova、Llama、Mistral） |
+| AI (视频) | Sync 发现的 Amazon Bedrock 视频模型（例如 Luma AI Ray v2，最长 9 秒） |
+| AI (语音) | Amazon Nova Sonic，最新的可用版本（通过双向流式传输的语音转文字） |
 | i18n | 自定义 t() 函数、约 1,500 个键 × 9 种语言、反向查找 DOM 翻译 |
 | SVG 转换 | vtracer（主要）、potrace（备选）、Pillow（最后手段） |
 | 文字渲染 | Pillow（阴影、描边、发光效果） |
@@ -1637,9 +1642,9 @@ ArtSmoker/
 ## 📌 12. Amazon Bedrock 定价与成本明细
 
 > [!IMPORTANT]
-> **模型弃用和变更很快。** 新模型频繁推出、旧模型频繁退役，因此文档中硬编码的任何具体模型名称或价格都会很快过时。ArtSmoker 会自动处理这一点 —— 每次 **Sync from AWS** 都会重新发现当前的模型阵容，将共享 LLM 槽位自动滚动到最新的 Claude Sonnet/Opus，并从 AWS Pricing API 将实时的每模型定价刷新到 `model_registry.json`。**应用才是唯一可信来源** —— 无论是哪些模型存在，还是它们各自的价格（根据您所选的模型、质量档位、区域和批量大小，在 Image Studio 侧边栏中实时显示）。下方的模型名称和任何数字**仅为示例说明** —— 请始终在应用内或官方 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)确认当前的模型/价格。
+> **模型弃用和变更很快。** 新模型频繁推出、旧模型频繁退役，因此文档中硬编码的任何具体模型名称或价格都会很快过时。ArtSmoker 会自动处理这一点 —— 每次 **Sync from AWS** 都会重新发现当前的模型阵容，将共享 LLM 槽位自动滚动到最新的 Claude Sonnet/Opus，并从 AWS Pricing API 将实时的每模型定价刷新到 `model_registry.json`。**应用才是唯一可信来源** —— 无论是哪些模型存在，还是它们各自的价格（根据您所选的模型、质量档位、区域和批量大小，在 Image Studio 侧边栏中实时显示）。下方的模型名称和任何数字**仅为示例说明**（参阅[关于模型名称](#about-model-names)）—— 请始终在应用内或官方 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)确认当前的模型/价格。
 
-应用的**默认区域**为 `us-west-2`（Claude、Stability AI）和 `us-east-1`（Amazon Nova Sonic）；价格因区域而异。成本模型另请参阅 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
+应用的**默认主区域**为 `us-west-2`（例如 Claude、Stability AI）和 `us-east-1`（例如 Amazon Nova Sonic）；Sync 会将每个模型固定到 AWS 提供该模型的区域，且价格因区域而异。成本模型另请参阅 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
 
 ### 📝 12.1 单位定价
 
@@ -1647,9 +1652,9 @@ ArtSmoker/
 
 | 服务 | 计费方式 | 说明 |
 |---------|--------|-------|
-| **LLM 提示词工程与聊天**（Claude Sonnet / Opus，同步时自动滚动到最新版） | 按输入/输出 token | 提示词精调、概念、聊天、风格分析、审核 |
-| **Bedrock 图像生成**（Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core） | 按每张图像 | 价格 Ultra ≫ SD 3.5 ≫ Core；实时数字在应用内显示 |
-| **自托管图像 / 3D**（FLUX、HunyuanImage、Qwen-Image、TripoSG、TRELLIS.2） | 按您 SageMaker 实例的 GPU 秒 | 空闲时 scale-to-zero（$0）；不按每张图像计费 |
+| **LLM 提示词工程与聊天**（Fast / Complex LLM —— 例如 Claude Sonnet / Opus，同步时自动滚动到最新版） | 按输入/输出 token | 提示词精调、概念、聊天、风格分析、审核 |
+| **Bedrock 图像生成**（例如 Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core） | 按每张图像 | 价格 Ultra ≫ SD 3.5 ≫ Core；实时数字在应用内显示 |
+| **自托管图像 / 3D**（例如 FLUX、HunyuanImage、Qwen-Image、TripoSG、TRELLIS.2） | 按您 SageMaker 实例的 GPU 秒 | 空闲时 scale-to-zero（$0）；不按每张图像计费 |
 | **后处理**（移除背景、Creative Upscale） | 按每张图像 | Stability AI 服务 |
 | **SVG 转换** | 免费 | 本地（vtracer/potrace）—— $0.00 |
 
@@ -1662,15 +1667,15 @@ ArtSmoker/
 
 | 调用 | 模型 | 何时 | 约成本 |
 |------|-------|------|-------------|
-| **Prompt Pre-Check** | Claude Sonnet | 生成前（如果切换启用） | ~$0.005 |
-| **Moderation Rewrite** | Claude Sonnet | 仅当所有模型都拒绝某提示词时 | ~$0.005 |
-| **Type Studio Layout** | Claude Opus | 每次 AI 布局建议请求 | ~$0.02–$0.05 |
+| **Prompt Pre-Check** | Fast LLM（例如 Claude Sonnet） | 生成前（如果切换启用） | ~$0.005 |
+| **Moderation Rewrite** | Fast LLM（例如 Claude Sonnet） | 仅当所有模型都拒绝某提示词时 | ~$0.005 |
+| **Type Studio Layout** | Complex LLM（例如 Claude Opus） | 每次 AI 布局建议请求 | ~$0.02–$0.05 |
 
 这些都很小 —— 预检和审核改写各只花费不到一美分。Type Studio 布局与单选项提示词精调相当。
 
 ### 📝 12.3 风格分析成本（每个风格一次性）
 
-每个风格约 **$0.14**（20 张图像发送给 Claude Opus + 8 张图像用 Claude Sonnet 做一致性检查）。一致性检查增加约 $0.01（带 8 张图像的 Sonnet 非常便宜）。
+每个风格约 **$0.14**（20 张图像发送给 Complex LLM，例如 Claude Opus；另有 8 张图像在 Fast LLM 上做一致性检查，例如 Claude Sonnet）。一致性检查增加约 $0.01。
 
 ### 📝 12.4 按批量大小的生成成本
 
@@ -1682,7 +1687,7 @@ ArtSmoker/
 | 1 选项 × 5 变体 | ~$0.21 | ~$0.41 | ~$0.71 |
 | 5 选项 × 5 变体 | ~$1.05 | ~$2.05 | ~$3.55 |
 
-自托管 SageMaker 模型（FLUX、HunyuanImage、Qwen-Image）按您自己实例上的 GPU 时间计费（空闲时 scale-to-zero），而非按每张图像 —— 计算成本模型见 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
+自托管 SageMaker 模型（例如 FLUX、HunyuanImage、Qwen-Image）按您自己实例上的 GPU 时间计费（空闲时 scale-to-zero），而非按每张图像 —— 计算成本模型见 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
 
 ### 📝 12.5 后处理附加项（每张图像）
 

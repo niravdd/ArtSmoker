@@ -69,10 +69,14 @@ ArtSmoker is a self-hosted creative studio that puts today's best generative mod
 - **Describe it in plain language** — ArtSmoker handles prompt decomposition, enhancement, and model-specific optimization behind the scenes. A guided **Prompt Designer** lets you shape each visual element — subject, scene, lighting, colour — with lock/vary controls to explore genuinely different directions without losing what's already working.
 - **On-brand by default** — feed ArtSmoker your existing art and its vision models learn your visual identity, so every asset comes out matching your project's look and feel.
 - **2D, edited, and in 3D — end to end** — generate, then refine in place with inpainting, outpainting, recoloring, search-and-replace, and reference-guided edits; turn any 2D asset into a **fully-textured, game-engine-tailored 3D model** that drops straight into Unity, Unreal, or Blender — no manual modeling, UV unwrapping, or texture painting. Plus cinematic video and a multi-model chat studio for ideation.
-- **Every model, one click** — use the latest hosted models across regions, or deploy curated open-source models (Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2, and more) to your own GPUs with a single click — packaging, quantization, auto-scaling, and job tracking all handled, every model validated end-to-end before it ships.
+- **Every model, one click** — use the latest hosted models across regions, or deploy curated open-source models (e.g. Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2) to your own GPUs with a single click — packaging, quantization, auto-scaling, and job tracking all handled, every model validated end-to-end before it ships.
 - **Runs where you want — and your IP stays yours** — install it on a single artist's desktop or a shared instance for the whole team; **no GPU of your own required** (the heavy compute runs on managed AWS services, or on auto-scaling endpoints ArtSmoker spins up and scales back to zero for you). It connects only to your own AWS account — artwork, prompts, styles, and generated assets stay in your environment, nothing goes to third-party services, and you keep full ownership of your creative IP.
 
-**Amazon Bedrock models**: Claude Sonnet/Opus (prompt engineering & chat), Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, Stability AI services (image editing), Luma AI Ray (video generation), and 80+ LLMs from 16 providers for Chat Studio. **Self-hosted models**: Qwen-Image (text-to-image) & Qwen-Image-Edit (reference-guided + instruction editing, Apache-2.0), HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG & TRELLIS.2 (image-to-3D), and more via Amazon SageMaker — with an extensible catalog for adding new models.
+**Amazon Bedrock models** — whatever **Sync from AWS** finds in your account, e.g. Claude Sonnet/Opus for prompt engineering and chat, Stable Diffusion 3.5 Large, Stable Image Ultra and Stable Image Core for images, Stability AI services for image editing, Luma AI Ray for video, and a broad range of chat LLMs from many providers for Chat Studio. **Self-hosted models** — a curated catalog that ships with each release and deploys to Amazon SageMaker, e.g. Qwen-Image (text-to-image) & Qwen-Image-Edit (reference-guided + instruction editing, Apache-2.0), HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG & TRELLIS.2 (image-to-3D) — and it's extensible, so you can add your own.
+
+<a id="about-model-names"></a>
+> [!NOTE]
+> **About model names.** ArtSmoker offers whatever models **Sync from AWS** finds in your account and Regions, plus the self-hosted catalog that ships with each release. Model names in this README are **examples as of October 2026** — AWS launches and retires models often, and what you can use depends on your account, Regions and model access. The app is the source of truth for what's available today.
 
 **[Get started now — jump to Prerequisites & Installation ▸](#get-started)**
 
@@ -133,12 +137,12 @@ For teams that want every generated asset to match an existing art style — upl
 - 🖼️ **Image Studio** — Generate images with options x variations, guided 3-step prompt workflow
 - 🎨 **Prompt Designer** — AI decomposes your prompt into editable visual components (subject, scene, lighting, colours) with lock/vary toggles per field, style integration, and smart asset type classification. Photorealistic, Character, Environment, and more
 - 🗂️ **Collections (Set Generation)** — Turn ONE prompt **or a reference image** into a coherent **set of distinct assets** ("a Viking-styled chess set", "20 JRPG characters"). Flip the **Collection** toggle in the Image Studio — from the **Text** tab (your prompt drives it) or the **Image-Inspired** tab (a reference image's *look* drives the art direction) — and a dedicated **Collection Designer** decomposes your brief into a shared **art direction** plus a **roster** of distinct, in-theme subjects — each one a **Batch** with its own editable, model-agnostic prompt. Edit the art direction to recompose the whole set; lock, regenerate, add, or delete individual Batches; then generate them all (options × variations each) in one go, with a live design + projected-cost estimate. **Pick one model for a cohesive set, or several to render every Batch on each** (a cross-model comparison). Optional **hero-** or **reference-anchor** cohesion style-locks the set to a chosen/supplied image. Collections appear as **one card** in the Gallery, opening a Collection viewer where each Batch drills into the normal Asset Viewer (options / variations / versions, edits, exports and 3D — exactly as for a single image, plus the Batch's **collection lineage**); you can **pin which version** represents each Batch, **3D the whole set** at once (or just the Batches or images you pick) and watch every model arrive on the collection's own **3D models** view, **download** the whole set or a selection as one zip — the same files a single image offers (PNG, SVG and background-removed cutouts) or its 3D models with the same engine presets, LODs, collision and texture packing — or **load the whole collection back into the Image Studio** to review and regenerate. A collection's 3D models stay inside it — the Gallery's **3D filter** shows the collection card with its "3D n/m" badge. A loaded collection shows **right in the Image Studio results area** — the same cards, preview and prompt panel as a single image, grouped per Batch — and reopening the Collection Designer shows the **exact saved design** (art direction, every Batch's prompt, and the prompts each model actually received), regenerating only when you ask, and **before anything is spent** the Asset Type is checked against your prompt (a set is Characters or Game Assets) — so you never pay for a whole set in the wrong framing
-- 🎬 **Video Studio** — Text-to-video with model-specific prompt guidance (Luma Ray natural-language direction), image-to-video, looping
+- 🎬 **Video Studio** — Text-to-video with model-specific prompt guidance (e.g. natural-language direction for Luma Ray), image-to-video, looping
 - ✍️ **Type Studio** — AI-designed text overlays with font picker
 - 💬 **Chat Studio** — Multi-model LLM chat with streaming, markdown, code highlighting, vision, sessions, context compaction
 - 📁 **Unified Gallery** — Masonry layout that shows each asset at its true aspect (portrait, square, landscape — never cropped). Browse images + videos, media filter (All / 2D Artwork / 3D Models / Video), search, full date-time-timezone stamps, download, delete. Assets that already have a generated 3D model carry a **3D badge**, and the **3D Models** filter surfaces just those
 - 📥 **Import Image** — Bring an existing image (any format) into the Gallery as a first-class asset. Auto-converted to PNG, tagged with an asset type you choose, and immediately editable and 3D-ready — everything (versioning, editing, image-to-3D) works exactly as it does for a generated image
-- ✏️ **Image Editing** — Inpainting, outpainting, erase, search & replace, recolor (in AssetViewer). Each mode has an AI **Generate Prompt** button: a vision model reads the image + its original prompt and proposes an edit prompt tailored to that mode and to the selected edit model (a descriptive caption for Stability editors, an instruction for Qwen-Image-Edit). Extend/Outpaint shows a live growing-frame preview with pixel rulers so you can see exactly how far the canvas will expand before committing. Instruction editors (Qwen-Image-Edit) support **all five modes mask-free** — including true canvas extension: ArtSmoker pre-pads the canvas, has the model complete only the new region, and blends your original pixels back untouched. Every edited version shows **both** model tags — the original generator and the editor that made that version
+- ✏️ **Image Editing** — Inpainting, outpainting, erase, search & replace, recolor (in AssetViewer). Each mode has an AI **Generate Prompt** button: a vision model reads the image + its original prompt and proposes an edit prompt tailored to that mode and to the selected edit model (e.g. a descriptive caption for Stability editors, an instruction for Qwen-Image-Edit). Extend/Outpaint shows a live growing-frame preview with pixel rulers so you can see exactly how far the canvas will expand before committing. Instruction editors (e.g. Qwen-Image-Edit) support **all five modes mask-free** — including true canvas extension: ArtSmoker pre-pads the canvas, has the model complete only the new region, and blends your original pixels back untouched. Every edited version shows **both** model tags — the original generator and the editor that made that version
 - 📤 **Export & Cutouts** — Per-version export artefacts in the AssetViewer: a background-removed transparent PNG cutout plus true vector SVG traces (with and without background). Background removal is your choice per run: **free on-device** (rembg/u2net, no cloud cost) or the **paid Amazon Bedrock** remover — the same choice is offered when preparing images for 3D generation
 - 🔄 **Real-time progress** — SSE streaming with retry/throttle visibility
 - 🛡️ **Smart moderation** — Canary testing, auto model switching, AI-assisted rewriting
@@ -148,7 +152,7 @@ For teams that want every generated asset to match an existing art style — upl
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset, computed from live per-region AWS pricing; self-hosted models show the GPU instance's hourly running rate + typical generation time (not a misleading per-image price)
 - 🌐 **9-Language i18n** — Full UI translation (EN, JA, ZH, KO, HI, RU, FR, ES, DE), auto-detect non-English prompts (English UI skips detection entirely), bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
-- 🔧 **Self-Hosted Models — 1-Click Deploy** — Browse a curated catalog of pre-tested open-source models (Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2, and more), pick a GPU instance, and click Deploy. ArtSmoker handles everything: packaging the inference handler, configuring quantisation, selecting the right CUDA toolkit, setting up auto-scaling, registering CloudWatch alarms, and wiring async job tracking. Every model in the catalog has been validated end-to-end — from cold start through generation to gallery delivery — so you don't have to debug GPU drivers, memory overflows, or container compatibility. Supports BF16 + FlashInfer for best quality, NF4 for cost efficiency, multi-GPU auto-detection, auto-scales to zero ($0 idle), and the same model runs on different instance types without reconfiguration
+- 🔧 **Self-Hosted Models — 1-Click Deploy** — Browse a curated catalog of pre-tested open-source models (in this release, e.g. Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2), pick a GPU instance, and click Deploy. ArtSmoker handles everything: packaging the inference handler, configuring quantisation, selecting the right CUDA toolkit, setting up auto-scaling, registering CloudWatch alarms, and wiring async job tracking. Every model in the catalog has been validated end-to-end — from cold start through generation to gallery delivery — so you don't have to debug GPU drivers, memory overflows, or container compatibility. Supports BF16 + FlashInfer for best quality, NF4 for cost efficiency, multi-GPU auto-detection, auto-scales to zero ($0 idle), and the same model runs on different instance types without reconfiguration
 - 🧊 **Image-to-3D Generation** — Convert any Game Asset or Character image into a textured 3D mesh (GLB) with one click. Multi-view synthesis + texture baking produces game-engine-tailored assets. Interactive 3D viewer with orbit/zoom/pan
 - 🩹 **Smart source completion for 3D** — image-to-3D can only build what's visible, so a cropped character (legs cut off) becomes a legless mesh. Before generating, ArtSmoker vision-checks the source and, if it's cropped, **offers** to complete it via outpainting (an AI-suggested, fully editable prompt) — previews the before/after, re-reviews the result, lets you extend again or discard, and saves it as a new image version. Opt-in and non-blocking; well-framed images generate straight through
 - 🔄 **Auto-Update** — Version-gated on startup + a 24h periodic check; updates via `git` (checkout) or a **tarball download-and-replace** for installs without git, then restarts in place (supervised respawn / gunicorn reload) or offers a one-click **Restart** — never clobbers your `data/` or `.env` (`ARTSMOKER_AUTO_UPDATE=false` to disable)
@@ -215,7 +219,7 @@ After an outpainting round (v3 below), the same tab regenerates all three artefa
 
 *The 3D pipeline's screenshots — generation, source review, game-engine-tailored export, and variants — are shown in section 1.9 (3D Model Generation) below, alongside the features they illustrate.*
 
-**Video Studio** — Settings on the left (model, generation mode, duration, region, cost estimate), prompt on the right. Offers the video models that **Sync from AWS** finds in your account — currently Luma AI Ray (aspect ratios, looping).
+**Video Studio** — Settings on the left (model, generation mode, duration, region, cost estimate), prompt on the right. Offers the video models that **Sync from AWS** finds in your account — e.g. Luma AI Ray (aspect ratios, looping).
 
 ![Video Studio — Settings and prompt](docs/images/video-studio.png)
 
@@ -247,16 +251,16 @@ An optional **"Model-optimized prompts"** toggle tailors the prompt to each mode
 
 Beyond writing a prompt from scratch, you can generate **from 1–3 reference images plus an instruction** — pick the mode with the segmented control at the top of the Image Studio prompt area:
 
-- **Match the reference** — keep the subject, product, or character from your reference and change the rest (theme, background, wardrobe, lighting) exactly as your instruction says. Ideal for consistent characters or product shots across scenes. This mode runs on a self-hosted instruction editor (Qwen-Image-Edit) and appears **once it's deployed** — if it isn't, ArtSmoker points you straight to deploy it from Custom Models (one click, same flow as the 3D pipelines). Commercial-safe (Apache-2.0).
+- **Match the reference** — keep the subject, product, or character from your reference and change the rest (theme, background, wardrobe, lighting) exactly as your instruction says. Ideal for consistent characters or product shots across scenes. This mode runs on a self-hosted instruction editor (in this release, Qwen-Image-Edit) and appears **once it's deployed** — if it isn't, ArtSmoker points you straight to deploy it from Custom Models (one click, same flow as the 3D pipelines). Commercial-safe (Apache-2.0).
 - **Inspired by the reference** — ArtSmoker's vision AI reads your reference(s) and instruction, writes the enhanced prompt(s), then generates with your normal text-to-image models — your full model selection, Options, and Variations are honored, with one **distinct interpretation per option**. The derived prompts are previewed as **editable text** before generating, so what you approve is exactly what runs. **Always available** — no deployment needed. Great for borrowing a look, palette, or composition without copying the subject.
 
-- **Remix the reference** — classic strength-based image-to-image: your reference's *pixels* go straight to a Bedrock model (Stable Diffusion 3.5 Large or Stable Image Ultra — registry capability-flagged) with a **strength dial**: subtle keeps the composition, palette, and mood nearly intact; wild treats it as loose inspiration. Set Options > 1 and they become a **strength ladder** — one card per strength, subtle to wild, side by side. Keeps *layout, not identity* (faces and products drift — use Match for identity-exact work). Output size follows the reference image. **Always available** — no deployment, no vision-analysis call.
+- **Remix the reference** — classic strength-based image-to-image: your reference's *pixels* go straight to a Bedrock model the registry flags as capable (e.g. Stable Diffusion 3.5 Large, Stable Image Ultra) with a **strength dial**: subtle keeps the composition, palette, and mood nearly intact; wild treats it as loose inspiration. Set Options > 1 and they become a **strength ladder** — one card per strength, subtle to wild, side by side. Keeps *layout, not identity* (faces and products drift — use Match for identity-exact work). Output size follows the reference image. **Always available** — no deployment, no vision-analysis call.
 
 All three modes require an instruction so you stay in control of what the reference is *for*. Reference-guided generation is separate from the Style Library (which analyzes many images into a reusable style profile) — use it for one-off, image-driven generations.
 
 ### 📝 1.6 Video Studio
 
-Generate AI-powered videos and animations from text prompts. Video Studio offers the video models that **Sync from AWS** finds in your account — currently **Luma AI Ray** (v2.0). Amazon Nova Reel (v1.0, v1.1) reached end of life at AWS on 2026-09-30 and is no longer offered.
+Generate AI-powered videos and animations from text prompts. Video Studio offers the video models that **Sync from AWS** finds in your account (see [About model names](#about-model-names)). For example, **Luma AI Ray v2**:
 
 | Feature | Luma Ray v2 |
 |---------|-------------|
@@ -293,7 +297,7 @@ Storage mode: download locally (default) or stream from S3 on demand.
 
 A full-featured LLM chat interface — like a self-hosted conversational AI, running on your own AWS account with no third-party data access.
 
-**80+ models from 16 providers** — Claude (Sonnet, Opus, Haiku), Amazon Nova, Meta Llama, Mistral, Cohere, Qwen, DeepSeek, Google Gemma, NVIDIA Nemotron, and more. Plus any custom/imported models in your account. All discovered automatically via Sync from AWS.
+**Every chat model Sync from AWS finds in your account** (see [About model names](#about-model-names)) — e.g. Claude (Sonnet, Opus, Haiku), Amazon Nova, Meta Llama, Mistral, Cohere, Qwen, DeepSeek, Google Gemma and NVIDIA Nemotron — plus any custom/imported models in your account.
 
 **Core features:**
 - **Streaming responses** — real-time token-by-token rendering via Bedrock ConverseStream
@@ -503,6 +507,8 @@ Confirming credentials work (`sts:GetCallerIdentity`) only verifies identity —
 aws bedrock list-foundation-models --region us-east-1 --query "modelSummaries[0].modelId" --output text
 
 # Test 2: Can you invoke an image model? (requires bedrock:InvokeModel)
+# (e.g. Stable Diffusion 3.5 Large — substitute any image model ID from Test 1's
+#  list if this one isn't offered in your account or Region.)
 aws bedrock-runtime invoke-model --region us-west-2 \
   --model-id stability.sd3-5-large-v1:0 \
   --content-type application/json --accept application/json \
@@ -546,7 +552,7 @@ Your IAM user, role, or instance profile needs these permissions:
 | `bedrock:GetImportedModel` | Read imported model details (architecture, status) |
 | `bedrock:ListProvisionedModelThroughputs` | Find invocable custom models with provisioned throughput |
 | `bedrock:ListCustomModelDeployments` | Find custom models with on-demand deployments |
-| `bedrock:CreateInference` *(or policy `AmazonBedrockMantleInferenceAccess`)* | **Amazon Bedrock Mantle** — frontier models reachable only via the Mantle endpoint (OpenAI GPT‑5.x, Claude Mythos, GLM, Grok, Qwen, Gemma…). Missing it affects only those models; Claude via Converse keeps working. |
+| `bedrock:CreateInference` *(or policy `AmazonBedrockMantleInferenceAccess`)* | **Amazon Bedrock Mantle** — frontier models reachable only via the Mantle endpoint (e.g. OpenAI GPT‑5.x, Claude Mythos, GLM, Grok, Qwen, Gemma). Missing it affects only those models; Claude via Converse keeps working. |
 | `account:ListRegions` | Scan only your account's **enabled** regions during Sync (fast, no errors on opt‑in regions). Optional — falls back to scanning all regions. |
 | `account:GetRegionOptStatus` | Read per‑region opt‑in status (companion to `account:ListRegions`). Optional. |
 | `s3:CreateBucket` | Create S3 bucket for video storage (optional, via UI) |
@@ -576,8 +582,8 @@ Your IAM user, role, or instance profile needs these permissions:
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
 
-# Amazon Bedrock Mantle endpoint — needed for frontier models (OpenAI GPT-5.x,
-# Claude Mythos, GLM, Grok, etc.). Skip only if you won't use Mantle-only models.
+# Amazon Bedrock Mantle endpoint — needed for frontier models (e.g. OpenAI GPT-5.x,
+# Claude Mythos, GLM, Grok). Skip only if you won't use Mantle-only models.
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockMantleInferenceAccess
 
@@ -731,7 +737,7 @@ which potrace && echo "potrace: OK" || echo "potrace: not installed (optional)"
 
 ### 📝 2.4 Optional: Video Thumbnail & Metadata Tools
 
-Video Studio generates MP4 videos via the Amazon Bedrock video models (currently Luma AI Ray). To extract thumbnails (first frame as JPEG) and video metadata (duration, resolution, FPS), **ffmpeg** and **ffprobe** must be installed on the machine running the ArtSmoker backend.
+Video Studio generates MP4 videos via the Amazon Bedrock video models (e.g. Luma AI Ray). To extract thumbnails (first frame as JPEG) and video metadata (duration, resolution, FPS), **ffmpeg** and **ffprobe** must be installed on the machine running the ArtSmoker backend.
 
 Without ffmpeg:
 - Videos still generate and play correctly (streamed from S3 or downloaded as MP4)
@@ -1051,13 +1057,11 @@ Templates load from `backend/prompt_templates.json` — the runtime source of tr
 ┌──────────────────────┐  ┌──────────────────────────┐
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
-│  Claude Sonnet       │  │  Nova Sonic (voice)      │
-│  Claude Opus         │  │                          │
-│  SD 3.5 Large        │  │                          │
-│  Stable Image Ultra  │  │                          │
-│  Stable Image Core   │  │                          │
-│  Stability AI (post) │  │                          │
-│  Luma AI Ray (video) │  │                          │
+│  LLMs (e.g. Claude)  │  │  Voice (Nova Sonic)      │
+│  Image generation    │  │                          │
+│  Image editing       │  │                          │
+│    e.g. Stability AI │  │                          │
+│  Video (e.g. Luma)   │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (other regions)
              │
              ▼
@@ -1069,6 +1073,8 @@ Templates load from `backend/prompt_templates.json` — the runtime source of tr
 │  data/chat/           │
 └──────────────────────┘
 ```
+
+The Regions shown are the defaults; Sync pins each model to a Region where AWS offers it. Model names are examples — see [About model names](#about-model-names).
 
 ## 📌 6. Usage
 
@@ -1133,8 +1139,8 @@ User prompt: "hospital building"
          │
          ▼
 ┌────────────────────────────────────────────────────────┐
-│ 1. Prompt Composition            Claude Sonnet (1 opt) │
-│    (optional "Compose" button)   or Opus (2-5 options) │
+│ 1. Prompt Composition                 Fast LLM (1 opt) │
+│    (optional "Compose" button)   or Complex LLM (2-5)  │
 │    + style + asset type                                │
 └────────────────────────┬───────────────────────────────┘
                          │
@@ -1191,8 +1197,7 @@ User clicks Generate
     │            │
     ▼            │
 ┌──────────┐     │
-│ Claude   │     │
-│ Sonnet   │     │
+│ Fast LLM │     │
 │ screens  │     │
 │ prompt   │     │
 └───┬────┬─┘     │
@@ -1300,7 +1305,7 @@ Common triggers include copyrighted IP names and character references, violence/
                      ▼
 ┌──────────────────────────────────────────┐
 │ Phase 1: Cohesion Check                  │
-│ Claude Sonnet — 8 images — ~$0.01        │
+│ Fast LLM — 8 images — ~$0.01             │
 │ Determines: high / medium / low          │
 │   high   = unified style                 │
 │   medium = shared structure, diff themes │
@@ -1310,7 +1315,7 @@ Common triggers include copyrighted IP names and character references, violence/
                      ▼
 ┌──────────────────────────────────────────┐
 │ Phase 2: Full Analysis                   │
-│ Claude Opus — up to 20 images            │
+│ Complex LLM — up to 20 images            │
 │ Guided by cohesion level                 │
 │ + Artist's Guidance (user hints)         │
 │ Extracts 9 style attributes              │
@@ -1319,7 +1324,7 @@ Common triggers include copyrighted IP names and character references, violence/
                      ▼
 ┌──────────────────────────────────────────┐
 │ Phase 3: Hint Generation                 │
-│ Claude Sonnet — 200-word hints           │
+│ Fast LLM — 200-word hints                │
 │ 8 dimensions: perspective, rendering,    │
 │ materials, palette, proportions, edges,  │
 │ shadow/lighting, detail level            │
@@ -1357,7 +1362,7 @@ Add text to images or generate standalone text assets with AI-designed typograph
 - **Contextual action buttons** per asset based on type: **"Image Studio"** (indigo) to reload in the Image Studio, **"Add Text"** (emerald) to open in Type Studio, **"Edit in Type Studio"** (purple) for text assets.
 - Click any image to open the **AssetViewer** modal with:
   - **Zoom/pan** — mouse wheel to zoom, drag to pan, Fit/1:1 buttons with active mode highlighting.
-  - **Edit tab** — inpaint, erase, outpaint, search & replace, or recolor the image directly. Two kinds of editor are offered per mode: **mask-based** (Stability) — paint a mask with the brush tool, enter a prompt, and apply; and **mask-free instruction editors** (Qwen-Image-Edit, when deployed) — just describe the change in words, no mask needed. The brush controls hide automatically for a mask-free model. Choose the editing model, apply; default replaces the original image, uncheck "Replace original" to save as a new asset (every edit preserves version history).
+  - **Edit tab** — inpaint, erase, outpaint, search & replace, or recolor the image directly. Two kinds of editor are offered per mode: **mask-based** (e.g. Stability) — paint a mask with the brush tool, enter a prompt, and apply; and **mask-free instruction editors** (e.g. Qwen-Image-Edit, when deployed) — just describe the change in words, no mask needed. The brush controls hide automatically for a mask-free model. Choose the editing model, apply; default replaces the original image, uncheck "Replace original" to save as a new asset (every edit preserves version history).
   - **Previous / Next** — arrow buttons and keyboard left/right to navigate through the list without closing the viewer.
   - **Full metadata**: original prompt, AI-improved prompt, generation prompt, negative prompt, style, asset type, image model (friendly names), dimensions, seed, batch ID, option/variation index, IP declaration status, filename, and creation date.
 - **Style snapshot**: Each asset stores a snapshot of the style used at generation time (name, description, hints, analysis). If the original style is later deleted, the asset retains the full context. Backward compatible — older assets without snapshots display normally.
@@ -1379,9 +1384,9 @@ All AI model configuration is centralized in `backend/model_registry.json` — t
 
 - Click **"Model Settings"** in the sidebar of any studio to open the admin modal — it opens to the relevant tab for that studio.
 - **9 tabs** organized by studio:
-  - **Image Studio** — Image generation models (SD 3.5 Large, Stable Image Ultra, Stable Image Core, plus self-hosted FLUX, HunyuanImage, Qwen-Image), regions, quality tiers, prompt limits, moderation strictness
+  - **Image Studio** — Image generation models (e.g. SD 3.5 Large, Stable Image Ultra, Stable Image Core, plus self-hosted FLUX, HunyuanImage, Qwen-Image), regions, quality tiers, prompt limits, moderation strictness
   - **Video Studio** — Video models (e.g. Luma Ray), S3 bucket settings, regions, pricing
-  - **Chat Studio** — Discovered chat/LLM models (80+ from 16 providers), context windows, vision capability, pricing per 1K tokens
+  - **Chat Studio** — Discovered chat/LLM models, context windows, vision capability, pricing per 1K tokens
   - **Type Studio** — LLM model for text layout generation (Complex or Fast LLM)
   - **Shared Studio** — Cross-studio LLM categories (Fast LLM, Complex LLM, Fallback LLM, Voice), post-processing models (Remove Background, Upscale)
   - **Custom Models** — the self-hosted model catalog: deploy, monitor, and tear down SageMaker endpoints (see section 6.12)
@@ -1444,7 +1449,7 @@ A **cost estimate** updates dynamically based on all selections (model × qualit
 **Model-optimized prompt engineering**: Prompts are automatically structured as descriptive captions (not commands) following [AWS documentation](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html). Negation words are removed from the main prompt and exclusion terms are sent as a separate **negative prompt**. The prompt is truncated to each model's specific `prompt_limit` from the registry.
 
 > [!NOTE]
-> **Moderation sensitivity varies by model** and is tracked in the registry (`moderation_strictness`). The Amazon Bedrock Stability models (SD 3.5 Large, Stable Image Ultra, Stable Image Core) apply AWS platform moderation and are tuned "moderate"; self-hosted models (FLUX, HunyuanImage, Qwen-Image) run in your own account with no platform-imposed content filter. ArtSmoker handles blocks automatically — when a prompt is rejected, the system tries alternative models ordered by strictness before suggesting a rewrite.
+> **Moderation sensitivity varies by model** and is tracked in the registry (`moderation_strictness`). The Amazon Bedrock Stability models (e.g. SD 3.5 Large, Stable Image Ultra, Stable Image Core) apply AWS platform moderation and are tuned "moderate"; self-hosted models (e.g. FLUX, HunyuanImage, Qwen-Image) run in your own account with no platform-imposed content filter. ArtSmoker handles blocks automatically — when a prompt is rejected, the system tries alternative models ordered by strictness before suggesting a rewrite.
 
 ## 📌 7. Tech Stack
 
@@ -1452,12 +1457,12 @@ A **cost estimate** updates dynamically based on all selections (model × qualit
 |-------|-----------|
 | Backend | FastAPI (Python 3.12–3.14), boto3, Pydantic |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
-| AI (LLM) | Claude Sonnet (fast tasks), Claude Opus (complex tasks) |
-| AI (Image) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core (Amazon Bedrock); FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image (self-hosted on SageMaker) |
-| AI (Post-processing) | Stability AI (Remove Background, Creative Upscale) |
-| AI (Chat) | 80+ LLMs from 16 providers via Bedrock ConverseStream (Claude, Nova, Llama, Mistral, etc.) |
-| AI (Video) | Luma AI Ray v2 (up to 9s) |
-| AI (Voice) | Nova Sonic (speech-to-text via bidirectional streaming) |
+| AI (LLM) | Fast LLM and Complex LLM — auto-rolled on each Sync to the newest Claude Sonnet and Opus |
+| AI (Image) | Amazon Bedrock image models Sync finds (e.g. Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core); self-hosted catalog on SageMaker (e.g. FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image) |
+| AI (Post-processing) | Amazon Bedrock editing models (e.g. Stability AI Remove Background, Creative Upscale) |
+| AI (Chat) | Every chat LLM Sync finds, via Bedrock ConverseStream or Mantle (e.g. Claude, Nova, Llama, Mistral) |
+| AI (Video) | Amazon Bedrock video models Sync finds (e.g. Luma AI Ray v2, up to 9s) |
+| AI (Voice) | Amazon Nova Sonic, newest active version (speech-to-text via bidirectional streaming) |
 | i18n | Custom t() function, ~1,500 keys × 9 languages, reverse-lookup DOM translation |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) |
 | Text Rendering | Pillow (shadow, outline, glow effects) |
@@ -1649,9 +1654,9 @@ Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `m
 ## 📌 12. Amazon Bedrock Pricing & Cost Breakdown
 
 > [!IMPORTANT]
-> **Models deprecate and change fast.** New models launch and old ones are retired frequently, so any specific model name or price hard-coded in docs goes stale quickly. ArtSmoker handles this automatically — each **Sync from AWS** re-discovers the current model lineup, auto-rolls the shared LLM slots to the newest Claude Sonnet/Opus, and refreshes live per-model pricing from the AWS Pricing API into `model_registry.json`. **The app is the source of truth** for both which models exist and what they cost (shown live in the Image Studio sidebar per your selected model, quality tier, region, and batch size). Model names and any numbers below are **illustrative examples only** — always confirm current models/pricing in the app or on the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/).
+> **Models deprecate and change fast.** New models launch and old ones are retired frequently, so any specific model name or price hard-coded in docs goes stale quickly. ArtSmoker handles this automatically — each **Sync from AWS** re-discovers the current model lineup, auto-rolls the shared LLM slots to the newest Claude Sonnet/Opus, and refreshes live per-model pricing from the AWS Pricing API into `model_registry.json`. **The app is the source of truth** for both which models exist and what they cost (shown live in the Image Studio sidebar per your selected model, quality tier, region, and batch size). Model names and any numbers below are **illustrative examples only** (see [About model names](#about-model-names)) — always confirm current models/pricing in the app or on the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/).
 
-The app's **default regions** are `us-west-2` (Claude, Stability AI) and `us-east-1` (Amazon Nova Sonic); prices differ by region. See also [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) for the cost model.
+The app's **default home regions** are `us-west-2` (e.g. Claude, Stability AI) and `us-east-1` (e.g. Amazon Nova Sonic); Sync pins each model to a Region where AWS offers it, and prices differ by region. See also [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) for the cost model.
 
 ### 📝 12.1 Per-Unit Pricing
 
@@ -1659,9 +1664,9 @@ What incurs cost, and its billing unit (see the app for the current per-unit pri
 
 | Service | Billed | Notes |
 |---------|--------|-------|
-| **LLM prompt engineering & chat** (Claude Sonnet / Opus, auto-rolled to newest on Sync) | per input / output token | Prompt refinement, concepts, chat, style analysis, moderation |
-| **Bedrock image generation** (Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) | per image | Ultra ≫ SD 3.5 ≫ Core in price; live figure shown in-app |
-| **Self-hosted image / 3D** (FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2) | per GPU-second of your SageMaker instance | Scale-to-zero when idle ($0); not billed per image |
+| **LLM prompt engineering & chat** (Fast / Complex LLM — e.g. Claude Sonnet / Opus, auto-rolled to newest on Sync) | per input / output token | Prompt refinement, concepts, chat, style analysis, moderation |
+| **Bedrock image generation** (e.g. Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) | per image | Ultra ≫ SD 3.5 ≫ Core in price; live figure shown in-app |
+| **Self-hosted image / 3D** (e.g. FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2) | per GPU-second of your SageMaker instance | Scale-to-zero when idle ($0); not billed per image |
 | **Post-processing** (Remove Background, Creative Upscale) | per image | Stability AI services |
 | **SVG conversion** | free | Local (vtracer/potrace) — $0.00 |
 
@@ -1674,15 +1679,15 @@ These LLM calls are included in the generation workflow but not separately itemi
 
 | Call | Model | When | Approx. Cost |
 |------|-------|------|-------------|
-| **Prompt Pre-Check** | Claude Sonnet | Before generation (if toggle enabled) | ~$0.005 |
-| **Moderation Rewrite** | Claude Sonnet | Only when all models reject a prompt | ~$0.005 |
-| **Type Studio Layout** | Claude Opus | Each AI layout suggestion request | ~$0.02–$0.05 |
+| **Prompt Pre-Check** | Fast LLM (e.g. Claude Sonnet) | Before generation (if toggle enabled) | ~$0.005 |
+| **Moderation Rewrite** | Fast LLM (e.g. Claude Sonnet) | Only when all models reject a prompt | ~$0.005 |
+| **Type Studio Layout** | Complex LLM (e.g. Claude Opus) | Each AI layout suggestion request | ~$0.02–$0.05 |
 
 These are small — pre-check and moderation rewrite are a fraction of a cent each. Type Studio layout is comparable to a single-option prompt refinement.
 
 ### 📝 12.3 Style Analysis Cost (One-Time per Style)
 
-~**$0.14** per style (20 images sent to Claude Opus + 8 images cohesion check at Claude Sonnet). The cohesion check adds ~$0.01 (Sonnet with 8 images is very cheap).
+~**$0.14** per style (20 images sent to the Complex LLM, e.g. Claude Opus, + an 8-image cohesion check on the Fast LLM, e.g. Claude Sonnet). The cohesion check adds ~$0.01.
 
 ### 📝 12.4 Generation Cost by Batch Size
 
@@ -1694,7 +1699,7 @@ Includes prompt refinement/concept generation + image generation:
 | 1 option × 5 variations | ~$0.21 | ~$0.41 | ~$0.71 |
 | 5 options × 5 variations | ~$1.05 | ~$2.05 | ~$3.55 |
 
-Self-hosted SageMaker models (FLUX, HunyuanImage, Qwen-Image) bill by GPU time on your own instance (scale-to-zero when idle), not per image — see [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) for the compute-cost model.
+Self-hosted SageMaker models (e.g. FLUX, HunyuanImage, Qwen-Image) bill by GPU time on your own instance (scale-to-zero when idle), not per image — see [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) for the compute-cost model.
 
 ### 📝 12.5 Post-Processing Add-Ons (Per Image)
 
