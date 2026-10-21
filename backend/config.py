@@ -47,6 +47,19 @@ class Settings(BaseSettings):
     video_dir: Path = data_dir / "video"
     collections_dir: Path = data_dir / "collections"  # Collections feature (SPEC §18)
 
+    # ── Browser access (services/request_guard.py) ─────────────────────────
+    # Host names the server answers to beyond the always-allowed ones (localhost,
+    # any IP address, this machine's own host name). A request with any other
+    # Host header is refused, which stops DNS rebinding (an attacker's domain made
+    # to resolve to 127.0.0.1). Add the DNS name you serve ArtSmoker under, e.g.
+    # "artsmoker.example.com"; a leading dot allows subdomains (".example.com");
+    # "*" turns the check off. Env: ARTSMOKER_ALLOWED_HOSTS (comma-separated).
+    allowed_hosts: str = ""
+    # Other web origins allowed to call the API from a browser. The UI is served
+    # by this server, so none is needed by default. Full origins, e.g.
+    # "https://tools.example.com". Env: ARTSMOKER_CORS_ORIGINS (comma-separated).
+    cors_origins: str = ""
+
     # ── Telemetry ──────────────────────────────────────────────────────────
     telemetry_enabled: bool = True
 

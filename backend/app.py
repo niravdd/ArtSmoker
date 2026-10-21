@@ -88,6 +88,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from backend.config import settings, APP_VERSION
+from backend.services.request_guard import RequestGuard
 from backend.routers import admin, browse, chat, collections, custom_deploy, gallery, generate, generate_3d, refine, styles, transcribe, typestudio, video
 from backend.services.bedrock_client import validate_aws_credentials
 
@@ -654,15 +655,22 @@ class NoCacheStaticMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(NoCacheStaticMiddleware)
 
-# ── CORS (development mode — allow all origins) ───────────────────────────
-app.add_middleware(
-    CORSMiddleware,
-    # nosemgrep -- intentional: single-tenant local/self-hosted tool served to its own operator; not a public multi-tenant API
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ── Browser access ─────────────────────────────────────────────────────────
+# The UI is served by this server, so no cross-origin access is needed. CORS is
+# added only for origins listed in ARTSMOKER_CORS_ORIGINS. RequestGuard is added
+# last, so it is the outermost layer: it refuses requests that another website
+# makes through the user's browser, and Host names outside the allowlist (DNS
+# rebinding). See services/request_guard.py.
+_cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+app.add_middleware(RequestGuard)
 
 # ── Routers ────────────────────────────────────────────────────────────────
 app.include_router(styles.router)
