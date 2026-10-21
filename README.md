@@ -136,7 +136,7 @@ For teams that want every generated asset to match an existing art style — upl
 - 🎨 **Style Library** — Upload art, AI learns your visual identity
 - 🖼️ **Image Studio** — Generate images with options x variations, guided 3-step prompt workflow
 - 🎨 **Prompt Designer** — AI decomposes your prompt into editable visual components (subject, scene, lighting, colours) with lock/vary toggles per field, style integration, and smart asset type classification. Photorealistic, Character, Environment, and more
-- 🗂️ **Collections (Set Generation)** — Turn ONE prompt **or a reference image** into a coherent **set of distinct assets** ("a Viking-styled chess set", "20 JRPG characters"). Flip the **Collection** toggle in the Image Studio — from the **Text** tab (your prompt drives it) or the **Image-Inspired** tab (a reference image's *look* drives the art direction) — and a dedicated **Collection Designer** decomposes your brief into a shared **art direction** plus a **roster** of distinct, in-theme subjects — each one a **Batch** with its own editable, model-agnostic prompt. Edit the art direction to recompose the whole set; lock, regenerate, add, or delete individual Batches; then generate them all (options × variations each) in one go, with a live design + projected-cost estimate. **Pick one model for a cohesive set, or several to render every Batch on each** (a cross-model comparison). Optional **hero-** or **reference-anchor** cohesion style-locks the set to a chosen/supplied image. Collections appear as **one card** in the Gallery, opening a Collection viewer where each Batch drills into the normal Asset Viewer (options / variations / versions, edits, exports and 3D — exactly as for a single image, plus the Batch's **collection lineage**); you can **pin which version** represents each Batch, **3D the whole set** at once (or just the Batches or images you pick) and watch every model arrive on the collection's own **3D models** view, **download** the whole set or a selection as one zip — the same files a single image offers (PNG, SVG and background-removed cutouts) or its 3D models with the same engine presets, LODs, collision and texture packing — or **load the whole collection back into the Image Studio** to review and regenerate. A collection's 3D models stay inside it — the Gallery's **3D filter** shows the collection card with its "3D n/m" badge. A loaded collection shows **right in the Image Studio results area** — the same cards, preview and prompt panel as a single image, grouped per Batch — and reopening the Collection Designer shows the **exact saved design** (art direction, every Batch's prompt, and the prompts each model actually received), regenerating only when you ask, and **before anything is spent** the Asset Type is checked against your prompt (a set is Characters or Game Assets) — so you never pay for a whole set in the wrong framing
+- 🗂️ **Collections (Set Generation)** — Turn ONE prompt **or a reference image** into a coherent **set of distinct assets** ("a Viking-styled chess set", "20 JRPG characters"). Flip the **Collection** toggle in the Image Studio — from the **Text Inspiration** tab (your prompt drives it) or the **Image Inspiration** tab (a reference image's *look* drives the art direction) — and a dedicated **Collection Designer** decomposes your brief into a shared **art direction** plus a **roster** of distinct, in-theme subjects — each one a **Batch** with its own editable, model-agnostic prompt. Edit the art direction to recompose the whole set; lock, regenerate, add, or delete individual Batches; then generate them all (options × variations each) in one go, with a live design + projected-cost estimate. **Pick one model for a cohesive set, or several to render every Batch on each** (a cross-model comparison). Optional **hero-** or **reference-anchor** cohesion style-locks the set to a chosen/supplied image. Collections appear as **one card** in the Gallery, opening a Collection viewer where each Batch drills into the normal Asset Viewer (options / variations / versions, edits, exports and 3D — exactly as for a single image, plus the Batch's **collection lineage**); you can **pin which version** represents each Batch, **3D the whole set** at once (or just the Batches or images you pick) and watch every model arrive on the collection's own **3D models** view, **download** the whole set or a selection as one zip — the same files a single image offers (PNG, SVG and background-removed cutouts) or its 3D models with the same engine presets, LODs, collision and texture packing — or **load the whole collection back into the Image Studio** to review and regenerate. A collection's 3D models stay inside it — the Gallery's **3D filter** shows the collection card with its "3D n/m" badge. A loaded collection shows **right in the Image Studio results area** — the same cards, preview and prompt panel as a single image, grouped per Batch — and reopening the Collection Designer shows the **exact saved design** (art direction, every Batch's prompt, and the prompts each model actually received), regenerating only when you ask, and **before anything is spent** the Asset Type is checked against your prompt (a set is Characters or Game Assets) — so you never pay for a whole set in the wrong framing
 - 🎬 **Video Studio** — Text-to-video with model-specific prompt guidance (e.g. natural-language direction for Luma Ray), image-to-video, looping
 - ✍️ **Type Studio** — AI-designed text overlays with font picker
 - 💬 **Chat Studio** — Multi-model LLM chat with streaming, markdown, code highlighting, vision, sessions, context compaction
@@ -338,7 +338,7 @@ The selected **Asset Type** fundamentally changes how the AI interprets your pro
 
 This matters at every stage:
 
-- **"Preview Enhanced Prompt" button** — When you click Compose, the AI uses the asset type to reshape your brief into a detailed generation prompt, combining your words with style guidelines and asset type directives. Your explicit intent always overrides style defaults. You can review the composed version before generating.
+- **"Generate Enhanced Prompt" button** — When you click it, the AI uses the asset type to reshape your brief into a detailed generation prompt, combining your words with style guidelines and asset type directives. Your explicit intent always overrides style defaults. You can review the composed version before generating.
 - **Concept generation** — When generating multiple options, the AI creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone with no rendered text.
 - **The result** — Two images from the same prompt but different asset types will look nothing alike. A Game Asset "warrior" is a single centered character sprite. A Marketing Banner "warrior" is an epic battle scene with a clean zone for headline overlay.
 
@@ -860,7 +860,7 @@ ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # disa
 
 (Or set `log_to_file` / `log_file` in a local `.env`. With multiple workers, every worker appends to the same file.)
 
-**Auto-restart (optional, all platforms).** The commands above all work as-is. To also let ArtSmoker **restart itself in place** — so an auto-update, or the in-app **Restart** button, reloads new code without you re-launching — start it under the built-in cross-platform supervisor instead:
+**Auto-restart (optional, all platforms).** The commands above all work as-is. To also let ArtSmoker **restart itself in place** — so an auto-update, or the in-app **Restart now** button, reloads new code without you re-launching — start it under the built-in cross-platform supervisor instead:
 
 ```bash
 python -m backend.main            # add --host / --port as needed; Ctrl-C stops it cleanly
@@ -991,6 +991,8 @@ sudo journalctl -u artsmoker -f
 
 Open **http://YOUR_INSTANCE_IP:8000** — ensure your EC2 security group allows inbound TCP 8000.
 
+If you reach ArtSmoker by a DNS name rather than an IP address (e.g. `artsmoker.example.com`), add that name: `ARTSMOKER_ALLOWED_HOSTS=artsmoker.example.com`. ArtSmoker refuses unknown host names, which protects it against DNS rebinding.
+
 ### 📝 4.4 First Steps After Setup
 
 After ArtSmoker is running, complete these steps to get the best results:
@@ -1025,7 +1027,7 @@ Templates load from `backend/prompt_templates.json` — the runtime source of tr
 > [!TIP]
 > Start by reviewing the **Image Prompt Refinement** and **Creative Options** templates. These have the biggest impact on output quality. If your team specializes in a particular art style (e.g., pixel art, watercolor, isometric), add those preferences directly into the templates so every generation benefits.
 
-**3. Set up a style profile** (optional) — Go to **Style Library**, create a new style, upload reference images, and click **Analyze**. This teaches ArtSmoker your visual identity.
+**3. Set up a style profile** (optional) — Go to **Style Library**, create a new style, upload reference images, and click **Analyze Style**. This teaches ArtSmoker your visual identity.
 
 **4. Choose your language** — Click a language button in the nav bar (EN | 日 | 中 | 한 | हिं | РУ | FR | ES | DE) if you prefer a non-English interface.
 
@@ -1049,7 +1051,7 @@ Templates load from `backend/prompt_templates.json` — the runtime source of tr
 │  /api/gallery     Asset browsing + export   │
 │  /api/browse      File/S3 browser           │
 │  /api/admin       Model registry + templates│
-│  /api/refine-prompt  Prompt + translate      │
+│  /api/refine-prompt  Prompt + translate     │
 │  /api/transcribe  Voice-to-text             │
 └────────────┬────────────────────┬───────────┘
              │                    │
@@ -1066,11 +1068,11 @@ Templates load from `backend/prompt_templates.json` — the runtime source of tr
              │
              ▼
 ┌──────────────────────┐
-│  Local Storage        │
-│  data/styles/         │
-│  data/images/      │
-│  data/video/          │
-│  data/chat/           │
+│  Local Storage       │
+│  data/styles/        │
+│  data/images/        │
+│  data/video/         │
+│  data/chat/          │
 └──────────────────────┘
 ```
 
@@ -1140,8 +1142,8 @@ User prompt: "hospital building"
          ▼
 ┌────────────────────────────────────────────────────────┐
 │ 1. Prompt Composition                 Fast LLM (1 opt) │
-│    (optional "Compose" button)   or Complex LLM (2-5)  │
-│    + style + asset type                                │
+│    (optional "Generate Enhanced  or Complex LLM (2-5)  │
+│    Prompt" button) + style + asset type                │
 └────────────────────────┬───────────────────────────────┘
                          │
                          ▼
@@ -1173,7 +1175,7 @@ User prompt: "hospital building"
                          ▼
 ┌────────────────────────────────────────────────────────┐
 │ 5. Storage                                             │
-│    data/images/{asset_id}/                          │
+│    data/images/{asset_id}/                             │
 │    ├── asset.png (transparent background)              │
 │    ├── asset.svg (optional)                            │
 │    └── metadata.json (full prompt lineage)             │
@@ -1279,7 +1281,7 @@ Generated results survive navigation — switching tabs and back preserves the I
 
 **Prompt rewrite behaviour**: In all three dialogs, choosing "Rewrite" never overwrites your original prompt. The rewritten version appears in the **enhanced prompt area** below your original text, with a persistent amber disclaimer: *"This rewrite is an attempt to make the prompt compatible — it is still subject to the model's own moderation assessment and may be rejected."* You review and edit the enhanced prompt, then click Generate when satisfied. Your original prompt is always preserved in history and metadata.
 
-Common triggers include copyrighted IP names and character references, violence/weapon language, and adult content references. Tip: the **"Preview Enhanced Prompt"** button often produces prompts that pass moderation naturally, since the AI rephrases in descriptive terms.
+Common triggers include copyrighted IP names and character references, violence/weapon language, and adult content references. Tip: the **"Generate Enhanced Prompt"** button often produces prompts that pass moderation naturally, since the AI rephrases in descriptive terms.
 
 **Smart canary testing**: Before generating the full batch, ArtSmoker sends a single "canary" image request to test the prompt against the model's moderation filters. If the canary is blocked, the batch stops immediately (1 wasted API call instead of N×M×3). If the canary passes, remaining tasks run in parallel with cooperative cancellation — if any task hits a moderation block, the rest skip their API calls automatically.
 
@@ -1362,7 +1364,7 @@ Add text to images or generate standalone text assets with AI-designed typograph
 - **Contextual action buttons** per asset based on type: **"Image Studio"** (indigo) to reload in the Image Studio, **"Add Text"** (emerald) to open in Type Studio, **"Edit in Type Studio"** (purple) for text assets.
 - Click any image to open the **AssetViewer** modal with:
   - **Zoom/pan** — mouse wheel to zoom, drag to pan, Fit/1:1 buttons with active mode highlighting.
-  - **Edit tab** — inpaint, erase, outpaint, search & replace, or recolor the image directly. Two kinds of editor are offered per mode: **mask-based** (e.g. Stability) — paint a mask with the brush tool, enter a prompt, and apply; and **mask-free instruction editors** (e.g. Qwen-Image-Edit, when deployed) — just describe the change in words, no mask needed. The brush controls hide automatically for a mask-free model. Choose the editing model, apply; default replaces the original image, uncheck "Replace original" to save as a new asset (every edit preserves version history).
+  - **Edit tab** — inpaint, erase, outpaint, search & replace, or recolor the image directly. Two kinds of editor are offered per mode: **mask-based** (e.g. Stability) — paint a mask with the brush tool, enter a prompt, and apply; and **mask-free instruction editors** (e.g. Qwen-Image-Edit, when deployed) — just describe the change in words, no mask needed. The brush controls hide automatically for a mask-free model. Choose the editing model and apply — each edit creates a new version, and every previous version stays preserved and browsable.
   - **Previous / Next** — arrow buttons and keyboard left/right to navigate through the list without closing the viewer.
   - **Full metadata**: original prompt, AI-improved prompt, generation prompt, negative prompt, style, asset type, image model (friendly names), dimensions, seed, batch ID, option/variation index, IP declaration status, filename, and creation date.
 - **Style snapshot**: Each asset stores a snapshot of the style used at generation time (name, description, hints, analysis). If the original style is later deleted, the asset retains the full context. Backward compatible — older assets without snapshots display normally.
@@ -1463,7 +1465,7 @@ A **cost estimate** updates dynamically based on all selections (model × qualit
 | AI (Chat) | Every chat LLM Sync finds, via Bedrock ConverseStream or Mantle (e.g. Claude, Nova, Llama, Mistral) |
 | AI (Video) | Amazon Bedrock video models Sync finds (e.g. Luma AI Ray v2, up to 9s) |
 | AI (Voice) | Amazon Nova Sonic, newest active version (speech-to-text via bidirectional streaming) |
-| i18n | Custom t() function, ~1,500 keys × 9 languages, reverse-lookup DOM translation |
+| i18n | Custom t() function, 9 languages, reverse-lookup DOM translation |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) |
 | Text Rendering | Pillow (shadow, outline, glow effects) |
 | Storage | Local filesystem (S3-ready interface) |
@@ -1476,6 +1478,7 @@ No build step required for the frontend.
 ArtSmoker is designed as a **local/trusted-network development tool** — it runs on the developer's own machine or a private EC2 instance. The security model reflects this:
 
 - **No authentication** — all API endpoints are open. Appropriate for local development and private team deployments.
+- **Other websites can't use your browser to reach it** — ArtSmoker refuses requests that another website makes through your browser (cross-site requests and unknown host names, i.e. DNS rebinding), so a page you visit can't read your assets or start jobs on your account. Reaching it by a DNS name? Add the name to `ARTSMOKER_ALLOWED_HOSTS` (see [Configurable Limits](#-11-configurable-limits)).
 - **Filesystem browser** — the `GET /api/browse/local` endpoint allows browsing any directory the server process can access. This is intentional for importing reference art from your machine.
 - **Font serving** — path traversal protection validates that font file requests stay within expected directories.
 - **S3 access** — S3 browsing and imports use the server's AWS credentials. The user can access any S3 bucket their IAM role permits.
@@ -1628,7 +1631,7 @@ ArtSmoker/
 │           └── VoiceInput.js    # MediaRecorder + transcription
 ├── data/
 │   ├── styles/              # Style profiles + reference images (symlinked)
-│   ├── generated/           # Output assets (PNG + SVG + metadata.json)
+│   ├── images/              # Output assets (PNG + SVG + metadata.json)
 │   ├── video/               # Video assets (MP4 + thumbnails + job metadata)
 │   └── chat/                # Chat sessions (JSON per session)
 ├── tools/                   # Managed portable Blender (auto-downloaded; gitignored)
@@ -1647,6 +1650,8 @@ Settings in `backend/config.py` can be overridden via environment variables (pre
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Region for Claude + Stability AI models |
 | `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Region for Amazon (Nova Sonic voice) |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | AWS profile name (uses default chain if unset) |
+| `allowed_hosts` | `ARTSMOKER_ALLOWED_HOSTS` | *(empty)* | Extra host names the server answers to, comma-separated (`.example.com` allows subdomains; `*` turns the check off). Always allowed: localhost, any IP address, and this machine's host name |
+| `cors_origins` | `ARTSMOKER_CORS_ORIGINS` | *(empty)* | Other web origins allowed to call the API from a browser, comma-separated. None is needed: ArtSmoker serves its own UI |
 | `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Version-gated update on startup + 24h periodic check (git or tarball), then in-place restart |
 
 Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.

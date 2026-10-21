@@ -39,7 +39,7 @@ pip install -r backend\requirements.txt
 python -m backend.main
 ```
 
-Ouvrez ensuite **http://localhost:8000**. Au premier lancement, ArtSmoker vérifie vos identifiants AWS et effectue une analyse unique des modèles que votre compte peut utiliser dans chaque région AWS (généralement quelques minutes) — un écran **Setting Up ArtSmoker** affiche la progression — et vous êtes prêt à générer.
+Ouvrez ensuite **http://localhost:8000**. Au premier lancement, ArtSmoker vérifie vos identifiants AWS et effectue une analyse unique des modèles que votre compte peut utiliser dans chaque région AWS (généralement quelques minutes) — un écran **Configuration d'ArtSmoker** affiche la progression — et vous êtes prêt à générer.
 
 | Bloqué ? | Où aller |
 |---|---|
@@ -66,17 +66,17 @@ Les équipes créatives des studios de jeux vidéo et de médias veulent tirer p
 
 ArtSmoker est un studio créatif auto-hébergé qui place les meilleurs modèles génératifs d'aujourd'hui derrière une interface unique pensée pour les artistes — conçu spécifiquement pour la production d'assets de jeux vidéo, et tout aussi à l'aise dans le cinéma, la publicité, le e-commerce, l'édition et toute équipe qui vit de contenu visuel original.
 
-- **Décrivez-le en langage naturel** — ArtSmoker gère la décomposition des prompts, leur amélioration et l'optimisation spécifique à chaque modèle en coulisses. Un **Prompt Designer** guidé vous permet de façonner chaque élément visuel — sujet, scène, éclairage, couleur — avec des contrôles verrouiller/varier pour explorer des directions véritablement différentes sans perdre ce qui fonctionne déjà.
+- **Décrivez-le en langage naturel** — ArtSmoker gère la décomposition des prompts, leur amélioration et l'optimisation spécifique à chaque modèle en coulisses. Un **Concepteur de prompts** guidé vous permet de façonner chaque élément visuel — sujet, scène, éclairage, couleur — avec des contrôles verrouiller/varier pour explorer des directions véritablement différentes sans perdre ce qui fonctionne déjà.
 - **Fidèle à votre charte par défaut** — fournissez à ArtSmoker votre art existant et ses modèles de vision apprennent votre identité visuelle, de sorte que chaque asset produit correspond à l'apparence et à l'atmosphère de votre projet.
 - **2D, édité et en 3D — de bout en bout** — générez, puis affinez sur place avec l'inpainting, l'outpainting, la recoloration, le rechercher-remplacer et les éditions guidées par référence ; transformez n'importe quel asset 2D en un **modèle 3D entièrement texturé et adapté au moteur de jeu** qui s'intègre directement dans Unity, Unreal ou Blender — sans modélisation manuelle, dépliage UV ni peinture de textures. Plus de la vidéo cinématique et un studio de chat multi-modèle pour l'idéation.
 - **Chaque modèle, en un clic** — utilisez les derniers modèles hébergés à travers les régions, ou déployez des modèles open source sélectionnés (p. ex. Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2) sur vos propres GPU en un seul clic — empaquetage, quantification, mise à l'échelle automatique et suivi des tâches entièrement pris en charge, chaque modèle validé de bout en bout avant sa publication.
 - **Fonctionne où vous le voulez — et votre IP reste la vôtre** — installez-le sur le poste d'un seul artiste ou sur une instance partagée pour toute l'équipe ; **aucun GPU personnel requis** (les calculs lourds s'exécutent sur des services AWS managés, ou sur des endpoints à mise à l'échelle automatique qu'ArtSmoker démarre et ramène à zéro pour vous). Il ne se connecte qu'à votre propre compte AWS — œuvres, prompts, styles et assets générés restent dans votre environnement, rien ne part vers des services tiers, et vous conservez la pleine propriété de votre IP créative.
 
-**Modèles Amazon Bedrock** — tout ce que **Sync from AWS** trouve dans votre compte, p. ex. Claude Sonnet/Opus pour l'ingénierie de prompts et le chat, Stable Diffusion 3.5 Large, Stable Image Ultra et Stable Image Core pour les images, les services Stability AI pour l'édition d'images, Luma AI Ray pour la vidéo, et un large éventail de LLM de chat de nombreux fournisseurs pour Chat Studio. **Modèles auto-hébergés** — un catalogue sélectionné, livré avec chaque version et déployé sur Amazon SageMaker, p. ex. Qwen-Image (text-to-image) et Qwen-Image-Edit (édition guidée par référence + par instruction, Apache-2.0), HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG et TRELLIS.2 (image-vers-3D) — et il est extensible, vous pouvez donc ajouter les vôtres.
+**Modèles Amazon Bedrock** — tout ce que **Synchroniser depuis AWS** trouve dans votre compte, p. ex. Claude Sonnet/Opus pour l'ingénierie de prompts et le chat, Stable Diffusion 3.5 Large, Stable Image Ultra et Stable Image Core pour les images, les services Stability AI pour l'édition d'images, Luma AI Ray pour la vidéo, et un large éventail de LLM de chat de nombreux fournisseurs pour le Studio de Chat. **Modèles auto-hébergés** — un catalogue sélectionné, livré avec chaque version et déployé sur Amazon SageMaker, p. ex. Qwen-Image (text-to-image) et Qwen-Image-Edit (édition guidée par référence + par instruction, Apache-2.0), HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG et TRELLIS.2 (image-vers-3D) — et il est extensible, vous pouvez donc ajouter les vôtres.
 
 <a id="about-model-names"></a>
 > [!NOTE]
-> **À propos des noms de modèles.** ArtSmoker propose tous les modèles que **Sync from AWS** trouve dans votre compte et vos Régions, plus le catalogue auto-hébergé livré avec chaque version. Les noms de modèles de ce README sont des **exemples en date d'octobre 2026** — AWS lance et retire fréquemment des modèles, et ce que vous pouvez utiliser dépend de votre compte, de vos Régions et de vos accès aux modèles. L'application fait autorité sur ce qui est disponible aujourd'hui.
+> **À propos des noms de modèles.** ArtSmoker propose tous les modèles que **Synchroniser depuis AWS** trouve dans votre compte et vos Régions, plus le catalogue auto-hébergé livré avec chaque version. Les noms de modèles de ce README sont des **exemples en date d'octobre 2026** — AWS lance et retire fréquemment des modèles, et ce que vous pouvez utiliser dépend de votre compte, de vos Régions et de vos accès aux modèles. L'application fait autorité sur ce qui est disponible aujourd'hui.
 
 **[Commencer maintenant — aller aux prérequis et à l'installation ▸](#get-started)**
 
@@ -101,8 +101,8 @@ ArtSmoker prend en charge 9 langues. Changez la langue de l'interface via les bo
 - Un aperçu bilingue apparaît dans la zone de prompt : basculez entre votre texte original et la traduction anglaise pour voir exactement ce que le modèle recevra
 - Le prompt original, la langue détectée et la traduction anglaise sont tous conservés dans les métadonnées de l'asset
 - Les noms de fichiers sont générés à partir du prompt traduit en anglais (par exemple « 病院の建物 » → `hospital-building_opt1_var1.png`)
-- Chat Studio transmet les prompts directement au LLM (sans traduction), car des modèles comme Claude sont nativement multilingues
-- Le texte de Type Studio reste dans votre langue (il est rendu tel quel sur l'image)
+- Le Studio de Chat transmet les prompts directement au LLM (sans traduction), car des modèles comme Claude sont nativement multilingues
+- Le texte du Studio de Texte reste dans votre langue (il est rendu tel quel sur l'image)
 - Toutes les pré-vérifications de modération et le filtrage de contenu s'appliquent sur le prompt traduit en anglais, par souci de cohérence
 
 ## 📌 1. Fonctionnalités
@@ -111,12 +111,12 @@ ArtSmoker fonctionne en deux modes — **autonome** (aucune configuration de sty
 
 ### 📝 Mode autonome (démarrage rapide)
 
-Aucune configuration de style ou de thème nécessaire — ouvrez l'Image Studio, le Video Studio ou le Type Studio et commencez à créer immédiatement.
+Aucune configuration de style ou de thème nécessaire — ouvrez le Studio Image, le Studio Vidéo ou le Studio de Texte et commencez à créer immédiatement.
 
 1. **Décrivez ce dont vous avez besoin** — saisissez un prompt comme « hospital building » ou « fire mage character », ou utilisez l'entrée vocale. L'IA décompose votre idée en composants visuels, l'améliore avec des optimisations spécifiques au modèle, et respecte votre intention créative grâce à des contrôles intelligents verrouiller/varier. Écrivez dans n'importe quelle langue — les prompts non anglais sont traduits automatiquement.
 2. **Choisissez vos modèles et paramètres** — multi-sélection parmi tous les modèles text-to-image disponibles (Amazon Bedrock + auto-hébergés sur SageMaker), choisissez les dimensions, le niveau de qualité et la région. Cochez plusieurs modèles pour une comparaison côte à côte, ou un seul pour une génération ciblée. L'estimation des coûts se met à jour en temps réel.
-3. **Obtenez des options véritablement différentes** — le système génère jusqu'à 5 concepts créatifs distinctement différents (variant la tenue, l'ambiance, l'éclairage, la composition — pas seulement l'angle de caméra), chacun avec jusqu'à 5 variations de seed (25 images au total). Les détails spécifiés par l'utilisateur sont verrouillés ; les détails inférés par l'IA sont variés audacieusement. Un contrôle **Seed** visible rend les lots reproductibles — la même graine, avec le même prompt final et les mêmes réglages, régénère les mêmes images, et cliquer sur un résultat reprend sa graine pour ne modifier qu'un paramètre et bifurquer depuis un favori.
-4. **Éditez et affinez** — utilisez l'inpainting, l'outpainting, l'effacement, la recherche et remplacement ou la recoloration directement dans l'Asset Viewer. Chaque modification crée une nouvelle version — l'original est toujours préservé.
+3. **Obtenez des options véritablement différentes** — le système génère jusqu'à 5 concepts créatifs distinctement différents (variant la tenue, l'ambiance, l'éclairage, la composition — pas seulement l'angle de caméra), chacun avec jusqu'à 5 variations de graine (25 images au total). Les détails spécifiés par l'utilisateur sont verrouillés ; les détails inférés par l'IA sont variés audacieusement. Un contrôle **Graine (seed)** visible rend les lots reproductibles — la même graine, avec le même prompt final et les mêmes réglages, régénère les mêmes images, et cliquer sur un résultat reprend sa graine pour ne modifier qu'un paramètre et bifurquer depuis un favori.
+4. **Éditez et affinez** — utilisez l'inpainting, l'outpainting, l'effacement, la recherche et remplacement ou la recoloration directement dans la visionneuse d'assets. Chaque modification crée une nouvelle version — l'original est toujours préservé.
 5. **Téléchargez des fichiers prêts pour le jeu** — PNG avec fond transparent + SVG, nommés de manière descriptive (par exemple `hospital-building_opt2_var3.png`). Les vidéos s'exportent en MP4.
 
 ### 📝 Mode guidé par le style (correspondre à votre style artistique et thème)
@@ -125,7 +125,7 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 
 1. **Téléchargez l'art de votre jeu** — importez des images de référence depuis des répertoires locaux (scan récursif, liens symboliques pour éviter la duplication) ou des buckets S3 (listing récursif avec pagination). **Le dédoublonnage intelligent** s'exécute automatiquement — supprime les variantes de rotation (barrel_N/E/S/W.png ne conserve que barrel_S.png) et les frames d'animation (Idle0-Idle8 ne conserve que Idle). Par exemple, un pack d'assets isométriques de 747 fichiers est dédupliqué à environ 99 objets uniques. Formats supportés : .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg, plus extraction automatique de textures depuis les modèles 3D (.glb, .gltf).
 2. **L'IA apprend votre style** — analyse en deux phases avec détection de cohésion : d'abord, une vérification rapide détermine si votre collection est unifiée, structurellement cohérente ou diverse. Ensuite, une analyse approfondie de l'ensemble complet de références produit un profil de style riche en métadonnées — palettes de couleurs, épaisseurs de traits, motifs d'éclairage, règles de composition et conventions de production. Si vous fournissez des indications de génération, l'IA les reçoit comme « Artist's Guidance » afin que l'analyse comprenne votre intention, pas seulement ce qui est visible.
-3. **Générez avec le style appliqué** — lorsque vous sélectionnez un style dans l'Image Studio, chaque prompt est automatiquement enrichi avec les directives visuelles de votre style. Un prompt comme « hospital building » devient une instruction de génération détaillée incluant la palette de couleurs, les conventions de perspective et le style de rendu de votre jeu.
+3. **Générez avec le style appliqué** — lorsque vous sélectionnez un style dans le Studio Image, chaque prompt est automatiquement enrichi avec les directives visuelles de votre style. Un prompt comme « hospital building » devient une instruction de génération détaillée incluant la palette de couleurs, les conventions de perspective et le style de rendu de votre jeu.
 4. **Tout du mode autonome s'applique** — options multiples, comparaison de modèles, édition, versionnement et téléchargements prêts pour le jeu fonctionnent de la même manière, désormais guidés par votre style artistique.
 
 > [!NOTE]
@@ -133,99 +133,99 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 
 ### 📝 1.1 Aperçu des fonctionnalités
 
-- 🎨 **Style Library** — Téléchargez votre art, l'IA apprend votre identité visuelle
-- 🖼️ **Image Studio** — Génération d'images avec options x variations, workflow de prompt guidé en 3 étapes
-- 🎨 **Prompt Designer** — L'IA décompose votre prompt en composants visuels éditables (sujet, scène, éclairage, couleurs) avec bascules verrouiller/varier par champ, intégration du style et classification intelligente du type d'asset. Photorealistic, Character, Environment, et plus
-- 🗂️ **Collections (génération d'ensembles)** — transformez UN prompt **ou une image de référence** en un **ensemble cohérent d'assets distincts** (« un jeu d'échecs de style viking », « 20 personnages JRPG »). Activez le sélecteur **Collection** dans l'Image Studio — depuis l'onglet **Text** (piloté par votre prompt) ou **Image-Inspired** (le *look* de l'image de référence pilote la direction artistique) — et un **Collection Designer** dédié décompose votre brief en une **direction artistique** partagée plus un **roster** de sujets distincts dans le thème — chacun étant un **lot** avec son propre prompt éditable et indépendant du modèle. Modifiez la direction artistique pour recomposer tout l'ensemble ; verrouillez, régénérez, ajoutez ou supprimez des lots individuels ; puis générez-les tous d'un coup (options × variations chacun), avec une estimation en direct du design et du coût projeté. **Choisissez un seul modèle pour un ensemble homogène, ou plusieurs pour rendre chaque lot sur chacun** (comparaison inter-modèles). Une cohésion optionnelle **hero-** / **reference-anchor** verrouille le style de l'ensemble sur une image choisie/fournie. Les collections apparaissent comme **une seule carte** dans la Gallery ; le visualiseur de collection permet à chaque lot d'ouvrir l'Asset Viewer habituel (options / variations / versions, retouches, exports et 3D — exactement comme pour une image seule, plus la **lignée de collection** du lot) ; vous pouvez **épingler la version** représentant chaque lot, **passer tout l'ensemble en 3D** d'un coup (ou seulement les lots ou images choisis) et voir chaque modèle arriver dans la vue **3D models** propre à la collection, **télécharger** tout l'ensemble ou une sélection en un seul zip — les mêmes fichiers qu'une image seule (PNG, SVG et détourages sans arrière-plan) ou ses modèles 3D avec les mêmes presets moteur, LOD, collisions et packing de textures — ou **recharger toute la collection dans l'Image Studio** pour la revoir et la régénérer. Les modèles 3D d'une collection restent à l'intérieur de celle-ci — le **filtre 3D** de la Gallery affiche la carte de la collection avec son badge « 3D n/m ». Une collection chargée s'affiche **directement dans la zone de résultats de l'Image Studio** (mêmes cartes, aperçu et panneau de prompt qu'une image seule, regroupés par lot), et rouvrir le Collection Designer montre **le design enregistré à l'identique** (direction artistique, prompt de chaque lot et prompts réellement reçus par chaque modèle) — rien n'est régénéré sans votre demande, et **avant toute dépense** le type d'asset est vérifié par rapport à votre prompt (un ensemble = Personnages ou Assets de jeu) — pour ne jamais payer un ensemble entier dans le mauvais cadrage
-- 🎬 **Video Studio** — Text-to-video avec guidance de prompt spécifique au modèle (p. ex. direction en langage naturel pour Luma Ray), image-to-video, boucle
-- ✍️ **Type Studio** — Superpositions de texte conçues par l'IA avec sélecteur de polices
-- 💬 **Chat Studio** — Chat LLM multi-modèle avec streaming, Markdown, coloration syntaxique, vision, sessions, compactage de contexte
-- 📁 **Galerie unifiée** — Disposition en maçonnerie (masonry) qui affiche chaque asset à son véritable ratio (portrait, carré, paysage — jamais recadré). Parcourez images + vidéos, filtre par média (Tout / 2D Artwork / 3D Models / Video), recherche, horodatages complets date-heure-fuseau, téléchargement, suppression. Les assets qui possèdent déjà un modèle 3D généré portent un **badge 3D**, et le filtre **3D Models** ne fait remonter que ceux-là
+- 🎨 **Bibliothèque de styles** — Téléchargez votre art, l'IA apprend votre identité visuelle
+- 🖼️ **Studio Image** — Génération d'images avec options x variations, workflow de prompt guidé en 3 étapes
+- 🎨 **Concepteur de prompts** — L'IA décompose votre prompt en composants visuels éditables (sujet, scène, éclairage, couleurs) avec bascules verrouiller/varier par champ, intégration du style et classification intelligente du type d'asset. Image photoréaliste, Personnage, Environnement, et plus
+- 🗂️ **Collections (génération d'ensembles)** — transformez UN prompt **ou une image de référence** en un **ensemble cohérent d'assets distincts** (« un jeu d'échecs de style viking », « 20 personnages JRPG »). Activez le sélecteur **Collection** dans le Studio Image — depuis l'onglet **Inspiration texte** (piloté par votre prompt) ou l'onglet **Inspiration image** (le *look* de l'image de référence pilote la direction artistique) — et un **Concepteur de collection** dédié décompose votre brief en une **direction artistique** partagée plus un **roster** de sujets distincts dans le thème — chacun étant un **lot** avec son propre prompt éditable et indépendant du modèle. Modifiez la direction artistique pour recomposer tout l'ensemble ; verrouillez, régénérez, ajoutez ou supprimez des lots individuels ; puis générez-les tous d'un coup (options × variations chacun), avec une estimation en direct du design et du coût projeté. **Choisissez un seul modèle pour un ensemble homogène, ou plusieurs pour rendre chaque lot sur chacun** (comparaison inter-modèles). Une cohésion optionnelle **Ancrage héros** / **Ancrage référence** verrouille le style de l'ensemble sur une image choisie/fournie. Les collections apparaissent comme **une seule carte** dans la Galerie ; le visualiseur de collection permet à chaque lot d'ouvrir la visionneuse d'assets habituelle (options / variations / versions, retouches, exports et 3D — exactement comme pour une image seule, plus la **lignée de collection** du lot) ; vous pouvez **épingler la version** représentant chaque lot, **passer tout l'ensemble en 3D** d'un coup (ou seulement les lots ou images choisis) et voir chaque modèle arriver dans la vue **Modèles 3D** propre à la collection, **télécharger** tout l'ensemble ou une sélection en un seul zip — les mêmes fichiers qu'une image seule (PNG, SVG et détourages sans arrière-plan) ou ses modèles 3D avec les mêmes presets moteur, LOD, collisions et packing de textures — ou **recharger toute la collection dans le Studio Image** pour la revoir et la régénérer. Les modèles 3D d'une collection restent à l'intérieur de celle-ci — le **filtre 3D** de la Galerie affiche la carte de la collection avec son badge « 3D n/m ». Une collection chargée s'affiche **directement dans la zone de résultats du Studio Image** (mêmes cartes, aperçu et panneau de prompt qu'une image seule, regroupés par lot), et rouvrir le Concepteur de collection montre **le design enregistré à l'identique** (direction artistique, prompt de chaque lot et prompts réellement reçus par chaque modèle) — rien n'est régénéré sans votre demande, et **avant toute dépense** le type d'asset est vérifié par rapport à votre prompt (un ensemble = Personnages ou Ressources de jeu) — pour ne jamais payer un ensemble entier dans le mauvais cadrage
+- 🎬 **Studio Vidéo** — Text-to-video avec guidance de prompt spécifique au modèle (p. ex. direction en langage naturel pour Luma Ray), image-to-video, boucle
+- ✍️ **Studio de Texte** — Superpositions de texte conçues par l'IA avec sélecteur de polices
+- 💬 **Studio de Chat** — Chat LLM multi-modèle avec streaming, Markdown, coloration syntaxique, vision, sessions, compactage de contexte
+- 📁 **Galerie unifiée** — Disposition en maçonnerie (masonry) qui affiche chaque asset à son véritable ratio (portrait, carré, paysage — jamais recadré). Parcourez images + vidéos, filtre par média (Tous les médias / Images 2D / Modèles 3D / Vidéo), recherche, horodatages complets date-heure-fuseau, téléchargement, suppression. Les assets qui possèdent déjà un modèle 3D généré portent un **badge 3D**, et le filtre **Modèles 3D** ne fait remonter que ceux-là
 - 📥 **Importer une image** — Intégrez une image existante (tout format) dans la galerie comme un asset à part entière. Convertie automatiquement en PNG, associée au type d'asset que vous choisissez, et immédiatement éditable et prête pour la 3D — tout (versionnage, édition, image-vers-3D) fonctionne exactement comme pour une image générée
-- ✏️ **Édition d'images** — Inpainting, outpainting, effacement, rechercher-remplacer, recoloration (dans l'AssetViewer). Chaque mode dispose d'un bouton IA **Générer le prompt** : un modèle de vision lit l'image + son prompt d'origine et propose un prompt d'édition adapté à ce mode et au modèle d'édition sélectionné (p. ex. une légende descriptive pour les éditeurs Stability, une instruction pour Qwen-Image-Edit). Étendre/Outpaint affiche un aperçu en direct de l'agrandissement du cadre avec des règles en pixels pour voir exactement de combien le canevas s'étendra avant de valider. Les éditeurs à instructions (p. ex. Qwen-Image-Edit) prennent en charge **les cinq modes sans masque** — y compris une véritable extension du canevas : ArtSmoker pré-remplit le canevas, fait compléter uniquement la nouvelle zone par le modèle, puis réintègre vos pixels d'origine intacts. Chaque version éditée affiche **les deux étiquettes de modèle** — le générateur d'origine et l'éditeur qui a produit cette version
-- 📤 **Export et détourages** — Artefacts d'export par version dans l'AssetViewer : un détourage PNG transparent (fond supprimé) plus de vraies vectorisations SVG (avec et sans fond). La suppression d'arrière-plan se choisit à chaque exécution : **gratuite sur l'appareil** (rembg/u2net, aucun coût cloud) ou le suppresseur **payant Amazon Bedrock** — le même choix est proposé lors de la préparation des images pour la génération 3D
+- ✏️ **Édition d'images** — Inpainting, outpainting, effacement, rechercher-remplacer, recoloration (dans la visionneuse d'assets). Chaque mode dispose d'un bouton IA **Générer un prompt** : un modèle de vision lit l'image + son prompt d'origine et propose un prompt d'édition adapté à ce mode et au modèle d'édition sélectionné (p. ex. une légende descriptive pour les éditeurs Stability, une instruction pour Qwen-Image-Edit). Extension/Outpaint affiche un aperçu en direct de l'agrandissement du cadre avec des règles en pixels pour voir exactement de combien le canevas s'étendra avant de valider. Les éditeurs à instructions (p. ex. Qwen-Image-Edit) prennent en charge **les cinq modes sans masque** — y compris une véritable extension du canevas : ArtSmoker pré-remplit le canevas, fait compléter uniquement la nouvelle zone par le modèle, puis réintègre vos pixels d'origine intacts. Chaque version éditée affiche **les deux étiquettes de modèle** — le générateur d'origine et l'éditeur qui a produit cette version
+- 📤 **Export et découpes** — Artefacts d'export par version dans la visionneuse d'assets : un détourage PNG transparent (fond supprimé) plus de vraies vectorisations SVG (avec et sans fond). La suppression d'arrière-plan se choisit à chaque exécution : **gratuite sur l'appareil** (rembg/u2net, aucun coût cloud) ou le suppresseur **payant Amazon Bedrock** — le même choix est proposé lors de la préparation des images pour la génération 3D
 - 🔄 **Progression en temps réel** — Streaming SSE avec visibilité des tentatives/limitations
 - 🛡️ **Modération intelligente** — Test canari, changement automatique de modèle, réécriture assistée par l'IA
-- ⚙️ **Model Registry** — Interface d'administration organisée par studio (Image, Video, Chat, Type, Shared), découverte Bedrock, support des modèles personnalisés
-- 📝 **Prompt Templates** — 28 prompts directifs LLM éditables, amélioration assistée par l'IA, validation de variables avec correction automatique
+- ⚙️ **Registre des modèles** — Interface d'administration organisée par studio (Image, Vidéo, Chat, Texte, Partagé), découverte Bedrock, support des modèles personnalisés
+- 📝 **Modèles de Prompt** — 28 prompts directifs LLM éditables, amélioration assistée par l'IA, validation de variables avec correction automatique
 - 📦 **Versionnage des assets** — Édition sur place avec historique des versions (v1, v2…), navigation entre versions et suppression par version : ne supprimez qu'une seule version (les autres gardent leurs numéros), la visionneuse bascule sur la version précédente — supprimer la dernière version retire tout l'asset
 - 💰 **Suivi des coûts** — Dépenses AWS estimées par requête, par session, par asset, calculées à partir des tarifs AWS en direct par région ; les modèles auto-hébergés affichent le tarif horaire de fonctionnement de l'instance GPU + le temps de génération typique (et non un prix par image trompeur)
 - 🌐 **i18n en 9 langues** — Traduction complète de l'UI (EN, JA, ZH, KO, HI, RU, FR, ES, DE), détection automatique des prompts non anglais (l'UI anglaise saute entièrement la détection), aperçu bilingue
 - 🔍 **Support des modèles personnalisés** — Découverte automatique des modèles Bedrock fine-tunés, importés et déployés
-- 🔧 **Modèles auto-hébergés — Déploiement en 1 clic** — Parcourez un catalogue organisé de modèles open source pré-testés (dans cette version, p. ex. Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2), choisissez une instance GPU, et cliquez sur Deploy. ArtSmoker gère tout : empaquetage du gestionnaire d'inférence, configuration de la quantification, sélection du bon toolkit CUDA, mise en place de l'auto-scaling, enregistrement des alarmes CloudWatch, et câblage du suivi asynchrone des tâches. Chaque modèle du catalogue est validé de bout en bout — du démarrage à froid à la génération jusqu'à la livraison en galerie — pour que vous n'ayez pas à déboguer les pilotes GPU, les dépassements de mémoire ou la compatibilité des conteneurs. Supporte BF16 + FlashInfer pour la meilleure qualité, NF4 pour l'efficacité des coûts, détection automatique multi-GPU, mise à l'échelle automatique à zéro (0$ en veille), et le même modèle fonctionne sur différents types d'instances sans reconfiguration
-- 🧊 **Génération Image-to-3D** — Convertissez n'importe quelle image Game Asset ou Character en un maillage 3D texturé (GLB) en un clic. La synthèse multi-vues + le baking de textures produit des assets entièrement texturés, adaptés au moteur de jeu. Visionneuse 3D interactive avec orbite/zoom/panoramique
+- 🔧 **Modèles auto-hébergés — Déploiement en 1 clic** — Parcourez un catalogue organisé de modèles open source pré-testés (dans cette version, p. ex. Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2), choisissez une instance GPU, et cliquez sur Déployer. ArtSmoker gère tout : empaquetage du gestionnaire d'inférence, configuration de la quantification, sélection du bon toolkit CUDA, mise en place de l'auto-scaling, enregistrement des alarmes CloudWatch, et câblage du suivi asynchrone des tâches. Chaque modèle du catalogue est validé de bout en bout — du démarrage à froid à la génération jusqu'à la livraison en galerie — pour que vous n'ayez pas à déboguer les pilotes GPU, les dépassements de mémoire ou la compatibilité des conteneurs. Supporte BF16 + FlashInfer pour la meilleure qualité, NF4 pour l'efficacité des coûts, détection automatique multi-GPU, mise à l'échelle automatique à zéro (0$ en veille), et le même modèle fonctionne sur différents types d'instances sans reconfiguration
+- 🧊 **Génération Image-to-3D** — Convertissez n'importe quelle image de type Ressource de jeu ou Personnage en un maillage 3D texturé (GLB) en un clic. La synthèse multi-vues + le baking de textures produit des assets entièrement texturés, adaptés au moteur de jeu. Visionneuse 3D interactive avec orbite/zoom/panoramique
 - 🩹 **Complétion intelligente de la source pour la 3D** — l'image-to-3D ne peut construire que ce qui est visible ; un personnage recadré (jambes coupées) donne un maillage sans jambes. Avant la génération, ArtSmoker vérifie l'image source par vision et, si elle est recadrée, **propose de la compléter** par outpainting (invite suggérée par l'IA, entièrement modifiable) — affiche l'avant/après, réexamine le résultat, permet d'étendre encore ou d'abandonner, et l'enregistre comme nouvelle version d'image. Optionnel et non bloquant ; les images bien cadrées sont générées directement
-- 🔄 **Auto-Update** — Contrôle de version au démarrage + vérification périodique toutes les 24h ; mise à jour via `git` (checkout) ou par **téléchargement-et-remplacement d'une archive tarball** pour les installations sans git, puis redémarrage sur place (relance supervisée / rechargement gunicorn) ou proposition d'un **Redémarrage** en un clic — n'écrase jamais vos `data/` ni votre `.env` (`ARTSMOKER_AUTO_UPDATE=false` pour désactiver)
+- 🔄 **Auto-Update** — Contrôle de version au démarrage + vérification périodique toutes les 24h ; mise à jour via `git` (checkout) ou par **téléchargement-et-remplacement d'une archive tarball** pour les installations sans git, puis redémarrage sur place (relance supervisée / rechargement gunicorn) ou proposition d'un bouton **Redémarrer maintenant** en un clic — n'écrase jamais vos `data/` ni votre `.env` (`ARTSMOKER_AUTO_UPDATE=false` pour désactiver)
 
 ### 📝 1.2 Captures d'écran
 
-**Image Studio** — Paramètres à gauche avec liste déroulante multi-sélection de modèles, type d'asset, dimensions et options de post-traitement. Workflow de prompt en 3 étapes à droite avec les boutons Prompt Designer et Generate Enhanced Prompt. Déclaration IP et estimation des coûts en bas.
+**Studio Image** — Paramètres à gauche avec liste déroulante multi-sélection de modèles, type d'asset, dimensions et options de post-traitement. Workflow de prompt en 3 étapes à droite avec les boutons Concepteur de prompts et Générer le Prompt Amélioré. Déclaration IP et estimation des coûts en bas.
 
-![Image Studio — Paramètres, workflow de prompt et contrôles de génération](docs/images/image-studio-top.png)
+![Studio Image — Paramètres, workflow de prompt et contrôles de génération](docs/images/image-studio-top.png)
 
-**Image Studio — Résultats de génération** — Le prompt amélioré est affiché au-dessus, les résultats de comparaison multi-modèle en dessous. Chaque modèle génère indépendamment avec une optimisation du prompt spécifique à chaque modèle. Les résultats affichent le nom du modèle, les dimensions et le coût de génération.
+**Studio Image — Résultats de génération** — Le prompt amélioré est affiché au-dessus, les résultats de comparaison multi-modèle en dessous. Chaque modèle génère indépendamment avec une optimisation du prompt spécifique à chaque modèle. Les résultats affichent le nom du modèle, les dimensions et le coût de génération.
 
-![Image Studio — Prompt amélioré et résultats de génération](docs/images/image-studio-results.png)
+![Studio Image — Prompt amélioré et résultats de génération](docs/images/image-studio-results.png)
 
-**Image Studio — Comparaison de modèles** — Grille de comparaison côte à côte de tous les modèles sélectionnés (8 affichés — Amazon Bedrock et auto-hébergés à égalité). Chaque carte d'option porte sa propre bande de variations ; le prompt négatif propre au modèle est affiché pour l'option sélectionnée. Les bascules de post-traitement (Remove Background, Convert to SVG, Upscale) s'appliquent aux résultats existants sans régénération.
+**Studio Image — Comparaison de modèles** — Grille de comparaison côte à côte de tous les modèles sélectionnés (8 affichés — Amazon Bedrock et auto-hébergés à égalité). Chaque carte d'option porte sa propre bande de variations ; le prompt négatif propre au modèle est affiché pour l'option sélectionnée. Les bascules de post-traitement (Supprimer l'arrière-plan, Convertir en SVG, Agrandir (créatif)) s'appliquent aux résultats existants sans régénération.
 
-![Image Studio — Grille de comparaison multi-modèle avec variations](docs/images/image-studio-comparison.png)
+![Studio Image — Grille de comparaison multi-modèle avec variations](docs/images/image-studio-comparison.png)
 
-**Image Inspiration (guidée par référence)** — Déposez 1 à 3 images de référence, dites ce que vous voulez, et choisissez leur usage : **Fidèle à la référence** (édition fidèle au pixel sur un modèle d'édition d'images déployé) ou **Inspiré de la référence** (une IA de vision écrit le prompt enrichi — fonctionne avec n'importe quelle sélection de modèles, options et variations). Le prompt dérivé est prévisualisé et entièrement modifiable avant la génération.
+**Inspiration image (guidée par référence)** — Déposez 1 à 3 images de référence, dites ce que vous voulez, et choisissez leur usage : **Fidèle à la référence** (édition fidèle au pixel sur un modèle d'édition d'images déployé) ou **Inspiré de la référence** (une IA de vision écrit le prompt enrichi — fonctionne avec n'importe quelle sélection de modèles, options et variations). Le prompt dérivé est prévisualisé et entièrement modifiable avant la génération.
 
-![Image Inspiration — images de référence, instruction et prévisualisation modifiable du prompt enrichi](docs/images/image-inspiration.png)
+![Inspiration image — images de référence, instruction et prévisualisation modifiable du prompt enrichi](docs/images/image-inspiration.png)
 
-**Image Inspiration — Résultats** — La référence devient une nouvelle création (ici, une caricature dessinée à partir de la photo de référence), avec le prompt exact envoyé au modèle et le coût par image enregistrés.
+**Inspiration image — Résultats** — La référence devient une nouvelle création (ici, une caricature dessinée à partir de la photo de référence), avec le prompt exact envoyé au modèle et le coût par image enregistrés.
 
-![Image Inspiration — caricatures générées à partir d'une image de référence](docs/images/image-inspiration-results.png)
+![Inspiration image — caricatures générées à partir d'une image de référence](docs/images/image-inspiration-results.png)
 
-**Prompt Designer** — L'IA décompose votre prompt en composants visuels éditables (Subject, Scene, Composition, Lighting, Style & Colors). Chaque champ peut être édité individuellement avec des contrôles verrouiller/varier pour des options créatives véritablement distinctes.
+**Concepteur de prompts** — L'IA décompose votre prompt en composants visuels éditables (Sujet, Scène, Composition, Éclairage, Style & Couleurs). Chaque champ peut être édité individuellement avec des contrôles verrouiller/varier pour des options créatives véritablement distinctes.
 
-![Prompt Designer — Décomposition visuelle structurée avec champs éditables](docs/images/prompt-designer-top.png)
+![Concepteur de prompts — Décomposition visuelle structurée avec champs éditables](docs/images/prompt-designer-top.png)
 
-**Prompt Designer — Palette de couleurs** — Palettes de couleurs nommées avec échantillons hexadécimaux, mots-clés de style et contrôles de niveau de qualité. L'IA apprend votre identité visuelle et l'applique de manière cohérente à toutes les générations.
+**Concepteur de prompts — Palette de couleurs** — Palettes de couleurs nommées avec échantillons hexadécimaux, mots-clés de style et contrôles de niveau de qualité. L'IA apprend votre identité visuelle et l'applique de manière cohérente à toutes les générations.
 
-![Prompt Designer — Palette de couleurs, mots-clés de style et contrôles de qualité](docs/images/prompt-designer-bottom.png)
+![Concepteur de prompts — Palette de couleurs, mots-clés de style et contrôles de qualité](docs/images/prompt-designer-bottom.png)
 
-**Style Library** — Téléchargez l'art existant de votre jeu, l'IA analyse le style visuel et produit un guide de prompts riche en métadonnées. Les images de référence sont affichées avec l'analyse IA complète et le profil de style JSON.
+**Bibliothèque de styles** — Téléchargez l'art existant de votre jeu, l'IA analyse le style visuel et produit un guide de prompts riche en métadonnées. Les images de référence sont affichées avec l'analyse IA complète et le profil de style JSON.
 
-![Style Library — Analyse de style IA avec images de référence](docs/images/style-library-top.png)
+![Bibliothèque de styles — Analyse de style IA avec images de référence](docs/images/style-library-top.png)
 
-![Style Library — Images de référence, options d'importation et données d'analyse](docs/images/style-library-bottom.png)
+![Bibliothèque de styles — Images de référence, options d'importation et données d'analyse](docs/images/style-library-bottom.png)
 
-**Galerie** — Vue unifiée de toutes les images et vidéos générées avec filtre par type de média, filtre par style, recherche et tri. Cliquez sur n'importe quel asset pour ouvrir la vue complète. Le bouton **Importer une image** ajoute une image existante à la galerie — choisissez un type d'asset (Character/Game Asset activent la 3D), elle est convertie en PNG et rendue instantanément éditable et prête pour la 3D.
+**Galerie** — Vue unifiée de toutes les images et vidéos générées avec filtre par type de média, filtre par style, recherche et tri. Cliquez sur n'importe quel asset pour ouvrir la vue complète. Le bouton **Importer une image** ajoute une image existante à la galerie — choisissez un type d'asset (Personnage/Ressource de jeu activent la 3D), elle est convertie en PNG et rendue instantanément éditable et prête pour la 3D.
 
 ![Galerie — Grille d'assets générés avec filtres](docs/images/gallery.png)
 
-**Asset Viewer** — Aperçu en taille réelle avec interface à onglets (PNG, Edit, Export & Cutouts, Metadata, 3D Model), barre de versions de l'image et téléchargement direct PNG/SVG. Contrôles zoom/ajustement/mesure sur l'image composée en damier.
+**Visionneuse d'assets** — Aperçu en taille réelle avec interface à onglets (PNG, Modifier, Export et découpes, Métadonnées, Modèle 3D), barre de versions de l'image et téléchargement direct PNG/SVG. Contrôles zoom/ajustement/mesure sur l'image composée en damier.
 
-![Asset Viewer — Aperçu en taille réelle avec options de téléchargement](docs/images/asset-viewer.png)
+![Visionneuse d'assets — Aperçu en taille réelle avec options de téléchargement](docs/images/asset-viewer.png)
 
-**Asset Viewer — Édition d'images** — Cinq modes d'édition : Remplir/Remplacer, Supprimer, Étendre, Rechercher et remplacer, Recolorer. Ici : **Étendre**, avec la règle de mesure, les valeurs en pixels par côté et le bouton ✨ Générer le prompt, qui lit l'image et écrit le prompt d'édition pour vous. L'historique des versions est préservé — les originaux ne sont jamais écrasés.
+**Visionneuse d'assets — Édition d'images** — Cinq modes d'édition : Retouche, Effacer, Extension, Remplacer, Recolorier. Ici : **Extension**, avec la règle de mesure, les valeurs en pixels par côté et le bouton ✨ Générer un prompt, qui lit l'image et écrit le prompt d'édition pour vous. L'historique des versions est préservé — les originaux ne sont jamais écrasés.
 
-![Asset Viewer — Extension avec règle de mesure et prompt suggéré par l'IA](docs/images/asset-viewer-edit.png)
+![Visionneuse d'assets — Extension avec règle de mesure et prompt suggéré par l'IA](docs/images/asset-viewer-edit.png)
 
-**Asset Viewer — Export & Cutouts** — Des artefacts par version, prêts pour votre jeu, moteur ou outil de design : SVG vectoriel de l'image complète, découpe PNG sans arrière-plan et découpe SVG. La suppression d'arrière-plan s'exécute gratuitement sur votre machine (un traitement payant Amazon Bedrock est optionnel).
+**Visionneuse d'assets — Export et découpes** — Des artefacts par version, prêts pour votre jeu, moteur ou outil de design : SVG vectoriel de l'image complète, découpe PNG sans arrière-plan et découpe SVG. La suppression d'arrière-plan s'exécute gratuitement sur votre machine (un traitement payant Amazon Bedrock est optionnel).
 
-![Asset Viewer — Export & Cutouts avec SVG vectoriel et découpes sans arrière-plan](docs/images/asset-viewer-export-cutouts.png)
+![Visionneuse d'assets — Export et découpes avec SVG vectoriel et découpes sans arrière-plan](docs/images/asset-viewer-export-cutouts.png)
 
 Après un passage d'outpainting (v3 ci-dessous), le même onglet régénère les trois artefacts pour la version corps entier améliorée.
 
-![Asset Viewer — Export & Cutouts pour la version corps entier après outpainting](docs/images/asset-viewer-export-cutouts-outpainted.png)
+![Visionneuse d'assets — Export et découpes pour la version corps entier après outpainting](docs/images/asset-viewer-export-cutouts-outpainted.png)
 
-**Asset Viewer — Metadata** — La généalogie complète du prompt (votre prompt → décomposition Prompt Designer → prompt recomposé → prompt raffiné adapté au modèle), les détails de génération, la ventilation des coûts et l'historique complet des versions.
+**Visionneuse d'assets — Métadonnées** — La généalogie complète du prompt (votre prompt → décomposition du Concepteur de prompts → prompt recomposé → prompt raffiné adapté au modèle), les détails de génération, la ventilation des coûts et l'historique complet des versions.
 
-![Asset Viewer — Metadata avec généalogie complète du prompt et historique des versions](docs/images/asset-viewer-metadata.png)
+![Visionneuse d'assets — Métadonnées avec généalogie complète du prompt et historique des versions](docs/images/asset-viewer-metadata.png)
 
 *Les captures d'écran du pipeline 3D — génération, vérification de la source, export adapté au moteur de jeu et variantes — sont présentées plus bas, dans la section 1.9 (Génération de modèle 3D), aux côtés des fonctionnalités qu'elles illustrent.*
 
-**Video Studio** — Paramètres à gauche (modèle, mode de génération, durée, région, estimation des coûts), prompt à droite. Propose les modèles vidéo que **Sync from AWS** découvre dans votre compte — p. ex. Luma AI Ray (rapports d'aspect, boucle).
+**Studio Vidéo** — Paramètres à gauche (modèle, mode de génération, durée, région, estimation des coûts), prompt à droite. Propose les modèles vidéo que **Synchroniser depuis AWS** découvre dans votre compte — p. ex. Luma AI Ray (rapports d'aspect, boucle).
 
-![Video Studio — Paramètres et prompt](docs/images/video-studio.png)
+![Studio Vidéo — Paramètres et prompt](docs/images/video-studio.png)
 
-![Video Studio — Génération en cours avec prompt amélioré par l'IA](docs/images/video-studio-generating.png)
+![Studio Vidéo — Génération en cours avec prompt amélioré par l'IA](docs/images/video-studio-generating.png)
 
-![Video Studio — Vidéo terminée avec vignette et vidéos récentes](docs/images/video-studio-completed.png)
+![Studio Vidéo — Vidéo terminée avec vignette et vidéos récentes](docs/images/video-studio-completed.png)
 
 **Lecteur vidéo** — Cliquez sur une vidéo pour la lire en ligne avec toutes les métadonnées (prompt original, prompt amélioré par l'IA, modèle, durée, région).
 
@@ -233,7 +233,7 @@ Après un passage d'outpainting (v3 ci-dessous), le même onglet régénère les
 
 ### 📝 1.3 Génération à deux niveaux
 
-Pour chaque prompt, l'IA crée des **Options** — des interprétations de design fondamentalement différentes (par exemple pour « a warrior » : berserker viking, samouraï japonais, guerrier tribal, cyber-soldat, hoplite grec). Pour chaque option, le modèle d'image produit des **Variations** — différents seeds aléatoires donnant des différences visuelles subtiles. Cela offre aux artistes une large palette créative pour faire leur choix.
+Pour chaque prompt, l'IA crée des **Options** — des interprétations de design fondamentalement différentes (par exemple pour « a warrior » : berserker viking, samouraï japonais, guerrier tribal, cyber-soldat, hoplite grec). Pour chaque option, le modèle d'image produit des **Variations** — différentes graines aléatoires donnant des différences visuelles subtiles. Cela offre aux artistes une large palette créative pour faire leur choix.
 
 ### 📝 1.4 Sélection multi-modèle
 
@@ -241,26 +241,26 @@ Le menu déroulant des modèles prend en charge la **multi-sélection par cases 
 
 - **Modèle unique** — cochez un modèle pour une génération ciblée (le plus rapide, le moins cher)
 - **Plusieurs modèles** — cochez 2-3 modèles spécifiques pour une comparaison ciblée (ex : SD 3.5 + FLUX.2 uniquement)
-- **All Available Models** — le toggle en bas sélectionne/désélectionne tous les modèles activés pour une comparaison côte à côte complète
+- **Tous les modèles disponibles** — le toggle en bas sélectionne/désélectionne tous les modèles activés pour une comparaison côte à côte complète
 
 Chaque modèle s'exécute indépendamment : si des modèles plus stricts bloquent le prompt, vous obtenez quand même les résultats des modèles qui l'ont accepté, avec des étiquettes de statut claires (succès, bloqué par la modération, ou échec) sur chaque carte d'option. L'estimation des coûts se met à jour en temps réel au fur et à mesure que vous cochez/décochez les modèles.
 
-Un toggle optionnel **« Model-optimized prompts »** adapte le prompt aux forces de chaque modèle — les prompts sont réécrits par modèle (ex : boosters de qualité pour SD 3.5, langage naturel pour FLUX.2, repères de rendu de texte de premier plan pour Qwen-Image).
+Un toggle optionnel **« Prompts optimisés par modèle »** adapte le prompt aux forces de chaque modèle — les prompts sont réécrits par modèle (ex : boosters de qualité pour SD 3.5, langage naturel pour FLUX.2, repères de rendu de texte de premier plan pour Qwen-Image).
 
 ### 📝 1.5 Génération guidée par référence
 
-Au-delà de l'écriture d'un prompt à partir de zéro, vous pouvez générer **à partir de 1 à 3 images de référence plus une instruction** — choisissez le mode avec le contrôle segmenté en haut de la zone de prompt de l'Image Studio :
+Au-delà de l'écriture d'un prompt à partir de zéro, vous pouvez générer **à partir de 1 à 3 images de référence plus une instruction** — choisissez le mode avec le contrôle segmenté en haut de la zone de prompt du Studio Image :
 
-- **Match the reference** — conservez le sujet, le produit ou le personnage de votre référence et changez le reste (thème, arrière-plan, tenue, éclairage) exactement comme le dit votre instruction. Idéal pour des personnages cohérents ou des photos de produit à travers plusieurs scènes. Ce mode s'exécute sur un éditeur à instructions auto-hébergé (dans cette version, Qwen-Image-Edit) et apparaît **une fois qu'il est déployé** — s'il ne l'est pas, ArtSmoker vous dirige directement pour le déployer depuis Custom Models (un clic, même flux que les pipelines 3D). Sûr pour un usage commercial (Apache-2.0).
-- **Inspired by the reference** — l'IA de vision d'ArtSmoker lit vos référence(s) et votre instruction, rédige un prompt amélioré (montré d'abord), puis génère avec vos modèles text-to-image habituels. **Toujours disponible** — aucun déploiement nécessaire. Idéal pour emprunter une apparence, une palette ou une composition sans copier le sujet.
+- **Fidèle à la référence** — conservez le sujet, le produit ou le personnage de votre référence et changez le reste (thème, arrière-plan, tenue, éclairage) exactement comme le dit votre instruction. Idéal pour des personnages cohérents ou des photos de produit à travers plusieurs scènes. Ce mode s'exécute sur un éditeur à instructions auto-hébergé (dans cette version, Qwen-Image-Edit) et apparaît **une fois qu'il est déployé** — s'il ne l'est pas, ArtSmoker vous dirige directement pour le déployer depuis l'onglet Modèles Personnalisés (un clic, même flux que les pipelines 3D). Sûr pour un usage commercial (Apache-2.0).
+- **Inspiré de la référence** — l'IA de vision d'ArtSmoker lit vos référence(s) et votre instruction, rédige un prompt amélioré (montré d'abord), puis génère avec vos modèles text-to-image habituels. **Toujours disponible** — aucun déploiement nécessaire. Idéal pour emprunter une apparence, une palette ou une composition sans copier le sujet.
 
-- **Remixer la référence (Remix the reference)** — l'image-to-image classique piloté par la force : les *pixels* de votre référence vont directement dans un modèle Bedrock que le registre signale comme compatible (p. ex. Stable Diffusion 3.5 Large, Stable Image Ultra), avec un **curseur de force** : subtil conserve presque intacts la composition, la palette et l'ambiance ; audacieux la traite comme une inspiration libre. Avec plus d'une Option, cela devient une **échelle de forces** — une carte par force, du subtil à l'audacieux, côte à côte. *Conserve la mise en page, pas l'identité* (les visages et produits dérivent — utilisez Fidèle à la référence pour un travail exact). La taille de sortie suit l'image de référence. **Toujours disponible** — aucun déploiement, aucun appel d'analyse visuelle.
+- **Remixer la référence** — l'image-to-image classique piloté par la force : les *pixels* de votre référence vont directement dans un modèle Bedrock que le registre signale comme compatible (p. ex. Stable Diffusion 3.5 Large, Stable Image Ultra), avec un **curseur de force** : subtil conserve presque intacts la composition, la palette et l'ambiance ; audacieux la traite comme une inspiration libre. Avec plus d'une Option, cela devient une **échelle de forces** — une carte par force, du subtil à l'audacieux, côte à côte. *Conserve la mise en page, pas l'identité* (les visages et produits dérivent — utilisez Fidèle à la référence pour un travail exact). La taille de sortie suit l'image de référence. **Toujours disponible** — aucun déploiement, aucun appel d'analyse visuelle.
 
-Les trois modes requièrent une instruction pour que vous gardiez le contrôle de ce à quoi sert la référence. La génération guidée par référence est distincte de la Style Library (qui analyse de nombreuses images en un profil de style réutilisable) — utilisez-la pour des générations ponctuelles pilotées par l'image.
+Les trois modes requièrent une instruction pour que vous gardiez le contrôle de ce à quoi sert la référence. La génération guidée par référence est distincte de la Bibliothèque de styles (qui analyse de nombreuses images en un profil de style réutilisable) — utilisez-la pour des générations ponctuelles pilotées par l'image.
 
-### 📝 1.6 Video Studio
+### 📝 1.6 Studio Vidéo
 
-Générez des vidéos et animations propulsées par l'IA à partir de prompts textuels. Video Studio propose les modèles vidéo que **Sync from AWS** découvre dans votre compte (voir [À propos des noms de modèles](#about-model-names)). Par exemple, **Luma AI Ray v2** :
+Générez des vidéos et animations propulsées par l'IA à partir de prompts textuels. Le Studio Vidéo propose les modèles vidéo que **Synchroniser depuis AWS** découvre dans votre compte (voir [À propos des noms de modèles](#about-model-names)). Par exemple, **Luma AI Ray v2** :
 
 | Fonctionnalité | Luma Ray v2 |
 |----------------|-------------|
@@ -274,17 +274,17 @@ Générez des vidéos et animations propulsées par l'IA à partir de prompts te
 **Fonctionnement :**
 1. Sélectionnez un modèle vidéo et configurez la durée, le rapport d'aspect, la région
 2. Saisissez un prompt — l'IA l'enrichit avec un vocabulaire cinématographique, des mouvements de caméra et des repères de cohérence temporelle
-3. Cliquez sur Generate — le job s'exécute de manière asynchrone via `StartAsyncInvoke`, la sortie va dans votre bucket S3 configuré
+3. Cliquez sur Générer — la tâche s'exécute de manière asynchrone via `StartAsyncInvoke`, la sortie va dans votre bucket S3 configuré
 4. Interrogation du statut toutes les 5 secondes — à l'achèvement, la vignette est extraite (via ffmpeg) et le MP4 est téléchargé localement (ou streamé depuis S3)
-5. Les vidéos apparaissent à la fois dans la section « Recent Videos » du Video Studio et dans la galerie unifiée
+5. Les vidéos apparaissent à la fois dans la section « Vidéos récentes » du Studio Vidéo et dans la galerie unifiée
 
-**Bucket S3 requis** : La génération vidéo envoie ses sorties vers S3. Vous pouvez configurer via Video Settings dans l'UI (parcourir les buckets existants ou en créer un nouveau), ou en créer un via CLI :
+**Bucket S3 requis** : La génération vidéo envoie ses sorties vers S3. Vous pouvez configurer via Paramètres vidéo dans l'UI (parcourir les buckets existants ou en créer un nouveau), ou en créer un via CLI :
 
 ```bash
-# Create an S3 bucket for video storage (replace REGION and YOUR_ORG)
+# Créer un bucket S3 pour le stockage vidéo (remplacez REGION et YOUR_ORG)
 aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-east-1
 
-# For regions other than us-east-1, add the LocationConstraint:
+# Pour les régions autres que us-east-1, ajoutez le LocationConstraint :
 aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
   --create-bucket-configuration LocationConstraint=us-west-2
 ```
@@ -293,11 +293,11 @@ Mode de stockage : téléchargement local (par défaut) ou streaming depuis S3 �
 
 **Amélioration des prompts vidéo** : Le LLM ajoute des mouvements de caméra (panoramique, zoom, dolly, tracking), des détails d'éclairage et des repères temporels. Comme les modèles vidéo ne supportent pas les prompts négatifs, les concepts à éviter sont intégrés naturellement dans le prompt positif.
 
-### 📝 1.7 Chat Studio
+### 📝 1.7 Studio de Chat
 
 Une interface de chat LLM complète — comme une IA conversationnelle auto-hébergée, fonctionnant sur votre propre compte AWS sans accès tiers aux données.
 
-**Tous les modèles de chat que Sync from AWS trouve dans votre compte** (voir [À propos des noms de modèles](#about-model-names)) — p. ex. Claude (Sonnet, Opus, Haiku), Amazon Nova, Meta Llama, Mistral, Cohere, Qwen, DeepSeek, Google Gemma et NVIDIA Nemotron — plus tous les modèles personnalisés/importés de votre compte.
+**Tous les modèles de chat que trouve « Synchroniser depuis AWS » dans votre compte** (voir [À propos des noms de modèles](#about-model-names)) — p. ex. Claude (Sonnet, Opus, Haiku), Amazon Nova, Meta Llama, Mistral, Cohere, Qwen, DeepSeek, Google Gemma et NVIDIA Nemotron — plus tous les modèles personnalisés/importés de votre compte.
 
 **Fonctionnalités principales :**
 - **Réponses en streaming** — rendu token par token en temps réel via Bedrock ConverseStream
@@ -314,7 +314,7 @@ Une interface de chat LLM complète — comme une IA conversationnelle auto-héb
 - Totaux de session : nombre de tokens, coût estimé, nombre de messages
 
 **Fonctionnalités avancées :**
-- **Modèles de prompts système** — General Assistant, Coding Expert, Creative Writer, Game Designer, Data Analyst, Technical Writer
+- **Modèles de prompts système** — Assistant général, Expert en programmation, Rédacteur créatif, Concepteur de jeux, Analyste de données, Rédacteur technique
 - **Vision/multimodal** — glisser-déposer, sélecteur de fichiers ou Ctrl+V pour coller des images pour les modèles compatibles vision
 - **Compactage de contexte** — l'IA résume les messages anciens pour libérer de l'espace dans la fenêtre de contexte
 - **Régénérer** — relancer n'importe quelle réponse de l'IA avec le même prompt
@@ -329,22 +329,22 @@ Le **type d'asset** sélectionné change fondamentalement la façon dont l'IA in
 
 | Type | Composition | Cadrage | Approche technique |
 |------|-------------|---------|-------------------|
-| **Photorealistic Image** *(par défaut)* | Cadrage naturel, de type photographique — le sujet dans un environnement réel adapté au contexte. | Perspective de caméra réelle : hauteur d'œil, faible profondeur de champ pour les portraits, grand angle pour les paysages. | Dirigé dans le langage de la photographie (heure dorée, softbox de studio, sensation de focale) avec des imperfections naturelles — texture de peau, plis de tissu, patine. Jamais de vocabulaire d'illustration ni de jargon de moteur de rendu. |
-| **Game Asset** | Objet unique isolé sur fond transparent. Pas de scène, pas de texte, pas d'UI. | Vue frontale ou isométrique, l'objet remplit 70-80% du cadre. | Bords nets et propres pour la suppression de fond, éclairage cohérent depuis le haut-gauche, pas d'ombres au sol. Conçu pour être composé avec d'autres assets de jeu à différentes échelles. |
-| **Character** | Figure en pied ou 3/4, isolée sur fond propre. Un seul personnage. | Le personnage remplit 60-75% de la hauteur, de la tête aux pieds, légèrement décentré. | Silhouette lisible et forte (identifiable par la silhouette seule), pose expressive transmettant la personnalité, traits du visage et détails du costume clairs. |
-| **Icon** | Symbole unique, gras et reconnaissable, centré avec un padding généreux. Simplicité maximale. | Vue frontale ou légère inclinaison 3/4, espace respirant aux bords. | Doit être clairement lisible à 64x64 pixels. Contraste élevé, 3-5 couleurs maximum, formes audacieuses, pas de lignes fines ni de détails fins. |
-| **Marketing Banner** | Illustration scénique complète avec composition dramatique. Zone de texte propre réservée sur un côté — pas de texte rendu ni de typographie. | Sensation cinématique large, caméra reculée pour montrer une scène. | Couleurs riches et saturées, éclairage dramatique (rim light, rayons volumétriques), profondeur de champ. L'IA est explicitement instruite de NE PAS rendre de texte ; la zone réservée au texte est laissée propre pour la superposition en post-production dans les outils de design (Figma, Canva, etc.). |
-| **Environment** | Paysage complet avec couches de profondeur avant-plan/milieu/arrière-plan et lignes directrices. | Plan d'ensemble large, horizon au tiers supérieur ou inférieur. | Perspective atmosphérique (objets distants plus clairs/brumeux), narration environnementale par les détails, éclairage d'ambiance. |
+| **Image photoréaliste** *(par défaut)* | Cadrage naturel, de type photographique — le sujet dans un environnement réel adapté au contexte. | Perspective de caméra réelle : hauteur d'œil, faible profondeur de champ pour les portraits, grand angle pour les paysages. | Dirigé dans le langage de la photographie (heure dorée, softbox de studio, sensation de focale) avec des imperfections naturelles — texture de peau, plis de tissu, patine. Jamais de vocabulaire d'illustration ni de jargon de moteur de rendu. |
+| **Ressource de jeu** | Objet unique isolé sur fond transparent. Pas de scène, pas de texte, pas d'UI. | Vue frontale ou isométrique, l'objet remplit 70-80% du cadre. | Bords nets et propres pour la suppression de fond, éclairage cohérent depuis le haut-gauche, pas d'ombres au sol. Conçu pour être composé avec d'autres assets de jeu à différentes échelles. |
+| **Personnage** | Figure en pied ou 3/4, isolée sur fond propre. Un seul personnage. | Le personnage remplit 60-75% de la hauteur, de la tête aux pieds, légèrement décentré. | Silhouette lisible et forte (identifiable par la silhouette seule), pose expressive transmettant la personnalité, traits du visage et détails du costume clairs. |
+| **Icône** | Symbole unique, gras et reconnaissable, centré avec un padding généreux. Simplicité maximale. | Vue frontale ou légère inclinaison 3/4, espace respirant aux bords. | Doit être clairement lisible à 64x64 pixels. Contraste élevé, 3-5 couleurs maximum, formes audacieuses, pas de lignes fines ni de détails fins. |
+| **Bannière marketing** | Illustration scénique complète avec composition dramatique. Zone de texte propre réservée sur un côté — pas de texte rendu ni de typographie. | Sensation cinématique large, caméra reculée pour montrer une scène. | Couleurs riches et saturées, éclairage dramatique (rim light, rayons volumétriques), profondeur de champ. L'IA est explicitement instruite de NE PAS rendre de texte ; la zone réservée au texte est laissée propre pour la superposition en post-production dans les outils de design (Figma, Canva, etc.). |
+| **Environnement** | Paysage complet avec couches de profondeur avant-plan/milieu/arrière-plan et lignes directrices. | Plan d'ensemble large, horizon au tiers supérieur ou inférieur. | Perspective atmosphérique (objets distants plus clairs/brumeux), narration environnementale par les détails, éclairage d'ambiance. |
 
 Cela compte à chaque étape :
 
-- **Bouton « Preview Enhanced Prompt »** — Quand vous cliquez sur Compose, l'IA utilise le type d'asset pour reformuler votre brief en un prompt de génération détaillé, combinant vos mots avec les directives de style et les directives du type d'asset. Votre intention explicite prévaut toujours sur les paramètres par défaut du style. Vous pouvez examiner la version composée avant de générer.
-- **Génération de concepts** — Lors de la génération d'options multiples, l'IA crée N interprétations de design différentes qui respectent toutes les règles structurelles du type d'asset. Une option Character a toujours une silhouette lisible ; une option Marketing Banner a toujours une zone de texte sans texte rendu.
-- **Le résultat** — Deux images du même prompt mais de types d'assets différents ne se ressembleront en rien. Un Game Asset « warrior » est un sprite de personnage unique centré. Un Marketing Banner « warrior » est une scène de bataille épique avec une zone propre pour la superposition du titre.
+- **Bouton « Générer le Prompt Amélioré »** — Quand vous cliquez dessus, l'IA utilise le type d'asset pour reformuler votre brief en un prompt de génération détaillé, combinant vos mots avec les directives de style et les directives du type d'asset. Votre intention explicite prévaut toujours sur les paramètres par défaut du style. Vous pouvez examiner la version composée avant de générer.
+- **Génération de concepts** — Lors de la génération d'options multiples, l'IA crée N interprétations de design différentes qui respectent toutes les règles structurelles du type d'asset. Une option Personnage a toujours une silhouette lisible ; une option Bannière marketing a toujours une zone de texte sans texte rendu.
+- **Le résultat** — Deux images du même prompt mais de types d'assets différents ne se ressembleront en rien. Une Ressource de jeu « warrior » est un sprite de personnage unique centré. Une Bannière marketing « warrior » est une scène de bataille épique avec une zone propre pour la superposition du titre.
 
 ### 📝 1.9 Génération de modèles 3D (Image-to-3D)
 
-Générez des maillages 3D entièrement texturés à partir de n'importe quelle image 2D — directement dans l'Asset Viewer. Sélectionnez une image **Game Asset** ou **Character**, ouvrez l'onglet **3D Model**, et cliquez sur Generate. Le résultat est un GLB adapté au moteur de jeu que vous pouvez orbiter, zoomer et télécharger — sans modélisation manuelle, dépliage UV ni peinture de texture.
+Générez des maillages 3D entièrement texturés à partir de n'importe quelle image 2D — directement dans la visionneuse d'assets. Sélectionnez une image **Ressource de jeu** ou **Personnage**, ouvrez l'onglet **Modèle 3D**, et cliquez sur Générer. Le résultat est un GLB adapté au moteur de jeu que vous pouvez orbiter, zoomer et télécharger — sans modélisation manuelle, dépliage UV ni peinture de texture.
 
 **Le résultat final, d'abord :** un personnage généré par ArtSmoker, exporté en FBX adapté au moteur de jeu et ouvert dans un Blender standard — la chaîne de LOD (LOD0–LOD3) intacte dans l'Outliner, textures liées, sans re-rigging ni correction manuelle. Tout ce qui suit montre comment y parvenir à partir d'un prompt texte.
 
@@ -354,24 +354,24 @@ Générez des maillages 3D entièrement texturés à partir de n'importe quelle 
 
 ![Génération de modèle 3D — le maillage du soldat généré vu sous plusieurs angles dans la visionneuse 3D interactive](docs/images/3d-model-result.png)
 
-Une seule image 2D de personnage (à gauche, dans l'onglet PNG) devient un maillage 3D entièrement texturé que vous pouvez faire pivoter librement dans le navigateur. L'onglet **3D Model** liste désormais aussi les **modèles et outils** exacts utilisés pour produire chaque asset (modèle de géométrie, backend de texturation, type de sortie, instance et paramètres de génération) — persistés dans les métadonnées de l'asset pour une traçabilité complète.
+Une seule image 2D de personnage (à gauche, dans l'onglet PNG) devient un maillage 3D entièrement texturé que vous pouvez faire pivoter librement dans le navigateur. L'onglet **Modèle 3D** liste désormais aussi les **modèles et outils** exacts utilisés pour produire chaque asset (modèle de géométrie, backend de texturation, type de sortie, instance et paramètres de génération) — persistés dans les métadonnées de l'asset pour une traçabilité complète.
 
-**Générer** — L'onglet 3D Model de l'Asset Viewer : choisissez l'endpoint du pipeline déployé, le niveau de qualité (avec temps et coût estimés) et les paramètres avancés. Le panneau de licence affiche les conditions de chaque pipeline, et **Improve the Source** vérifie visuellement l'image avant de consommer du temps GPU.
+**Génération** — L'onglet Modèle 3D de la visionneuse d'assets : choisissez l'endpoint du pipeline déployé, le niveau de qualité (avec temps et coût estimés) et les paramètres avancés. Le panneau de licence affiche les conditions de chaque pipeline, et **Améliorer la source** vérifie visuellement l'image avant de consommer du temps GPU.
 
-![Génération de modèle 3D — Paramètres et génération dans l'Asset Viewer](docs/images/3d-model-generation.png)
+![Génération de modèle 3D — Paramètres et génération dans la visionneuse d'assets](docs/images/3d-model-generation.png)
 
-**Improve the Source** — Avant la génération, ArtSmoker mesure la silhouette du sujet et signale les recadrages (ici : coupé au bord inférieur), en suggérant les valeurs d'extension et un prompt d'outpainting écrit par l'IA — étendez, remplissez, ou utilisez l'image telle quelle.
+**Améliorer la source** — Avant la génération, ArtSmoker mesure la silhouette du sujet et signale les recadrages (ici : coupé au bord inférieur), en suggérant les valeurs d'extension et un prompt d'outpainting écrit par l'IA — étendez, remplissez, ou utilisez l'image telle quelle.
 
 ![Vérification de la source 3D — détection automatique de recadrage avec extension suggérée](docs/images/3d-source-review.png)
 
-**Deux pipelines — à vous de choisir.** ArtSmoker propose deux façons de transformer une image en modèle 3D texturé. Déployez l'un (ou les deux) depuis Custom Models ; lorsque les deux sont actifs, vous choisissez par génération dans l'Asset Viewer — chacun affiche son coût est., son temps et sa licence pour que vous décidiez en connaissance de cause :
+**Deux pipelines — à vous de choisir.** ArtSmoker propose deux façons de transformer une image en modèle 3D texturé. Déployez l'un (ou les deux) depuis l'onglet Modèles Personnalisés ; lorsque les deux sont actifs, vous choisissez par génération dans la visionneuse d'assets — chacun affiche son coût est., son temps et sa licence pour que vous décidiez en connaissance de cause :
 
 | Pipeline | Fonctionnement | Licence | Usage commercial | Idéal pour |
 |----------|----------------|---------|------------------|------------|
-| **TripoSG + backend de texturation** | TripoSG construit le maillage ; un backend de texturation choisi (TRELLIS.2 / Hunyuan3D-Paint) le peint | selon le backend (ci-dessous) | selon le backend | Combiner géométrie + un texturateur précis |
-| **TRELLIS.2 (Full)** | Un seul modèle génère **à la fois** la géométrie et la texture PBR (SLAT) | Modèle MIT + poids | ⚠️ **Bake non commercial** — l'export du maillage importe en dur `nvdiffrast` (NVIDIA 1-Way Commercial) ; à examiner avant tout usage commercial | Voie la plus simple ; prototypes et travaux non commerciaux |
+| **TripoSG + backend de texture** | TripoSG construit le maillage ; un backend de texturation choisi (TRELLIS.2 / Hunyuan3D-Paint) le peint | selon le backend (ci-dessous) | selon le backend | Combiner géométrie + un texturateur précis |
+| **TRELLIS.2 (pipeline complet)** | Un seul modèle génère **à la fois** la géométrie et la texture PBR (SLAT) | Modèle MIT + poids | ⚠️ **Bake non commercial** — l'export du maillage importe en dur `nvdiffrast` (NVIDIA 1-Way Commercial) ; à examiner avant tout usage commercial | Voie la plus simple ; prototypes et travaux non commerciaux |
 
-> **Usage commercial :** la voie **TripoSG + backend de texturation** est la route sûre pour un usage commercial — son bake utilise **Kaolin (Apache-2.0)**. Le pipeline **TRELLIS.2 complet** est sous licence MIT pour le modèle lui-même, mais son bake de maillage `o_voxel` importe en dur `nvdiffrast` (NVIDIA Source Code License, non commercial pour les utilisateurs généraux) et ne peut être remplacé sans patcher l'amont — traitez donc la sortie du pipeline complet comme non commerciale tant que vous n'avez pas levé cette dépendance. La licence + chaque dépendance sont affichées dans la boîte de dialogue de déploiement et à nouveau au moment de la génération.
+> **Usage commercial :** la voie **TripoSG + backend de texture** est la route sûre pour un usage commercial — son bake utilise **Kaolin (Apache-2.0)**. Le pipeline **TRELLIS.2 complet** est sous licence MIT pour le modèle lui-même, mais son bake de maillage `o_voxel` importe en dur `nvdiffrast` (NVIDIA Source Code License, non commercial pour les utilisateurs généraux) et ne peut être remplacé sans patcher l'amont — traitez donc la sortie du pipeline complet comme non commerciale tant que vous n'avez pas levé cette dépendance. La licence + chaque dépendance sont affichées dans la boîte de dialogue de déploiement et à nouveau au moment de la génération.
 
 **Variantes 3D** — Conservez plusieurs rendus 3D par version d'image (ici TripoSG contre le pipeline complet TRELLIS.2), basculez entre eux ou définissez le défaut à tout moment ; chaque variante enregistre les modèles et outils exacts qui l'ont produite.
 
@@ -383,9 +383,9 @@ Une seule image 2D de personnage (à gauche, dans l'onglet PNG) devient un maill
 2. **Texturation** — le maillage est peint par un **backend de texturation que vous choisissez au moment du déploiement** (par défaut **TRELLIS.2**, Microsoft, MIT — un texturateur conditionné par SLAT/voxels produisant des matériaux PBR complets sur un atlas 4096²).
 3. **Sortie PBR** — exporté en GLB avec des cartes PBR intégrées, prêt pour le rendu physiquement réaliste dans n'importe quel moteur moderne.
 
-Le pipeline **TRELLIS.2 (Full)** fait la même chose de bout en bout dans un seul modèle — sans étape de texturation séparée.
+Le **TRELLIS.2 (pipeline complet)** fait la même chose de bout en bout dans un seul modèle — sans étape de texturation séparée.
 
-**La licence bien en vue — au déploiement ET à la génération.** Chaque option déployable affiche son **détail complet de licence et de dépendances** dans la boîte de dialogue de déploiement — chaque modèle qu'elle télécharge, la licence de ce modèle, et s'il est exploitable commercialement ou restreint — et vous lisez et acceptez avant de déployer. Au moment de la génération, l'Asset Viewer rappelle la licence et confirme *« accepté au déploiement le `<date>` »* (sans second clic nécessaire) :
+**La licence bien en vue — au déploiement ET à la génération.** Chaque option déployable affiche son **détail complet de licence et de dépendances** dans la boîte de dialogue de déploiement — chaque modèle qu'elle télécharge, la licence de ce modèle, et s'il est exploitable commercialement ou restreint — et vous lisez et acceptez avant de déployer. Au moment de la génération, la visionneuse d'assets rappelle la licence et confirme *« accepté au déploiement le `<date>` »* (sans second clic nécessaire) :
 
 | Backend de texturation | Licence | Usage commercial | Idéal pour |
 |------------------------|---------|------------------|------------|
@@ -394,9 +394,9 @@ Le pipeline **TRELLIS.2 (Full)** fait la même chose de bout en bout dans un seu
 
 La suppression d'arrière-plan (l'étape de détourage) utilise **BiRefNet (MIT)** par défaut — entièrement saine pour un usage commercial — avec une alternative non commerciale (RMBG) disponible en option déclarée. ArtSmoker ne télécharge jamais silencieusement une dépendance restreinte : tout ce qui est restreint ou non commercial est nommé, badgé et conditionné à une acceptation explicite.
 
-**Sortie :** GLB standard avec textures PBR intégrées — s'importe directement dans Unity, Unreal Engine, Blender et d'autres moteurs de jeu. La visionneuse 3D interactive supporte l'orbite, le zoom et le panoramique pour une inspection immédiate, et l'onglet **3D Model** liste les modèles et outils exacts utilisés (modèle de géométrie, backend de texturation, dépendances, instance, paramètres) pour une traçabilité complète.
+**Sortie :** GLB standard avec textures PBR intégrées — s'importe directement dans Unity, Unreal Engine, Blender et d'autres moteurs de jeu. La visionneuse 3D interactive supporte l'orbite, le zoom et le panoramique pour une inspection immédiate, et l'onglet **Modèle 3D** liste les modèles et outils exacts utilisés (modèle de géométrie, backend de texturation, dépendances, instance, paramètres) pour une traçabilité complète.
 
-**Infrastructure :** Les deux pipelines se déploient via le même flux Custom Models en 1 clic, le sélecteur au moment du déploiement affichant pour chaque option sa licence, son tableau de dépendances, son instance de base et le coût/temps estimés. L'instance de base ajustée au plus juste du pipeline TRELLIS.2 complet est **`ml.g5.2xlarge`** (~$1,52/h ; une exécution réelle a mesuré un pic de ~4,78 Go de VRAM sur les 24 Go du GPU A10G et s'est terminée proprement — préférée au L40S `g6e.xlarge`, largement surdimensionné pour cette charge et plus coûteux). Les tailles `g6e` supérieures restent disponibles comme montées en gamme offrant de la marge. Les endpoints se mettent à l'échelle à zéro en veille — $0 entre les tâches. Le premier démarrage à froid compile les extensions CUDA une seule fois (puis mises en cache sur S3 pour des redémarrages rapides). Avant de déployer un modèle à accès restreint, la boîte de dialogue **pré-vérifie l'accès HuggingFace pour chaque dépôt qu'il télécharge** et affiche un ✓/✗ par dépôt avec l'étape suivante exacte — vous ne découvrez ainsi jamais une acceptation de licence manquante plusieurs minutes après le début d'un démarrage à froid.
+**Infrastructure :** Les deux pipelines se déploient via le même flux Modèles Personnalisés en 1 clic, le sélecteur au moment du déploiement affichant pour chaque option sa licence, son tableau de dépendances, son instance de base et le coût/temps estimés. L'instance de base ajustée au plus juste du pipeline TRELLIS.2 complet est **`ml.g5.2xlarge`** (~$1,52/h ; une exécution réelle a mesuré un pic de ~4,78 Go de VRAM sur les 24 Go du GPU A10G et s'est terminée proprement — préférée au L40S `g6e.xlarge`, largement surdimensionné pour cette charge et plus coûteux). Les tailles `g6e` supérieures restent disponibles comme montées en gamme offrant de la marge. Les endpoints se mettent à l'échelle à zéro en veille — $0 entre les tâches. Le premier démarrage à froid compile les extensions CUDA une seule fois (puis mises en cache sur S3 pour des redémarrages rapides). Avant de déployer un modèle à accès restreint, la boîte de dialogue **pré-vérifie l'accès HuggingFace pour chaque dépôt qu'il télécharge** et affiche un ✓/✗ par dépôt avec l'étape suivante exacte — vous ne découvrez ainsi jamais une acceptation de licence manquante plusieurs minutes après le début d'un démarrage à froid.
 
 > **Visionner le GLB :** les textures sont encodées en WebP (`EXT_texture_webp`) pour garder des fichiers compacts — rendu parfait dans la visionneuse intégrée, Blender 4.x, three.js et les importateurs Unity/Unreal modernes. Preview/QuickLook de macOS ne prend pas en charge le WebP dans le glTF et affiche le modèle en noir ; utilisez la visionneuse intégrée ou tout outil glTF moderne.
 
@@ -405,24 +405,24 @@ La suppression d'arrière-plan (l'étape de détourage) utilise **BiRefNet (MIT)
 | Qualité du maillage | Jusqu'à ~1M de faces, normales de sommets complètes |
 | Résolution de texture | Atlas PBR 4096² (couleur de base + métallique-rugosité + alpha) |
 | Licence | Exploitable commercialement par défaut (TRELLIS.2 MIT + BiRefNet MIT) ; backends non commerciaux proposés avec divulgation complète |
-| Types d'assets supportés | Game Asset, Character |
+| Types d'assets supportés | Ressource de jeu, Personnage |
 
 ### 📝 1.9.1 Exports prêts pour le moteur (GLB · FBX · USD)
 
 ![Visionneuse 3D avec outils par variante et options d'export FBX/USD adaptées au moteur de jeu](docs/images/3d-model-viewer-export.png)
 
-Chaque modèle 3D généré peut être exporté **préparé pour votre moteur de jeu**, directement depuis l'onglet 3D de l'Asset Viewer :
+Chaque modèle 3D généré peut être exporté **préparé pour votre moteur de jeu**, directement depuis l'onglet 3D de la visionneuse d'assets :
 
-- **Moteur cible** — choisissez Generic (glTF, axe Y vers le haut), Unreal Engine (axe Z vers le haut), Unity, Godot, Maya ou 3ds Max. Les exports FBX et USD sont orientés avec les bons axes haut/avant pour ce moteur, si bien que les modèles s'importent droits — sans corrections de rotation manuelles.
+- **Moteur cible** — choisissez Générique (glTF, Y vers le haut), Unreal Engine (axe Z vers le haut), Unity, Godot, Maya ou 3ds Max. Les exports FBX et USD sont orientés avec les bons axes haut/avant pour ce moteur, si bien que les modèles s'importent droits — sans corrections de rotation manuelles.
 - **Préparation optionnelle, à votre convenance** (chacune via un menu déroulant indépendant — rien n'est imposé) :
-  - **Packing de textures** — jeux de textures par moteur : **ORM** Unreal (AO/Roughness/Metallic), **Metallic + Smoothness dans l'alpha** pour Unity, **HDRP Mask Map** pour Unity. Une fois sélectionné, l'export devient un ZIP contenant le modèle plus un dossier `textures/`.
-  - **LODs** — une **chaîne LOD0–LOD3** décimée (100/50/20/5 %) avec un véritable groupe de LOD FBX qu'Unreal importe automatiquement ; le nommage `_LOD0…_LOD3` correspond aussi à la convention d'Unity.
+  - **Packing de textures** — jeux de textures par moteur : **ORM** Unreal (AO/Roughness/Metallic), **Métallique + lissage** dans l'alpha pour Unity, **Mask Map HDRP** pour Unity. Une fois sélectionné, l'export devient un ZIP contenant le modèle plus un dossier `textures/`.
+  - **LOD** — une **chaîne LOD0–LOD3** décimée (100/50/20/5 %) avec un véritable groupe de LOD FBX qu'Unreal importe automatiquement ; le nommage `_LOD0…_LOD3` correspond aussi à la convention d'Unity.
   - **Collision** — une enveloppe convexe ou une **décomposition convexe CoACD**, nommée selon la convention du moteur (`UCX_*` pour l'import automatique d'Unreal, suffixes `-convcolonly` pour Godot).
-  - **UV2 de lightmap** — un second canal UV, déplié par projection intelligente, pour l'éclairage précalculé.
-- **Flux en deux étapes** — les boutons affichent **Generate FBX/USD/GLB** pour une combinaison qui n'existe pas encore ; un clic déclenche la conversion côté serveur (une ligne de statut vous tient informé — les gros modèles peuvent prendre une minute ou deux). Une fois généré, le bouton passe à **Download** avec un ✓ et livre instantanément. Chaque combinaison distincte est mise en cache — rien n'est jamais régénéré.
+  - **UV2 lightmap** — un second canal UV, déplié par projection intelligente, pour l'éclairage précalculé.
+- **Flux en deux étapes** — les boutons affichent **Générer FBX/USD/GLB** pour une combinaison qui n'existe pas encore ; un clic déclenche la conversion côté serveur (une ligne de statut vous tient informé — les gros modèles peuvent prendre une minute ou deux). Une fois généré, le bouton passe à **Télécharger** avec un ✓ et livre instantanément. Chaque combinaison distincte est mise en cache — rien n'est jamais régénéré.
 - **Pastilles « prêt à télécharger »** — l'onglet 3D liste toutes les combinaisons déjà générées pour la version courante, un clic pour retélécharger n'importe laquelle.
-- **Le GLB original est sacré** — « Download GLB (original) » renvoie toujours la sortie intacte, identique à l'octet près, du pipeline de génération. Les exports traités (y compris un GLB traité avec LODs/collision intégrés) sont des fichiers nommés séparément à côté de lui.
-- **Zéro installation** — les conversions s'exécutent côté serveur via un Blender headless géré : une installation existante est réutilisée si présente, sinon une copie portable se télécharge automatiquement à la première utilisation (voir l'onglet Model Settings → Maintenance pour la version et les mises à jour). Les utilisateurs finaux n'installent rien.
+- **Le GLB original est sacré** — « Télécharger GLB (original) » renvoie toujours la sortie intacte, identique à l'octet près, du pipeline de génération. Les exports traités (y compris un GLB traité avec LOD/collision intégrés) sont des fichiers nommés séparément à côté de lui.
+- **Zéro installation** — les conversions s'exécutent côté serveur via un Blender headless géré : une installation existante est réutilisée si présente, sinon une copie portable se télécharge automatiquement à la première utilisation (voir Paramètres des modèles → onglet Maintenance pour la version et les mises à jour). Les utilisateurs finaux n'installent rien.
 
 ### 📝 1.9.2 À quoi s'attendre de la 3D générée par IA — Un guide honnête
 
@@ -435,14 +435,14 @@ L'image-to-3D est une technologie jeune, et il vaut la peine de savoir ce que le
 | Props, éléments de décor, habillage de scène | ✅ Oui — utilisable tel quel |
 | Personnages d'arrière-plan / de moyenne distance, foules | ✅ Oui — à distance, le bruit de surface disparaît ; utilisez la chaîne de LOD |
 | Prototypage, blockouts, préviz, démos de pitch | ✅ Oui — sans doute le cas d'usage le plus fort |
-| Jeux mobiles / stylisés | ✅ Souvent — les LODs décimés aident |
+| Jeux mobiles / stylisés | ✅ Souvent — les LOD décimés aident |
 | Personnages héros, gros plans, personnages animés | ⚠️ Un point de départ — prévoyez retopologie, nettoyage et rigging par un artiste |
 
 Ce qu'ArtSmoker ajoute par-dessus le maillage brut, c'est que tout arrive **correctement empaqueté pour votre moteur** — bon axe vertical par cible, chaîne de LOD, proxys de collision, packing de textures spécifique au moteur — pour que le travail restant soit créatif, pas de la plomberie.
 
 **Vous inspectez les exports dans Blender (ou un autre outil DCC) ? Deux choses paraîtront étranges — les deux sont normales :**
 
-- **Généré avec des LODs ?** Le fichier contient **4 copies empilées** du modèle (LOD0–3). Vues ensemble, elles scintillent (z-fighting) et paraissent bruitées — masquez LOD1–3 dans l'Outliner et jugez la qualité sur LOD0 seul. Les moteurs de jeu n'affichent qu'un seul LOD à la fois, donc cela n'arrive jamais en moteur.
+- **Généré avec des LOD ?** Le fichier contient **4 copies empilées** du modèle (LOD0–3). Vues ensemble, elles scintillent (z-fighting) et paraissent bruitées — masquez LOD1–3 dans l'Outliner et jugez la qualité sur LOD0 seul. Les moteurs de jeu n'affichent qu'un seul LOD à la fois, donc cela n'arrive jamais en moteur.
 - **Généré avec collision ?** Une coque blanche et anguleuse de maillages `UCX_*` **enveloppe le modèle** — c'est le proxy physique, pas votre asset. Masquez ces objets pour voir le modèle texturé à l'intérieur. Les moteurs les importent automatiquement comme collision invisible.
 
 ### 📝 1.9.3 Utiliser un modèle commercialement — qui payer, et comment
@@ -503,28 +503,28 @@ aws sts get-caller-identity
 Confirmer que les identifiants fonctionnent (`sts:GetCallerIdentity`) ne vérifie que l'identité — cela ne confirme pas que vous disposez des permissions Bedrock. ArtSmoker utilise plusieurs API Bedrock, donc un simple test de listing ne suffit pas. La vérification la plus fiable :
 
 ```bash
-# Test 1: Can you list models? (requires bedrock:ListFoundationModels)
+# Test 1 : pouvez-vous lister les modèles ? (nécessite bedrock:ListFoundationModels)
 aws bedrock list-foundation-models --region us-east-1 --query "modelSummaries[0].modelId" --output text
 
-# Test 2: Can you invoke an image model? (requires bedrock:InvokeModel)
-# (e.g. Stable Diffusion 3.5 Large — substitute any image model ID from Test 1's
-#  list if this one isn't offered in your account or Region.)
+# Test 2 : pouvez-vous invoquer un modèle d'image ? (nécessite bedrock:InvokeModel)
+# (p. ex. Stable Diffusion 3.5 Large — remplacez-le par n'importe quel ID de modèle
+#  d'image de la liste du test 1 s'il n'est pas proposé dans votre compte ou Région.)
 aws bedrock-runtime invoke-model --region us-west-2 \
   --model-id stability.sd3-5-large-v1:0 \
   --content-type application/json --accept application/json \
   --body '{"prompt":"test","aspect_ratio":"1:1"}' \
   /dev/null 2>&1 && echo "InvokeModel: OK" || echo "InvokeModel: FAILED"
 
-# Test 3: Can you use the Converse API? (authorizes via bedrock:InvokeModel)
-# (Substitute any Claude model ID you have access to — e.g. the current Sonnet
-#  inference profile from Test 1's list; the exact version rolls over time.)
+# Test 3 : pouvez-vous utiliser l'API Converse ? (autorisée via bedrock:InvokeModel)
+# (Remplacez par n'importe quel ID de modèle Claude auquel vous avez accès — p. ex. le
+#  profil d'inférence Sonnet actuel de la liste du test 1 ; la version exacte évolue.)
 aws bedrock-runtime converse --region us-west-2 \
   --model-id us.anthropic.claude-sonnet-5 \
   --messages '[{"role":"user","content":[{"text":"hi"}]}]' \
   --inference-config '{"maxTokens":1}' \
   --query "output.message.content[0].text" --output text 2>&1 && echo "Converse: OK" || echo "Converse: FAILED"
 
-# Test 4: Can you list custom models? (requires bedrock:ListCustomModels)
+# Test 4 : pouvez-vous lister les modèles personnalisés ? (nécessite bedrock:ListCustomModels)
 aws bedrock list-custom-models --region us-east-1 \
   --query "modelSummaries[0].modelName" --output text 2>&1 && echo "ListCustomModels: OK" || echo "ListCustomModels: no custom models (or permission denied)"
 ```
@@ -540,12 +540,12 @@ Votre utilisateur IAM, votre rôle ou votre instance profile a besoin de ces per
 | Permission | Utilisée pour |
 |------------|---------------|
 | `bedrock:InvokeModel` | Génération d'images, édition d'images, post-traitement (tous les modèles d'image) |
-| `bedrock:InvokeModelWithResponseStream` | Réponses LLM en streaming (Chat Studio) — l'API ConverseStream s'autorise via cette action. L'API Converse non-streaming (affinage de prompts, analyse de style, génération de concepts) s'autorise via `bedrock:InvokeModel` — il n'existe pas d'action `bedrock:Converse` distincte |
+| `bedrock:InvokeModelWithResponseStream` | Réponses LLM en streaming (Studio de Chat) — l'API ConverseStream s'autorise via cette action. L'API Converse non-streaming (affinage de prompts, analyse de style, génération de concepts) s'autorise via `bedrock:InvokeModel` — il n'existe pas d'action `bedrock:Converse` distincte |
 | `bedrock:InvokeModelWithBidirectionalStream` | Transcription vocale (optionnel — l'app fonctionne sans) |
 | `bedrock:StartAsyncInvoke` | Génération vidéo (invocation asynchrone ; l'opération elle-même est autorisée via `bedrock:InvokeModel`, également accordée) |
-| `bedrock:GetAsyncInvoke` | Interroger le statut des jobs de génération vidéo |
-| `bedrock:ListAsyncInvokes` | Lister les jobs de génération vidéo |
-| `bedrock:ListFoundationModels` | Découverte des modèles de fondation (Sync from AWS) |
+| `bedrock:GetAsyncInvoke` | Interroger le statut des tâches de génération vidéo |
+| `bedrock:ListAsyncInvokes` | Lister les tâches de génération vidéo |
+| `bedrock:ListFoundationModels` | Découverte des modèles de fondation (Synchroniser depuis AWS) |
 | `bedrock:ListCustomModels` | Découverte des modèles personnalisés fine-tunés de votre compte |
 | `bedrock:ListImportedModels` | Découverte des modèles importés de votre compte |
 | `bedrock:GetCustomModel` | Lire les détails d'un modèle personnalisé (modèle de base, statut) |
@@ -556,38 +556,38 @@ Votre utilisateur IAM, votre rôle ou votre instance profile a besoin de ces per
 | `account:ListRegions` | Scanner uniquement les régions **activées** de votre compte pendant le Sync (rapide, pas d'erreurs sur les régions opt‑in). Optionnel — se rabat sur le scan de toutes les régions. |
 | `account:GetRegionOptStatus` | Lire le statut opt‑in par région (complément de `account:ListRegions`). Optionnel. |
 | `s3:CreateBucket` | Créer un bucket S3 pour le stockage vidéo (optionnel, via l'UI) |
-| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Stockage et récupération des sorties vidéo ; entrées/sorties des jobs asynchrones et artefacts 3D pour les Custom Models |
-| `s3:ListAllMyBuckets` | Le navigateur de buckets S3 dans Video Settings / l'import de styles (optionnel) |
-| `s3:GetLifecycleConfiguration` / `s3:PutLifecycleConfiguration` | Règles d'expiration automatique des fichiers temporaires des jobs asynchrones sur le bucket de déploiement (Custom Models) |
+| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Stockage et récupération des sorties vidéo ; entrées/sorties des tâches asynchrones et artefacts 3D pour les Modèles Personnalisés |
+| `s3:ListAllMyBuckets` | Le navigateur de buckets S3 dans Paramètres vidéo / l'import de styles (optionnel) |
+| `s3:GetLifecycleConfiguration` / `s3:PutLifecycleConfiguration` | Règles d'expiration automatique des fichiers temporaires des tâches asynchrones sur le bucket de déploiement (Modèles Personnalisés) |
 | `aws-marketplace:Subscribe` | Auto-abonnement à la première utilisation de modèles tiers (y compris les modèles Mantle tiers) |
 | `aws-marketplace:ViewSubscriptions` | Vérifier les abonnements aux modèles existants |
 | `sts:GetCallerIdentity` | Validation des identifiants au démarrage ; sous-tend également le jeton porteur Mantle signé localement |
-| `pricing:GetProducts` | Récupérer les tarifs des modèles pendant le Sync from AWS (optionnel) |
-| `sagemaker:*` | Modèles personnalisés auto-hébergés sur Amazon SageMaker (optionnel — uniquement si vous utilisez les Custom Models) |
-| `application-autoscaling:*` (enregistrer/désenregistrer des cibles, créer/supprimer/décrire des politiques) | Mise à l'échelle vers zéro + depuis zéro des endpoints Custom Models (optionnel — uniquement pour les Custom Models) |
-| `cloudwatch:PutMetricAlarm` / `DeleteAlarms` / `DescribeAlarms` | L'alarme de backlog pour la mise à l'échelle depuis zéro des endpoints Custom Models (optionnel) |
-| `logs:DescribeLogStreams` / `FilterLogEvents` / `GetLogEvents` / `PutRetentionPolicy` | Détection de disponibilité des endpoints + rétention des journaux pour les Custom Models (optionnel) |
+| `pricing:GetProducts` | Récupérer les tarifs des modèles pendant « Synchroniser depuis AWS » (optionnel) |
+| `sagemaker:*` | Modèles personnalisés auto-hébergés sur Amazon SageMaker (optionnel — uniquement si vous utilisez les Modèles Personnalisés) |
+| `application-autoscaling:*` (enregistrer/désenregistrer des cibles, créer/supprimer/décrire des politiques) | Mise à l'échelle vers zéro + depuis zéro des endpoints des Modèles Personnalisés (optionnel — uniquement pour les Modèles Personnalisés) |
+| `cloudwatch:PutMetricAlarm` / `DeleteAlarms` / `DescribeAlarms` | L'alarme de backlog pour la mise à l'échelle depuis zéro des endpoints des Modèles Personnalisés (optionnel) |
+| `logs:DescribeLogStreams` / `FilterLogEvents` / `GetLogEvents` / `PutRetentionPolicy` | Détection de disponibilité des endpoints + rétention des journaux pour les Modèles Personnalisés (optionnel) |
 | `servicequotas:GetServiceQuota` / `RequestServiceQuotaIncrease` | Vérification du quota d'instances GPU / demande d'augmentation en un clic dans la boîte de dialogue de déploiement (optionnel) |
 | `ecr:DescribeRepositories` | Résolution de l'image SageMaker Deep Learning Container au déploiement (optionnel) |
 | `iam:CreateServiceLinkedRole` (limité à `sagemaker.application-autoscaling.amazonaws.com`) | La toute première mise à l'échelle automatique d'un endpoint dans le compte crée automatiquement `AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint` (optionnel — inutile si ce rôle existe déjà) |
-| `iam:PassRole` | Autoriser Amazon SageMaker à utiliser votre rôle (optionnel — uniquement pour les Custom Models) |
-| `iam:CreateRole` / `iam:AttachRolePolicy` / `iam:PutRolePolicy` | Auto-création du rôle d'exécution Amazon SageMaker au premier déploiement (optionnel — uniquement pour les Custom Models) |
+| `iam:PassRole` | Autoriser Amazon SageMaker à utiliser votre rôle (optionnel — uniquement pour les Modèles Personnalisés) |
+| `iam:CreateRole` / `iam:AttachRolePolicy` / `iam:PutRolePolicy` | Auto-création du rôle d'exécution Amazon SageMaker au premier déploiement (optionnel — uniquement pour les Modèles Personnalisés) |
 | `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Auto-configuration d'un rôle existant pour la relation de confiance Amazon SageMaker (optionnel) |
 | `secretsmanager:CreateSecret` / `UpdateSecret` / `GetSecretValue` / `DescribeSecret` / `DeleteSecret` | Stockage chiffré des jetons HuggingFace pour les modèles à accès restreint (optionnel — nettoyé automatiquement au teardown) |
 
 **Configuration la plus rapide** (politiques managées — accès le plus large) :
 
 ```bash
-# Option A: Attach managed policies to your IAM user (simplest for local development)
+# Option A : attacher des politiques managées à votre utilisateur IAM (le plus simple en développement local)
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
 
-# Amazon Bedrock Mantle endpoint — needed for frontier models (e.g. OpenAI GPT-5.x,
-# Claude Mythos, GLM, Grok). Skip only if you won't use Mantle-only models.
+# Endpoint Amazon Bedrock Mantle — requis pour les modèles de pointe (p. ex. OpenAI GPT-5.x,
+# Claude Mythos, GLM, Grok). À omettre uniquement si vous n'utilisez aucun modèle exclusif à Mantle.
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockMantleInferenceAccess
 
-# Add S3 access for video storage
+# Ajouter l'accès S3 pour le stockage vidéo
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
 ```
@@ -595,7 +595,7 @@ aws iam attach-user-policy --user-name YOUR_USERNAME \
 **Configuration à portée restreinte** (permissions plus strictes — recommandée pour la production) :
 
 ```bash
-# Create a scoped IAM policy with only the permissions ArtSmoker needs
+# Créer une politique IAM ciblée avec uniquement les permissions dont ArtSmoker a besoin
 aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
   "Version": "2012-10-17",
   "Statement": [
@@ -702,13 +702,13 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
   ]
 }'
 
-# Attach to your IAM user (replace YOUR_ACCOUNT_ID and YOUR_USERNAME)
+# Attacher à votre utilisateur IAM (remplacez YOUR_ACCOUNT_ID et YOUR_USERNAME)
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/ArtSmokerAccess
 ```
 
 > [!NOTE]
-> **Deux points à ajuster pour votre compte :** (1) La déclaration S3 est limitée aux buckets nommés `artsmoker-*` — si vous pointez ArtSmoker vers un bucket portant un autre nom (Video Settings permet de choisir n'importe quel bucket existant), élargissez ce `Resource` à l'ARN de votre bucket. (2) Les ressources SageMaker créées par ArtSmoker sont nommées `artsmoker-*`, donc le `Resource` ciblé fonctionne tel quel ; les actions `sagemaker:List*` ne prennent pas en charge le ciblage par ressource et figurent dans une déclaration séparée.
+> **Deux points à ajuster pour votre compte :** (1) La déclaration S3 est limitée aux buckets nommés `artsmoker-*` — si vous pointez ArtSmoker vers un bucket portant un autre nom (Paramètres vidéo permet de choisir n'importe quel bucket existant), élargissez ce `Resource` à l'ARN de votre bucket. (2) Les ressources SageMaker créées par ArtSmoker sont nommées `artsmoker-*`, donc le `Resource` ciblé fonctionne tel quel ; les actions `sagemaker:List*` ne prennent pas en charge le ciblage par ressource et figurent dans une déclaration séparée.
 >
 > **Une permission manque à l'exécution ?** ArtSmoker surveille chaque appel AWS : si un appel est refusé, il journalise le `service:Operation` exact qui a échoué et affiche une notification persistante dans l'application nommant l'action à ajouter — un manque de permission n'échoue jamais en silence.
 
@@ -730,18 +730,18 @@ La conversion SVG utilise des outils CLI externes (pas des paquets Python). Sans
 Vérifier l'installation :
 
 ```bash
-# Check SVG conversion tools
+# Vérifier les outils de conversion SVG
 which vtracer && echo "vtracer: OK" || echo "vtracer: not installed (optional)"
 which potrace && echo "potrace: OK" || echo "potrace: not installed (optional)"
 ```
 
 ### 📝 2.4 Optionnel : outils de vignettes et métadonnées vidéo
 
-Video Studio génère des vidéos MP4 via les modèles vidéo d'Amazon Bedrock (p. ex. Luma AI Ray). Pour extraire les vignettes (première frame en JPEG) et les métadonnées vidéo (durée, résolution, FPS), **ffmpeg** et **ffprobe** doivent être installés sur la machine qui exécute le backend ArtSmoker.
+Le Studio Vidéo génère des vidéos MP4 via les modèles vidéo d'Amazon Bedrock (p. ex. Luma AI Ray). Pour extraire les vignettes (première frame en JPEG) et les métadonnées vidéo (durée, résolution, FPS), **ffmpeg** et **ffprobe** doivent être installés sur la machine qui exécute le backend ArtSmoker.
 
 Sans ffmpeg :
 - Les vidéos se génèrent et se lisent toujours correctement (streamées depuis S3 ou téléchargées en MP4)
-- Les vignettes seront manquantes — la Galerie et le Video Studio affichent un placeholder noir au lieu d'une image d'aperçu
+- Les vignettes seront manquantes — la Galerie et le Studio Vidéo affichent un placeholder noir au lieu d'une image d'aperçu
 - Les métadonnées vidéo (durée, résolution) ne s'afficheront pas
 
 | Outil | But | macOS | Linux (Debian/Ubuntu) | Windows |
@@ -767,12 +767,12 @@ ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not inst
 ```bash
 git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 
-# Option A: With virtual environment (recommended)
+# Option A : avec un environnement virtuel (recommandé)
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 
-# Option B: Without virtual environment (system-wide install)
+# Option B : sans environnement virtuel (installation au niveau du système)
 pip3 install -r backend/requirements.txt
 ```
 
@@ -782,17 +782,17 @@ pip3 install -r backend/requirements.txt
 ### 📝 3.2 Linux (Debian/Ubuntu)
 
 ```bash
-# Install Python if needed
+# Installer Python si nécessaire
 sudo apt update && sudo apt install python3 python3-pip python3-venv
 
 git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 
-# Option A: With virtual environment (recommended)
+# Option A : avec un environnement virtuel (recommandé)
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 
-# Option B: Without virtual environment
+# Option B : sans environnement virtuel
 pip3 install --user -r backend/requirements.txt
 ```
 
@@ -810,17 +810,17 @@ pip3 install --user -r backend/requirements.txt
 git clone https://github.com/niravdd/ArtSmoker.git
 cd ArtSmoker
 
-# Option A: With virtual environment (recommended)
+# Option A : avec un environnement virtuel (recommandé)
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r backend\requirements.txt
 
-# Option B: Without virtual environment
+# Option B : sans environnement virtuel
 pip install -r backend\requirements.txt
 ```
 
 > [!NOTE]
-> Sur Windows, utilisez `python` (pas `python3`). Installez Python 3.12, 3.13 ou 3.14 depuis [python.org](https://www.python.org/downloads/) — cochez « Add to PATH » pendant l'installation. Si plusieurs versions sont installées, choisissez-en une avec le lanceur : `py -3.14 -m venv .venv`. Si PowerShell refuse d'exécuter `.venv\Scripts\activate` (« running scripts is disabled »), autorisez-le une fois avec `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, ou utilisez `.venv\Scripts\activate.bat` depuis cmd. Le sélecteur de polices de Type Studio détecte les polices depuis `C:\Windows\Fonts` (la détection des polices système n'est actuellement disponible que sur macOS/Linux — les utilisateurs Windows peuvent utiliser des polices personnalisées globales ou spécifiques au style).
+> Sur Windows, utilisez `python` (pas `python3`). Installez Python 3.12, 3.13 ou 3.14 depuis [python.org](https://www.python.org/downloads/) — cochez « Add to PATH » pendant l'installation. Si plusieurs versions sont installées, choisissez-en une avec le lanceur : `py -3.14 -m venv .venv`. Si PowerShell refuse d'exécuter `.venv\Scripts\activate` (« running scripts is disabled »), autorisez-le une fois avec `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, ou utilisez `.venv\Scripts\activate.bat` depuis cmd. Le sélecteur de polices du Studio de Texte détecte les polices depuis `C:\Windows\Fonts` (la détection des polices système n'est actuellement disponible que sur macOS/Linux — les utilisateurs Windows peuvent utiliser des polices personnalisées globales ou spécifiques au style).
 
 <a id="running"></a>
 
@@ -831,7 +831,7 @@ pip install -r backend\requirements.txt
 Processus unique avec rechargement automatique à chaque modification de fichier — idéal pour un seul développeur travaillant localement :
 
 ```bash
-# With venv (activate first)
+# Avec venv (activez-le d'abord)
 source .venv/bin/activate          # macOS / Linux
 .venv\Scripts\activate             # Windows
 
@@ -839,10 +839,10 @@ uvicorn backend.main:app --reload
 ```
 
 ```bash
-# Without venv (if installed system-wide)
+# Sans venv (si installé au niveau du système)
 uvicorn backend.main:app --reload
 
-# Or if uvicorn isn't on PATH
+# Ou si uvicorn n'est pas dans le PATH
 python3 -m uvicorn backend.main:app --reload     # macOS / Linux
 python -m uvicorn backend.main:app --reload       # Windows
 ```
@@ -854,13 +854,13 @@ Au démarrage, la console affiche les résultats de la validation des identifian
 **Logs.** En plus de la console, ArtSmoker écrit un journal complet en **ajout seul** (append-only) dans `logs/artsmoker.log` **par défaut**, afin que vous puissiez revoir une session passée après la fermeture de l'application. Chaque exécution est encadrée par une bannière de session (heure de lancement, version, pid, hôte) et clôturée par une bannière d'arrêt (heure d'arrêt, durée). Pour changer le chemin ou le désactiver :
 
 ```bash
-ARTSMOKER_LOG_FILE=/var/log/artsmoker/app.log uvicorn backend.main:app   # custom path
-ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # disable file logging
+ARTSMOKER_LOG_FILE=/var/log/artsmoker/app.log uvicorn backend.main:app   # chemin personnalisé
+ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # désactiver la journalisation dans un fichier
 ```
 
 (Ou définissez `log_to_file` / `log_file` dans un `.env` local. Avec plusieurs workers, chaque worker ajoute au même fichier.)
 
-**Redémarrage automatique (optionnel, toutes les plateformes).** Les commandes ci-dessus fonctionnent telles quelles. Pour permettre en plus à ArtSmoker de **se redémarrer sur place** — de sorte qu'une mise à jour automatique, ou le bouton **Redémarrage** de l'application, recharge le nouveau code sans que vous ayez à le relancer — démarrez-le plutôt via le superviseur multiplateforme intégré :
+**Redémarrage automatique (optionnel, toutes les plateformes).** Les commandes ci-dessus fonctionnent telles quelles. Pour permettre en plus à ArtSmoker de **se redémarrer sur place** — de sorte qu'une mise à jour automatique, ou le bouton **Redémarrer maintenant** de l'application, recharge le nouveau code sans que vous ayez à le relancer — démarrez-le plutôt via le superviseur multiplateforme intégré :
 
 ```bash
 python -m backend.main            # ajoutez --host / --port au besoin ; Ctrl-C l'arrête proprement
@@ -873,10 +873,10 @@ Cela fonctionne sur **tous les systèmes d'exploitation, y compris Windows**. Le
 Pour tout environnement avec plus d'un utilisateur simultané — qu'il s'agisse d'une machine de dev/test partagée, d'un staging ou d'une production — utilisez **gunicorn** avec plusieurs workers :
 
 ```bash
-# Install gunicorn (one-time, in addition to requirements.txt)
+# Installer gunicorn (une seule fois, en plus de requirements.txt)
 pip install gunicorn
 
-# Run with gunicorn (multi-worker, handles concurrent users)
+# Lancer avec gunicorn (multi-worker, gère les utilisateurs simultanés)
 gunicorn backend.main:app \
   -w 2 \
   -k uvicorn.workers.UvicornWorker \
@@ -906,7 +906,7 @@ Recommandé : **t3.small** (~$15/mois) pour 1-2 utilisateurs simultanés.
 **Étape 1 : Créer un rôle IAM pour l'instance EC2** (à exécuter depuis votre machine locale) :
 
 ```bash
-# Create the IAM role with EC2 trust policy
+# Créer le rôle IAM avec une politique de confiance EC2
 aws iam create-role --role-name ArtSmokerEC2Role \
   --assume-role-policy-document '{
     "Version": "2012-10-17",
@@ -917,13 +917,13 @@ aws iam create-role --role-name ArtSmokerEC2Role \
     }]
   }'
 
-# Attach the ArtSmoker policy (use the scoped policy from section 2.2, or the managed policy)
+# Attacher la politique ArtSmoker (la politique ciblée de la section 2.2, ou la politique managée)
 aws iam attach-role-policy --role-name ArtSmokerEC2Role \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
 aws iam attach-role-policy --role-name ArtSmokerEC2Role \
   --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
 
-# Create an instance profile and attach the role
+# Créer un profil d'instance et y attacher le rôle
 aws iam create-instance-profile --instance-profile-name ArtSmokerEC2Profile
 aws iam add-role-to-instance-profile \
   --instance-profile-name ArtSmokerEC2Profile \
@@ -933,7 +933,7 @@ aws iam add-role-to-instance-profile \
 **Étape 2 : Lancer une instance EC2** (ou attacher le profil à une instance existante) :
 
 ```bash
-# Attach to an existing running instance
+# Attacher à une instance existante en cours d'exécution
 aws ec2 associate-iam-instance-profile \
   --instance-id i-YOUR_INSTANCE_ID \
   --iam-instance-profile Name=ArtSmokerEC2Profile
@@ -942,7 +942,7 @@ aws ec2 associate-iam-instance-profile \
 **Étape 3 : Installer et exécuter sur l'instance** (SSH sur l'instance) :
 
 ```bash
-# Install (one-time)
+# Installation (une seule fois)
 sudo yum install -y python3 python3-pip git   # Amazon Linux
 # sudo apt install -y python3 python3-pip python3-venv git   # Ubuntu
 
@@ -952,7 +952,7 @@ source .venv/bin/activate
 pip install -r backend/requirements.txt
 pip install gunicorn
 
-# Optional: install ffmpeg for video thumbnails
+# Optionnel : installer ffmpeg pour les vignettes vidéo
 sudo yum install -y ffmpeg   # Amazon Linux
 # sudo apt install -y ffmpeg   # Ubuntu
 ```
@@ -960,7 +960,7 @@ sudo yum install -y ffmpeg   # Amazon Linux
 **Étape 4 : Exécuter comme service systemd** (persistant, redémarrage automatique) :
 
 ```bash
-# Create the service file
+# Créer le fichier de service
 sudo tee /etc/systemd/system/artsmoker.service > /dev/null << 'EOF'
 [Unit]
 Description=ArtSmoker
@@ -977,101 +977,103 @@ User=ec2-user
 WantedBy=multi-user.target
 EOF
 
-# Enable and start
+# Activer et démarrer
 sudo systemctl daemon-reload
 sudo systemctl enable artsmoker
 sudo systemctl start artsmoker
 
-# Verify it's running
+# Vérifier que le service tourne
 sudo systemctl status artsmoker
 
-# View logs
+# Consulter les journaux
 sudo journalctl -u artsmoker -f
 ```
 
 Ouvrez **http://YOUR_INSTANCE_IP:8000** — assurez-vous que votre security group EC2 autorise le trafic TCP entrant sur le port 8000.
 
+Si vous accédez à ArtSmoker par un nom DNS plutôt que par une adresse IP (p. ex. `artsmoker.example.com`), ajoutez ce nom : `ARTSMOKER_ALLOWED_HOSTS=artsmoker.example.com`. ArtSmoker refuse les noms d'hôte inconnus, ce qui le protège contre le DNS rebinding.
+
 ### 📝 4.4 Premières étapes après l'installation
 
 Une fois ArtSmoker en cours d'exécution, effectuez ces étapes pour obtenir les meilleurs résultats :
 
-**1. Synchroniser les modèles depuis AWS** — Ouvrez **Model Settings** (icône engrenage dans n'importe quel studio) → cliquez sur **Sync from AWS**. Cela découvre tous les modèles d'image, vidéo et chat disponibles dans toutes les régions Bedrock. Prend 30-60 secondes. Nécessaire une seule fois, ou lorsqu'AWS ajoute de nouveaux modèles.
+**1. Synchroniser les modèles depuis AWS** — Ouvrez **Paramètres du modèle** (icône engrenage dans n'importe quel studio) → cliquez sur **Synchroniser depuis AWS**. Cela découvre tous les modèles d'image, vidéo et chat disponibles dans toutes les régions Bedrock. Prend 30-60 secondes. Nécessaire une seule fois, ou lorsqu'AWS ajoute de nouveaux modèles.
 
-**2. Passer en revue et personnaliser les prompt templates** — C'est la configuration la plus impactante que vous puissiez faire. Ouvrez l'onglet **Model Settings → Prompt Templates**. ArtSmoker utilise 28 prompts directifs éditables qui contrôlent le comportement de l'IA :
+**2. Passer en revue et personnaliser les modèles de prompt** — C'est la configuration la plus impactante que vous puissiez faire. Ouvrez l'onglet **Paramètres des modèles → Modèles de Prompt**. ArtSmoker utilise 28 prompts directifs éditables qui contrôlent le comportement de l'IA :
 
 | Template | Ce qu'il contrôle |
 |----------|-------------------|
-| Image Prompt Refinement | Comment vos descriptions textuelles sont transformées en prompts de génération d'images détaillés |
-| Multi-Concept Generation | Comment plusieurs options créatives sont générées à partir d'une seule idée |
-| Style Analysis | Comment les images de référence sont analysées pour apprendre votre style artistique |
-| Content Moderation | À quel point le système de pré-vérification et de réécriture est strict |
-| Video Enhancement | Comment les prompts vidéo sont enrichis de mouvements de caméra et d'éclairage |
-| Text Layout | Comment Type Studio conçoit le positionnement du texte sur les images |
+| Affinage du prompt | Comment vos descriptions textuelles sont transformées en prompts de génération d'images détaillés |
+| Options créatives | Comment plusieurs options créatives sont générées à partir d'une seule idée |
+| Analyse de style | Comment les images de référence sont analysées pour apprendre votre style artistique |
+| Pré-filtrage / Réécriture | À quel point le système de pré-vérification et de réécriture est strict |
+| Amélioration du prompt vidéo | Comment les prompts vidéo sont enrichis de mouvements de caméra et d'éclairage |
+| Studio de Texte : mise en page du texte | Comment le Studio de Texte conçoit le positionnement du texte sur les images |
 
 Chaque template peut être :
 - **Édité directement** — modifiez les instructions pour correspondre aux besoins de votre équipe
-- **Amélioré avec l'IA** — sélectionnez n'importe quel modèle LLM, ajoutez éventuellement des instructions (par ex. « optimize for pixel art »), et cliquez sur « Enhance with AI ». Examinez la suggestion, puis acceptez ou rejetez
+- **Amélioré avec l'IA** — sélectionnez n'importe quel modèle LLM, ajoutez éventuellement des instructions (par ex. « optimiser pour le pixel art »), et cliquez sur « Améliorer avec l'IA ». Examinez la suggestion, puis cliquez sur Accepter ou Ignorer
 - **Réinitialisé par défaut** — restaurez l'original à tout moment
 
-Les templates sont organisés par studio (Image Studio, Style Library, Content Safety, Video Studio, Type Studio, Chat Studio, Translation) avec des descriptions conviviales de ce que chacun contrôle.
+Les templates sont organisés par studio (Studio Image, Bibliothèque de styles, Sécurité du contenu, Studio Vidéo, Studio de Texte, Studio de Chat, Traduction) avec des descriptions conviviales de ce que chacun contrôle.
 
 **Sécurité des variables :** Les templates utilisent des variables `{curly_brace}` (par ex. `{user_prompt}`, `{model_name}`) qui sont substituées au runtime. Si vous supprimez accidentellement une variable requise, ArtSmoker va :
 1. Bloquer la sauvegarde et indiquer quelles variables manquent
-2. Proposer **« Fix & Save »** — un LLM réinsère automatiquement les variables manquantes aux bons endroits de votre texte édité
+2. Proposer **« Corriger et enregistrer »** — un LLM réinsère automatiquement les variables manquantes aux bons endroits de votre texte édité
 3. Vérifier la correction avant de sauvegarder
 
 Les templates se chargent depuis `backend/prompt_templates.json` — la source de vérité au runtime. Vos modifications sont enregistrées dans `backend/prompt_templates.user.json` (gitignored) et superposées par-dessus, de sorte qu'une mise à jour ou un `git pull` n'écrase jamais vos personnalisations. Si le JSON est manquant ou corrompu, ou qu'un nouveau template arrive dans le code, il s'auto-répare : la semence de code intégrée régénère/complète uniquement les entrées manquantes, sans jamais écraser les existantes.
 
 > [!TIP]
-> Commencez par examiner les templates **Image Prompt Refinement** et **Creative Options**. Ce sont ceux qui ont le plus d'impact sur la qualité de sortie. Si votre équipe est spécialisée dans un style artistique particulier (par ex. pixel art, aquarelle, isométrique), ajoutez ces préférences directement dans les templates pour que chaque génération en bénéficie.
+> Commencez par examiner les templates **Affinage du prompt** et **Options créatives**. Ce sont ceux qui ont le plus d'impact sur la qualité de sortie. Si votre équipe est spécialisée dans un style artistique particulier (par ex. pixel art, aquarelle, isométrique), ajoutez ces préférences directement dans les templates pour que chaque génération en bénéficie.
 
-**3. Configurer un profil de style** (optionnel) — Allez dans **Style Library**, créez un nouveau style, téléchargez des images de référence, et cliquez sur **Analyze**. Cela apprend à ArtSmoker votre identité visuelle.
+**3. Configurer un profil de style** (optionnel) — Allez dans **Bibliothèque de styles**, créez un nouveau style, téléchargez des images de référence, et cliquez sur **Analyser le style**. Cela apprend à ArtSmoker votre identité visuelle.
 
 **4. Choisir votre langue** — Cliquez sur un bouton de langue dans la barre de navigation (EN | 日 | 中 | 한 | हिं | РУ | FR | ES | DE) si vous préférez une interface non anglaise.
 
 ## 📌 5. Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│  Browser (SPA)                              │
-│  Vanilla JS + Tailwind CSS                  │
-└──────────────────────┬──────────────────────┘
-                       │ HTTP / SSE
-                       ▼
-┌─────────────────────────────────────────────┐
-│  FastAPI Backend (Python)                   │
-│                                             │
-│  /api/styles      Style CRUD + import       │
-│  /api/generate    Two-level generation      │
-│  /api/type-studio Text overlay + fonts      │
-│  /api/video       Video generation + jobs   │
-│  /api/chat        LLM chat + sessions       │
-│  /api/gallery     Asset browsing + export   │
-│  /api/browse      File/S3 browser           │
-│  /api/admin       Model registry + templates│
-│  /api/refine-prompt  Prompt + translate      │
-│  /api/transcribe  Voice-to-text             │
-└────────────┬────────────────────┬───────────┘
-             │                    │
-             ▼                    ▼
-┌──────────────────────┐  ┌──────────────────────────┐
-│  us-west-2           │  │  us-east-1               │
-│                      │  │                          │
-│  LLMs (e.g. Claude)  │  │  Voice (Nova Sonic)      │
-│  Image generation    │  │                          │
-│  Image editing       │  │                          │
-│    e.g. Stability AI │  │                          │
-│  Video (e.g. Luma)   │  │                          │
-└──────────────────────┘  └──────────────────────────┘ ... (other regions)
-             │
-             ▼
-┌──────────────────────┐
-│  Local Storage        │
-│  data/styles/         │
-│  data/generated/      │
-│  data/video/          │
-│  data/chat/           │
-└──────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  Navigateur (SPA)                                    │
+│  Vanilla JS + Tailwind CSS                           │
+└──────────────────────────┬───────────────────────────┘
+                           │ HTTP / SSE
+                           ▼
+┌──────────────────────────────────────────────────────┐
+│  Backend FastAPI (Python)                            │
+│                                                      │
+│  /api/styles        CRUD des styles + import         │
+│  /api/generate      Génération à deux niveaux        │
+│  /api/type-studio   Texte superposé + polices        │
+│  /api/video         Génération vidéo + tâches        │
+│  /api/chat          Chat LLM + sessions              │
+│  /api/gallery       Navigation des assets + export   │
+│  /api/browse        Explorateur fichiers/S3          │
+│  /api/admin         Registre + modèles de prompt     │
+│  /api/refine-prompt Prompt + traduction              │
+│  /api/transcribe    Voix vers texte                  │
+└───────────┬────────────────────────────┬─────────────┘
+            │                            │
+            ▼                            ▼
+┌────────────────────────┐  ┌──────────────────────────┐
+│  us-west-2             │  │  us-east-1               │
+│                        │  │                          │
+│  LLM (p. ex. Claude)   │  │  Voix (Nova Sonic)       │
+│  Génération d'images   │  │                          │
+│  Édition d'images      │  │                          │
+│    p. ex. Stability AI │  │                          │
+│  Vidéo (p. ex. Luma)   │  │                          │
+└───────────┬────────────┘  └──────────────────────────┘ ... (autres régions)
+            │
+            ▼
+┌────────────────────────┐
+│  Stockage local        │
+│  data/styles/          │
+│  data/images/          │
+│  data/video/           │
+│  data/chat/            │
+└────────────────────────┘
 ```
 
 Les Régions indiquées sont celles par défaut ; Sync épingle chaque modèle à une Région où AWS le propose. Les noms de modèles sont des exemples — voir [À propos des noms de modèles](#about-model-names).
@@ -1081,53 +1083,54 @@ Les Régions indiquées sont celles par défaut ; Sync épingle chaque modèle �
 ### 📝 6.1 Aperçu du workflow
 
 ```
-                            ┌─────────────────┐
-                            │   ArtSmoker     │
-                            └────────┬────────┘
-                                     │
-       ┌───────────┼───────────┼───────────┼───────────┐
-       │           │           │           │           │
-       ▼           ▼           ▼           ▼           ▼
-  ┌──────────┐ ┌────────┐ ┌────────┐ ┌──────────┐ ┌────────┐
-  │  Style   │ │ Image  │ │ Video  │ │   Type   │ │  Chat  │
-  │ Library  │ │ Studio │ │ Studio │ │  Studio  │ │ Studio │
-  │          │ │        │ │        │ │          │ │        │
-  │ Upload   │ │Generate│ │Generate│ │ Add text │ │ Multi- │
-  │ Analyze  │ │ images │ │ videos │ │ to imgs  │ │ model  │
-  │ Set fonts│ │        │ │        │ │          │ │ LLM    │
-  │          │ │        │ │        │ │          │ │ chat   │
-  └────┬─────┘ └───┬────┘ └───┬────┘ └────┬─────┘ └────────┘
-             │              │            │               │
-             │    ┌─────────┴────────────┴─────────┐     │
-             │    │  Style selected? (optional)    │     │
-             └───►│  Enhances output               │◄────┘
-                  └─────────┬──────────────────────┘
-                                    │
-                                    ▼
-                          ┌─────────────────┐
-                          │    Gallery      │
-                          │                 │
-                          │ Browse all      │
-                          │ Search/filter   │
-                          │ Select & delete │
-                          └────────┬────────┘
+                         ┌─────────────────┐
+                         │   ArtSmoker     │
+                         └────────┬────────┘
+                                  │
+         ┌─────────────┬──────────┼────────────┬────────────┐
+         │             │          │            │            │
+         ▼             ▼          ▼            ▼            ▼
+  ┌──────────────┐ ┌────────┐ ┌────────┐ ┌────────────┐ ┌────────┐
+  │ Bibliothèque │ │ Studio │ │ Studio │ │   Studio   │ │ Studio │
+  │  de styles   │ │ Image  │ │ Vidéo  │ │  de Texte  │ │ de Chat│
+  │              │ │        │ │        │ │            │ │        │
+  │ Importer     │ │ Générer│ │ Générer│ │ Ajouter du │ │ Chat   │
+  │ Analyser     │ │ des    │ │ des    │ │ texte aux  │ │ LLM    │
+  │ Définir les  │ │ images │ │ vidéos │ │ images     │ │ multi- │
+  │ polices      │ │        │ │        │ │            │ │ modèle │
+  └──────┬───────┘ └───┬────┘ └───┬────┘ └─────┬──────┘ └────────┘
+         │             │          │            │
+         │ ┌───────────┴──────────┴──────────┐ │
+         │ │ Style sélectionné ? (optionnel) │ │
+         └►│ Enrichit le résultat            │◄┘
+           └───────────────────────┬─────────┘
                                    │
-                    ┌──────────────┼──────────────┐
-                    │              │              │
-                    ▼              ▼              ▼
-            ┌──────────────┐ ┌──────────┐ ┌──────────────┐
-            │ Download     │ │ Reload   │ │ Add Text     │
-            │ PNG / SVG    │ │ in Image │ │ in Type      │
-            │              │ │ Studio   │ │ Studio       │
-            │              │ │ (refine &│ │ (overlay     │
-            │              │ │  regen)  │ │  text)       │
-            └──────────────┘ └──────────┘ └──────────────┘
+                                   ▼
+                      ┌────────────────────────┐
+                      │        Galerie         │
+                      │                        │
+                      │ Tout parcourir         │
+                      │ Rechercher/filtrer     │
+                      │ Sélectionner/supprimer │
+                      └────────────┬───────────┘
+                                   │
+                    ┌──────────────┼─────────────────┐
+                    │              │                 │
+                    ▼              ▼                 ▼
+            ┌──────────────┐ ┌────────────┐ ┌──────────────────┐
+            │ Télécharger  │ │ Recharger  │ │ Ajouter du texte │
+            │ PNG / SVG    │ │ dans le    │ │ dans le Studio   │
+            │              │ │ Studio     │ │ de Texte         │
+            │              │ │ Image      │ │ (superposition   │
+            │              │ │ (affiner et│ │  de texte)       │
+            │              │ │ régénérer) │ │                  │
+            └──────────────┘ └────────────┘ └──────────────────┘
 ```
 
 **Trois points d'entrée, une galerie unifiée :**
 
-- **Commencer par un style** — téléchargez de l'art de référence dans la Style Library, laissez l'IA l'analyser, puis générez dans n'importe quel studio. Le style guide toutes les sorties.
-- **Commencer sans style** — allez directement dans l'Image Studio, le Video Studio ou le Type Studio. L'IA use de son meilleur jugement.
+- **Commencer par un style** — téléchargez de l'art de référence dans la Bibliothèque de styles, laissez l'IA l'analyser, puis générez dans n'importe quel studio. Le style guide toutes les sorties.
+- **Commencer sans style** — allez directement dans le Studio Image, le Studio Vidéo ou le Studio de Texte. L'IA use de son meilleur jugement.
 - **Commencer depuis la Galerie** — choisissez n'importe quel asset précédemment généré et rechargez-le dans le studio approprié pour l'affiner, ajoutez-y du texte, lisez une vidéo, ou téléchargez en PNG/SVG/MP4.
 
 Tous les assets générés (images, vidéos, superpositions de texte, texte autonome) atterrissent dans la Galerie unifiée. Rien n'est écrasé — chaque génération crée de nouveaux assets.
@@ -1135,236 +1138,238 @@ Tous les assets générés (images, vidéos, superpositions de texte, texte auto
 ### 📝 6.2 Pipeline de génération
 
 ```
-User prompt: "hospital building"
+Prompt utilisateur : "hospital building"
          │
          ▼
-┌────────────────────────────────────────────────────────┐
-│ 1. Prompt Composition                 Fast LLM (1 opt) │
-│    (optional "Compose" button)   or Complex LLM (2-5)  │
-│    + style + asset type                                │
-└────────────────────────┬───────────────────────────────┘
-                         │
-                         ▼
-┌────────────────────────────────────────────────────────┐
-│ 2. Canary Test                                         │
-│    Single image tests moderation                       │
-│    Pass? ──► Full batch    Fail? ──► Model switch      │
-│                                  or rewrite suggestion │
-└────────────────────────┬───────────────────────────────┘
-                         │
-                         ▼
-┌────────────────────────────────────────────────────────┐
-│ 3. Parallel Image Generation                           │
-│    Up to 5 options × 5 variations = 25 images          │
-│    ThreadPool (3-5 workers)                            │
-│    Retry with exponential backoff (3 attempts)         │
-│    SSE progress streaming to browser                   │
-│    Cooperative cancellation on moderation block        │
-└────────────────────────┬───────────────────────────────┘
-                         │
-                         ▼
-┌────────────────────────────────────────────────────────┐
-│ 4. Post-Processing (per image, optional)               │
-│    Remove Background ──► Stability AI ($0.07/img)      │
-│    Upscale ──► Stability AI Creative Upscale ($0.60)   │
-│    SVG ──► vtracer / potrace / Pillow (free, local)    │
-└────────────────────────┬───────────────────────────────┘
-                         │
-                         ▼
-┌────────────────────────────────────────────────────────┐
-│ 5. Storage                                             │
-│    data/generated/{asset_id}/                          │
-│    ├── asset.png (transparent background)              │
-│    ├── asset.svg (optional)                            │
-│    └── metadata.json (full prompt lineage)             │
-│    Smart filenames: prompt-slug_opt1_var2.png          │
-└────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│ 1. Composition du prompt                                         │
+│    LLM rapide (1 option) ou LLM complexe (2 à 5 options)         │
+│    (bouton optionnel « Générer le Prompt Amélioré »)             │
+│    + style + type d'asset                                        │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │
+                                 ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 2. Test canari                                                   │
+│    Une seule image teste la modération                           │
+│    Réussi ? ──► Lot complet                                      │
+│    Échec ?  ──► Changement de modèle                             │
+│                 ou suggestion de réécriture                      │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │
+                                 ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 3. Génération d'images en parallèle                              │
+│    Jusqu'à 5 options × 5 variations = 25 images                  │
+│    ThreadPool (3 à 5 workers)                                    │
+│    Réessais avec backoff exponentiel (3 tentatives)              │
+│    Progression streamée en SSE vers le navigateur                │
+│    Annulation coopérative en cas de blocage de modération        │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │
+                                 ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 4. Post-traitement (par image, optionnel)                        │
+│    Supprimer l'arrière-plan ──► Stability AI ($0.07/img)         │
+│    Agrandir (créatif) ──► Stability AI Creative Upscale ($0.60)  │
+│    SVG ──► vtracer / potrace / Pillow (gratuit, local)           │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │
+                                 ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ 5. Stockage                                                      │
+│    data/images/{asset_id}/                                       │
+│    ├── asset.png (fond transparent)                              │
+│    ├── asset.svg (optionnel)                                     │
+│    └── metadata.json (lignée complète du prompt)                 │
+│    Noms de fichiers intelligents : prompt-slug_opt1_var2.png     │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### 📝 6.3 Flux de modération de contenu
 
 ```
-User clicks Generate
+L'utilisateur clique sur Générer
          │
          ▼
-┌──────────────────────┐
-│ Pre-Check enabled?   │
-│ (Prompt Pre-Check    │
-│  toggle, on by       │
-│  default)            │
-└───┬────────────┬─────┘
-  Yes            No
-    │            │
-    ▼            │
-┌──────────┐     │
-│ Fast LLM │     │
-│ screens  │     │
-│ prompt   │     │
-└───┬────┬─┘     │
- Issues? No      │
-    │    └──────►│
-    ▼            │
-┌──────────────┐  │
-│ Indigo       │  │
-│ dialog:      │  │
-│ • Switch     │  │
-│ • Rewrite    │  │
-│ • Proceed    │  │
-│ • Cancel     │  │
-└──┬───────────┘  │
-   │◄────────────┘
-   ▼
-┌──────────────────────┐
-│ Canary test          │
-│ (1 image to model)   │
-└───┬────────────┬─────┘
- Blocked        Pass
-    │            │
-    ▼            ▼
-┌──────────┐  ┌──────────┐
-│ Try alt  │  │ Full     │
-│ models   │  │ batch    │
-└───┬────┬─┘  │ runs     │
- Works?  No   └──────────┘
-    │    │
-    ▼    ▼
-Emerald    Amber
-dialog     dialog
-(switch    (rewrite →
- or         enhanced
- rewrite)   prompt area)
+┌────────────────────────────┐
+│ Pré-vérification du prompt │
+│ activée ? (interrupteur,   │
+│ activé par défaut)         │
+└───┬───────────────────┬────┘
+   Oui                 Non
+    │                   │
+    ▼                   │
+┌───────────────┐       │
+│ Le LLM rapide │       │
+│ analyse le    │       │
+│ prompt        │       │
+└───┬───────┬───┘       │
+ Problème Aucun         │
+    │       └──────────►│
+    ▼                   │
+┌─────────────────────┐ │
+│ Dialogue indigo :   │ │
+│ • Changer de modèle │ │
+│ • Réécrire          │ │
+│ • Continuer         │ │
+│ • Annuler           │ │
+└───┬─────────────────┘ │
+    │◄──────────────────┘
+    ▼
+┌─────────────────────────────┐
+│ Test canari                 │
+│ (1 image envoyée au modèle) │
+└───┬───────────────────┬─────┘
+ Bloqué              Réussi
+    │                   │
+    ▼                   ▼
+┌────────────┐    ┌────────────┐
+│ Essayer    │    │ Le lot     │
+│ d'autres   │    │ complet    │
+│ modèles :  │    │ s'exécute  │
+│ ça passe ? │    │            │
+└───┬──────┬─┘    └────────────┘
+   Oui    Non
+    │      │
+    ▼      ▼
+Dialogue   Dialogue
+émeraude   ambre
+(changer   (réécriture →
+ ou         zone du prompt
+ réécrire)  amélioré)
 ```
 
-### 📝 6.4 Image Studio (générer des assets)
+### 📝 6.4 Studio Image (générer des assets)
 
-L'Image Studio utilise un workflow guidé en 3 étapes :
+Le Studio Image utilise un workflow guidé en 3 étapes :
 
-**Étape 1 — Décrivez votre idée** : Saisissez un prompt dans la zone de texte. Le placeholder montre un exemple réaliste qui change selon le type d'asset sélectionné (par ex. « A young female warrior in ornate silver armor... » pour Character, ou « A misty Japanese garden at dawn... » pour Environment). Utilisez l'entrée vocale (bouton micro) pour dicter au lieu de taper.
+**Étape 1 — Décrivez votre idée** : Saisissez un prompt dans la zone de texte. Le placeholder montre un exemple réaliste qui change selon le type d'asset sélectionné (par ex. « Une jeune guerrière en armure d'argent ouvragée, longs cheveux sombres tressés, tenant une épée lumineuse, debout au bord d'une falaise au coucher du soleil... » pour Personnage, ou « Un jardin japonais brumeux à l'aube, des lanternes de pierre bordant un sentier sinueux entre des rochers moussus, des pétales de cerisier flottant dans l'air immobile... » pour Environnement). Utilisez l'entrée vocale (bouton micro) pour dicter au lieu de taper.
 
-**Étape 2 — Prompt Designer** *(optionnel)* : Cliquez sur **🎨 Prompt Designer** pour décomposer votre prompt en composants visuels structurés. L'IA analyse votre prompt et le décompose en sections éditables :
+**Étape 2 — Concepteur de prompts** *(optionnel)* : Cliquez sur **🎨 Concepteur de prompts** pour décomposer votre prompt en composants visuels structurés. L'IA analyse votre prompt et le décompose en sections éditables :
 
-- **Subject** — description du personnage, vêtements, accessoires, pose, expression
-- **Scene** — décor, arrière-plan, accessoires, moment de la journée
+- **Sujet** — description du personnage, vêtements, accessoires, pose, expression
+- **Scène** — décor, arrière-plan, accessoires, moment de la journée
 - **Composition** — angle de caméra, cadrage, profondeur de champ
-- **Lighting** — lumière principale, lumière d'appoint/de contour, ambiance
-- **Style & Colors** — style artistique, niveau de qualité, et une palette de couleurs nommée avec échantillons hexadécimaux
+- **Éclairage** — lumière principale, lumière d'appoint/de contour, ambiance
+- **Style & Couleurs** — style artistique, niveau de qualité, et une palette de couleurs nommée avec échantillons hexadécimaux
 
-Chaque champ peut être édité individuellement. **Generate Enhanced Prompt** recompose vos modifications en un prompt recomposé à plat (affiché en lecture seule à l'Étape 2) puis génère automatiquement l'Enhanced AI Prompt pour l'Étape 3.
+Chaque champ peut être édité individuellement. **Générer le Prompt Amélioré** recompose vos modifications en un prompt recomposé à plat (affiché en lecture seule à l'Étape 2) puis génère automatiquement le Prompt IA amélioré pour l'Étape 3.
 
-Avant l'ouverture du Prompt Designer, une **classification IA du type d'asset** s'exécute — si votre prompt décrit une scène mais que vous avez sélectionné « Game Asset », une boîte de dialogue suggère de basculer vers « Environment » ou « Character ». Cela garantit que le Prompt Designer décompose avec le bon contexte.
+Avant l'ouverture du Concepteur de prompts, une **classification IA du type d'asset** s'exécute — si votre prompt décrit une scène mais que vous avez sélectionné « Ressource de jeu », une boîte de dialogue suggère de basculer vers « Environnement » ou « Personnage ». Cela garantit que le Concepteur de prompts décompose avec le bon contexte.
 
-**Étape 3 — Aperçu du prompt amélioré** *(optionnel)* : Cliquez sur **Generate Enhanced Prompt** pour voir le prompt optimisé pour le modèle avant de générer. L'IA prend le prompt recomposé de l'Étape 2 et l'enrichit avec une guidance spécifique au modèle (anatomie, matériaux, éclairage, structure de prompt). Vous pouvez éditer le prompt amélioré avant de générer. Si vous avez utilisé le Prompt Designer à l'Étape 2, celui-ci est pré-rempli automatiquement.
+**Étape 3 — Aperçu du prompt amélioré** *(optionnel)* : Cliquez sur **Générer le Prompt Amélioré** pour voir le prompt optimisé pour le modèle avant de générer. L'IA prend le prompt recomposé de l'Étape 2 et l'enrichit avec une guidance spécifique au modèle (anatomie, matériaux, éclairage, structure de prompt). Vous pouvez éditer le prompt amélioré avant de générer. Si vous avez utilisé le Concepteur de prompts à l'Étape 2, celui-ci est pré-rempli automatiquement.
 
-**Pipeline de prompt** : Prompt utilisateur → Decompose → Recompose (`recomposed_prompt`) → Enhance avec guidance modèle (`enhanced_prompt`) → Modèle d'image. Pour des options multiples, l'étape d'amélioration génère N interprétations distinctes à partir de la même base recomposée. Les trois niveaux sont stockés dans les métadonnées.
+**Pipeline de prompt** : Prompt utilisateur → Décomposer → Recomposer (`recomposed_prompt`) → Améliorer avec la guidance du modèle (`enhanced_prompt`) → Modèle d'image. Pour des options multiples, l'étape d'amélioration génère N interprétations distinctes à partir de la même base recomposée. Les trois niveaux sont stockés dans les métadonnées.
 
-**Générer** : Cliquez sur Generate à tout moment — les étapes 2 et 3 sont optionnelles. Si vous les sautez, Generate décompose, recompose et améliore automatiquement votre prompt avant de continuer. **Prompt Pre-Check** (activé par défaut) analyse le prompt pour détecter les problèmes de modération avant la génération.
+**Générer** : Cliquez sur Générer à tout moment — les étapes 2 et 3 sont optionnelles. Si vous les sautez, Générer décompose, recompose et améliore automatiquement votre prompt avant de continuer. **Pré-vérification du prompt** (activé par défaut) analyse le prompt pour détecter les problèmes de modération avant la génération.
 
 **Contrôles additionnels :**
-- **Asset Type** — à sélectionner dans la barre latérale. Change le placeholder du prompt et affecte la façon dont l'IA interprète votre prompt. Le système suggère de basculer s'il détecte une incohérence.
-- **Art Style** — sélectionnez un profil de style pour guider la génération avec votre identité visuelle.
+- **Type de ressource** — à sélectionner dans la barre latérale. Change le placeholder du prompt et affecte la façon dont l'IA interprète votre prompt. Le système suggère de basculer s'il détecte une incohérence.
+- **Style artistique** — sélectionnez un profil de style pour guider la génération avec votre identité visuelle.
 - **Dimensions, Options, Variations** — configurez la taille de sortie et le nombre de concepts créatifs à générer.
-- **Post-Processing** — Remove Background, Upscale, conversion SVG (appliqués après la génération).
-- **IP Declaration** — affirmez la propriété ou la licence pour la compatibilité avec les modèles stricts.
-- **Model Settings** — consultez/modifiez la configuration des modèles, découvrez les modèles Amazon Bedrock disponibles.
+- **Post-traitement** — Supprimer l'arrière-plan, Agrandir (créatif), conversion SVG (appliqués après la génération).
+- **Déclaration de propriété intellectuelle** — affirmez la propriété ou la licence pour la compatibilité avec les modèles stricts.
+- **Paramètres du modèle** — consultez/modifiez la configuration des modèles, découvrez les modèles Amazon Bedrock disponibles.
 
-La progression de la génération est streamée en temps réel via SSE — l'UI affiche quelle image est en cours de génération (par ex. « Generating images... 12/25 »), le temps écoulé et l'étape actuelle du pipeline. Si l'API est limitée (throttled), vous verrez « API throttled — waiting to retry... » avec le délai, puis « Retrying... (attempt 2/3) » — chaque image réessaie jusqu'à 3 fois avec un backoff exponentiel afin que les gros lots ne perdent pas de variantes à cause d'une limitation transitoire.
+La progression de la génération est streamée en temps réel via SSE — l'UI affiche quelle image est en cours de génération (par ex. « Génération des images... 12/25 »), le temps écoulé et l'étape actuelle du pipeline. Si l'API est limitée (throttled), vous verrez « API limitée — en attente de nouvelle tentative... » avec le délai, puis « Nouvelle tentative... (essai 2/3) » — chaque image réessaie jusqu'à 3 fois avec un backoff exponentiel afin que les gros lots ne perdent pas de variantes à cause d'une limitation transitoire.
 
-Les résultats générés survivent à la navigation — passer d'un onglet à l'autre et revenir préserve l'état DOM de l'Image Studio. Seul le bouton de réinitialisation l'efface.
+Les résultats générés survivent à la navigation — passer d'un onglet à l'autre et revenir préserve l'état DOM du Studio Image. Seul le bouton de réinitialisation l'efface.
 
 **Modération de contenu intelligente** : Lorsque votre prompt est bloqué par les filtres de modération d'un modèle, ArtSmoker le gère progressivement via trois boîtes de dialogue à code couleur :
 
-- **Indigo (Pre-Check)** — avant la génération, une IA pré-analyse votre prompt selon la sensibilité connue du modèle sélectionné. Si des problèmes sont détectés, vous voyez les préoccupations spécifiques et pouvez : basculer vers un modèle recommandé, **réécrire le prompt** pour le modèle actuel, procéder quand même, ou annuler.
-- **Emerald (Model Switch)** — après un blocage de génération, si un modèle alternatif accepte votre prompt tel quel, ArtSmoker indique quel modèle fonctionne et pourquoi. Un clic pour basculer. Journal complet des tentatives disponible (« View N model tests »).
-- **Amber (Rewrite)** — quand tous les modèles refusent, une réécriture générée par l'IA est proposée dans une zone de texte éditable avec les problèmes spécifiques listés. Un badge vérifié/non vérifié indique si la réécriture a passé le test canari.
+- **Indigo (Pré-vérification)** — avant la génération, une IA pré-analyse votre prompt selon la sensibilité connue du modèle sélectionné. Si des problèmes sont détectés, vous voyez les préoccupations spécifiques et pouvez : basculer vers un modèle recommandé, **réécrire le prompt** pour le modèle actuel, procéder quand même, ou annuler.
+- **Émeraude (changement de modèle)** — après un blocage de génération, si un modèle alternatif accepte votre prompt tel quel, ArtSmoker indique quel modèle fonctionne et pourquoi. Un clic pour basculer. Journal complet des tentatives disponible (« Voir N tests de modèles »).
+- **Ambre (réécriture)** — quand tous les modèles refusent, une réécriture générée par l'IA est proposée dans une zone de texte éditable avec les problèmes spécifiques listés. Un badge vérifié/non vérifié indique si la réécriture a passé le test canari.
 
-**Comportement de réécriture du prompt** : Dans les trois dialogues, choisir « Rewrite » n'écrase jamais votre prompt original. La version réécrite apparaît dans la **zone du prompt amélioré** sous votre texte original, avec un avertissement ambre persistant : *« This rewrite is an attempt to make the prompt compatible — it is still subject to the model's own moderation assessment and may be rejected. »* Vous examinez et éditez le prompt amélioré, puis cliquez sur Generate quand vous êtes satisfait. Votre prompt original est toujours préservé dans l'historique et les métadonnées.
+**Comportement de réécriture du prompt** : Dans les trois dialogues, choisir « Réécrire » n'écrase jamais votre prompt original. La version réécrite apparaît dans la **zone du prompt amélioré** sous votre texte original, avec un avertissement ambre persistant : *« Cette réécriture est une tentative de rendre le prompt compatible — il reste soumis à la propre évaluation de modération du modèle et peut être rejeté. »* Vous examinez et éditez le prompt amélioré, puis cliquez sur Générer quand vous êtes satisfait. Votre prompt original est toujours préservé dans l'historique et les métadonnées.
 
-Les déclencheurs courants incluent les noms d'IP protégés et les références de personnages, le langage de violence/armes, et les références à du contenu adulte. Astuce : le bouton **« Preview Enhanced Prompt »** produit souvent des prompts qui passent naturellement la modération, car l'IA reformule en termes descriptifs.
+Les déclencheurs courants incluent les noms d'IP protégés et les références de personnages, le langage de violence/armes, et les références à du contenu adulte. Astuce : le bouton **« Générer le Prompt Amélioré »** produit souvent des prompts qui passent naturellement la modération, car l'IA reformule en termes descriptifs.
 
 **Test canari intelligent** : Avant de générer le lot complet, ArtSmoker envoie une seule requête d'image « canari » pour tester le prompt contre les filtres de modération du modèle. Si le canari est bloqué, le lot s'arrête immédiatement (1 appel API gaspillé au lieu de N×M×3). Si le canari passe, les tâches restantes s'exécutent en parallèle avec annulation coopérative — si une tâche rencontre un blocage de modération, les autres sautent automatiquement leurs appels API.
 
 ### 📝 6.5 Utiliser un profil de style
 
-1. Allez dans l'onglet **Style Library**.
-2. Cliquez sur **Create New Style** — entrez un nom et ajoutez éventuellement des indications de génération. Dans la modale de création, utilisez la section **« Import References From »** avec les boutons de navigation **Local** et **S3** pour sélectionner un répertoire source ou un chemin de bucket. La navigation ouvre une modale d'explorateur de fichiers/répertoires côté serveur (un clic sélectionne un élément, un double-clic navigue dans les répertoires). Les références importées sont auto-analysées à la création.
+1. Allez dans l'onglet **Bibliothèque de styles**.
+2. Cliquez sur **Créer un nouveau style** — entrez un nom et ajoutez éventuellement des indications de génération. Dans la modale de création, utilisez la section **« Importer les références depuis »** avec les boutons de navigation **Local** et **S3** pour sélectionner un répertoire source ou un chemin de bucket. La navigation ouvre une modale d'explorateur de fichiers/répertoires côté serveur (un clic sélectionne un élément, un double-clic navigue dans les répertoires). Les références importées sont auto-analysées à la création.
 3. Les imports de répertoires locaux scannent **récursivement** à travers tous les sous-répertoires pour les images (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg) et les modèles 3D (.glb, .gltf). Les fichiers image sont **symlinkés** à l'aide de **liens symboliques relatifs** (pas de duplication, portables entre machines). Les fichiers de modèles 3D (.glb/.gltf) ont leurs textures intégrées **automatiquement extraites** — data URIs base64, chunks de buffer binaire et références de textures externes sont tous gérés. Les textures extraites sont enregistrées comme copies (préfixées du nom du modèle pour éviter les collisions). Les imports S3 listent récursivement avec pagination et **téléchargent** les fichiers localement. Jusqu'à **100 images de référence** sont importées par style. Les extensions supportées sont centralisées dans `backend/config.py` (`IMAGE_EXTENSIONS` et `MODEL_EXTENSIONS_WITH_TEXTURES`).
-4. **Analyse en deux phases avec détection de cohésion** : La phase 1 envoie 8 images au Fast LLM pour déterminer le niveau de cohésion (élevé/moyen/faible) — élevé signifie un style unifié, moyen signifie une structure partagée avec des thèmes différents, faible signifie des styles divers. La phase 2 transmet l'évaluation de cohésion au Complex LLM avec les images de référence, le guidant pour analyser de manière appropriée selon le type de collection. Lorsqu'un style a plus de 20 références, l'analyseur sélectionne un sous-ensemble représentatif diversifié de 20 pour l'appel de vision Opus — garantissant une couverture entre les groupes de noms de fichiers et la diversité des tailles de fichiers. L'IA est informée du nombre total d'images qui existent par rapport à celles qu'elle voit. Le prompt d'analyse est spécifiquement conçu pour les assets de jeux sur fonds transparents — il demande des détails de rendu spécifiques aux matériaux, un système de proportions et des spécificités d'ombre/éclairage. Il extrait 9 attributs de style dont `materials` (comment la pierre, le bois, le métal sont rendus) et `detail_level` (quels détails de surface sont visibles vs simplifiés). Les indications de génération sont étendues à 200 mots couvrant 8 dimensions : perspective, rendu, matériaux, palette de couleurs, proportions, traitement des bords, ombre/éclairage, niveau de détail et arrière-plan — suffisamment spécifiques pour que les assets générés se fondent visuellement avec les références existantes.
-5. Dans la vue de détail du style, utilisez **« Import & Analyze »** pour ajouter plus de références et déclencher l'analyse en une seule étape. Le téléchargement par glisser-déposer est aussi supporté et **relance automatiquement l'analyse** lorsque de nouvelles images sont ajoutées.
-6. **« Re-Analyze Style »** apparaît après l'analyse initiale, vous permettant de relancer manuellement l'analyse à tout moment.
+4. **Analyse en deux phases avec détection de cohésion** : La phase 1 envoie 8 images au LLM rapide pour déterminer le niveau de cohésion (élevé/moyen/faible) — élevé signifie un style unifié, moyen signifie une structure partagée avec des thèmes différents, faible signifie des styles divers. La phase 2 transmet l'évaluation de cohésion au LLM complexe avec les images de référence, le guidant pour analyser de manière appropriée selon le type de collection. Lorsqu'un style a plus de 20 références, l'analyseur sélectionne un sous-ensemble représentatif diversifié de 20 pour l'appel de vision Opus — garantissant une couverture entre les groupes de noms de fichiers et la diversité des tailles de fichiers. L'IA est informée du nombre total d'images qui existent par rapport à celles qu'elle voit. Le prompt d'analyse est spécifiquement conçu pour les assets de jeux sur fonds transparents — il demande des détails de rendu spécifiques aux matériaux, un système de proportions et des spécificités d'ombre/éclairage. Il extrait 9 attributs de style dont `materials` (comment la pierre, le bois, le métal sont rendus) et `detail_level` (quels détails de surface sont visibles vs simplifiés). Les indications de génération sont étendues à 200 mots couvrant 8 dimensions : perspective, rendu, matériaux, palette de couleurs, proportions, traitement des bords, ombre/éclairage, niveau de détail et arrière-plan — suffisamment spécifiques pour que les assets générés se fondent visuellement avec les références existantes.
+5. Dans la vue de détail du style, utilisez **« Importer et analyser »** pour ajouter plus de références et déclencher l'analyse en une seule étape. Le téléchargement par glisser-déposer est aussi supporté et **relance automatiquement l'analyse** lorsque de nouvelles images sont ajoutées.
+6. **« Réanalyser le style »** apparaît après l'analyse initiale, vous permettant de relancer manuellement l'analyse à tout moment.
 7. **Les indications de génération** font partie du contexte d'analyse — l'IA reçoit à la fois les images de référence et vos indications comme « Artist's Guidance » lors de l'analyse, afin que le profil de style comprenne l'intention, pas seulement l'apparence visuelle. Modifier les indications de génération déclenche aussi une **réanalyse automatique**.
-8. De retour dans l'**Image Studio**, sélectionnez votre style dans le menu déroulant — tous les assets générés correspondront à son identité visuelle (palette, perspective, style de rendu, ambiance).
+8. De retour dans le **Studio Image**, sélectionnez votre style dans le menu déroulant — tous les assets générés correspondront à son identité visuelle (palette, perspective, style de rendu, ambiance).
 
 ### 📝 6.6 Flux d'analyse de style
 
 ```
-┌──────────────────────────────────────────┐
-│ Create / Import style                    │
-│ (reference images uploaded or imported)  │
-└────────────────────┬─────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────┐
-│ Phase 1: Cohesion Check                  │
-│ Fast LLM — 8 images — ~$0.01             │
-│ Determines: high / medium / low          │
-│   high   = unified style                 │
-│   medium = shared structure, diff themes │
-│   low    = diverse collection            │
-└────────────────────┬─────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────┐
-│ Phase 2: Full Analysis                   │
-│ Complex LLM — up to 20 images            │
-│ Guided by cohesion level                 │
-│ + Artist's Guidance (user hints)         │
-│ Extracts 9 style attributes              │
-└────────────────────┬─────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────┐
-│ Phase 3: Hint Generation                 │
-│ Fast LLM — 200-word hints                │
-│ 8 dimensions: perspective, rendering,    │
-│ materials, palette, proportions, edges,  │
-│ shadow/lighting, detail level            │
-└────────────────────┬─────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────┐
-│ Stored in profile.json                   │
-│ ~$0.14 total per style analysis          │
-│ Used in all future generation            │
-└──────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│ Créer / importer un style                        │
+│ (images de référence téléversées ou importées)   │
+└────────────────────────┬─────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────┐
+│ Phase 1 : vérification de la cohésion            │
+│ LLM rapide — 8 images — ~$0.01                   │
+│ Détermine : élevée / moyenne / faible            │
+│   élevée  = style unifié                         │
+│   moyenne = structure partagée, thèmes variés    │
+│   faible  = ensemble hétérogène                  │
+└────────────────────────┬─────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────┐
+│ Phase 2 : analyse complète                       │
+│ LLM complexe — jusqu'à 20 images                 │
+│ Guidée par le niveau de cohésion                 │
+│ + « Artist's Guidance » (indications)            │
+│ Extrait 9 attributs de style                     │
+└────────────────────────┬─────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────┐
+│ Phase 3 : génération des indications             │
+│ LLM rapide — indications de 200 mots             │
+│ 8 dimensions : perspective, rendu,               │
+│ matériaux, palette, proportions, bords,          │
+│ ombre/éclairage, niveau de détail                │
+└────────────────────────┬─────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────┐
+│ Enregistré dans profile.json                     │
+│ ~$0.14 au total par analyse de style             │
+│ Utilisé dans toutes les générations futures      │
+└──────────────────────────────────────────────────┘
 ```
 
-### 📝 6.7 Type Studio
+### 📝 6.7 Studio de Texte
 
 Ajoutez du texte aux images ou générez des assets de texte autonomes avec une typographie conçue par l'IA.
 
-- **Deux modes** : « On Image » composite le texte sur une image de la galerie ; « Standalone » rend le texte sur un fond transparent.
+- **Deux modes** : « Sur image » composite le texte sur une image de la galerie ; « Autonome » rend le texte sur un fond transparent.
 - **Éditeur de texte multi-lignes** avec sélection de police par ligne, contrôles de positionnement, et **entrée vocale** (bouton micro par ligne — dictez le texte via la transcription Nova Sonic).
-- **Mises en page conçues par l'IA** — l'IA suggère les couleurs, tailles, positions et effets (ombre, contour, lueur). Demandez 1 à 5 options de mise en page pour différentes directions créatives. Le **modèle LLM** utilisé pour la mise en page est configurable (Complex LLM pour la meilleure qualité, Fast LLM pour moins cher) — lit depuis les catégories du registre.
+- **Mises en page conçues par l'IA** — l'IA suggère les couleurs, tailles, positions et effets (ombre, contour, lueur). Demandez 1 à 5 options de mise en page pour différentes directions créatives. Le **modèle LLM** utilisé pour la mise en page est configurable (« LLM complexe (meilleure qualité) » ou « LLM rapide (moins cher) ») — lit depuis les catégories du registre.
 - **Sélecteur de polices avec aperçu en direct** — polices de style, 8 polices intégrées (Roboto, Open Sans, Lato, Montserrat, Playfair Display, Oswald, Raleway, Source Code Pro), polices système, et **polices détectées côté client** (via la Local Font Access API ou le sondage canvas).
-- **Pré-traitement / Post-traitement** — même workflow que l'Image Studio, avec un bouton « Apply » pour le post-traitement. La conversion SVG est activée par défaut.
-- **Cliquer pour zoomer** — cliquer sur l'aperçu du résultat ouvre l'AssetViewer avec zoom/panoramique complet, métadonnées, téléchargement et outils d'édition d'image.
+- **Pré-traitement / Post-traitement** — même workflow que le Studio Image, avec un bouton « Appliquer » pour le post-traitement. La conversion SVG est activée par défaut.
+- **Cliquer pour zoomer** — cliquer sur l'aperçu du résultat ouvre la visionneuse d'assets avec zoom/panoramique complet, métadonnées, téléchargement et outils d'édition d'image.
 - Les résultats sont enregistrés comme de nouveaux assets de la galerie (les originaux ne sont jamais écrasés).
 
 ### 📝 6.8 Galerie
 
-- **Vue unifiée** de toutes les images et vidéos générées dans une **disposition en maçonnerie (masonry)** (chaque asset affiché à son véritable ratio — portrait, carré ou paysage — jamais recadré au centre), avec un **filtre Média** (All / 2D Artwork / 3D Models / Video). Le filtre **3D Models** n'affiche que les assets qui possèdent déjà un modèle 3D généré, et ces assets portent un **badge 3D** sur leur tuile.
+- **Vue unifiée** de toutes les images et vidéos générées dans une **disposition en maçonnerie (masonry)** (chaque asset affiché à son véritable ratio — portrait, carré ou paysage — jamais recadré au centre), avec un **filtre Média** (Tous les médias / Images 2D / Modèles 3D / Vidéo). Le filtre **Modèles 3D** n'affiche que les assets qui possèdent déjà un modèle 3D généré, et ces assets portent un **badge 3D** sur leur tuile.
 - **Barre de recherche** pour un filtrage instantané sur tous les assets (prompts, styles, modèles).
-- **Multi-sélection** par cases à cocher pour la suppression en masse (gère à la fois les assets image et vidéo). Les suppressions sont **conscientes du lot** — les frères et sœurs survivants suivent combien de variantes ont été retirées, de sorte que recharger un lot partiel dans l'Image Studio affiche « X of Y images remaining (Z deleted) ».
+- **Multi-sélection** par cases à cocher pour la suppression en masse (gère à la fois les assets image et vidéo). Les suppressions sont **conscientes du lot** — les frères et sœurs survivants suivent combien de variantes ont été retirées, de sorte que recharger un lot partiel dans le Studio Image affiche « X sur Y images restantes (Z supprimées de la galerie) ».
 - Les assets se chargent immédiatement avec un cache de métadonnées en mémoire. Triés du plus récent au plus ancien.
 - Support de la pagination (limit/offset) pour les grandes collections.
 - La Galerie se rafraîchit automatiquement lorsque vous y revenez, et après toute édition ou génération vidéo terminée.
-- **Les cartes vidéo** affichent une vignette avec une superposition de lecture, un badge VIDEO et un indicateur de durée. Cliquez pour ouvrir la modale du lecteur vidéo.
-- **Boutons d'action contextuels** par asset selon le type : **« Image Studio »** (indigo) pour recharger dans l'Image Studio, **« Add Text »** (emerald) pour ouvrir dans Type Studio, **« Edit in Type Studio »** (purple) pour les assets de texte.
-- Cliquez sur n'importe quelle image pour ouvrir la modale **AssetViewer** avec :
-  - **Zoom/panoramique** — molette de la souris pour zoomer, glisser pour se déplacer, boutons Fit/1:1 avec mise en évidence du mode actif.
-  - **Onglet Edit** — inpaint, erase, outpaint, search & replace, ou recolor de l'image directement. Deux types d'éditeurs sont proposés par mode : **basé sur masque** (p. ex. Stability) — peignez un masque avec l'outil pinceau, entrez un prompt, et appliquez ; et **éditeurs à instructions sans masque** (p. ex. Qwen-Image-Edit, une fois déployés) — décrivez simplement le changement en mots, aucun masque nécessaire. Les contrôles du pinceau se cachent automatiquement pour un modèle sans masque. Choisissez le modèle d'édition, appliquez ; par défaut cela remplace l'image originale, décochez « Replace original » pour enregistrer comme un nouvel asset (chaque édition préserve l'historique des versions).
-  - **Previous / Next** — boutons fléchés et gauche/droite au clavier pour naviguer dans la liste sans fermer la visionneuse.
-  - **Métadonnées complètes** : prompt original, prompt amélioré par l'IA, prompt de génération, prompt négatif, style, type d'asset, modèle d'image (noms conviviaux), dimensions, seed, batch ID, index option/variation, statut de déclaration IP, nom de fichier, et date de création.
+- **Les cartes vidéo** affichent une vignette avec une superposition de lecture, un badge VIDÉO et un indicateur de durée. Cliquez pour ouvrir la modale du lecteur vidéo.
+- **Boutons d'action contextuels** par asset selon le type : **« Studio Image »** (indigo) pour recharger dans le Studio Image, **« Ajouter du texte »** (emerald) pour ouvrir dans le Studio de Texte, **« Modifier dans le Studio de Texte »** (purple) pour les assets de texte.
+- Cliquez sur n'importe quelle image pour ouvrir la **visionneuse d'assets** (modale) avec :
+  - **Zoom/panoramique** — molette de la souris pour zoomer, glisser pour se déplacer, boutons Ajuster/1:1 avec mise en évidence du mode actif.
+  - **Onglet Modifier** — retouchez (inpainting), effacez, étendez (outpainting), recherchez et remplacez, ou recoloriez l'image directement. Deux types d'éditeurs sont proposés par mode : **basé sur masque** (p. ex. Stability) — peignez un masque avec l'outil pinceau, entrez un prompt, et appliquez ; et **éditeurs à instructions sans masque** (p. ex. Qwen-Image-Edit, une fois déployés) — décrivez simplement le changement en mots, aucun masque nécessaire. Les contrôles du pinceau se cachent automatiquement pour un modèle sans masque. Choisissez le modèle d'édition et appliquez — chaque édition crée une nouvelle version, et toutes les versions précédentes restent conservées et consultables.
+  - **Précédent / Suivant** — boutons fléchés et gauche/droite au clavier pour naviguer dans la liste sans fermer la visionneuse.
+  - **Métadonnées complètes** : prompt original, prompt amélioré par l'IA, prompt de génération, prompt négatif, style, type d'asset, modèle d'image (noms conviviaux), dimensions, graine, ID du lot, index option/variation, statut de déclaration IP, nom de fichier, et date de création.
 - **Snapshot de style** : Chaque asset stocke un instantané du style utilisé au moment de la génération (nom, description, indications, analyse). Si le style original est supprimé plus tard, l'asset conserve le contexte complet. Rétrocompatible — les anciens assets sans snapshots s'affichent normalement.
 
 ### 📝 6.9 Entrée vocale
@@ -1376,48 +1381,48 @@ Cliquez sur le bouton microphone à côté de l'éditeur de prompt pour dicter v
 
 ### 📝 6.10 Préservation de l'état des vues
 
-Ordre de navigation : **Style Library → Image Studio → Type Studio → Video Studio → Gallery**. Passer d'une vue à l'autre préserve l'état DOM de chaque vue. Les résultats générés, les saisies de formulaire et les positions de défilement survivent à la navigation. Le bouton de réinitialisation ambre dans l'Image Studio et le Video Studio est le seul moyen d'effacer leur état.
+Ordre de navigation : **Bibliothèque de styles → Studio Image → Studio de Texte → Studio Vidéo → Galerie**. Passer d'une vue à l'autre préserve l'état DOM de chaque vue. Les résultats générés, les saisies de formulaire et les positions de défilement survivent à la navigation. Le bouton de réinitialisation ambre dans le Studio Image et le Studio Vidéo est le seul moyen d'effacer leur état.
 
 ### 📝 6.11 Gestion des modèles
 
 Toute la configuration des modèles d'IA est centralisée dans `backend/model_registry.json` — la source de vérité unique. Modèles, régions, tarifs, niveaux de qualité et templates de format sont tous stockés ici et gérés via l'UI ou l'API :
 
-- Cliquez sur **« Model Settings »** dans la barre latérale de n'importe quel studio pour ouvrir la modale d'administration — elle s'ouvre sur l'onglet pertinent pour ce studio.
+- Cliquez sur **« Paramètres du modèle »** dans la barre latérale de n'importe quel studio pour ouvrir la modale d'administration — elle s'ouvre sur l'onglet pertinent pour ce studio.
 - **9 onglets** organisés par studio :
-  - **Image Studio** — Modèles de génération d'images (p. ex. SD 3.5 Large, Stable Image Ultra, Stable Image Core, plus FLUX, HunyuanImage, Qwen-Image auto-hébergés), régions, niveaux de qualité, limites de prompt, sévérité de modération
-  - **Video Studio** — Modèles vidéo (p. ex. Luma Ray), paramètres de bucket S3, régions, tarifs
-  - **Chat Studio** — Modèles chat/LLM découverts, fenêtres de contexte, capacité vision, tarif par 1K tokens
-  - **Type Studio** — Modèle LLM pour la génération de mise en page de texte (Complex ou Fast LLM)
-  - **Shared Studio** — Catégories LLM inter-studios (Fast LLM, Complex LLM, Fallback LLM, Voice), modèles de post-traitement (Remove Background, Upscale)
-  - **Custom Models** — le catalogue de modèles auto-hébergés : déployer, surveiller et démanteler les endpoints SageMaker (voir section 6.12)
-  - **Prompt Templates** — 28 prompts directifs LLM éditables organisés en 6 sections de workflow (voir section 4.4)
-  - **Registry JSON** — Éditeur JSON brut pour le registre complet des modèles
+  - **Studio Image** — Modèles de génération d'images (p. ex. SD 3.5 Large, Stable Image Ultra, Stable Image Core, plus FLUX, HunyuanImage, Qwen-Image auto-hébergés), régions, niveaux de qualité, limites de prompt, sévérité de modération
+  - **Studio Vidéo** — Modèles vidéo (p. ex. Luma Ray), paramètres de bucket S3, régions, tarifs
+  - **Studio de Chat** — Modèles chat/LLM découverts, fenêtres de contexte, capacité vision, tarif par 1K tokens
+  - **Studio de Texte** — Modèle LLM pour la génération de mise en page de texte (LLM complexe ou LLM rapide)
+  - **Studio Partagé** — Catégories LLM inter-studios (LLM rapide, LLM complexe, LLM de secours, Transcription vocale), modèles de post-traitement (suppression de l'arrière-plan, agrandissement)
+  - **Modèles Personnalisés** — le catalogue de modèles auto-hébergés : déployer, surveiller et démanteler les endpoints SageMaker (voir section 6.12)
+  - **Modèles de Prompt** — 28 prompts directifs LLM éditables organisés en 6 sections de workflow (voir section 4.4)
+  - **JSON du registre** — Éditeur JSON brut pour le registre complet des modèles
   - **Maintenance** — état des outils gérés (p. ex. le Blender headless utilisé pour l'export FBX/USD : chemin, version, mise à jour à la demande)
-- Toutes les sections sont **repliables** avec des bascules **Show All / Hide All** pour une navigation rapide.
+- Toutes les sections sont **repliables** avec des bascules **Tout afficher / Tout masquer** pour une navigation rapide.
 - Les catégories LLM et le post-traitement utilisent des **sélecteurs de modèles en menu déroulant** (peuplés à partir des modèles découverts) — pas des champs de texte bruts.
-- **Sync from AWS** : Scanne toutes les régions AWS supportées par Bedrock (découvertes dynamiquement), auto-enregistre les nouveaux modèles d'image, vidéo et **chat**, met à jour la disponibilité régionale, récupère les tarifs par modèle depuis l'API AWS Pricing, et désactive les modèles qui ne sont plus disponibles. Une **superposition de progression en direct** streame chaque région au fur et à mesure de son scan. C'est la **seule** action qui appelle les API de découverte AWS — toutes les autres opérations lisent depuis le registre en cache.
-- **Toujours sur le Claude le plus récent** : Chaque Sync fait automatiquement rouler votre **Fast LLM** vers le Claude Sonnet le plus récent et votre **Complex LLM** vers le Claude Opus le plus récent disponible dans votre compte, pour que vous ne soyez jamais bloqué sur un modèle déprécié — aucune config manuelle nécessaire. Si vous choisissez manuellement un modèle spécifique pour une catégorie, il est **épinglé** et le roulement automatique le laisse tranquille (il vous notifie simplement quand un plus récent apparaît).
+- **Synchroniser depuis AWS** : Scanne toutes les régions AWS supportées par Bedrock (découvertes dynamiquement), auto-enregistre les nouveaux modèles d'image, vidéo et **chat**, met à jour la disponibilité régionale, récupère les tarifs par modèle depuis l'API AWS Pricing, et désactive les modèles qui ne sont plus disponibles. Une **superposition de progression en direct** streame chaque région au fur et à mesure de son scan. C'est la **seule** action qui appelle les API de découverte AWS — toutes les autres opérations lisent depuis le registre en cache.
+- **Toujours sur le Claude le plus récent** : Chaque Sync fait automatiquement rouler votre **LLM rapide** vers le Claude Sonnet le plus récent et votre **LLM complexe** vers le Claude Opus le plus récent disponible dans votre compte, pour que vous ne soyez jamais bloqué sur un modèle déprécié — aucune config manuelle nécessaire. Si vous choisissez manuellement un modèle spécifique pour une catégorie, il est **épinglé** et le roulement automatique le laisse tranquille (il vous notifie simplement quand un plus récent apparaît).
 - **Découverte de modèles personnalisés** : Le Sync découvre aussi les **modèles personnalisés fine-tunés** (`ListCustomModels`), les **modèles importés** (`ListImportedModels`), et les modèles avec **déploiements on-demand** (`ListCustomModelDeployments`) ou **throughput provisionné** (`ListProvisionedModelThroughputs`). Les modèles personnalisés héritent automatiquement de leur famille de format du modèle de base.
 - **Auto-découverte** : Les nouveaux modèles de fondation sont enregistrés avec `enabled=true` — l'administrateur peut les désactiver. Les modèles existants voient leurs `available_regions` et métadonnées Bedrock (modalités, cycle de vie, ARN) mis à jour automatiquement.
 - **Boîtes de dialogue de confirmation stylisées** : Toutes les actions destructrices (Sync, delete, reset) utilisent des modales personnalisées stylisées — pas de popups `confirm()` du navigateur.
 - Les changements sont persistés immédiatement dans `model_registry.json` via l'Admin API.
 - Le registre est rétrocompatible — les assets existants référencent des clés de modèles (par ex. `sd35_large`), pas des IDs de modèles Bedrock bruts.
 
-### 📝 6.12 Modèles auto-hébergés (Custom Models sur Amazon SageMaker)
+### 📝 6.12 Modèles auto-hébergés (Modèles Personnalisés sur Amazon SageMaker)
 
 ArtSmoker peut déployer des modèles d'IA open source sur **Amazon SageMaker** dans votre propre compte AWS, étendant vos capacités au-delà de ce qu'offre Amazon Bedrock. Ceux-ci fonctionnent aux côtés des modèles Bedrock et apparaissent dans les mêmes menus déroulants des studios.
 
-**Catalogue de modèles extensible :** Livré avec un catalogue intégré de modèles open source couvrant la génération d'images, l'upscaling, la suppression d'arrière-plan, l'estimation de profondeur, la segmentation et la vidéo. Ajouter un nouveau modèle ne nécessite qu'une entrée de catalogue — aucun changement de code. Vous pouvez aussi ajouter des modèles personnalisés via l'UI (+ Add Model). Le catalogue et les modèles disponibles évoluent au fil du temps.
+**Catalogue de modèles extensible :** Livré avec un catalogue intégré de modèles open source couvrant la génération d'images, l'upscaling, la suppression d'arrière-plan, l'estimation de profondeur, la segmentation et la vidéo. Ajouter un nouveau modèle ne nécessite qu'une entrée de catalogue — aucun changement de code. Vous pouvez aussi ajouter des modèles personnalisés via l'UI (+ Ajouter un Modèle). Le catalogue et les modèles disponibles évoluent au fil du temps.
 
 **Options de déploiement :**
-- **Async (scale-to-zero)** — payez uniquement quand vous générez. Se met à l'échelle à zéro en veille (0$ de coût), monte en charge automatiquement à la nouvelle requête. Démarrage à froid ~5-10 min.
-- **Always-On** — réponses instantanées, ~$1.41/h (ml.g5.xlarge)
+- **Asynchrone (mise à zéro)** — payez uniquement quand vous générez. Se met à l'échelle à zéro en veille (0$ de coût), monte en charge automatiquement à la nouvelle requête. Démarrage à froid ~5-10 min.
+- **Toujours actif** — réponses instantanées, ~$1.41/h (ml.g5.xlarge)
 
-**Comment déployer :** Model Settings → onglet Custom Models → cliquez sur Deploy. Le conteneur SageMaker télécharge les poids du modèle directement depuis HuggingFace au démarrage — aucun téléchargement local de plusieurs Go requis.
+**Comment déployer :** Paramètres des modèles → onglet Modèles Personnalisés → cliquez sur Déployer. Le conteneur SageMaker télécharge les poids du modèle directement depuis HuggingFace au démarrage — aucun téléchargement local de plusieurs Go requis.
 
 **CPU offloading :** Les grands modèles de diffusion utilisent un offloading CPU intelligent pour tenir sur des instances GPU plus petites. L'entrée de catalogue de chaque modèle spécifie la stratégie — `model_cpu_offload` (garde les couches actives sur le GPU) ou `sequential_cpu_offload` (offload agressif couche par couche pour les très grands modèles). Appliqué automatiquement par le gestionnaire d'inférence.
 
-**Génération asynchrone avec Pending Jobs :** Les modèles auto-hébergés génèrent de manière asynchrone. Un panneau **Pending Jobs** apparaît dans l'Image Studio montrant les jobs actifs avec des indicateurs de progression. Les images terminées arrivent dans la Galerie automatiquement — aucun polling ni rafraîchissement de page nécessaire.
+**Génération asynchrone avec Tâches en attente :** Les modèles auto-hébergés génèrent de manière asynchrone. Un panneau **Tâches en attente** apparaît dans le Studio Image montrant les tâches actives avec des indicateurs de progression. Les images terminées arrivent dans la Galerie automatiquement — aucun polling ni rafraîchissement de page nécessaire.
 
 **Gestion des jetons HuggingFace :** Les modèles à accès restreint nécessitent un jeton HuggingFace en lecture seule. Le jeton est stocké chiffré dans **AWS Secrets Manager** de votre compte, géré via l'UI (définir/mettre à jour/supprimer), et partagé entre tous les modèles qui en ont besoin. Les jetons sont automatiquement nettoyés lorsque vous démantelez tous les modèles.
 
@@ -1426,7 +1431,7 @@ ArtSmoker peut déployer des modèles d'IA open source sur **Amazon SageMaker** 
 **Configuration :** Ajoutez les permissions Amazon SageMaker et Secrets Manager au **même rôle IAM** que vous utilisez déjà pour Bedrock — aucun rôle séparé ni variable d'environnement nécessaire. ArtSmoker découvre automatiquement votre rôle sur EC2/ECS, ou auto-crée un `ArtSmokerSageMakerRole` si besoin.
 
 ```bash
-# Add Amazon SageMaker permissions to your existing ArtSmoker role (one command)
+# Ajouter les permissions Amazon SageMaker à votre rôle ArtSmoker existant (une seule commande)
 aws iam attach-role-policy --role-name ArtSmokerEC2Role \
   --policy-arn arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
 ```
@@ -1435,12 +1440,12 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 
 ### 📝 6.13 Modèles de génération d'images et de vidéos
 
-Tous les modèles sont **découverts dynamiquement** depuis le registre — pas codés en dur. Le menu déroulant de l'Image Studio est peuplé depuis `GET /api/admin/models/image-options` et celui du Video Studio depuis `GET /api/admin/models/video-options` au chargement de la page. Tout modèle enregistré et activé dans le registre apparaît automatiquement.
+Tous les modèles sont **découverts dynamiquement** depuis le registre — pas codés en dur. Le menu déroulant du Studio Image est peuplé depuis `GET /api/admin/models/image-options` et celui du Studio Vidéo depuis `GET /api/admin/models/video-options` au chargement de la page. Tout modèle enregistré et activé dans le registre apparaît automatiquement.
 
-Le menu déroulant **Image Model** est la sélection principale. En dessous, une ligne de résumé intelligente affiche la région active, le niveau de qualité et le coût par image. Une section **Advanced** extensible permet de surcharger :
+Le menu déroulant **Modèle d'image** est la sélection principale. En dessous, une ligne de résumé intelligente affiche la région active, le niveau de qualité et le coût par image. Une section **Avancé** extensible permet de surcharger :
 
-- **Quality** — les modèles qui supportent des niveaux de qualité (une répartition de prix Standard/Premium) affichent un menu déroulant ; les modèles sans niveaux affichent « Default ». Les niveaux sont déclarés par modèle dans le registre via `quality_options`.
-- **Region** — affiche les régions où le modèle sélectionné est disponible, triées du moins cher au plus cher avec les tarifs. « Auto » sélectionne la région la moins chère.
+- **Qualité** — les modèles qui supportent des niveaux de qualité (une répartition de prix Standard/Premium) affichent un menu déroulant ; les modèles sans niveaux affichent « Par défaut ». Les niveaux sont déclarés par modèle dans le registre via `quality_options`.
+- **Région** — affiche les régions où le modèle sélectionné est disponible, triées du moins cher au plus cher avec les tarifs. « Auto » sélectionne la région la moins chère.
 
 Une **estimation des coûts** se met à jour dynamiquement en fonction de toutes les sélections (modèle × qualité × région × options × variations).
 
@@ -1449,7 +1454,7 @@ Une **estimation des coûts** se met à jour dynamiquement en fonction de toutes
 **Ingénierie de prompts optimisée par modèle** : Les prompts sont automatiquement structurés en légendes descriptives (pas en commandes) selon la [documentation AWS](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html). Les mots de négation sont retirés du prompt principal et les termes d'exclusion sont envoyés comme un **prompt négatif** distinct. Le prompt est tronqué au `prompt_limit` spécifique de chaque modèle depuis le registre.
 
 > [!NOTE]
-> **La sensibilité de modération varie selon le modèle** et est suivie dans le registre (`moderation_strictness`). Les modèles Amazon Bedrock Stability (p. ex. SD 3.5 Large, Stable Image Ultra, Stable Image Core) appliquent la modération de la plateforme AWS et sont réglés en « moderate » ; les modèles auto-hébergés (p. ex. FLUX, HunyuanImage, Qwen-Image) s'exécutent dans votre propre compte sans filtre de contenu imposé par la plateforme. ArtSmoker gère les blocages automatiquement — quand un prompt est rejeté, le système essaie des modèles alternatifs ordonnés par sévérité avant de suggérer une réécriture.
+> **La sensibilité de modération varie selon le modèle** et est suivie dans le registre (`moderation_strictness`). Les modèles Amazon Bedrock Stability (p. ex. SD 3.5 Large, Stable Image Ultra, Stable Image Core) appliquent la modération de la plateforme AWS et sont réglés en « modérée » ; les modèles auto-hébergés (p. ex. FLUX, HunyuanImage, Qwen-Image) s'exécutent dans votre propre compte sans filtre de contenu imposé par la plateforme. ArtSmoker gère les blocages automatiquement — quand un prompt est rejeté, le système essaie des modèles alternatifs ordonnés par sévérité avant de suggérer une réécriture.
 
 ## 📌 7. Stack technique
 
@@ -1457,13 +1462,13 @@ Une **estimation des coûts** se met à jour dynamiquement en fonction de toutes
 |--------|-------------|
 | Backend | FastAPI (Python 3.12–3.14), boto3, Pydantic |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
-| IA (LLM) | Fast LLM et Complex LLM — basculés automatiquement à chaque Sync vers les Claude Sonnet et Opus les plus récents |
+| IA (LLM) | LLM rapide et LLM complexe — basculés automatiquement à chaque Sync vers les Claude Sonnet et Opus les plus récents |
 | IA (Image) | Modèles d'image Amazon Bedrock trouvés par Sync (p. ex. Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) ; catalogue auto-hébergé sur SageMaker (p. ex. FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image) |
 | IA (Post-traitement) | Modèles d'édition Amazon Bedrock (p. ex. Stability AI Remove Background, Creative Upscale) |
 | IA (Chat) | Tous les LLM de chat trouvés par Sync, via Bedrock ConverseStream ou Mantle (p. ex. Claude, Nova, Llama, Mistral) |
 | IA (Vidéo) | Modèles vidéo Amazon Bedrock trouvés par Sync (p. ex. Luma AI Ray v2, jusqu'à 9 s) |
 | IA (Voix) | Amazon Nova Sonic, version active la plus récente (voix vers texte via streaming bidirectionnel) |
-| i18n | Fonction t() personnalisée, ~1 500 clés × 9 langues, traduction DOM par recherche inversée |
+| i18n | Fonction t() personnalisée, 9 langues, traduction DOM par recherche inversée |
 | Conversion SVG | vtracer (principal), potrace (fallback), Pillow (dernier recours) |
 | Rendu texte | Pillow (ombre, contour, effets de lueur) |
 | Stockage | Système de fichiers local (interface compatible S3) |
@@ -1476,6 +1481,7 @@ Aucune étape de build requise pour le frontend.
 ArtSmoker est conçu comme un **outil de développement local/réseau de confiance** — il fonctionne sur la machine du développeur ou sur une instance EC2 privée. Le modèle de sécurité reflète cela :
 
 - **Pas d'authentification** — tous les endpoints API sont ouverts. Approprié pour le développement local et les déploiements d'équipe privés.
+- **Les autres sites web ne peuvent pas se servir de votre navigateur pour l'atteindre** — ArtSmoker refuse les requêtes qu'un autre site web émet via votre navigateur (requêtes intersites et noms d'hôte inconnus, c.-à-d. DNS rebinding), si bien qu'une page que vous visitez ne peut ni lire vos assets ni lancer de tâches sur votre compte. Vous y accédez par un nom DNS ? Ajoutez ce nom à `ARTSMOKER_ALLOWED_HOSTS` (voir [Limites configurables](#-11-limites-configurables)).
 - **Explorateur de système de fichiers** — l'endpoint `GET /api/browse/local` permet de parcourir n'importe quel répertoire accessible par le processus serveur. Ceci est intentionnel pour l'importation d'art de référence depuis votre machine.
 - **Service de polices** — la protection contre le path traversal valide que les requêtes de fichiers de police restent dans les répertoires attendus.
 - **Accès S3** — La navigation et l'importation S3 utilisent les identifiants AWS du serveur. L'utilisateur peut accéder à n'importe quel bucket S3 que son rôle IAM permet.
@@ -1491,11 +1497,11 @@ Endpoints clés :
 
 | Endpoint | But |
 |----------|-----|
-| **Generation** | |
+| **Génération** | |
 | `POST /api/generate/` | Générer des assets (options × variations) avec streaming SSE |
 | `POST /api/generate/post-process` | Appliquer un traitement aux assets existants |
-| `POST /api/generate/edit` | Édition d'image : inpaint, outpaint, erase, search-replace, etc. Accepte l'image source, le masque, le prompt, le modèle. |
-| `POST /api/generate/suggest-edit-prompt` | IA « Generate Prompt » pour l'onglet Edit : lit l'image + le prompt original et renvoie un prompt d'édition pour un mode donné, formaté pour le modèle d'édition cible (légende vs. instruction) |
+| `POST /api/generate/edit` | Édition d'image : retouche (inpaint), extension (outpaint), effacement (erase), rechercher-remplacer (search-replace), etc. Accepte l'image source, le masque, le prompt, le modèle. |
+| `POST /api/generate/suggest-edit-prompt` | IA « Générer un prompt » pour l'onglet Modifier : lit l'image + le prompt original et renvoie un prompt d'édition pour un mode donné, formaté pour le modèle d'édition cible (légende vs. instruction) |
 | `POST /api/generate/analyze-moderation` | Analyser un prompt bloqué par la modération et suggérer une réécriture sûre |
 | **Styles** | |
 | `POST /api/styles/` | Créer un profil de style |
@@ -1504,15 +1510,15 @@ Endpoints clés :
 | **Prompt** | |
 | `POST /api/refine-prompt/` | Aperçu d'un prompt affiné |
 | `POST /api/transcribe/` | Voix vers texte (Nova Sonic) |
-| **Gallery** | |
+| **Galerie** | |
 | `GET /api/gallery/` | Parcourir les assets générés (supporte la pagination limit/offset) |
 | `GET /api/gallery/batch/{batch_id}` | Reconstruire la structure complète options × variations d'un lot |
 | `DELETE /api/gallery/` | Supprimer des assets en masse |
-| **Type Studio** | |
+| **Studio de Texte** | |
 | `POST /api/type-studio/preview` | Rendre l'aperçu de la superposition de texte |
 | `POST /api/type-studio/suggest` | Suggestion de mise en page IA pour le texte |
 | `GET /api/type-studio/fonts` | Lister les polices disponibles |
-| **Browse** | |
+| **Navigation** | |
 | `GET /api/browse/local?path=~` | Parcourir le contenu d'un répertoire local |
 | `GET /api/browse/s3/buckets` | Lister les buckets S3 disponibles |
 | `GET /api/browse/s3?bucket=name&prefix=path` | Parcourir le contenu d'un bucket S3 |
@@ -1529,14 +1535,14 @@ Endpoints clés :
 | `GET /api/chat/sessions/{id}/search?q=` | Rechercher dans les messages d'une session |
 | `POST /api/chat/compact` | Compacter les messages anciens via résumé LLM |
 | `POST /api/chat/generate-title` | Auto-générer un titre de session à partir du premier échange |
-| **Video** | |
-| `POST /api/video/generate` | Démarrer un job de génération vidéo asynchrone |
-| `GET /api/video/status/{job_id}` | Interroger le statut d'un job de génération vidéo |
-| `GET /api/video/jobs` | Lister tous les jobs de génération vidéo |
+| **Vidéo** | |
+| `POST /api/video/generate` | Démarrer une tâche de génération vidéo asynchrone |
+| `GET /api/video/status/{job_id}` | Interroger le statut d'une tâche de génération vidéo |
+| `GET /api/video/jobs` | Lister toutes les tâches de génération vidéo |
 | `GET /api/video/{id}/mp4` | Servir le fichier vidéo MP4 |
 | `GET /api/video/{id}/thumbnail` | Servir la vignette vidéo |
 | `DELETE /api/video/{id}` | Supprimer une vidéo |
-| **Admin** | |
+| **Administration** | |
 | `GET /api/admin/models` | Obtenir le registre complet des modèles (LLMs, modèles d'image, post-traitement) |
 | `GET /api/admin/models/image-options` | Modèles text-to-image activés pour le menu déroulant (avec tarifs, niveaux de qualité, régions). Accepte le filtre `?region=`. |
 | `GET /api/admin/regions` | Liste en cache des régions AWS supportées par Bedrock (aucun appel AWS) |
@@ -1550,7 +1556,7 @@ Endpoints clés :
 | `PATCH /api/admin/templates/{name}` | Mettre à jour un template (valide les variables requises) |
 | `POST /api/admin/templates/{name}/reset` | Réinitialiser un template par défaut |
 | `POST /api/admin/templates/{name}/enhance` | Améliorer un template avec l'IA |
-| **System** | |
+| **Système** | |
 | `POST /api/log` | Journalisation d'erreurs/avertissements côté client (enregistrée en `[CLIENT]` dans la console serveur) |
 | `GET /api/health` | Health check + validation des identifiants AWS/Bedrock |
 
@@ -1559,81 +1565,81 @@ Endpoints clés :
 ```
 ArtSmoker/
 ├── backend/
-│   ├── main.py              # FastAPI app, startup validation, static mount
-│   ├── config.py            # Settings (AWS regions, model IDs, paths, limits)
-│   ├── model_registry.json  # Single source of truth: models, regions, pricing, format families, quality tiers
+│   ├── main.py              # Application FastAPI, validation au démarrage, montage statique
+│   ├── config.py            # Paramètres (régions AWS, ID de modèles, chemins, limites)
+│   ├── model_registry.json  # Source de vérité unique : modèles, régions, tarifs, familles de format, niveaux de qualité
 │   ├── requirements.txt
-│   ├── prompt_templates.json # Editable LLM directive prompts — runtime source of truth (28 templates)
+│   ├── prompt_templates.json # Prompts directifs LLM éditables — source de vérité à l'exécution (28 modèles de prompt)
 │   ├── routers/
-│   │   ├── generate.py      # Two-level asset generation + SSE streaming + reference-guided
-│   │   ├── generate_3d.py   # Image-to-3D: generation, source review, variants, async jobs
-│   │   ├── custom_deploy.py # Self-hosted model deploy/teardown (Amazon SageMaker)
-│   │   ├── styles.py        # Style profile CRUD + directory/S3 import + analysis
-│   │   ├── gallery.py       # Asset browsing + file serving + engine exports + bulk delete
-│   │   ├── typestudio.py    # Type Studio: text overlay, font serving, AI layout
-│   │   ├── video.py         # Video generation (async), job polling, MP4/thumbnail serving
-│   │   ├── chat.py          # Chat Studio: LLM streaming, sessions, export, context compaction
-│   │   ├── browse.py        # Server-side file/S3 browser for reference import
-│   │   ├── refine.py        # Prompt refinement preview + translation preview
-│   │   ├── transcribe.py    # Voice transcription
-│   │   └── admin.py         # Model registry management + Bedrock discovery + prompt templates
+│   │   ├── generate.py      # Génération d'assets à deux niveaux + streaming SSE + guidée par référence
+│   │   ├── generate_3d.py   # Image vers 3D : génération, vérification de la source, variantes, tâches asynchrones
+│   │   ├── custom_deploy.py # Déploiement/démantèlement des modèles auto-hébergés (Amazon SageMaker)
+│   │   ├── styles.py        # CRUD des profils de style + import répertoire/S3 + analyse
+│   │   ├── gallery.py       # Navigation des assets + service des fichiers + exports moteur + suppression en masse
+│   │   ├── typestudio.py    # Studio de Texte : superposition de texte, service des polices, mise en page IA
+│   │   ├── video.py         # Génération vidéo (asynchrone), suivi des tâches, service MP4/vignettes
+│   │   ├── chat.py          # Studio de Chat : streaming LLM, sessions, export, compactage du contexte
+│   │   ├── browse.py        # Explorateur fichiers/S3 côté serveur pour l'import de références
+│   │   ├── refine.py        # Aperçu de l'affinage du prompt + aperçu de la traduction
+│   │   ├── transcribe.py    # Transcription vocale
+│   │   └── admin.py         # Gestion du registre des modèles + découverte Bedrock + modèles de prompt
 │   ├── services/
-│   │   ├── bedrock_client.py     # Shared Bedrock client with connection pooling
-│   │   ├── model_registry.py     # Model registry: loads/saves model_registry.json
-│   │   ├── prompt_engineer.py    # Claude: prompt refinement + concept generation
-│   │   ├── image_generator.py    # Routes to Bedrock (SD 3.5 / Ultra / Core) or SageMaker (FLUX / Hunyuan / Qwen)
-│   │   ├── style_analyzer.py     # Two-phase style analysis (cohesion + full)
-│   │   ├── post_processor.py     # Stability AI: bg removal, upscale; vtracer: SVG
-│   │   ├── transcriber.py        # Nova Sonic: streaming speech-to-text
-│   │   ├── import_dedup.py       # Smart deduplication (rotations, animations, folders)
-│   │   ├── texture_extractor.py  # glTF/GLB texture extraction
-│   │   ├── prompt_translator.py  # Auto-detect language + translate to English
-│   │   ├── prompt_templates.py   # Editable LLM directive prompts (load/save/validate)
-│   │   ├── video_generator.py   # Video: async Bedrock invoke, S3 download, ffmpeg thumbnails
-│   │   ├── cost_tracker.py      # Request-scoped cost accumulator
-│   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
-│   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
-│   │   ├── reference_analyzer.py # "Inspired by the reference" vision analysis
-│   │   ├── mesh_export.py      # Engine-ready 3D exports via managed headless Blender
-│   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)
-│   │   └── sagemaker_invoker.py  # Routes inference to Amazon SageMaker endpoints
+│   │   ├── bedrock_client.py     # Client Bedrock partagé avec pool de connexions
+│   │   ├── model_registry.py     # Registre des modèles : charge/enregistre model_registry.json
+│   │   ├── prompt_engineer.py    # Claude : affinage du prompt + génération de concepts
+│   │   ├── image_generator.py    # Aiguille vers Bedrock (SD 3.5 / Ultra / Core) ou SageMaker (FLUX / Hunyuan / Qwen)
+│   │   ├── style_analyzer.py     # Analyse de style en deux phases (cohésion + complète)
+│   │   ├── post_processor.py     # Stability AI : suppression d'arrière-plan, agrandissement ; vtracer : SVG
+│   │   ├── transcriber.py        # Nova Sonic : transcription vocale en streaming
+│   │   ├── import_dedup.py       # Dédoublonnage intelligent (rotations, animations, dossiers)
+│   │   ├── texture_extractor.py  # Extraction de textures glTF/GLB
+│   │   ├── prompt_translator.py  # Détection automatique de la langue + traduction en anglais
+│   │   ├── prompt_templates.py   # Prompts directifs LLM éditables (chargement/enregistrement/validation)
+│   │   ├── video_generator.py   # Vidéo : invocation Bedrock asynchrone, téléchargement S3, vignettes ffmpeg
+│   │   ├── cost_tracker.py      # Accumulateur de coûts par requête
+│   │   ├── custom_models.py    # Catalogue de modèles auto-hébergés (extensible)
+│   │   ├── async_jobs.py       # File de tâches de génération asynchrones (panneau Tâches en attente)
+│   │   ├── reference_analyzer.py # Analyse visuelle « Inspiré de la référence »
+│   │   ├── mesh_export.py      # Exports 3D prêts pour le moteur via un Blender headless géré
+│   │   ├── sagemaker_deployer.py # Gestion des endpoints Amazon SageMaker (récupération directe depuis HF pour les modèles HF)
+│   │   └── sagemaker_invoker.py  # Aiguille l'inférence vers les endpoints Amazon SageMaker
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update
-│   │   ├── generation_request.py  # GenerationRequest, AssetType, ImageModel enums
+│   │   ├── generation_request.py  # Enums GenerationRequest, AssetType, ImageModel
 │   │   └── generation_result.py   # GenerationResult, OptionResult, VariantResult
 │   └── storage/
-│       └── local_store.py         # Local filesystem (S3-compatible interface)
+│       └── local_store.py         # Système de fichiers local (interface compatible S3)
 ├── frontend/
-│   ├── index.html           # SPA entry point
-│   ├── css/styles.css       # Dark theme + animations
+│   ├── index.html           # Point d'entrée de la SPA
+│   ├── css/styles.css       # Thème sombre + animations
 │   └── js/
-│       ├── app.js               # SPA router + DOM caching + navigation + showConfirm()
+│       ├── app.js               # Routeur SPA + cache DOM + navigation + showConfirm()
 │       ├── i18n/
-│       │   ├── i18n.js          # Core: t() function, language switching, reverse lookup
+│       │   ├── i18n.js          # Cœur : fonction t(), changement de langue, recherche inversée
 │       │   ├── en.json          # Anglais (base) — ~1 500 clés
 │       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 traductions
-│       ├── services/api.js      # Backend API client
+│       ├── services/api.js      # Client de l'API backend
 │       └── components/
-│           ├── ImageStudio.js   # Image Studio (options × variations, multi-model)
-│           ├── TypeStudio.js    # Type Studio (text overlay)
-│           ├── VideoStudio.js   # Video Studio (text-to-video generation)
-│           ├── ChatStudio.js    # Chat Studio (multi-model LLM chat)
-│           ├── Gallery.js       # Gallery grid + search + bulk ops
-│           ├── StyleLibrary.js  # Style management + file browser
-│           ├── AssetViewer.js   # Full-size preview, edit, 3D, exports, metadata
-│           ├── ModelSettings.js # Model registry admin UI (modal)
-│           ├── PromptEditor.js  # Two-area prompt editor + compose
-│           ├── PromptDesigner.js # Structured prompt decomposition (lock/vary fields)
-│           ├── ReferenceStudio.js # Image Inspiration tab (reference-guided generation)
+│           ├── ImageStudio.js   # Studio Image (options × variations, multi-modèle)
+│           ├── TypeStudio.js    # Studio de Texte (superposition de texte)
+│           ├── VideoStudio.js   # Studio Vidéo (génération texte-vers-vidéo)
+│           ├── ChatStudio.js    # Studio de Chat (chat LLM multi-modèle)
+│           ├── Gallery.js       # Grille de la Galerie + recherche + opérations en masse
+│           ├── StyleLibrary.js  # Gestion des styles + explorateur de fichiers
+│           ├── AssetViewer.js   # Aperçu en taille réelle, retouche, 3D, exports, métadonnées
+│           ├── ModelSettings.js # Interface d'administration du registre des modèles (modale)
+│           ├── PromptEditor.js  # Éditeur de prompt à deux zones + composition
+│           ├── PromptDesigner.js # Décomposition structurée du prompt (champs verrouiller/varier)
+│           ├── ReferenceStudio.js # Onglet Inspiration image (génération guidée par référence)
 │           └── VoiceInput.js    # MediaRecorder + transcription
 ├── data/
-│   ├── styles/              # Style profiles + reference images (symlinked)
-│   ├── generated/           # Output assets (PNG + SVG + metadata.json)
-│   ├── video/               # Video assets (MP4 + thumbnails + job metadata)
-│   └── chat/                # Chat sessions (JSON per session)
-├── tools/                   # Managed portable Blender (auto-downloaded; gitignored)
-├── SPEC.md                  # Full technical specification (rebuild blueprint)
-└── README.md                # This file
+│   ├── styles/              # Profils de style + images de référence (liens symboliques)
+│   ├── images/              # Assets générés (PNG + SVG + metadata.json)
+│   ├── video/               # Assets vidéo (MP4 + vignettes + métadonnées des tâches)
+│   └── chat/                # Sessions de chat (un JSON par session)
+├── tools/                   # Blender portable géré (téléchargé automatiquement ; ignoré par git)
+├── SPEC.md                  # Spécification technique complète (plan de reconstruction)
+└── README.md                # Version anglaise de ce fichier
 ```
 
 ## 📌 11. Limites configurables
@@ -1647,6 +1653,8 @@ Les paramètres de `backend/config.py` peuvent être surchargés via des variabl
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Région pour les modèles Claude + Stability AI |
 | `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Région pour Amazon (voix Nova Sonic) |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | Nom du profil AWS (utilise la chaîne par défaut si non défini) |
+| `allowed_hosts` | `ARTSMOKER_ALLOWED_HOSTS` | *(vide)* | Noms d'hôte supplémentaires auxquels le serveur répond, séparés par des virgules (`.example.com` autorise les sous-domaines ; `*` désactive la vérification). Toujours autorisés : localhost, toute adresse IP et le nom d'hôte de cette machine |
+| `cors_origins` | `ARTSMOKER_CORS_ORIGINS` | *(vide)* | Autres origines web autorisées à appeler l'API depuis un navigateur, séparées par des virgules. Aucune n'est nécessaire : ArtSmoker sert sa propre interface |
 | `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Mise à jour avec contrôle de version au démarrage + vérification périodique 24h (git ou tarball), puis redémarrage sur place |
 
 Réduire `max_analysis_images` réduit les coûts de vision IA par analyse. Réduire `max_reference_images` limite le stockage. Les deux peuvent être ajustés selon le budget.
@@ -1654,7 +1662,7 @@ Réduire `max_analysis_images` réduit les coûts de vision IA par analyse. Réd
 ## 📌 12. Tarification Amazon Bedrock et ventilation des coûts
 
 > [!IMPORTANT]
-> **Les modèles sont dépréciés et changent rapidement.** De nouveaux modèles sortent et les anciens sont retirés fréquemment, si bien que tout nom de modèle ou tarif codé en dur dans la documentation devient vite obsolète. ArtSmoker gère cela automatiquement — chaque **Sync from AWS** redécouvre la gamme de modèles actuelle, bascule automatiquement les emplacements LLM partagés vers les Claude Sonnet/Opus les plus récents, et rafraîchit les tarifs en direct par modèle depuis l'API AWS Pricing dans `model_registry.json`. **L'application fait autorité** — à la fois sur les modèles qui existent et sur leur coût (affiché en direct dans la barre latérale de l'Image Studio selon le modèle sélectionné, le niveau de qualité, la région et la taille du lot). Les noms de modèles et tous les chiffres ci-dessous ne sont que des **exemples illustratifs** (voir [À propos des noms de modèles](#about-model-names)) — confirmez toujours les modèles/tarifs actuels dans l'application ou sur la [page de tarification Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) officielle.
+> **Les modèles sont dépréciés et changent rapidement.** De nouveaux modèles sortent et les anciens sont retirés fréquemment, si bien que tout nom de modèle ou tarif codé en dur dans la documentation devient vite obsolète. ArtSmoker gère cela automatiquement — chaque exécution de **Synchroniser depuis AWS** redécouvre la gamme de modèles actuelle, bascule automatiquement les emplacements LLM partagés vers les Claude Sonnet/Opus les plus récents, et rafraîchit les tarifs en direct par modèle depuis l'API AWS Pricing dans `model_registry.json`. **L'application fait autorité** — à la fois sur les modèles qui existent et sur leur coût (affiché en direct dans la barre latérale du Studio Image selon le modèle sélectionné, le niveau de qualité, la région et la taille du lot). Les noms de modèles et tous les chiffres ci-dessous ne sont que des **exemples illustratifs** (voir [À propos des noms de modèles](#about-model-names)) — confirmez toujours les modèles/tarifs actuels dans l'application ou sur la [page de tarification Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) officielle.
 
 Les **régions d'origine par défaut** de l'application sont `us-west-2` (p. ex. Claude, Stability AI) et `us-east-1` (p. ex. Amazon Nova Sonic) ; Sync épingle chaque modèle à une Région où AWS le propose, et les prix diffèrent selon la région. Consultez également [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) pour le modèle de coût.
 
@@ -1664,7 +1672,7 @@ Ce qui génère des coûts, et son unité de facturation (voir l'application pou
 
 | Service | Facturé | Notes |
 |---------|---------|-------|
-| **Ingénierie de prompts LLM et chat** (Fast / Complex LLM — p. ex. Claude Sonnet / Opus, basculés vers les plus récents à la synchro) | par token entrée / sortie | Affinage de prompts, concepts, chat, analyse de style, modération |
+| **Ingénierie de prompts LLM et chat** (LLM rapide / complexe — p. ex. Claude Sonnet / Opus, basculés vers les plus récents à la synchro) | par token entrée / sortie | Affinage de prompts, concepts, chat, analyse de style, modération |
 | **Génération d'images Bedrock** (p. ex. Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) | par image | Ultra ≫ SD 3.5 ≫ Core en prix ; chiffre en direct affiché dans l'application |
 | **Images/3D auto-hébergés** (p. ex. FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2) | par seconde-GPU de votre instance SageMaker | Scale-to-zero à l'inactivité (0$) ; non facturé par image |
 | **Post-traitement** (Remove Background, Creative Upscale) | par image | Services Stability AI |
@@ -1679,15 +1687,15 @@ Ces appels LLM sont inclus dans le workflow de génération mais ne sont pas dé
 
 | Appel | Modèle | Quand | Coût approx. |
 |-------|--------|-------|--------------|
-| **Prompt Pre-Check** | Fast LLM (p. ex. Claude Sonnet) | Avant la génération (si le toggle est activé) | ~$0.005 |
-| **Moderation Rewrite** | Fast LLM (p. ex. Claude Sonnet) | Uniquement quand tous les modèles rejettent un prompt | ~$0.005 |
-| **Type Studio Layout** | Complex LLM (p. ex. Claude Opus) | Chaque demande de suggestion de mise en page IA | ~$0.02–$0.05 |
+| **Pré-vérification du prompt** | LLM rapide (p. ex. Claude Sonnet) | Avant la génération (si le toggle est activé) | ~$0.005 |
+| **Réécriture de modération** | LLM rapide (p. ex. Claude Sonnet) | Uniquement quand tous les modèles rejettent un prompt | ~$0.005 |
+| **Mise en page (Studio de Texte)** | LLM complexe (p. ex. Claude Opus) | Chaque demande de suggestion de mise en page IA | ~$0.02–$0.05 |
 
-Ceux-ci sont faibles — la pré-vérification et la réécriture de modération coûtent une fraction de centime chacune. La mise en page Type Studio est comparable à un affinage de prompt à option unique.
+Ceux-ci sont faibles — la pré-vérification et la réécriture de modération coûtent une fraction de centime chacune. La mise en page du Studio de Texte est comparable à un affinage de prompt à option unique.
 
 ### 📝 12.3 Coût de l'analyse de style (unique par style)
 
-~**$0.14** par style (20 images envoyées au Complex LLM, p. ex. Claude Opus, + une vérification de cohésion de 8 images sur le Fast LLM, p. ex. Claude Sonnet). La vérification de cohésion ajoute ~$0.01.
+~**$0.14** par style (20 images envoyées au LLM complexe, p. ex. Claude Opus, + une vérification de cohésion de 8 images sur le LLM rapide, p. ex. Claude Sonnet). La vérification de cohésion ajoute ~$0.01.
 
 ### 📝 12.4 Coût de génération selon la taille du lot
 
@@ -1705,9 +1713,9 @@ Les modèles SageMaker auto-hébergés (p. ex. FLUX, HunyuanImage, Qwen-Image) s
 
 | Option | Par image | 1 image | 5 images | 25 images |
 |--------|-----------|---------|----------|-----------|
-| Remove Background | $0.07 | $0.07 | $0.35 | $1.75 |
-| Creative Upscale | $0.60 | $0.60 | $3.00 | $15.00 |
-| Convert to SVG | $0.00 | $0.00 | $0.00 | $0.00 |
+| Supprimer l'arrière-plan | $0.07 | $0.07 | $0.35 | $1.75 |
+| Agrandir (créatif) | $0.60 | $0.60 | $3.00 | $15.00 |
+| Convertir en SVG | $0.00 | $0.00 | $0.00 | $0.00 |
 
 > [!TIP]
 > **Note Creative Upscale** : Gère automatiquement la limite de charge utile de réponse de 16 Mo de Stability AI en utilisant le format de sortie JPEG en interne, puis en reconvertissant en PNG. Inclut un réessai avec backoff exponentiel pour la limitation d'API.
@@ -1717,9 +1725,9 @@ Les modèles SageMaker auto-hébergés (p. ex. FLUX, HunyuanImage, Qwen-Image) s
 | Exemple | Configuration | Coût total |
 |---------|---------------|------------|
 | **Le moins cher** | 1×1, Stable Image Core, aucun traitement | ~$0.05 |
-| **Standard** | 1×5, Stable Diffusion 3.5 Large, Remove BG | ~$0.76 |
-| **Exploration complète** | 5×5, Stable Diffusion 3.5 Large, Remove BG + SVG | ~$3.80 |
-| **Premium** | 5×5, Stable Image Ultra, Remove BG + Upscale + SVG | ~$20.30 |
+| **Standard** | 1×5, Stable Diffusion 3.5 Large, Supprimer l'arrière-plan | ~$0.76 |
+| **Exploration complète** | 5×5, Stable Diffusion 3.5 Large, Supprimer l'arrière-plan + SVG | ~$3.80 |
+| **Premium** | 5×5, Stable Image Ultra, Supprimer l'arrière-plan + Agrandir (créatif) + SVG | ~$20.30 |
 
 > [!TIP]
 > **Point clé** : La génération d'images en elle-même est peu coûteuse ($0.01–$0.14/image). **Le Creative Upscale à $0.60/image est le coût dominant** — utilisez-le sélectivement sur vos assets finaux choisis, pas sur l'ensemble du lot. Le Remove Background à $0.07/image est raisonnable. La conversion SVG est gratuite (exécution locale).
