@@ -542,7 +542,7 @@ aws bedrock list-custom-models --region us-east-1 \
 | `bedrock:InvokeModel` | Генерация изображений, редактирование изображений, постобработка (все модели изображений) |
 | `bedrock:InvokeModelWithResponseStream` | Потоковые ответы LLM (Chat Studio) — API ConverseStream авторизуется через это действие. Непотоковый API Converse (доработка промптов, анализ стиля, генерация концепций) авторизуется через `bedrock:InvokeModel` — отдельного действия `bedrock:Converse` не существует |
 | `bedrock:InvokeModelWithBidirectionalStream` | Голосовая транскрипция (опционально — приложение работает и без неё) |
-| `bedrock:StartAsyncInvoke` | Генерация видео (асинхронный вызов) |
+| `bedrock:StartAsyncInvoke` | Генерация видео (асинхронный вызов; сама операция авторизуется через `bedrock:InvokeModel`, которое также предоставлено) |
 | `bedrock:GetAsyncInvoke` | Опрос статуса задания генерации видео |
 | `bedrock:ListAsyncInvokes` | Список заданий генерации видео |
 | `bedrock:ListFoundationModels` | Обнаружение базовых моделей (Sync from AWS) |
@@ -556,17 +556,24 @@ aws bedrock list-custom-models --region us-east-1 \
 | `account:ListRegions` | Сканирование только **включённых** регионов вашего аккаунта во время Sync (быстро, без ошибок на opt‑in регионах). Опционально — при отсутствии откатывается к сканированию всех регионов. |
 | `account:GetRegionOptStatus` | Чтение статуса opt‑in по каждому региону (спутник `account:ListRegions`). Опционально. |
 | `s3:CreateBucket` | Создание S3-бакета для хранения видео (опционально, через UI) |
-| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Хранение и извлечение результатов видео |
+| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Хранение и извлечение результатов видео; входные/выходные данные асинхронных заданий и 3D-артефакты для Custom Models |
+| `s3:ListAllMyBuckets` | Обзор S3-бакетов в Video Settings / при импорте стилей (опционально) |
+| `s3:GetLifecycleConfiguration` / `s3:PutLifecycleConfiguration` | Правила автоматического удаления временных файлов асинхронных заданий в бакете развёртывания (Custom Models) |
 | `aws-marketplace:Subscribe` | Автоподписка при первом использовании сторонних моделей (включая сторонние модели Mantle) |
 | `aws-marketplace:ViewSubscriptions` | Проверка существующих подписок на модели |
 | `sts:GetCallerIdentity` | Валидация учётных данных при запуске; также лежит в основе локально подписанного bearer-токена Mantle |
 | `pricing:GetProducts` | Получение цен на модели во время Sync from AWS (опционально) |
 | `sagemaker:*` | Self-hosted пользовательские модели на Amazon SageMaker (опционально — только при использовании Custom Models) |
-| Набор среды выполнения Custom Models: `application-autoscaling:*` (цели/политики), `cloudwatch:PutMetricAlarm`/`DeleteAlarms`/`DescribeAlarms`, `logs:` (чтение + retention), `servicequotas:GetServiceQuota`/`RequestServiceQuotaIncrease`, `ecr:DescribeRepositories`, `iam:CreateServiceLinkedRole` (только при первом авто-масштабировании) | Масштабирование эндпоинтов до нуля/с нуля, аларм очереди, сканирование готовности, проверка GPU-квот, разрешение образа DLC (опционально — только Custom Models; полный список в масштабированной политике ниже) |
+| `application-autoscaling:*` (регистрация/отмена регистрации целей, создание/удаление/просмотр политик) | Масштабирование до нуля + с нуля для эндпоинтов Custom Models (опционально — только для Custom Models) |
+| `cloudwatch:PutMetricAlarm` / `DeleteAlarms` / `DescribeAlarms` | Аларм очереди для масштабирования с нуля эндпоинтов Custom Models (опционально) |
+| `logs:DescribeLogStreams` / `FilterLogEvents` / `GetLogEvents` / `PutRetentionPolicy` | Определение готовности эндпоинтов + хранение логов для Custom Models (опционально) |
+| `servicequotas:GetServiceQuota` / `RequestServiceQuotaIncrease` | Проверка квоты GPU-инстансов / запрос на её увеличение в один клик в диалоге развёртывания (опционально) |
+| `ecr:DescribeRepositories` | Определение образа SageMaker Deep Learning Container при развёртывании (опционально) |
+| `iam:CreateServiceLinkedRole` (ограничено `sagemaker.application-autoscaling.amazonaws.com`) | При самом первом авто-масштабировании эндпоинта в аккаунте автоматически создаётся `AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint` (опционально — пропустите, если эта роль уже существует) |
 | `iam:PassRole` | Разрешить Amazon SageMaker использовать вашу роль (опционально — только для Custom Models) |
-| `iam:CreateRole` / `iam:AttachRolePolicy` | Автосоздание роли выполнения Amazon SageMaker при первом развёртывании (опционально — только для Custom Models) |
+| `iam:CreateRole` / `iam:AttachRolePolicy` / `iam:PutRolePolicy` | Автосоздание роли выполнения Amazon SageMaker при первом развёртывании (опционально — только для Custom Models) |
 | `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Автонастройка существующей роли для доверия Amazon SageMaker (опционально) |
-| `secretsmanager:CreateSecret` / `secretsmanager:GetSecretValue` / `secretsmanager:DeleteSecret` | Шифрованное хранение токенов HuggingFace для моделей с ограниченным доступом (опционально — автоочистка при демонтаже) |
+| `secretsmanager:CreateSecret` / `UpdateSecret` / `GetSecretValue` / `DescribeSecret` / `DeleteSecret` | Шифрованное хранение токенов HuggingFace для моделей с ограниченным доступом (опционально — автоочистка при демонтаже) |
 
 **Быстрейшая настройка** (управляемые политики — самый широкий доступ):
 
@@ -1558,9 +1565,11 @@ ArtSmoker/
 │   ├── requirements.txt
 │   ├── prompt_templates.json # Editable LLM directive prompts — runtime source of truth (28 templates)
 │   ├── routers/
-│   │   ├── generate.py      # Two-level asset generation + SSE streaming
+│   │   ├── generate.py      # Two-level asset generation + SSE streaming + reference-guided
+│   │   ├── generate_3d.py   # Image-to-3D: generation, source review, variants, async jobs
+│   │   ├── custom_deploy.py # Self-hosted model deploy/teardown (Amazon SageMaker)
 │   │   ├── styles.py        # Style profile CRUD + directory/S3 import + analysis
-│   │   ├── gallery.py       # Asset browsing + file serving + bulk delete
+│   │   ├── gallery.py       # Asset browsing + file serving + engine exports + bulk delete
 │   │   ├── typestudio.py    # Type Studio: text overlay, font serving, AI layout
 │   │   ├── video.py         # Video generation (async), job polling, MP4/thumbnail serving
 │   │   ├── chat.py          # Chat Studio: LLM streaming, sessions, export, context compaction
@@ -1584,6 +1593,8 @@ ArtSmoker/
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
 │   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
 │   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
+│   │   ├── reference_analyzer.py # "Inspired by the reference" vision analysis
+│   │   ├── mesh_export.py      # Engine-ready 3D exports via managed headless Blender
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)
 │   │   └── sagemaker_invoker.py  # Routes inference to Amazon SageMaker endpoints
 │   ├── models/
@@ -1603,21 +1614,24 @@ ArtSmoker/
 │       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 переводов
 │       ├── services/api.js      # Backend API client
 │       └── components/
-│           ├── ImageStudio.js   # Image Studio (options × variations)
+│           ├── ImageStudio.js   # Image Studio (options × variations, multi-model)
 │           ├── TypeStudio.js    # Type Studio (text overlay)
 │           ├── VideoStudio.js   # Video Studio (text-to-video generation)
 │           ├── ChatStudio.js    # Chat Studio (multi-model LLM chat)
 │           ├── Gallery.js       # Gallery grid + search + bulk ops
 │           ├── StyleLibrary.js  # Style management + file browser
-│           ├── AssetViewer.js   # Full-size preview + metadata + download
+│           ├── AssetViewer.js   # Full-size preview, edit, 3D, exports, metadata
 │           ├── ModelSettings.js # Model registry admin UI (modal)
 │           ├── PromptEditor.js  # Two-area prompt editor + compose
+│           ├── PromptDesigner.js # Structured prompt decomposition (lock/vary fields)
+│           ├── ReferenceStudio.js # Image Inspiration tab (reference-guided generation)
 │           └── VoiceInput.js    # MediaRecorder + transcription
 ├── data/
 │   ├── styles/              # Style profiles + reference images (symlinked)
 │   ├── generated/           # Output assets (PNG + SVG + metadata.json)
 │   ├── video/               # Video assets (MP4 + thumbnails + job metadata)
 │   └── chat/                # Chat sessions (JSON per session)
+├── tools/                   # Managed portable Blender (auto-downloaded; gitignored)
 ├── SPEC.md                  # Full technical specification (rebuild blueprint)
 └── README.md                # This file
 ```

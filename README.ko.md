@@ -542,7 +542,7 @@ IAM 사용자, 역할, 인스턴스 프로필에는 다음 권한이 필요합�
 | `bedrock:InvokeModel` | 이미지 생성, 이미지 편집, 후처리(모든 이미지 모델) |
 | `bedrock:InvokeModelWithResponseStream` | 스트리밍 LLM 응답(Chat Studio) — ConverseStream API는 이 액션으로 인가됩니다. 비스트리밍 Converse API(프롬프트 정제, 스타일 분석, 컨셉 생성)는 `bedrock:InvokeModel`로 인가됩니다 — 별도의 `bedrock:Converse` 액션은 존재하지 않습니다 |
 | `bedrock:InvokeModelWithBidirectionalStream` | 음성 전사(선택 — 없어도 앱 작동) |
-| `bedrock:StartAsyncInvoke` | 동영상 생성(비동기 호출) |
+| `bedrock:StartAsyncInvoke` | 동영상 생성(비동기 호출; 작업 자체는 함께 부여된 `bedrock:InvokeModel`로 인가됩니다) |
 | `bedrock:GetAsyncInvoke` | 동영상 생성 작업 상태 폴링 |
 | `bedrock:ListAsyncInvokes` | 동영상 생성 작업 목록 조회 |
 | `bedrock:ListFoundationModels` | 기반 모델 검색(Sync from AWS) |
@@ -556,17 +556,24 @@ IAM 사용자, 역할, 인스턴스 프로필에는 다음 권한이 필요합�
 | `account:ListRegions` | Sync 중 계정의 **활성화된** 리전만 스캔(빠르고, 옵트인 리전에서 오류 없음). 선택 — 없으면 모든 리전 스캔으로 폴백. |
 | `account:GetRegionOptStatus` | 리전별 옵트인 상태 읽기(`account:ListRegions`의 동반 권한). 선택. |
 | `s3:CreateBucket` | 동영상 저장용 S3 버킷 생성(선택, UI 경유) |
-| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | 동영상 출력 저장 및 검색 |
+| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | 동영상 출력 저장 및 검색; Custom Models의 비동기 작업 입출력 및 3D 산출물 |
+| `s3:ListAllMyBuckets` | Video Settings / 스타일 가져오기의 S3 버킷 브라우저(선택) |
+| `s3:GetLifecycleConfiguration` / `s3:PutLifecycleConfiguration` | 배포 버킷의 비동기 작업 임시 파일 자동 만료 규칙(Custom Models) |
 | `aws-marketplace:Subscribe` | 서드파티 모델(서드파티 Mantle 모델 포함) 최초 사용 시 자동 구독 |
 | `aws-marketplace:ViewSubscriptions` | 기존 모델 구독 확인 |
 | `sts:GetCallerIdentity` | 시작 시 인증 정보 검증; 로컬 서명 Mantle 베어러 토큰의 기반이기도 함 |
 | `pricing:GetProducts` | Sync from AWS 중 모델 요금 조회(선택) |
 | `sagemaker:*` | Amazon SageMaker의 셀프 호스팅 커스텀 모델(선택 — Custom Models 사용 시에만) |
-| Custom Models 런타임 세트: `application-autoscaling:*`(타깃/정책), `cloudwatch:PutMetricAlarm`/`DeleteAlarms`/`DescribeAlarms`, `logs:`(읽기+보존 설정), `servicequotas:GetServiceQuota`/`RequestServiceQuotaIncrease`, `ecr:DescribeRepositories`, `iam:CreateServiceLinkedRole`(최초 오토스케일링 시 1회) | 엔드포인트 스케일-투-제로/프롬-제로, 백로그 알람, 준비 상태 스캔, GPU 쿼터 확인, DLC 이미지 결정(선택 — Custom Models 전용; 전체 목록은 아래 범위 지정 정책 참조) |
+| `application-autoscaling:*`(타깃 등록/해제, 정책 생성/삭제/조회) | Custom Models 엔드포인트의 스케일-투-제로 + 스케일-프롬-제로(선택 — Custom Models 전용) |
+| `cloudwatch:PutMetricAlarm` / `DeleteAlarms` / `DescribeAlarms` | Custom Models 엔드포인트의 스케일-프롬-제로 백로그 알람(선택) |
+| `logs:DescribeLogStreams` / `FilterLogEvents` / `GetLogEvents` / `PutRetentionPolicy` | 엔드포인트 준비 상태 감지 + Custom Models 로그 보존(선택) |
+| `servicequotas:GetServiceQuota` / `RequestServiceQuotaIncrease` | 배포 대화상자의 GPU 인스턴스 쿼터 확인 / 원클릭 증가 요청(선택) |
+| `ecr:DescribeRepositories` | 배포 시 SageMaker Deep Learning Container 이미지 결정(선택) |
+| `iam:CreateServiceLinkedRole`(`sagemaker.application-autoscaling.amazonaws.com`로 범위 지정) | 계정에서 최초로 엔드포인트 오토스케일링을 할 때 `AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint`를 자동 생성(선택 — 해당 역할이 이미 있으면 생략 가능) |
 | `iam:PassRole` | Amazon SageMaker가 역할을 사용하도록 허용(선택 — Custom Models 전용) |
-| `iam:CreateRole` / `iam:AttachRolePolicy` | 최초 배포 시 Amazon SageMaker 실행 역할 자동 생성(선택 — Custom Models 전용) |
+| `iam:CreateRole` / `iam:AttachRolePolicy` / `iam:PutRolePolicy` | 최초 배포 시 Amazon SageMaker 실행 역할 자동 생성(선택 — Custom Models 전용) |
 | `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Amazon SageMaker 신뢰를 위해 기존 역할 자동 구성(선택) |
-| `secretsmanager:CreateSecret` / `secretsmanager:GetSecretValue` / `secretsmanager:DeleteSecret` | 게이팅된 모델의 HuggingFace 토큰 암호화 저장(선택 — 티어다운 시 자동 정리) |
+| `secretsmanager:CreateSecret` / `UpdateSecret` / `GetSecretValue` / `DescribeSecret` / `DeleteSecret` | 게이팅된 모델의 HuggingFace 토큰 암호화 저장(선택 — 티어다운 시 자동 정리) |
 
 **가장 빠른 설정**(관리형 정책 — 가장 넓은 접근):
 
@@ -1558,9 +1565,11 @@ ArtSmoker/
 │   ├── requirements.txt
 │   ├── prompt_templates.json # Editable LLM directive prompts — runtime source of truth (28 templates)
 │   ├── routers/
-│   │   ├── generate.py      # Two-level asset generation + SSE streaming
+│   │   ├── generate.py      # Two-level asset generation + SSE streaming + reference-guided
+│   │   ├── generate_3d.py   # Image-to-3D: generation, source review, variants, async jobs
+│   │   ├── custom_deploy.py # Self-hosted model deploy/teardown (Amazon SageMaker)
 │   │   ├── styles.py        # Style profile CRUD + directory/S3 import + analysis
-│   │   ├── gallery.py       # Asset browsing + file serving + bulk delete
+│   │   ├── gallery.py       # Asset browsing + file serving + engine exports + bulk delete
 │   │   ├── typestudio.py    # Type Studio: text overlay, font serving, AI layout
 │   │   ├── video.py         # Video generation (async), job polling, MP4/thumbnail serving
 │   │   ├── chat.py          # Chat Studio: LLM streaming, sessions, export, context compaction
@@ -1584,6 +1593,8 @@ ArtSmoker/
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
 │   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
 │   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
+│   │   ├── reference_analyzer.py # "Inspired by the reference" vision analysis
+│   │   ├── mesh_export.py      # Engine-ready 3D exports via managed headless Blender
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)
 │   │   └── sagemaker_invoker.py  # Routes inference to Amazon SageMaker endpoints
 │   ├── models/
@@ -1603,21 +1614,24 @@ ArtSmoker/
 │       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8개 번역
 │       ├── services/api.js      # Backend API client
 │       └── components/
-│           ├── ImageStudio.js   # Image Studio (options × variations)
+│           ├── ImageStudio.js   # Image Studio (options × variations, multi-model)
 │           ├── TypeStudio.js    # Type Studio (text overlay)
 │           ├── VideoStudio.js   # Video Studio (text-to-video generation)
 │           ├── ChatStudio.js    # Chat Studio (multi-model LLM chat)
 │           ├── Gallery.js       # Gallery grid + search + bulk ops
 │           ├── StyleLibrary.js  # Style management + file browser
-│           ├── AssetViewer.js   # Full-size preview + metadata + download
+│           ├── AssetViewer.js   # Full-size preview, edit, 3D, exports, metadata
 │           ├── ModelSettings.js # Model registry admin UI (modal)
 │           ├── PromptEditor.js  # Two-area prompt editor + compose
+│           ├── PromptDesigner.js # Structured prompt decomposition (lock/vary fields)
+│           ├── ReferenceStudio.js # Image Inspiration tab (reference-guided generation)
 │           └── VoiceInput.js    # MediaRecorder + transcription
 ├── data/
 │   ├── styles/              # Style profiles + reference images (symlinked)
 │   ├── generated/           # Output assets (PNG + SVG + metadata.json)
 │   ├── video/               # Video assets (MP4 + thumbnails + job metadata)
 │   └── chat/                # Chat sessions (JSON per session)
+├── tools/                   # Managed portable Blender (auto-downloaded; gitignored)
 ├── SPEC.md                  # Full technical specification (rebuild blueprint)
 └── README.md                # This file
 ```

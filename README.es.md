@@ -542,7 +542,7 @@ Su usuario, rol o instance profile IAM necesita estos permisos:
 | `bedrock:InvokeModel` | Generación de imágenes, edición de imágenes, postprocesamiento (todos los modelos de imagen) |
 | `bedrock:InvokeModelWithResponseStream` | Respuestas LLM en streaming (Chat Studio) — la API ConverseStream se autoriza mediante esta acción. La API Converse sin streaming (refinamiento de prompts, análisis de estilo, generación de conceptos) se autoriza mediante `bedrock:InvokeModel` — no existe una acción `bedrock:Converse` separada |
 | `bedrock:InvokeModelWithBidirectionalStream` | Transcripción de voz (opcional — la app funciona sin ello) |
-| `bedrock:StartAsyncInvoke` | Generación de video (invocación asíncrona) |
+| `bedrock:StartAsyncInvoke` | Generación de video (invocación asíncrona; la operación en sí se autoriza mediante `bedrock:InvokeModel`, que también se concede) |
 | `bedrock:GetAsyncInvoke` | Consultar el estado del trabajo de generación de video |
 | `bedrock:ListAsyncInvokes` | Listar trabajos de generación de video |
 | `bedrock:ListFoundationModels` | Descubrimiento de modelos fundacionales (Sync from AWS) |
@@ -556,17 +556,24 @@ Su usuario, rol o instance profile IAM necesita estos permisos:
 | `account:ListRegions` | Escanear solo las regiones **habilitadas** de su cuenta durante Sync (rápido, sin errores en regiones opt‑in). Opcional — recurre a escanear todas las regiones. |
 | `account:GetRegionOptStatus` | Leer el estado de opt‑in por región (complemento de `account:ListRegions`). Opcional. |
 | `s3:CreateBucket` | Crear un bucket de S3 para almacenamiento de video (opcional, vía UI) |
-| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Almacenamiento y recuperación de la salida de video |
+| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Almacenamiento y recuperación de la salida de video; entradas/salidas de trabajos asíncronos y artefactos 3D para Custom Models |
+| `s3:ListAllMyBuckets` | El explorador de buckets S3 en Video Settings / importación de estilos (opcional) |
+| `s3:GetLifecycleConfiguration` / `s3:PutLifecycleConfiguration` | Reglas de caducidad automática para los archivos temporales de trabajos asíncronos en el bucket de despliegue (Custom Models) |
 | `aws-marketplace:Subscribe` | Suscripción automática en el primer uso de modelos de terceros (incl. modelos de Mantle de terceros) |
 | `aws-marketplace:ViewSubscriptions` | Comprobar las suscripciones de modelos existentes |
 | `sts:GetCallerIdentity` | Validación de credenciales al inicio; también sustenta el token bearer de Mantle firmado localmente |
 | `pricing:GetProducts` | Obtener los precios de los modelos durante Sync from AWS (opcional) |
 | `sagemaker:*` | Modelos personalizados autoalojados en Amazon SageMaker (opcional — solo si usa Custom Models) |
-| Conjunto de runtime de Custom Models: `application-autoscaling:*` (objetivos/políticas), `cloudwatch:PutMetricAlarm`/`DeleteAlarms`/`DescribeAlarms`, `logs:` (lectura + retención), `servicequotas:GetServiceQuota`/`RequestServiceQuotaIncrease`, `ecr:DescribeRepositories`, `iam:CreateServiceLinkedRole` (solo el primer autoescalado) | Escalado de endpoints a/desde cero, alarma de backlog, escaneo de disponibilidad, comprobación de cuotas de GPU, resolución de la imagen DLC (opcional — solo Custom Models; lista completa en la política acotada de abajo) |
+| `application-autoscaling:*` (registrar/anular el registro de objetivos, crear/eliminar/describir políticas) | Escalado a cero + desde cero para los endpoints de Custom Models (opcional — solo para Custom Models) |
+| `cloudwatch:PutMetricAlarm` / `DeleteAlarms` / `DescribeAlarms` | La alarma de backlog para el escalado desde cero de los endpoints de Custom Models (opcional) |
+| `logs:DescribeLogStreams` / `FilterLogEvents` / `GetLogEvents` / `PutRetentionPolicy` | Detección de disponibilidad del endpoint + retención de logs para Custom Models (opcional) |
+| `servicequotas:GetServiceQuota` / `RequestServiceQuotaIncrease` | Comprobación de la cuota de instancias GPU / solicitud de aumento con un clic en el diálogo de despliegue (opcional) |
+| `ecr:DescribeRepositories` | Resolver la imagen de SageMaker Deep Learning Container al desplegar (opcional) |
+| `iam:CreateServiceLinkedRole` (acotado a `sagemaker.application-autoscaling.amazonaws.com`) | El primer autoescalado de endpoints en la cuenta crea automáticamente `AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint` (opcional — omítalo si ese rol ya existe) |
 | `iam:PassRole` | Permitir que Amazon SageMaker use su rol (opcional — solo para Custom Models) |
-| `iam:CreateRole` / `iam:AttachRolePolicy` | Autocrear el rol de ejecución de Amazon SageMaker en el primer despliegue (opcional — solo para Custom Models) |
+| `iam:CreateRole` / `iam:AttachRolePolicy` / `iam:PutRolePolicy` | Autocrear el rol de ejecución de Amazon SageMaker en el primer despliegue (opcional — solo para Custom Models) |
 | `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Autoconfigurar un rol existente para la confianza de Amazon SageMaker (opcional) |
-| `secretsmanager:CreateSecret` / `secretsmanager:GetSecretValue` / `secretsmanager:DeleteSecret` | Almacenamiento cifrado de tokens de HuggingFace en modelos restringidos (opcional — se limpia automáticamente al desmantelar) |
+| `secretsmanager:CreateSecret` / `UpdateSecret` / `GetSecretValue` / `DescribeSecret` / `DeleteSecret` | Almacenamiento cifrado de tokens de HuggingFace en modelos restringidos (opcional — se limpia automáticamente al desmantelar) |
 
 **Configuración más rápida** (políticas administradas — el acceso más amplio):
 
@@ -1558,9 +1565,11 @@ ArtSmoker/
 │   ├── requirements.txt
 │   ├── prompt_templates.json # Editable LLM directive prompts — runtime source of truth (28 templates)
 │   ├── routers/
-│   │   ├── generate.py      # Two-level asset generation + SSE streaming
+│   │   ├── generate.py      # Two-level asset generation + SSE streaming + reference-guided
+│   │   ├── generate_3d.py   # Image-to-3D: generation, source review, variants, async jobs
+│   │   ├── custom_deploy.py # Self-hosted model deploy/teardown (Amazon SageMaker)
 │   │   ├── styles.py        # Style profile CRUD + directory/S3 import + analysis
-│   │   ├── gallery.py       # Asset browsing + file serving + bulk delete
+│   │   ├── gallery.py       # Asset browsing + file serving + engine exports + bulk delete
 │   │   ├── typestudio.py    # Type Studio: text overlay, font serving, AI layout
 │   │   ├── video.py         # Video generation (async), job polling, MP4/thumbnail serving
 │   │   ├── chat.py          # Chat Studio: LLM streaming, sessions, export, context compaction
@@ -1584,6 +1593,8 @@ ArtSmoker/
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
 │   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
 │   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
+│   │   ├── reference_analyzer.py # "Inspired by the reference" vision analysis
+│   │   ├── mesh_export.py      # Engine-ready 3D exports via managed headless Blender
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)
 │   │   └── sagemaker_invoker.py  # Routes inference to Amazon SageMaker endpoints
 │   ├── models/
@@ -1603,21 +1614,24 @@ ArtSmoker/
 │       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 traducciones
 │       ├── services/api.js      # Backend API client
 │       └── components/
-│           ├── ImageStudio.js   # Image Studio (options × variations)
+│           ├── ImageStudio.js   # Image Studio (options × variations, multi-model)
 │           ├── TypeStudio.js    # Type Studio (text overlay)
 │           ├── VideoStudio.js   # Video Studio (text-to-video generation)
 │           ├── ChatStudio.js    # Chat Studio (multi-model LLM chat)
 │           ├── Gallery.js       # Gallery grid + search + bulk ops
 │           ├── StyleLibrary.js  # Style management + file browser
-│           ├── AssetViewer.js   # Full-size preview + metadata + download
+│           ├── AssetViewer.js   # Full-size preview, edit, 3D, exports, metadata
 │           ├── ModelSettings.js # Model registry admin UI (modal)
 │           ├── PromptEditor.js  # Two-area prompt editor + compose
+│           ├── PromptDesigner.js # Structured prompt decomposition (lock/vary fields)
+│           ├── ReferenceStudio.js # Image Inspiration tab (reference-guided generation)
 │           └── VoiceInput.js    # MediaRecorder + transcription
 ├── data/
 │   ├── styles/              # Style profiles + reference images (symlinked)
 │   ├── generated/           # Output assets (PNG + SVG + metadata.json)
 │   ├── video/               # Video assets (MP4 + thumbnails + job metadata)
 │   └── chat/                # Chat sessions (JSON per session)
+├── tools/                   # Managed portable Blender (auto-downloaded; gitignored)
 ├── SPEC.md                  # Full technical specification (rebuild blueprint)
 └── README.md                # This file
 ```

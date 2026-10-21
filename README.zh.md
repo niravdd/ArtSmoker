@@ -544,7 +544,7 @@ aws bedrock list-custom-models --region us-east-1 \
 | `bedrock:InvokeModel` | 图像生成、图像编辑、后处理（所有图像模型） |
 | `bedrock:InvokeModelWithResponseStream` | 流式 LLM 响应（Chat Studio）—— ConverseStream API 通过此操作授权。非流式的 Converse API（提示词优化、风格分析、概念生成）通过 `bedrock:InvokeModel` 授权 —— 不存在独立的 `bedrock:Converse` 操作 |
 | `bedrock:InvokeModelWithBidirectionalStream` | 语音转写（可选 —— 没有它应用也能工作） |
-| `bedrock:StartAsyncInvoke` | 视频生成（异步调用） |
+| `bedrock:StartAsyncInvoke` | 视频生成（异步调用；该操作本身通过同样已授予的 `bedrock:InvokeModel` 授权） |
 | `bedrock:GetAsyncInvoke` | 轮询视频生成任务状态 |
 | `bedrock:ListAsyncInvokes` | 列出视频生成任务 |
 | `bedrock:ListFoundationModels` | 基础模型发现（Sync from AWS） |
@@ -558,17 +558,24 @@ aws bedrock list-custom-models --region us-east-1 \
 | `account:ListRegions` | 在 Sync 期间仅扫描您账户**已启用**的区域（快速，opt‑in 区域不会报错）。可选 —— 缺少时回退为扫描所有区域。 |
 | `account:GetRegionOptStatus` | 读取每个区域的 opt‑in 状态（`account:ListRegions` 的配套）。可选。 |
 | `s3:CreateBucket` | 为视频存储创建 S3 存储桶（可选，通过 UI） |
-| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | 视频输出存储和检索 |
+| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | 视频输出存储和检索；Custom Models 的异步任务输入/输出及 3D 产物 |
+| `s3:ListAllMyBuckets` | Video Settings / 风格导入中的 S3 存储桶浏览器（可选） |
+| `s3:GetLifecycleConfiguration` / `s3:PutLifecycleConfiguration` | 部署存储桶上异步任务临时文件的自动过期规则（Custom Models） |
 | `aws-marketplace:Subscribe` | 首次使用第三方模型时自动订阅（含第三方 Mantle 模型） |
 | `aws-marketplace:ViewSubscriptions` | 检查现有模型订阅 |
 | `sts:GetCallerIdentity` | 启动时凭证验证；也支撑本地签名的 Mantle bearer token |
 | `pricing:GetProducts` | 在 Sync from AWS 期间获取模型定价（可选） |
 | `sagemaker:*` | Amazon SageMaker 上的自托管自定义模型（可选 —— 仅在使用 Custom Models 时） |
-| Custom Models 运行时组件：`application-autoscaling:*`（目标/策略）、`cloudwatch:PutMetricAlarm`/`DeleteAlarms`/`DescribeAlarms`、`logs:`（读取＋保留策略）、`servicequotas:GetServiceQuota`/`RequestServiceQuotaIncrease`、`ecr:DescribeRepositories`、`iam:CreateServiceLinkedRole`（仅首次自动扩缩） | 端点缩容至零/从零扩容、积压告警、就绪扫描、GPU 配额检查、DLC 镜像解析（可选 —— 仅 Custom Models；完整列表见下方的范围化策略） |
+| `application-autoscaling:*`（注册/注销目标，创建/删除/查询策略） | Custom Models 端点的缩容至零 + 从零扩容（可选 —— 仅用于 Custom Models） |
+| `cloudwatch:PutMetricAlarm` / `DeleteAlarms` / `DescribeAlarms` | Custom Models 端点从零扩容所用的积压告警（可选） |
+| `logs:DescribeLogStreams` / `FilterLogEvents` / `GetLogEvents` / `PutRetentionPolicy` | 端点就绪检测 + Custom Models 的日志保留（可选） |
+| `servicequotas:GetServiceQuota` / `RequestServiceQuotaIncrease` | 部署对话框中的 GPU 实例配额检查 / 一键提额申请（可选） |
+| `ecr:DescribeRepositories` | 部署时解析 SageMaker Deep Learning Container 镜像（可选） |
+| `iam:CreateServiceLinkedRole`（限定于 `sagemaker.application-autoscaling.amazonaws.com`） | 账户中首次进行端点自动扩缩时会自动创建 `AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint`（可选 —— 若该角色已存在可跳过） |
 | `iam:PassRole` | 允许 Amazon SageMaker 使用您的角色（可选 —— 仅用于 Custom Models） |
-| `iam:CreateRole` / `iam:AttachRolePolicy` | 首次部署时自动创建 Amazon SageMaker 执行角色（可选 —— 仅用于 Custom Models） |
+| `iam:CreateRole` / `iam:AttachRolePolicy` / `iam:PutRolePolicy` | 首次部署时自动创建 Amazon SageMaker 执行角色（可选 —— 仅用于 Custom Models） |
 | `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | 自动为现有角色配置 Amazon SageMaker 信任关系（可选） |
-| `secretsmanager:CreateSecret` / `secretsmanager:GetSecretValue` / `secretsmanager:DeleteSecret` | 为受限模型的 HuggingFace token 提供加密存储（可选 —— 拆除时自动清理） |
+| `secretsmanager:CreateSecret` / `UpdateSecret` / `GetSecretValue` / `DescribeSecret` / `DeleteSecret` | 为受限模型的 HuggingFace token 提供加密存储（可选 —— 拆除时自动清理） |
 
 **最快设置**（托管策略 —— 访问范围最广）：
 
@@ -1560,9 +1567,11 @@ ArtSmoker/
 │   ├── requirements.txt
 │   ├── prompt_templates.json # 可编辑的 LLM 指令提示词 —— 运行时唯一可信来源（28 个模板）
 │   ├── routers/
-│   │   ├── generate.py      # 两级资产生成 + SSE 流式传输
+│   │   ├── generate.py      # 两级资产生成 + SSE 流式传输 + 参考图引导
+│   │   ├── generate_3d.py   # 图生 3D：生成、源图审查、变体、异步任务
+│   │   ├── custom_deploy.py # 自托管模型部署/拆除（Amazon SageMaker）
 │   │   ├── styles.py        # 风格档案 CRUD + 目录/S3 导入 + 分析
-│   │   ├── gallery.py       # 资产浏览 + 文件服务 + 批量删除
+│   │   ├── gallery.py       # 资产浏览 + 文件服务 + 引擎导出 + 批量删除
 │   │   ├── typestudio.py    # Type Studio：文字叠加、字体服务、AI 布局
 │   │   ├── video.py         # 视频生成（异步）、任务轮询、MP4/缩略图服务
 │   │   ├── chat.py          # Chat Studio：LLM 流式传输、会话、导出、上下文压缩
@@ -1586,6 +1595,8 @@ ArtSmoker/
 │   │   ├── cost_tracker.py      # 请求范围的成本累加器
 │   │   ├── custom_models.py    # 自托管模型目录（可扩展）
 │   │   ├── async_jobs.py       # 异步生成任务队列（Pending Jobs 面板）
+│   │   ├── reference_analyzer.py # 「受参考图启发」视觉分析
+│   │   ├── mesh_export.py      # 通过托管的无头 Blender 生成引擎就绪的 3D 导出
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker 端点管理（HF 模型直接从 HF 拉取）
 │   │   └── sagemaker_invoker.py  # 将推理路由到 Amazon SageMaker 端点
 │   ├── models/
@@ -1605,21 +1616,24 @@ ArtSmoker/
 │       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 种翻译
 │       ├── services/api.js      # 后端 API 客户端
 │       └── components/
-│           ├── ImageStudio.js   # Image Studio（选项 × 变体）
+│           ├── ImageStudio.js   # Image Studio（选项 × 变体，多模型）
 │           ├── TypeStudio.js    # Type Studio（文字叠加）
 │           ├── VideoStudio.js   # Video Studio（文生视频生成）
 │           ├── ChatStudio.js    # Chat Studio（多模型 LLM 聊天）
 │           ├── Gallery.js       # 画廊网格 + 搜索 + 批量操作
 │           ├── StyleLibrary.js  # 风格管理 + 文件浏览器
-│           ├── AssetViewer.js   # 全尺寸预览 + 元数据 + 下载
+│           ├── AssetViewer.js   # 全尺寸预览、编辑、3D、导出、元数据
 │           ├── ModelSettings.js # 模型注册表管理 UI（模态框）
 │           ├── PromptEditor.js  # 双区域提示词编辑器 + compose
+│           ├── PromptDesigner.js # 结构化提示词分解（锁定/变化字段）
+│           ├── ReferenceStudio.js # Image Inspiration 标签页（参考图引导生成）
 │           └── VoiceInput.js    # MediaRecorder + 转写
 ├── data/
 │   ├── styles/              # 风格档案 + 参考图像（符号链接）
 │   ├── generated/           # 输出资产（PNG + SVG + metadata.json）
 │   ├── video/               # 视频资产（MP4 + 缩略图 + 任务元数据）
 │   └── chat/                # 聊天会话（每会话一个 JSON）
+├── tools/                   # 托管的便携版 Blender（自动下载；已 gitignore）
 ├── SPEC.md                  # 完整技术规格说明（重建蓝图）
 └── README.md                # 本文件
 ```

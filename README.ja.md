@@ -544,7 +544,7 @@ Test 1〜3が通れば、コアのパーミッションは設定されていま�
 | `bedrock:InvokeModel` | 画像生成、画像編集、後処理（すべての画像モデル） |
 | `bedrock:InvokeModelWithResponseStream` | ストリーミングLLM応答（Chat Studio）— ConverseStream APIはこのアクションで認可されます。非ストリーミングのConverse API（プロンプト精緻化、スタイル分析、コンセプト生成）は`bedrock:InvokeModel`で認可されます — 独立した`bedrock:Converse`アクションは存在しません |
 | `bedrock:InvokeModelWithBidirectionalStream` | 音声文字起こし（オプション — なくてもアプリは動作） |
-| `bedrock:StartAsyncInvoke` | 動画生成（非同期呼び出し） |
+| `bedrock:StartAsyncInvoke` | 動画生成（非同期呼び出し。操作自体は、同じく付与されている`bedrock:InvokeModel`で認可されます） |
 | `bedrock:GetAsyncInvoke` | 動画生成ジョブのステータスをポーリング |
 | `bedrock:ListAsyncInvokes` | 動画生成ジョブを一覧表示 |
 | `bedrock:ListFoundationModels` | 基盤モデルの検出（Sync from AWS） |
@@ -558,17 +558,24 @@ Test 1〜3が通れば、コアのパーミッションは設定されていま�
 | `account:ListRegions` | Sync時にアカウントの**有効化された**リージョンのみをスキャン（高速、オプトインリージョンでもエラーなし）。オプション — なければ全リージョンのスキャンにフォールバック。 |
 | `account:GetRegionOptStatus` | リージョンごとのオプトインステータスを読み取り（`account:ListRegions`の相棒）。オプション。 |
 | `s3:CreateBucket` | 動画ストレージ用のS3バケットを作成（オプション、UI経由） |
-| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | 動画出力の保存と取得 |
+| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | 動画出力の保存と取得。Custom Modelsの非同期ジョブ入出力と3D成果物 |
+| `s3:ListAllMyBuckets` | Video Settings／スタイルインポートのS3バケットブラウザ（オプション） |
+| `s3:GetLifecycleConfiguration` / `s3:PutLifecycleConfiguration` | デプロイメントバケット上の非同期ジョブ一時ファイルの自動有効期限ルール（Custom Models） |
 | `aws-marketplace:Subscribe` | サードパーティモデル（サードパーティのMantleモデルを含む）の初回使用時の自動サブスクリプション |
 | `aws-marketplace:ViewSubscriptions` | 既存のモデルサブスクリプションを確認 |
 | `sts:GetCallerIdentity` | 起動時の認証情報検証。ローカル署名されるMantleベアラートークンの基盤にもなる |
 | `pricing:GetProducts` | Sync from AWS時にモデル料金を取得（オプション） |
 | `sagemaker:*` | Amazon SageMaker上のセルフホスト型カスタムモデル（オプション — Custom Modelsを使う場合のみ） |
-| Custom Models ランタイム一式：`application-autoscaling:*`（ターゲット/ポリシー）、`cloudwatch:PutMetricAlarm`/`DeleteAlarms`/`DescribeAlarms`、`logs:`（読み取り＋保持設定）、`servicequotas:GetServiceQuota`/`RequestServiceQuotaIncrease`、`ecr:DescribeRepositories`、`iam:CreateServiceLinkedRole`（初回のオートスケーリングのみ） | エンドポイントのスケールtoゼロ/fromゼロ、待機アラーム、準備状況スキャン、GPUクォータ確認、DLCイメージ解決（オプション — Custom Modelsのみ；下のスコープ付きポリシーに全記載） |
+| `application-autoscaling:*`（ターゲットの登録/登録解除、ポリシーの作成/削除/参照） | Custom Modelsエンドポイントのスケールtoゼロ＋スケールfromゼロ（オプション — Custom Modelsの場合のみ） |
+| `cloudwatch:PutMetricAlarm` / `DeleteAlarms` / `DescribeAlarms` | Custom Modelsエンドポイントのスケールfromゼロ用バックログアラーム（オプション） |
+| `logs:DescribeLogStreams` / `FilterLogEvents` / `GetLogEvents` / `PutRetentionPolicy` | エンドポイントの準備完了検出＋Custom Modelsのログ保持（オプション） |
+| `servicequotas:GetServiceQuota` / `RequestServiceQuotaIncrease` | デプロイダイアログでのGPUインスタンスクォータ確認／ワンクリックでの引き上げリクエスト（オプション） |
+| `ecr:DescribeRepositories` | デプロイ時にSageMaker Deep Learning Containerイメージを解決（オプション） |
+| `iam:CreateServiceLinkedRole`（`sagemaker.application-autoscaling.amazonaws.com`に限定） | アカウントで初めてエンドポイントのオートスケーリングを行う際に`AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint`を自動作成（オプション — このロールが既に存在する場合は不要） |
 | `iam:PassRole` | Amazon SageMakerがあなたのロールを使えるようにする（オプション — Custom Modelsの場合のみ） |
-| `iam:CreateRole` / `iam:AttachRolePolicy` | 初回デプロイ時にAmazon SageMaker実行ロールを自動作成（オプション — Custom Modelsの場合のみ） |
+| `iam:CreateRole` / `iam:AttachRolePolicy` / `iam:PutRolePolicy` | 初回デプロイ時にAmazon SageMaker実行ロールを自動作成（オプション — Custom Modelsの場合のみ） |
 | `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Amazon SageMakerの信頼関係用に既存ロールを自動設定（オプション） |
-| `secretsmanager:CreateSecret` / `secretsmanager:GetSecretValue` / `secretsmanager:DeleteSecret` | ゲート付きモデル用HuggingFaceトークンの暗号化ストレージ（オプション — teardown時に自動クリーンアップ） |
+| `secretsmanager:CreateSecret` / `UpdateSecret` / `GetSecretValue` / `DescribeSecret` / `DeleteSecret` | ゲート付きモデル用HuggingFaceトークンの暗号化ストレージ（オプション — teardown時に自動クリーンアップ） |
 
 **最速のセットアップ**（マネージドポリシー — 最も広範なアクセス）：
 
@@ -1560,9 +1567,11 @@ ArtSmoker/
 │   ├── requirements.txt
 │   ├── prompt_templates.json # Editable LLM directive prompts — runtime source of truth (28 templates)
 │   ├── routers/
-│   │   ├── generate.py      # Two-level asset generation + SSE streaming
+│   │   ├── generate.py      # Two-level asset generation + SSE streaming + reference-guided
+│   │   ├── generate_3d.py   # Image-to-3D: generation, source review, variants, async jobs
+│   │   ├── custom_deploy.py # Self-hosted model deploy/teardown (Amazon SageMaker)
 │   │   ├── styles.py        # Style profile CRUD + directory/S3 import + analysis
-│   │   ├── gallery.py       # Asset browsing + file serving + bulk delete
+│   │   ├── gallery.py       # Asset browsing + file serving + engine exports + bulk delete
 │   │   ├── typestudio.py    # Type Studio: text overlay, font serving, AI layout
 │   │   ├── video.py         # Video generation (async), job polling, MP4/thumbnail serving
 │   │   ├── chat.py          # Chat Studio: LLM streaming, sessions, export, context compaction
@@ -1586,6 +1595,8 @@ ArtSmoker/
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
 │   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
 │   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
+│   │   ├── reference_analyzer.py # "Inspired by the reference" vision analysis
+│   │   ├── mesh_export.py      # Engine-ready 3D exports via managed headless Blender
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)
 │   │   └── sagemaker_invoker.py  # Routes inference to Amazon SageMaker endpoints
 │   ├── models/
@@ -1605,21 +1616,24 @@ ArtSmoker/
 │       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 translations
 │       ├── services/api.js      # Backend API client
 │       └── components/
-│           ├── ImageStudio.js   # Image Studio (options × variations)
+│           ├── ImageStudio.js   # Image Studio (options × variations, multi-model)
 │           ├── TypeStudio.js    # Type Studio (text overlay)
 │           ├── VideoStudio.js   # Video Studio (text-to-video generation)
 │           ├── ChatStudio.js    # Chat Studio (multi-model LLM chat)
 │           ├── Gallery.js       # Gallery grid + search + bulk ops
 │           ├── StyleLibrary.js  # Style management + file browser
-│           ├── AssetViewer.js   # Full-size preview + metadata + download
+│           ├── AssetViewer.js   # Full-size preview, edit, 3D, exports, metadata
 │           ├── ModelSettings.js # Model registry admin UI (modal)
 │           ├── PromptEditor.js  # Two-area prompt editor + compose
+│           ├── PromptDesigner.js # Structured prompt decomposition (lock/vary fields)
+│           ├── ReferenceStudio.js # Image Inspiration tab (reference-guided generation)
 │           └── VoiceInput.js    # MediaRecorder + transcription
 ├── data/
 │   ├── styles/              # Style profiles + reference images (symlinked)
 │   ├── generated/           # Output assets (PNG + SVG + metadata.json)
 │   ├── video/               # Video assets (MP4 + thumbnails + job metadata)
 │   └── chat/                # Chat sessions (JSON per session)
+├── tools/                   # Managed portable Blender (auto-downloaded; gitignored)
 ├── SPEC.md                  # Full technical specification (rebuild blueprint)
 └── README.md                # This file
 ```
@@ -1642,7 +1656,7 @@ ArtSmoker/
 ## 📌 12. Amazon Bedrock料金＆コスト内訳
 
 > [!IMPORTANT]
-> **モデルは急速に非推奨化・変更されます。** 新しいモデルが頻繁に登場し、古いモデルは頻繁に廃止されるため、ドキュメントにハードコードされた特定のモデル名や料金はすぐに古くなります。ArtSmokerはこれを自動的に処理します — **AWSから同期**するたびに、現在のモデルラインナップを再検出し、共有LLMスロットを最新のClaude Sonnet/Opusに自動ロールし、AWS Pricing APIからライブのモデルごとの料金を`model_registry.json`に更新します。**アプリが信頼できる情報源**です — どのモデルが存在し、いくらかかるか（選択したモデル、品質ティア、リージョン、バッチサイズに応じてImage Studioサイドバーにライブ表示）の両方について。以下のモデル名や数値は**あくまで参考例**です（[モデル名について](#about-model-names)を参照） — 常にアプリ内または公式の[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)で現在のモデル/料金を確認してください。
+> **モデルは急速に非推奨化・変更されます。** 新しいモデルが頻繁に登場し、古いモデルは頻繁に廃止されるため、ドキュメントにハードコードされた特定のモデル名や料金はすぐに古くなります。ArtSmokerはこれを自動的に処理します — **Sync from AWS** を実行するたびに、現在のモデルラインナップを再検出し、共有LLMスロットを最新のClaude Sonnet/Opusに自動ロールし、AWS Pricing APIからライブのモデルごとの料金を`model_registry.json`に更新します。**アプリが信頼できる情報源**です — どのモデルが存在し、いくらかかるか（選択したモデル、品質ティア、リージョン、バッチサイズに応じてImage Studioサイドバーにライブ表示）の両方について。以下のモデル名や数値は**あくまで参考例**です（[モデル名について](#about-model-names)を参照） — 常にアプリ内または公式の[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)で現在のモデル/料金を確認してください。
 
 アプリの**デフォルトのホームリージョン**は`us-west-2`（例：Claude、Stability AI）と`us-east-1`（例：Amazon Nova Sonic）です；Syncは各モデルを、AWSがそのモデルを提供しているリージョンに割り当て、料金はリージョンによって異なります。コストモデルについては[SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)も参照してください。
 

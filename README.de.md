@@ -142,7 +142,7 @@ Für Teams, die möchten, dass jedes generierte Asset zu einem vorhandenen Kunst
 - 💬 **Chat Studio** — Multi-Modell-LLM-Chat mit Streaming, Markdown, Code-Hervorhebung, Vision, Sitzungen, Kontext-Kompaktierung
 - 📁 **Einheitliche Galerie** — Masonry-Layout, das jedes Asset in seinem echten Seitenverhältnis zeigt (Hochformat, Quadrat, Querformat — niemals beschnitten). Bilder + Videos durchstöbern, Medienfilter (Alle / 2D-Grafik / 3D-Modelle / Video), Suche, vollständige Datum-Uhrzeit-Zeitzone-Stempel, Download, Löschen. Assets, die bereits ein generiertes 3D-Modell besitzen, tragen ein **3D-Badge**, und der Filter **3D-Modelle** blendet genau diese ein
 - 📥 **Bild importieren** — Bringen Sie ein vorhandenes Bild (beliebiges Format) als vollwertiges Asset in die Galerie. Automatisch in PNG konvertiert, mit einem von Ihnen gewählten Asset-Typ versehen und sofort bearbeitbar sowie 3D-bereit — alles (Versionierung, Bearbeitung, Image-to-3D) funktioniert genauso wie bei einem generierten Bild
-- ✏️ **Bildbearbeitung** — Inpainting, Outpainting, Radieren, Suchen & Ersetzen, Umfärben (im AssetViewer). Jeder Modus verfügt über eine KI-Schaltfläche **Generate Prompt**: Ein Vision-Modell liest das Bild + seinen Original-Prompt und schlägt einen Bearbeitungs-Prompt vor, der auf diesen Modus und das ausgewählte Bearbeitungsmodell zugeschnitten ist (z. B. eine beschreibende Bildunterschrift für Stability-Editoren, eine Anweisung für Qwen-Image-Edit). Extend/Outpaint zeigt eine Live-Vorschau des wachsenden Rahmens mit Pixel-Linealen, sodass Sie vor dem Anwenden genau sehen, wie weit sich die Leinwand ausdehnt
+- ✏️ **Bildbearbeitung** — Inpainting, Outpainting, Radieren, Suchen & Ersetzen, Umfärben (im AssetViewer). Jeder Modus verfügt über eine KI-Schaltfläche **Generate Prompt**: Ein Vision-Modell liest das Bild + seinen Original-Prompt und schlägt einen Bearbeitungs-Prompt vor, der auf diesen Modus und das ausgewählte Bearbeitungsmodell zugeschnitten ist (z. B. eine beschreibende Bildunterschrift für Stability-Editoren, eine Anweisung für Qwen-Image-Edit). Extend/Outpaint zeigt eine Live-Vorschau des wachsenden Rahmens mit Pixel-Linealen, sodass Sie vor dem Anwenden genau sehen, wie weit sich die Leinwand ausdehnt. Instruktions-Editoren (z. B. Qwen-Image-Edit) unterstützen **alle fünf Modi ohne Maske** — einschließlich echter Leinwand-Erweiterung: ArtSmoker erweitert die Leinwand vorab, lässt das Modell nur den neuen Bereich ergänzen und fügt Ihre Originalpixel unverändert wieder ein. Jede bearbeitete Version zeigt **beide** Modell-Tags — den ursprünglichen Generator und den Editor, der diese Version erstellt hat
 - 📤 **Export & Freisteller** — Export-Artefakte pro Version im AssetViewer: ein freigestellter, transparenter PNG-Ausschnitt plus echte Vektor-SVG-Nachzeichnungen (mit und ohne Hintergrund). Die Hintergrundentfernung wählen Sie bei jedem Durchlauf: **kostenlos auf dem Gerät** (rembg/u2net, keine Cloud-Kosten) oder der **kostenpflichtige Entferner von Amazon Bedrock** — dieselbe Wahl gibt es bei der Vorbereitung von Bildern für die 3D-Generierung
 - 🔄 **Echtzeit-Fortschritt** — SSE-Streaming mit Sichtbarkeit von Wiederholungen/Drosselung
 - 🛡️ **Intelligente Moderation** — Canary-Test, automatischer Modellwechsel, KI-gestütztes Umschreiben
@@ -152,7 +152,7 @@ Für Teams, die möchten, dass jedes generierte Asset zu einem vorhandenen Kunst
 - 💰 **Kostenverfolgung** — Geschätzte AWS-Ausgaben pro Anfrage, pro Sitzung, pro Asset, berechnet aus aktuellen regionalen AWS-Preisen; selbstgehostete Modelle zeigen den stündlichen Betriebstarif der GPU-Instanz + die typische Generierungszeit (statt eines irreführenden Preises pro Bild)
 - 🌐 **i18n in 9 Sprachen** — Vollständige UI-Übersetzung (EN, JA, ZH, KO, HI, RU, FR, ES, DE), automatische Erkennung nicht-englischer Prompts, zweisprachige Vorschau
 - 🔍 **Unterstützung benutzerdefinierter Modelle** — Automatische Erkennung von fein abgestimmten, importierten und deployten benutzerdefinierten Bedrock-Modellen
-- 🔧 **Selbst gehostete Modelle — 1-Klick-Deployment** — Durchstöbern Sie einen kuratierten Katalog vorab getesteter Open-Source-Modelle (in diesem Release z. B. HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG), wählen Sie eine GPU-Instanz und klicken Sie auf Deploy. ArtSmoker übernimmt alles: Packaging des Inferenz-Handlers, Konfiguration der Quantisierung, Auswahl des richtigen CUDA-Toolkits, Einrichtung des Auto-Scalings, Registrierung von CloudWatch-Alarmen und Verdrahtung des asynchronen Job-Trackings. Jedes Modell im Katalog wurde durchgängig validiert — vom Kaltstart über die Generierung bis zur Auslieferung in die Galerie — sodass Sie keine GPU-Treiber, Speicherüberläufe oder Container-Kompatibilität debuggen müssen. Unterstützt BF16 + FlashInfer für beste Qualität, NF4 für Kosteneffizienz, automatische Multi-GPU-Erkennung, skaliert automatisch auf null ($0 im Leerlauf), und dasselbe Modell läuft ohne Neukonfiguration auf verschiedenen Instanztypen
+- 🔧 **Selbst gehostete Modelle — 1-Klick-Deployment** — Durchstöbern Sie einen kuratierten Katalog vorab getesteter Open-Source-Modelle (in diesem Release z. B. Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2), wählen Sie eine GPU-Instanz und klicken Sie auf Deploy. ArtSmoker übernimmt alles: Packaging des Inferenz-Handlers, Konfiguration der Quantisierung, Auswahl des richtigen CUDA-Toolkits, Einrichtung des Auto-Scalings, Registrierung von CloudWatch-Alarmen und Verdrahtung des asynchronen Job-Trackings. Jedes Modell im Katalog wurde durchgängig validiert — vom Kaltstart über die Generierung bis zur Auslieferung in die Galerie — sodass Sie keine GPU-Treiber, Speicherüberläufe oder Container-Kompatibilität debuggen müssen. Unterstützt BF16 + FlashInfer für beste Qualität, NF4 für Kosteneffizienz, automatische Multi-GPU-Erkennung, skaliert automatisch auf null ($0 im Leerlauf), und dasselbe Modell läuft ohne Neukonfiguration auf verschiedenen Instanztypen
 - 🧊 **Image-to-3D-Generierung** — Wandeln Sie jedes Game-Asset- oder Character-Bild mit einem Klick in ein texturiertes 3D-Mesh (GLB) um. Multi-View-Synthese + Texture-Baking erzeugen vollständig texturierte, auf die Spiel-Engine zugeschnittene Assets. Interaktiver 3D-Viewer mit Orbit/Zoom/Schwenk
 - 🩹 **Intelligente Quellen-Vervollständigung für 3D** — Image-to-3D kann nur das aufbauen, was sichtbar ist, sodass ein zugeschnittener Charakter (abgeschnittene Beine) zu einem beinlosen Mesh wird. Vor der Generierung prüft ArtSmoker die Quelle per Vision und **bietet** an, sie bei Zuschnitt per Outpainting zu vervollständigen (ein KI-vorgeschlagener, vollständig bearbeitbarer Prompt) — zeigt eine Vorher/Nachher-Vorschau, prüft das Ergebnis erneut, lässt Sie erneut erweitern oder verwerfen und speichert es als neue Bildversion. Opt-in und nicht blockierend; gut gerahmte Bilder werden direkt generiert
 - 🔄 **Auto-Update** — Versionsgesteuert beim Start + eine 24-Stunden-Periodenprüfung; aktualisiert per `git` (Checkout) oder per **Tarball-Download-und-Ersetzen** für Installationen ohne git, startet sich dann direkt an Ort und Stelle neu (überwachter Respawn / gunicorn-Reload) oder bietet einen Ein-Klick-**Neustart** an — überschreibt niemals Ihr `data/` oder Ihre `.env` (`ARTSMOKER_AUTO_UPDATE=false` zum Deaktivieren)
@@ -542,7 +542,7 @@ Ihr IAM-Benutzer, Ihre Rolle oder Ihr Instance-Profil benötigt diese Berechtigu
 | `bedrock:InvokeModel` | Bildgenerierung, Bildbearbeitung, Nachbearbeitung (alle Bildmodelle) |
 | `bedrock:InvokeModelWithResponseStream` | Streaming-LLM-Antworten (Chat Studio) — die ConverseStream-API autorisiert sich über diese Aktion. Die Nicht-Streaming-Converse-API (Prompt-Verfeinerung, Stilanalyse, Konzeptgenerierung) autorisiert sich über `bedrock:InvokeModel` — eine separate `bedrock:Converse`-Aktion existiert nicht |
 | `bedrock:InvokeModelWithBidirectionalStream` | Sprachtranskription (optional — die App funktioniert auch ohne) |
-| `bedrock:StartAsyncInvoke` | Videogenerierung (asynchroner Aufruf) |
+| `bedrock:StartAsyncInvoke` | Videogenerierung (asynchroner Aufruf; der Vorgang selbst wird über `bedrock:InvokeModel` autorisiert, das ebenfalls gewährt ist) |
 | `bedrock:GetAsyncInvoke` | Status von Videogenerierungs-Jobs abfragen |
 | `bedrock:ListAsyncInvokes` | Videogenerierungs-Jobs auflisten |
 | `bedrock:ListFoundationModels` | Erkennung von Foundation-Modellen (Sync from AWS) |
@@ -556,17 +556,24 @@ Ihr IAM-Benutzer, Ihre Rolle oder Ihr Instance-Profil benötigt diese Berechtigu
 | `account:ListRegions` | Nur die **aktivierten** Regionen Ihres Kontos während des Sync scannen (schnell, keine Fehler bei Opt‑in-Regionen). Optional — fällt auf das Scannen aller Regionen zurück. |
 | `account:GetRegionOptStatus` | Opt‑in-Status pro Region lesen (Begleiter zu `account:ListRegions`). Optional. |
 | `s3:CreateBucket` | S3-Bucket für Videospeicher erstellen (optional, über die UI) |
-| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Speicherung und Abruf der Videoausgabe |
+| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Speicherung und Abruf der Videoausgabe; Ein-/Ausgaben asynchroner Jobs und 3D-Artefakte für Custom Models |
+| `s3:ListAllMyBuckets` | Der S3-Bucket-Browser in Video Settings / beim Stilimport (optional) |
+| `s3:GetLifecycleConfiguration` / `s3:PutLifecycleConfiguration` | Regeln zum automatischen Ablauf temporärer Dateien asynchroner Jobs im Deployment-Bucket (Custom Models) |
 | `aws-marketplace:Subscribe` | Automatisches Abonnement bei erster Nutzung von Drittanbieter-Modellen (inkl. Drittanbieter-Mantle-Modelle) |
 | `aws-marketplace:ViewSubscriptions` | Bestehende Modell-Abonnements prüfen |
 | `sts:GetCallerIdentity` | Validierung der Anmeldeinformationen beim Start; untermauert auch das lokal signierte Mantle-Bearer-Token |
 | `pricing:GetProducts` | Modellpreise während Sync from AWS abrufen (optional) |
 | `sagemaker:*` | Selbst gehostete benutzerdefinierte Modelle auf Amazon SageMaker (optional — nur bei Nutzung von Custom Models) |
-| Custom-Models-Laufzeit-Set: `application-autoscaling:*` (Ziele/Richtlinien), `cloudwatch:PutMetricAlarm`/`DeleteAlarms`/`DescribeAlarms`, `logs:` (Lesen + Aufbewahrung), `servicequotas:GetServiceQuota`/`RequestServiceQuotaIncrease`, `ecr:DescribeRepositories`, `iam:CreateServiceLinkedRole` (nur beim allerersten Auto-Scaling) | Endpunkt-Skalierung auf/von null, Backlog-Alarm, Bereitschafts-Scan, GPU-Kontingentprüfung, DLC-Image-Auflösung (optional — nur Custom Models; vollständige Liste in der eingegrenzten Richtlinie unten) |
+| `application-autoscaling:*` (Ziele registrieren/deregistrieren, Richtlinien erstellen/löschen/abfragen) | Skalierung auf null + von null für Custom-Models-Endpoints (optional — nur für Custom Models) |
+| `cloudwatch:PutMetricAlarm` / `DeleteAlarms` / `DescribeAlarms` | Der Backlog-Alarm für die Skalierung von null bei Custom-Models-Endpoints (optional) |
+| `logs:DescribeLogStreams` / `FilterLogEvents` / `GetLogEvents` / `PutRetentionPolicy` | Bereitschaftserkennung von Endpoints + Log-Aufbewahrung für Custom Models (optional) |
+| `servicequotas:GetServiceQuota` / `RequestServiceQuotaIncrease` | GPU-Instanzkontingent prüfen / Erhöhung per Klick im Deploy-Dialog anfordern (optional) |
+| `ecr:DescribeRepositories` | Das SageMaker-Deep-Learning-Container-Image beim Deployment auflösen (optional) |
+| `iam:CreateServiceLinkedRole` (beschränkt auf `sagemaker.application-autoscaling.amazonaws.com`) | Das allererste Endpoint-Auto-Scaling im Konto erstellt automatisch `AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint` (optional — entfällt, wenn diese Rolle bereits existiert) |
 | `iam:PassRole` | Amazon SageMaker erlauben, Ihre Rolle zu verwenden (optional — nur für Custom Models) |
-| `iam:CreateRole` / `iam:AttachRolePolicy` | Amazon-SageMaker-Ausführungsrolle beim ersten Deployment automatisch erstellen (optional — nur für Custom Models) |
+| `iam:CreateRole` / `iam:AttachRolePolicy` / `iam:PutRolePolicy` | Amazon-SageMaker-Ausführungsrolle beim ersten Deployment automatisch erstellen (optional — nur für Custom Models) |
 | `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Vorhandene Rolle für Amazon-SageMaker-Vertrauensstellung automatisch konfigurieren (optional) |
-| `secretsmanager:CreateSecret` / `secretsmanager:GetSecretValue` / `secretsmanager:DeleteSecret` | Verschlüsselte Speicherung von HuggingFace-Tokens für zugriffsbeschränkte Modelle (optional — wird beim Teardown automatisch bereinigt) |
+| `secretsmanager:CreateSecret` / `UpdateSecret` / `GetSecretValue` / `DescribeSecret` / `DeleteSecret` | Verschlüsselte Speicherung von HuggingFace-Tokens für zugriffsbeschränkte Modelle (optional — wird beim Teardown automatisch bereinigt) |
 
 **Schnellste Einrichtung** (verwaltete Richtlinien — breitester Zugriff):
 
@@ -1558,9 +1565,11 @@ ArtSmoker/
 │   ├── requirements.txt
 │   ├── prompt_templates.json # Bearbeitbare LLM-Direktiv-Prompts — Laufzeit-Quelle der Wahrheit (28 Vorlagen)
 │   ├── routers/
-│   │   ├── generate.py      # Zweistufige Asset-Generierung + SSE-Streaming
+│   │   ├── generate.py      # Zweistufige Asset-Generierung + SSE-Streaming + referenzgeführt
+│   │   ├── generate_3d.py   # Bild-zu-3D: Generierung, Quellprüfung, Varianten, asynchrone Jobs
+│   │   ├── custom_deploy.py # Deploy/Teardown selbst gehosteter Modelle (Amazon SageMaker)
 │   │   ├── styles.py        # Stilprofil-CRUD + Verzeichnis-/S3-Import + Analyse
-│   │   ├── gallery.py       # Asset-Durchsicht + Dateiauslieferung + Massenlöschung
+│   │   ├── gallery.py       # Asset-Durchsicht + Dateiauslieferung + Engine-Exporte + Massenlöschung
 │   │   ├── typestudio.py    # Type Studio: Text-Overlay, Schriftauslieferung, KI-Layout
 │   │   ├── video.py         # Videogenerierung (async), Job-Polling, MP4-/Vorschaubild-Auslieferung
 │   │   ├── chat.py          # Chat Studio: LLM-Streaming, Sitzungen, Export, Kontext-Kompaktierung
@@ -1584,6 +1593,8 @@ ArtSmoker/
 │   │   ├── cost_tracker.py      # Request-bezogener Kostensammler
 │   │   ├── custom_models.py    # Katalog selbst gehosteter Modelle (erweiterbar)
 │   │   ├── async_jobs.py       # Warteschlange für asynchrone Generierungs-Jobs (Pending-Jobs-Panel)
+│   │   ├── reference_analyzer.py # Vision-Analyse „Von der Referenz inspiriert“
+│   │   ├── mesh_export.py      # Engine-fertige 3D-Exporte über verwaltetes Headless-Blender
 │   │   ├── sagemaker_deployer.py # Amazon-SageMaker-Endpoint-Verwaltung (direkter HF-Pull für HF-Modelle)
 │   │   └── sagemaker_invoker.py  # Leitet Inferenz an Amazon-SageMaker-Endpoints weiter
 │   ├── models/
@@ -1603,21 +1614,24 @@ ArtSmoker/
 │       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 Übersetzungen
 │       ├── services/api.js      # Backend-API-Client
 │       └── components/
-│           ├── ImageStudio.js   # Image Studio (Optionen × Variationen)
+│           ├── ImageStudio.js   # Image Studio (Optionen × Variationen, Multi-Modell)
 │           ├── TypeStudio.js    # Type Studio (Text-Overlay)
 │           ├── VideoStudio.js   # Video Studio (Text-to-Video-Generierung)
 │           ├── ChatStudio.js    # Chat Studio (Multi-Modell-LLM-Chat)
 │           ├── Gallery.js       # Galerie-Raster + Suche + Massenoperationen
 │           ├── StyleLibrary.js  # Stilverwaltung + Datei-Browser
-│           ├── AssetViewer.js   # Vorschau in voller Größe + Metadaten + Download
+│           ├── AssetViewer.js   # Vorschau in voller Größe, Bearbeitung, 3D, Exporte, Metadaten
 │           ├── ModelSettings.js # Modellregistry-Admin-UI (Modal)
 │           ├── PromptEditor.js  # Zwei-Bereich-Prompt-Editor + Compose
+│           ├── PromptDesigner.js # Strukturierte Prompt-Zerlegung (Felder sperren/variieren)
+│           ├── ReferenceStudio.js # Image-Inspiration-Tab (referenzgeführte Generierung)
 │           └── VoiceInput.js    # MediaRecorder + Transkription
 ├── data/
 │   ├── styles/              # Stilprofile + Referenzbilder (per Symlink)
 │   ├── generated/           # Ausgabe-Assets (PNG + SVG + metadata.json)
 │   ├── video/               # Video-Assets (MP4 + Vorschaubilder + Job-Metadaten)
 │   └── chat/                # Chat-Sitzungen (JSON pro Sitzung)
+├── tools/                   # Verwaltetes portables Blender (automatisch heruntergeladen; gitignored)
 ├── SPEC.md                  # Vollständige technische Spezifikation (Rebuild-Blueprint)
 └── README.md                # Diese Datei
 ```
