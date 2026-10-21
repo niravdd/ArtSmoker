@@ -12,14 +12,15 @@
 (function () {
     'use strict';
 
-    // Realistic example prompts per asset type — written as a real person would start describing
-    const _ASSET_PLACEHOLDERS = {
-        game_asset: "A weathered wooden treasure chest with iron straps and a brass lock, slightly open with golden light spilling out...",
-        character: "A young female warrior in ornate silver armor, long dark hair braided, holding a glowing sword, standing on a cliff edge at sunset...",
-        environment: "A misty Japanese garden at dawn, stone lanterns lining a curved path through moss-covered rocks, cherry blossoms drifting in still air...",
-        marketing_banner: "An epic dragon soaring over a burning medieval castle, dramatic storm clouds and lightning, armies clashing below...",
-        icon: "A golden shield with a dragon emblem, simple bold design...",
-        photorealistic: "A woman standing at a rain-soaked city intersection at night, neon signs reflecting in puddles, shot on a 35mm lens with shallow depth of field...",
+    // Realistic example prompts per asset type (i18n — each language shows its
+    // own; the prompt pipeline accepts and translates any language)
+    const _ASSET_PLACEHOLDER_KEYS = {
+        game_asset: "image_studio.prompt_example_game_asset",
+        character: "image_studio.prompt_example_character",
+        environment: "image_studio.prompt_example_environment",
+        marketing_banner: "image_studio.prompt_example_banner",
+        icon: "image_studio.prompt_example_icon",
+        photorealistic: "image_studio.prompt_example_photo",
     };
 
     const _ASSET_STEP_LABEL_KEYS = {
@@ -881,7 +882,8 @@
             const type = this.opts.assetType || 'photorealistic';
             // Update placeholder
             if (this._textareaEl) {
-                this._textareaEl.placeholder = _ASSET_PLACEHOLDERS[type] || _ASSET_PLACEHOLDERS.game_asset;
+                this._textareaEl.placeholder = typeof t !== 'undefined'
+                    ? t(_ASSET_PLACEHOLDER_KEYS[type] || _ASSET_PLACEHOLDER_KEYS.game_asset) : '';
             }
             // Update Step 1 label
             const step1Label = this.container.querySelector('.step1-label');

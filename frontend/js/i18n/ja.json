@@ -402,6 +402,7 @@
     "alt_generated_png": "生成されたPNG",
     "alt_generated_svg": "生成されたSVG",
     "three_d_created": "作成日",
+    "three_d_target_generic": "汎用（glTF、Y軸が上）",
     "meta_src_user": "ユーザー指定",
     "meta_src_inferred": "推定",
     "meta_collection_section": "コレクション",
@@ -892,7 +893,13 @@
     "stream_ended": "結果を受信する前に接続が終了しました",
     "type_hint_char_scene": "プロンプトは背景の中のキャラクターを描写しています。「キャラクター」は情景を保ちつつ人物を主役にします。「ゲームアセット」は透明背景の単独スプライトになります。",
     "type_hint_char": "プロンプトはキャラクターを描写しています。「キャラクター」は体の比率、ポーズ、シルエットの見やすさを最適化します。",
-    "type_hint_scene": "プロンプトはシーンや環境を描写しています。「背景・環境」は構図全体を保ちます。「ゲームアセット」は透明背景の単独オブジェクトになります。"
+    "type_hint_scene": "プロンプトはシーンや環境を描写しています。「背景・環境」は構図全体を保ちます。「ゲームアセット」は透明背景の単独オブジェクトになります。",
+    "prompt_example_game_asset": "鉄の帯と真鍮の錠前が付いた、使い込まれた木の宝箱。少し開いていて、金色の光があふれ出している...",
+    "prompt_example_character": "装飾的な銀の鎧をまとった若い女性戦士。長い黒髪を三つ編みにし、光る剣を手に、夕暮れの崖の縁に立っている...",
+    "prompt_example_environment": "夜明けの霧に包まれた日本庭園。苔むした岩の間を曲がりくねる小道に石灯籠が並び、静かな空気の中を桜の花びらが舞っている...",
+    "prompt_example_banner": "燃え上がる中世の城の上空を舞う壮大なドラゴン。劇的な嵐雲と稲妻、眼下では軍勢がぶつかり合っている...",
+    "prompt_example_icon": "ドラゴンの紋章が入った金色の盾。シンプルで力強いデザイン...",
+    "prompt_example_photo": "夜、雨に濡れた都会の交差点に立つ女性。ネオンサインが水たまりに映り込み、35mmレンズの浅い被写界深度で撮影..."
   },
   "lang": {
     "en": "英語",
@@ -1109,8 +1116,8 @@
     "tmpl_label_image_asset_type_context": "アセットタイプの意図 — アセットタイプ別のクリエイティブ方針(ゲームアセット、キャラクターなど)",
     "tmpl_label_image_style_section": "スタイルヒントの組み込み — スタイルライブラリのスタイルをプロンプトに織り込む方法",
     "tmpl_label_asset_type_classify": "アセットタイプの提案 — プロンプトに最適なアセットタイプを提案",
-    "tmpl_label_prompt_decompose": "Prompt Designer — アイデアを編集可能なビジュアル要素に分解",
-    "tmpl_label_prompt_recompose": "Prompt Designer — 編集した要素を最終プロンプトに再構成",
+    "tmpl_label_prompt_decompose": "プロンプトデザイナー — アイデアを編集可能なビジュアル要素に分解",
+    "tmpl_label_prompt_recompose": "プロンプトデザイナー — 編集した要素を最終プロンプトに再構成",
     "tmpl_label_edit_prompt_suggestion": "プロンプト生成(編集タブ) — 画像と意図を読み取り、モードごとに編集プロンプトを提案",
     "tmpl_label_reference_intent_extraction": "インスピレーション — 参照画像と指示を読み取り、強化プロンプトに変換",
     "tmpl_label_reference_edit_instruction": "リファレンスに合わせる — 参照編集モデル向けに指示を整形",
@@ -1137,7 +1144,11 @@
     "tmpl_label_collection_merge_art_direction": "アートディレクションの統合",
     "tmpl_label_collection_roster": "コレクションの構成リスト",
     "tmpl_label_collection_batch_prompt": "バッチのプロンプト",
-    "tmpl_label_collection_asset_type_classify": "コレクションのアセットタイプ判定"
+    "tmpl_label_collection_asset_type_classify": "コレクションのアセットタイプ判定",
+    "category_fast_llm": "高速LLM（プロンプト改良）",
+    "category_complex_llm": "高性能LLM（スタイル分析・クリエイティブ）",
+    "category_fallback_llm": "フォールバックLLM",
+    "category_voice": "音声文字起こし"
   },
   "nav": {
     "chat_studio": "チャットスタジオ",
@@ -1250,7 +1261,7 @@
   "type_studio": {
     "add_line": "行を追加",
     "ai_suggestion": "AI レイアウト提案",
-    "asset_loaded": "Type Studio アセットを編集用に読み込みました",
+    "asset_loaded": "タイプスタジオのアセットを編集用に読み込みました",
     "browse_recent": "最近の画像を参照...",
     "convert_svg": "SVGに変換",
     "default_font": "デフォルトフォント",
@@ -1559,7 +1570,7 @@
     "subgroup_generation": "生成",
     "subgroup_editing": "画像編集",
     "bucket_required_title": "デプロイには S3 バケットが必要",
-    "bucket_required_desc": "セルフホストモデルのデプロイではハンドラーを S3 にアップロードし、バックグラウンドジョブや通知もそこに保存されます。デプロイ前に Video Studio 設定（モデル設定 → Video Studio）で S3 バケットを設定してください。",
+    "bucket_required_desc": "セルフホストモデルのデプロイではハンドラーを S3 にアップロードし、バックグラウンドジョブや通知もそこに保存されます。デプロイ前にビデオスタジオ設定（モデル設定 → ビデオスタジオ）で S3 バケットを設定してください。",
     "s3_bucket_label": "S3バケット",
     "s3_change": "変更",
     "s3_bucket_placeholder": "S3バケット名を入力",

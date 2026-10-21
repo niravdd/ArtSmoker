@@ -402,6 +402,7 @@
     "alt_generated_png": "생성된 PNG",
     "alt_generated_svg": "생성된 SVG",
     "three_d_created": "생성됨",
+    "three_d_target_generic": "일반 (glTF, Y축 위)",
     "meta_src_user": "사용자 지정",
     "meta_src_inferred": "추론됨",
     "meta_collection_section": "컬렉션",
@@ -892,7 +893,13 @@
     "stream_ended": "결과를 받기 전에 연결이 종료되었습니다",
     "type_hint_char_scene": "프롬프트가 배경 속의 캐릭터를 묘사합니다. '캐릭터'는 장면 맥락을 유지하면서 인물을 초점에 둡니다. '게임 에셋'은 투명 배경의 단독 스프라이트로 만듭니다.",
     "type_hint_char": "프롬프트가 캐릭터를 묘사합니다. '캐릭터'는 신체 비율, 포즈, 실루엣 가독성을 최적화합니다.",
-    "type_hint_scene": "프롬프트가 장면이나 환경을 묘사합니다. '환경'은 전체 구도를 유지합니다. '게임 에셋'은 투명 배경의 단독 오브젝트로 만듭니다."
+    "type_hint_scene": "프롬프트가 장면이나 환경을 묘사합니다. '환경'은 전체 구도를 유지합니다. '게임 에셋'은 투명 배경의 단독 오브젝트로 만듭니다.",
+    "prompt_example_game_asset": "철제 띠와 황동 자물쇠가 달린 낡은 나무 보물상자, 살짝 열린 틈으로 금빛이 새어 나오는...",
+    "prompt_example_character": "화려한 은빛 갑옷을 입은 젊은 여전사, 길고 검은 머리를 땋고 빛나는 검을 든 채 해 질 녘 절벽 끝에 서 있는...",
+    "prompt_example_environment": "새벽 안개가 깔린 일본 정원, 이끼 낀 바위 사이로 굽이진 길을 따라 석등이 늘어서 있고 고요한 공기 속에 벚꽃잎이 흩날리는...",
+    "prompt_example_banner": "불타는 중세 성 위로 날아오르는 웅장한 드래곤, 극적인 폭풍 구름과 번개, 그 아래에서 맞붙는 군대...",
+    "prompt_example_icon": "드래곤 문장이 새겨진 황금 방패, 단순하고 굵직한 디자인...",
+    "prompt_example_photo": "밤, 비에 젖은 도시 교차로에 서 있는 여성, 웅덩이에 비친 네온사인, 35mm 렌즈의 얕은 피사계 심도로 촬영한..."
   },
   "lang": {
     "en": "영어",
@@ -1012,7 +1019,7 @@
     "blender_up_to_date": "이미 최신입니다",
     "tab_shared": "공유 스튜디오",
     "tab_templates": "프롬프트 템플릿",
-    "tab_type": "타입 스튜디오",
+    "tab_type": "타이프 스튜디오",
     "tab_video": "비디오 스튜디오",
     "templates_accept": "수락",
     "templates_accepted_hint": "제안이 적용되었습니다 — 저장을 클릭하여 유지하세요",
@@ -1109,8 +1116,8 @@
     "tmpl_label_image_asset_type_context": "에셋 유형 의도 — 에셋 유형별 크리에이티브 방향(게임 에셋, 캐릭터 등)",
     "tmpl_label_image_style_section": "스타일 힌트 구성 — 스타일 라이브러리의 스타일을 프롬프트에 녹여내는 방식",
     "tmpl_label_asset_type_classify": "에셋 유형 제안 — 프롬프트에 가장 적합한 에셋 유형을 제안",
-    "tmpl_label_prompt_decompose": "Prompt Designer — 아이디어를 편집 가능한 시각 요소로 분해",
-    "tmpl_label_prompt_recompose": "Prompt Designer — 편집한 요소를 최종 프롬프트로 재구성",
+    "tmpl_label_prompt_decompose": "프롬프트 디자이너 — 아이디어를 편집 가능한 시각 요소로 분해",
+    "tmpl_label_prompt_recompose": "프롬프트 디자이너 — 편집한 요소를 최종 프롬프트로 재구성",
     "tmpl_label_edit_prompt_suggestion": "프롬프트 생성(편집 탭) — 이미지와 의도를 읽고 모드별 편집 프롬프트를 제안",
     "tmpl_label_reference_intent_extraction": "영감 받기 — 레퍼런스 이미지와 지시 사항을 읽어 향상된 프롬프트로 변환",
     "tmpl_label_reference_edit_instruction": "레퍼런스 맞추기 — 레퍼런스 편집 모델에 맞게 지시 사항을 다듬기",
@@ -1137,7 +1144,11 @@
     "tmpl_label_collection_merge_art_direction": "아트 디렉션 병합",
     "tmpl_label_collection_roster": "컬렉션 구성 목록",
     "tmpl_label_collection_batch_prompt": "배치 프롬프트",
-    "tmpl_label_collection_asset_type_classify": "컬렉션 에셋 유형 확인"
+    "tmpl_label_collection_asset_type_classify": "컬렉션 에셋 유형 확인",
+    "category_fast_llm": "빠른 LLM (프롬프트 개선)",
+    "category_complex_llm": "고급 LLM (스타일 분석 및 크리에이티브)",
+    "category_fallback_llm": "폴백 LLM",
+    "category_voice": "음성 전사"
   },
   "nav": {
     "chat_studio": "채팅 스튜디오",
@@ -1559,7 +1570,7 @@
     "subgroup_generation": "생성",
     "subgroup_editing": "이미지 편집",
     "bucket_required_title": "배포하려면 S3 버킷 필요",
-    "bucket_required_desc": "셀프 호스팅 모델을 배포하면 핸들러가 S3에 업로드되고 백그라운드 작업과 알림도 거기에 저장됩니다. 배포하기 전에 Video Studio 설정(모델 설정 → Video Studio)에서 S3 버킷을 설정하세요.",
+    "bucket_required_desc": "셀프 호스팅 모델을 배포하면 핸들러가 S3에 업로드되고 백그라운드 작업과 알림도 거기에 저장됩니다. 배포하기 전에 비디오 스튜디오 설정(모델 설정 → 비디오 스튜디오)에서 S3 버킷을 설정하세요.",
     "s3_bucket_label": "S3 버킷",
     "s3_change": "변경",
     "s3_bucket_placeholder": "S3 버킷 이름 입력",
@@ -1711,7 +1722,7 @@
     "cost_tooltip": "공개 가격 기준 예상 비용",
     "go_to_parent": "상위로 이동",
     "alt_selected_source": "선택한 소스 이미지",
-    "alt_type_result": "Type Studio 결과"
+    "alt_type_result": "타이프 스튜디오 결과"
   },
   "chat": {
     "select_model": "모델 선택..."
@@ -1741,7 +1752,7 @@
     "style_hint": "아트 디렉션과 생성되는 모든 이미지에 반영됩니다.",
     "count_auto_defined": "자동 설정",
     "count_user_defined": "사용자 설정",
-    "count_change_hint": "변경하면 해당 개수로 로스터를 다시 구성합니다(잠긴 항목은 유지).",
+    "count_change_hint": "변경하면 해당 개수의 배치로 로스터를 다시 구성합니다(잠긴 항목은 유지).",
     "batch_concept_hint": "한 줄 주제 설명",
     "batch_prompt_hint": "이 배치에서 모델에 전달되는 프롬프트",
     "options_label": "옵션",

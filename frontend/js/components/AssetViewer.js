@@ -211,7 +211,7 @@
             if (els.target) {
                 // nosemgrep
                 els.target.innerHTML = (cfg.targets || [])
-                    .map(tt => html`<option value="${tt.key}">${tt.label}</option>`).join('');
+                    .map(tt => html`<option value="${tt.key}">${tt.key === 'generic' ? t('artsmoker.ui.asset_viewer.three_d_target_generic') : tt.label}</option>`).join('');
                 els.target.value = cfg.default || 'generic';
                 els.target.addEventListener('change', fill);
             }

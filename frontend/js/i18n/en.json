@@ -362,7 +362,13 @@
     "stream_ended": "The connection ended before the result arrived",
     "type_hint_char_scene": "Your prompt describes a character in a setting. 'Character' keeps the figure as the focal point while preserving scene context. 'Game Asset' forces an isolated sprite on a transparent background.",
     "type_hint_char": "Your prompt describes a character. 'Character' optimizes for figure proportions, pose, and silhouette readability.",
-    "type_hint_scene": "Your prompt describes a scene or environment. 'Environment' preserves the full composition. 'Game Asset' forces an isolated object on a transparent background."
+    "type_hint_scene": "Your prompt describes a scene or environment. 'Environment' preserves the full composition. 'Game Asset' forces an isolated object on a transparent background.",
+    "prompt_example_game_asset": "A weathered wooden treasure chest with iron straps and a brass lock, slightly open with golden light spilling out...",
+    "prompt_example_character": "A young female warrior in ornate silver armor, long dark hair braided, holding a glowing sword, standing on a cliff edge at sunset...",
+    "prompt_example_environment": "A misty Japanese garden at dawn, stone lanterns lining a curved path through moss-covered rocks, cherry blossoms drifting in still air...",
+    "prompt_example_banner": "An epic dragon soaring over a burning medieval castle, dramatic storm clouds and lightning, armies clashing below...",
+    "prompt_example_icon": "A golden shield with a dragon emblem, simple bold design...",
+    "prompt_example_photo": "A woman standing at a rain-soaked city intersection at night, neon signs reflecting in puddles, shot on a 35mm lens with shallow depth of field..."
   },
   "video_studio": {
     "title": "Video Studio",
@@ -1141,6 +1147,7 @@
     "three_d_improve_btn": "Improve the Source",
     "meta_cost_total": "Total",
     "three_d_untextured_notice": "Texturing didn't complete for this model, so a plain (untextured) mesh was produced. It's still usable as-is — regenerate to try texturing again.",
+    "three_d_target_generic": "Generic (glTF, Y-up)",
     "meta_3d_attribution": "Attribution",
     "edit_async_queued": "Edit is processing — the new version will appear when ready.",
     "edit_async_job_info": "(Job {{id}} · submitted {{time}})",
@@ -1407,7 +1414,11 @@
     "tmpl_label_collection_merge_art_direction": "Merge art direction",
     "tmpl_label_collection_roster": "Collection roster",
     "tmpl_label_collection_batch_prompt": "Batch prompt",
-    "tmpl_label_collection_asset_type_classify": "Collection asset-type check"
+    "tmpl_label_collection_asset_type_classify": "Collection asset-type check",
+    "category_fast_llm": "Fast LLM (Prompt Refinement)",
+    "category_complex_llm": "Complex LLM (Style Analysis & Creative)",
+    "category_fallback_llm": "Fallback LLM",
+    "category_voice": "Voice Transcription"
   },
   "prompt_editor": {
     "placeholder": "Describe what you want to generate...",

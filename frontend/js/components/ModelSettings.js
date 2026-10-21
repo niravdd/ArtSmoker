@@ -730,7 +730,7 @@
             return html`
                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-category="${name}">
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm font-medium">${cat.label || name}</span>
+                        <span class="text-sm font-medium">${this._categoryLabel(name, cat)}</span>
                         <span class="text-[10px] text-brand-text-muted font-mono bg-brand-bg px-2 py-0.5 rounded">${cat.region || ''}</span>
                     </div>
                     <p class="text-[10px] text-brand-text-muted/50 mb-2">${cat.description || ''}</p>
@@ -3201,6 +3201,14 @@
 
             document.body.appendChild(backdrop);
             backdrop.querySelector('.hf-token-input').focus();
+        },
+
+        // A shared LLM category's display name in the UI language; a category the
+        // registry adds later (no i18n key yet) shows its registry label.
+        _categoryLabel(name, cat) {
+            const key = `model_settings.category_${name}`;
+            const v = t(`artsmoker.ui.${key}`);
+            return v && v !== key ? v : (cat.label || name);
         },
 
         _esc(str) {
