@@ -2452,6 +2452,21 @@ Real-HTTP checks against a running server, every model and route read from the r
 
 `--geo-scope` / `--region-scope pinned` limit routes to the pinned id / one Region. An AWS 5xx or throttle is retried once (noted in the row). The report goes to `tools/sanity_report.json`; the server log is scanned for new error lines per stage.
 
+**Cleanup (the `cleanup` stage).** The harness deletes everything it creates, and only that:
+- **Record.** Each item is recorded in `logs/sanity_created.json` the moment the server returns its id: image Batches (from the stream's `started` event), collections (from `decompose`), each collection Batch (from the forwarded `started` events and the per-Batch retry), video jobs (from the submit response), and the guard chat session. The file is rewritten atomically after every change (`atomic_write_text`) and removed when it is empty.
+- **Settled.** An item is marked settled once the stream that made it has ended. A run killed mid-generation leaves the server still generating, so an unsettled item recorded less than 15 minutes ago (`SETTLE_WINDOW_S`) is never judged gone or deleted; it stays on the record.
+- **Delete.** At the end of the run (a `finally`, so also after a crash or Ctrl+C), each recorded item is re-read through the API. It is deleted through the app's own DELETE endpoint only if all of these hold:
+  - its content matches the harness's **built-in** constants (`IMAGE_PROMPT`, the collection briefs, `VIDEO_PROMPT`, `GUARD_SESSION_TITLE`), never just a value stored in the record;
+  - its own creation time (`created_at`, or a video's `started_at`) is within `CREATED_NEAR_S` (−10 min to +2 h) of when it was recorded, so a record entry naming older content is never acted on;
+  - per kind: every asset of an image Batch carries its `batch_id`, no `collection_id` and the harness's prompt; a collection carries the harness's `raw_ask`, and every member asset carries its id; a chat session has the harness's title and no messages.
+  - A collection Batch still present after its collection is deleted only while that collection is on the record and verified; otherwise its owner can't be proven.
+
+  If any asset of a Batch fails a check, none of it is deleted. Each deletion is confirmed by a 404. An item that can't be shown to be the harness's is **kept**: nothing is deleted, it stays on the record, and the run FAILs, for a person to look at.
+- **Record integrity.** A record file that can't be read is renamed aside (`.unreadable-<time>`) and nothing in it is acted on. A malformed entry is ignored, and the original file is kept as `.malformed-<time>`. Each entry notes the server it was made on (`base`). A cleanup through a different `--base-url` leaves it on the record, since "not found" there proves nothing. Only one harness run works at a time (`named_write_lock("sanity-harness")`); a second run waits.
+- **Videos.** A video job still rendering is waited for (up to `--video-timeout`), because it can't be cancelled and deleting it early would orphan the finished file in S3; otherwise it stays on the record.
+- **Leftover check.** The `data/` folders are compared with a snapshot taken before the run. Anything of the harness's still there FAILs, and is reported, never deleted. New content that isn't the harness's (someone used the app during the run) is left alone and reported as a WARN.
+- **Later runs.** A later run cleans up whatever is still on the record before it starts. `--cleanup-only` does only that, and `--keep-created` leaves this run's content for inspection.
+
 <a id="13-aws-bedrock-pricing--cost-breakdown"></a>
 
 <a id="14-aws-bedrock-pricing--cost-breakdown"></a>

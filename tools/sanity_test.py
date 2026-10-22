@@ -68,9 +68,26 @@ USAGE
   python3 tools/sanity_test.py --tiers 2 --versions 2  # selection depth (0 0 = every model)
   python3 tools/sanity_test.py --limit 5               # smoke-test the harness itself
   python3 tools/sanity_test.py --base-url http://127.0.0.1:8000
+  python3 tools/sanity_test.py --cleanup-only          # delete what an earlier run left behind
+  python3 tools/sanity_test.py --keep-created          # keep this run's content to inspect it
 
-Requires the server to be running (start it the usual way). Read-only w.r.t. code;
-it only creates the gallery assets any real generation would.
+CLEANUP: everything the harness creates (image Batches, collections and their
+Batches, videos, the guard chat session) is recorded the moment the server returns
+its id, in logs/sanity_created.json, saved after every change. At the end of the
+run (even after a crash or Ctrl+C) each recorded item is re-read and deleted
+through the app's own DELETE endpoints, but only if it is verifiably the
+harness's: its id, the harness's built-in prompt/brief/title, and a creation time
+close to when it was recorded. When in doubt nothing is deleted; the item stays on
+the record and the run fails, for a person to look at. An item whose generation
+may still be running is kept for later, and a video still rendering is waited for
+(deleting it early would orphan the finished file in S3). Then the data folders
+are compared with a snapshot taken before the run: anything of the harness's still
+there is a FAIL; anything new that isn't the harness's (you used the app during
+the run) is left alone. Content an earlier run left on the record is cleaned up
+first (only through the server it was made on). Only one harness run works at a
+time; a second waits for the first.
+
+Requires the server to be running (start it the usual way). Read-only w.r.t. code.
 """
 from __future__ import annotations
 
@@ -135,8 +152,10 @@ def post_json(base, path, payload, timeout=120):
         return json.loads(r.read().decode())
 
 
-def post_sse(base, path, payload, timeout=300):
-    """POST and consume an SSE stream; return the list of parsed `data:` event dicts."""
+def post_sse(base, path, payload, timeout=300, on_event=None):
+    """POST and consume an SSE stream; return the list of parsed `data:` event dicts.
+    `on_event` sees each event as it arrives, so an id the stream announces is
+    recorded even if the stream fails later."""
     events = []
     req = _req(base + path, payload, "POST", accept="text/event-stream", timeout=timeout)
     with _urlopen(req, timeout) as r:
@@ -147,9 +166,12 @@ def post_sse(base, path, payload, timeout=300):
                 if not body:
                     continue
                 try:
-                    events.append(json.loads(body))
+                    ev = json.loads(body)
                 except json.JSONDecodeError:
-                    pass
+                    continue
+                events.append(ev)
+                if on_event:
+                    on_event(ev)
     return events
 
 
@@ -555,6 +577,9 @@ REFUSAL = re.compile(r"^\W*(sorry|i'm sorry|i am sorry|i can(no|')t|i'm (not abl
                      r"i am (not able|unable))\b", re.I)
 IMAGE_PROMPT = "a single red apple on a plain white background, product photo"
 VIDEO_PROMPT = "a calm ocean wave rolling onto a sandy beach at sunrise"
+COLLECTION_ASK = "a tiny set of two fantasy gemstones"
+COLLECTION_REF_ASK = "a small matching set in this style"   # the image-inspired set
+GUARD_SESSION_TITLE = "sanity-guard"
 
 
 def preflight_concurrency(base, want, probe_model, probe_region):
@@ -801,7 +826,9 @@ def run_image(base, model, region):
         "region": region, "num_options": 1, "num_variations": 1,
         "remove_background": False, "generate_svg": False, "upscale": False,
     }
-    events = post_sse(base, "/api/generate/stream", payload, timeout=300)
+    events = post_sse(base, "/api/generate/stream", payload, timeout=300,
+                      on_event=_on_started("image_batch", prompt=IMAGE_PROMPT))
+    settle_started("image_batch", events)
     err = next((e for e in events if e.get("type") == "error"), None)
     done = [e for e in events if e.get("type") == "image_done"]
     complete = next((e for e in events if e.get("type") == "complete"), None)
@@ -823,10 +850,10 @@ def _http_status(base, path, payload=None, method="POST", timeout=60) -> int:
         return e.code
 
 
-def _delete_json(base, path, timeout=60):
+def _delete_json(base, path, timeout=60, payload=None):
     """Execute a DELETE and return the parsed JSON (the older code built a Request
     but never opened it — so cleanup silently no-op'd). Always urlopen."""
-    with _urlopen(_req(base + path, method="DELETE", timeout=timeout), timeout) as r:
+    with _urlopen(_req(base + path, payload, method="DELETE", timeout=timeout), timeout) as r:
         return json.loads(r.read().decode())
 
 
@@ -858,13 +885,14 @@ def run_collection(base, model, region, extra_models=None):
     import urllib.error
     mk = model["key"]
     mk2 = (extra_models or [{}])[0].get("key") if extra_models else None   # a 2nd enabled model → multi-model set
-    ask = "a tiny set of two fantasy gemstones"
+    ask = COLLECTION_ASK
     steps, cid = [], None
     try:
         # 1) decompose (art-direction + roster + per-Batch prompts + cost ledger)
         dec = post_json(base, "/api/collections/decompose",
                         {"prompt": ask, "asset_type": "game_asset", "image_model": mk, "count": 2}, timeout=180)
         roster, cid = dec.get("roster") or [], dec.get("collection_id")
+        track("collection", cid, raw_ask=ask)
         if len(roster) != 2 or not all(r.get("model_agnostic_prompt") for r in roster):
             return False, f"decompose bad roster ({len(roster)})", cid
         if not dec.get("art_direction", {}).get("text") or not (dec.get("cost", 0) > 0):
@@ -954,7 +982,9 @@ def run_collection(base, model, region, extra_models=None):
                            "region": region, "asset_type": "game_asset", "num_options": 1, "num_variations": 1,
                            "seed": set_seed,
                            "llm_cost_ledger": dec.get("llm_cost_ledger", []), "design_cost": dec.get("cost", 0)},
-                          timeout=300)
+                          timeout=300, on_event=_on_started("collection_batch", collection_id=cid))
+        settle_started("collection_batch", events)
+        settle("collection", cid)
         comp = next((e for e in events if e.get("type") == "collection_complete"), None)
         if next((e for e in events if e.get("type") == "error"), None) or comp is None:
             return False, f"generate failed ({len(events)} events)", cid
@@ -975,6 +1005,7 @@ def run_collection(base, model, region, extra_models=None):
                 d2 = post_json(base, "/api/collections/decompose",
                                {"prompt": ask, "asset_type": "game_asset", "image_model": mk, "count": 1}, timeout=180)
                 r2, cid2 = (d2.get("roster") or [])[:1], d2.get("collection_id")
+                track("collection", cid2, raw_ask=ask)
                 if not r2 or not cid2:
                     return False, "multi-model decompose returned no roster/cid", cid
                 ev2 = post_sse(base, "/api/collections/generate",
@@ -984,7 +1015,9 @@ def run_collection(base, model, region, extra_models=None):
                                 "region": region, "asset_type": "game_asset",
                                 "num_options": 1, "num_variations": 1,
                                 "llm_cost_ledger": d2.get("llm_cost_ledger", []), "design_cost": d2.get("cost", 0)},
-                               timeout=300)
+                               timeout=300, on_event=_on_started("collection_batch", collection_id=cid2))
+                settle_started("collection_batch", ev2)
+                settle("collection", cid2)
                 c2 = next((e for e in ev2 if e.get("type") == "collection_complete"), None)
                 if c2 is None or c2.get("completed_batches") != 1:
                     return False, f"multi-model generate did not complete 1 batch: {c2}", cid
@@ -1006,6 +1039,8 @@ def run_collection(base, model, region, extra_models=None):
                 slug2 = (r2[0] or {}).get("slug")
                 rb = post_json(base, f"/api/collections/{cid2}/generate-batch",
                                {"slug": slug2}, timeout=300)
+                track("collection_batch", rb.get("batch_id"), collection_id=cid2)
+                settle("collection_batch", rb.get("batch_id"))   # the POST returns once it has rendered
                 if not (rb.get("ok") and rb.get("batch_id")):
                     return False, f"multi-model retry did not succeed: {rb}", cid
                 mm2 = get_json(base, f"/api/collections/{cid2}", timeout=30)
@@ -1034,22 +1069,25 @@ def run_collection(base, model, region, extra_models=None):
         try:
             ref_png = _tiny_reference_png_b64()
             d3 = post_json(base, "/api/collections/decompose",
-                           {"prompt": "a small matching set in this style", "asset_type": "game_asset",
+                           {"prompt": COLLECTION_REF_ASK, "asset_type": "game_asset",
                             "image_model": mk, "count": 1, "reference_images": [ref_png]}, timeout=180)
             r3, cid3 = (d3.get("roster") or [])[:1], d3.get("collection_id")
+            track("collection", cid3, raw_ask=COLLECTION_REF_ASK)
             if not r3 or not cid3:
                 return False, "image-inspired decompose returned no roster/cid", cid
             if not (d3.get("reference_used", 0) >= 1):
                 return False, "image-inspired decompose did NOT run vision on the reference", cid
             ev3 = post_sse(base, "/api/collections/generate",
                            {"collection_id": cid3, "name": d3.get("name", "Img Set"),
-                            "raw_ask": "a small matching set in this style",
+                            "raw_ask": COLLECTION_REF_ASK,
                             "art_direction": d3["art_direction"], "roster": r3,
                             "image_model": mk, "asset_type": "game_asset",
                             "num_options": 1, "num_variations": 1,
                             "cohesion_mode": "reference", "reference_images": [ref_png],
                             "llm_cost_ledger": d3.get("llm_cost_ledger", []), "design_cost": d3.get("cost", 0)},
-                           timeout=300)
+                           timeout=300, on_event=_on_started("collection_batch", collection_id=cid3))
+            settle_started("collection_batch", ev3)
+            settle("collection", cid3)
             c3 = next((e for e in ev3 if e.get("type") == "collection_complete"), None)
             if c3 is None or c3.get("completed_batches") != 1:
                 return False, f"image-inspired generate did not complete 1 batch: {c3}", cid
@@ -1255,6 +1293,7 @@ def run_video(base, model, region, timeout):
         (resp.get("job") or {}).get("job_id")
     if not job_id:
         return False, f"no job_id in submit response: {json.dumps(resp)[:160]}", None
+    track("video", job_id, prompt=VIDEO_PROMPT)
     # Poll like the frontend does
     deadline = time.time() + timeout
     last = ""
@@ -1272,6 +1311,402 @@ def run_video(base, model, region, timeout):
         if status in ("failed", "error", "cancelled"):
             return False, f"job {job_id} {status}: {st.get('error', '')[:120]}", job_id
     return False, f"job {job_id} timeout after {timeout}s (last: {last})", job_id
+
+
+# ── What the harness created, and cleaning it up ────────────────────────────
+# Every item the harness creates on the server is recorded the moment the server
+# returns its id: image Batches, collections and their Batches, video jobs, and
+# the guard chat session. The record is saved to CREATED_PATH after every change,
+# so a crashed or interrupted run can still be cleaned up (--cleanup-only).
+# cleanup() deletes each recorded item, but only after re-reading it from the
+# server and confirming it is the harness's own: the recorded id, the harness's
+# built-in prompt/brief/title (never just the value stored in the record), and a
+# creation time close to when it was recorded. A collection's Batch is deleted
+# only through its verified collection. Deletes go through the app's own DELETE
+# endpoints, which also handle S3 objects, write locks and sibling metadata.
+# When in doubt, nothing is deleted: the item stays on the record and the run
+# fails, for a person to look at. Nothing the harness didn't record is touched.
+CREATED_PATH = ROOT / "logs" / "sanity_created.json"
+_created: list[dict] = []          # recorded items not yet cleaned up
+_tracked_ids: set = set()          # every id recorded this run (incl. cleaned)
+_created_lock = threading.Lock()
+_run_base = ""                     # the server this run talks to (set in main)
+
+
+def _safe_write():
+    """The app's own atomic-write and cross-process lock helpers (SPEC §17)."""
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from backend.services import safe_write
+    return safe_write
+
+
+def _save_created():
+    """Persist the record (caller holds _created_lock); no file when it's empty."""
+    atomic_write_text = _safe_write().atomic_write_text
+    if _created:
+        atomic_write_text(CREATED_PATH, json.dumps({"items": _created}, indent=1))
+    else:
+        CREATED_PATH.unlink(missing_ok=True)
+
+
+def load_created() -> list[dict]:
+    """Items an earlier run recorded but did not clean up. A record file that
+    can't be read is set aside (renamed), never overwritten; an entry that isn't
+    well-formed is reported and ignored. Neither is ever acted on."""
+    items = []
+    if CREATED_PATH.exists():
+        try:
+            items = json.loads(CREATED_PATH.read_text()).get("items", [])
+            if not isinstance(items, list):
+                raise ValueError("'items' is not a list")
+        except (OSError, ValueError, AttributeError) as e:
+            aside = CREATED_PATH.with_name(f"{CREATED_PATH.name}.unreadable-{int(time.time())}")
+            CREATED_PATH.rename(aside)
+            print(f"WARNING: {CREATED_PATH} can't be read ({e}); moved to {aside}. "
+                  f"Nothing in it is deleted.", flush=True)
+            items = []
+    good, bad = [], []
+    for i in items:
+        if (isinstance(i, dict) and i.get("kind") in _CLEANERS and isinstance(i.get("id"), str) and i["id"]
+                and isinstance(i.get("owner"), dict) and isinstance(i.get("recorded_at"), str)):
+            good.append(i)
+        else:
+            bad.append(i)
+            print(f"WARNING: ignoring a malformed entry on the record (nothing is deleted for it): "
+                  f"{str(i)[:160]}", flush=True)
+    if bad:   # keep the original, since the next save drops the malformed entries
+        import shutil
+        aside = CREATED_PATH.with_name(f"{CREATED_PATH.name}.malformed-{int(time.time())}")
+        shutil.copy2(CREATED_PATH, aside)
+        print(f"         The original record is kept as {aside}.", flush=True)
+    with _created_lock:
+        _created[:] = good
+        _tracked_ids.update(i["id"] for i in _created)
+        return list(_created)
+
+
+def track(kind: str, ident, **owner):
+    """Record an item the harness just created (ignores an empty id or a repeat)."""
+    if not ident:
+        return
+    with _created_lock:
+        _tracked_ids.add(ident)
+        if any(i["kind"] == kind and i["id"] == ident for i in _created):
+            return
+        _created.append({"kind": kind, "id": ident, "owner": owner, "base": _run_base,
+                         "recorded_at": datetime.now(timezone.utc).isoformat()})
+        _save_created()
+
+
+def settle(kind: str, ident):
+    """The server has finished creating this item (the stream that made it ended)."""
+    with _created_lock:
+        for i in _created:
+            if i["kind"] == kind and i["id"] == ident and not i.get("settled"):
+                i["settled"] = True
+                _save_created()
+
+
+def settle_started(kind: str, events):
+    """Settle every Batch a finished stream started."""
+    for ev in events:
+        if ev.get("type") == "started":
+            settle(kind, ev.get("batch_id"))
+
+
+# A run killed mid-generation leaves the server still generating: the item can
+# appear minutes after the harness stopped. Until its stream is known to have
+# ended, a recent item is never judged gone or deleted, only kept for later.
+SETTLE_WINDOW_S = 900
+
+# The server's own creation time for an item must be close to when the harness
+# recorded it. A record entry naming older content (a damaged or hand-edited
+# record) is then never acted on, even if that content uses the harness's prompt.
+CREATED_NEAR_S = (-600, 7200)   # allowed offset from the recorded time
+
+
+def _parse_utc(stamp):
+    """An ISO time as an aware UTC datetime (the app writes naive UTC), or None."""
+    try:
+        t = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def _maybe_in_flight(item) -> bool:
+    """Its generation may still be running, or we can't tell: keep it."""
+    if item.get("settled"):
+        return False
+    rec = _parse_utc(item.get("recorded_at"))
+    return rec is None or (datetime.now(timezone.utc) - rec).total_seconds() < SETTLE_WINDOW_S
+
+
+def _created_near(item, stamp) -> bool:
+    """True only if `stamp` is a readable time close to when the harness recorded
+    `item`. Missing or unreadable times are doubt, so False."""
+    rec, t = _parse_utc(item.get("recorded_at")), _parse_utc(stamp)
+    if rec is None or t is None:
+        return False
+    lo, hi = CREATED_NEAR_S
+    return lo <= (t - rec).total_seconds() <= hi
+
+
+def _on_started(kind: str, **owner):
+    """An SSE callback that records each Batch the server starts."""
+    def cb(ev):
+        if ev.get("type") == "started":
+            track(kind, ev.get("batch_id"), **owner)
+    return cb
+
+
+def _get_or_none(base, path, timeout=30):
+    """GET JSON, or None when the server says 404 (the item doesn't exist)."""
+    try:
+        return get_json(base, path, timeout=timeout)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+
+def _batch_asset_ids(batch: dict) -> list[str]:
+    return [v["id"] for o in (batch or {}).get("options") or [] for v in o.get("variants", []) if v.get("id")]
+
+
+# Every cleaner returns (outcome, note). Only "deleted" and "gone" take an item off
+# the record. "kept" means it couldn't be shown to be the harness's, so nothing
+# was deleted: it stays on the record and fails the run, for a person to look at.
+# "later" means it may still be in the making. When in doubt, nothing is deleted.
+
+def _clean_batch_assets(base, item, is_ours):
+    """Delete a Batch's assets only if EVERY one passes `is_ours`, carries this
+    Batch id and was created near the recorded time; otherwise delete none."""
+    bid = item["id"]
+    batch = _get_or_none(base, f"/api/gallery/batch/{bid}")
+    if batch is None:
+        return "gone", "already gone"
+    ids = []
+    for aid in _batch_asset_ids(batch):
+        meta = _get_or_none(base, f"/api/gallery/{aid}")
+        if meta is None:
+            continue                                   # went away meanwhile
+        if not (meta.get("batch_id") == bid and is_ours(meta) and _created_near(item, meta.get("created_at"))):
+            return "kept", f"{aid} can't be shown to be the harness's; nothing deleted"
+        ids.append(aid)
+    if ids:
+        _delete_json(base, "/api/gallery/", payload={"ids": ids})
+    left = [a for a in ids if _get_or_none(base, f"/api/gallery/{a}") is not None]
+    if left or _get_or_none(base, f"/api/gallery/batch/{bid}") is not None:
+        return "failed", f"still there after delete: {', '.join(left) or 'the Batch'}"
+    return "deleted", f"{len(ids)} image(s)"
+
+
+def _clean_batch(base, item):
+    """An image-stage Batch: each asset has the harness's fixed prompt and no collection."""
+    if _maybe_in_flight(item):
+        return "later", "its generation may still be running; kept on the record"
+    if item["owner"].get("prompt") != IMAGE_PROMPT:
+        return "kept", "the record doesn't name the harness's image prompt; nothing deleted"
+    return _clean_batch_assets(base, item, lambda m: m.get("prompt") == IMAGE_PROMPT and not m.get("collection_id"))
+
+
+def _collection_is_ours(item, rec: dict) -> bool:
+    ask = item["owner"].get("raw_ask")
+    return (rec.get("collection_id") == item["id"] and ask in (COLLECTION_ASK, COLLECTION_REF_ASK)
+            and rec.get("raw_ask") == ask and _created_near(item, rec.get("created_at")))
+
+
+def _clean_collection(base, item):
+    """A collection: the harness's brief, created near the recorded time, and every
+    member asset carries its id. The server then deletes it with its assets."""
+    cid = item["id"]
+    if _maybe_in_flight(item):
+        return "later", "its generation may still be running; kept on the record"
+    full = _get_or_none(base, f"/api/collections/{cid}")
+    if full is None:
+        return "gone", "already gone"
+    if not _collection_is_ours(item, full.get("record") or {}):
+        return "kept", "it can't be shown to be the harness's; nothing deleted"
+    members = []
+    for b in full.get("batches", []):
+        for aid in _batch_asset_ids(b.get("batch")):
+            meta = _get_or_none(base, f"/api/gallery/{aid}")
+            if meta is None:
+                continue
+            if meta.get("collection_id") != cid or not _created_near(item, meta.get("created_at")):
+                return "kept", f"member {aid} can't be shown to be the harness's; nothing deleted"
+            members.append(aid)
+    _delete_json(base, f"/api/collections/{cid}?delete_assets=true")
+    left = [a for a in members if _get_or_none(base, f"/api/gallery/{a}") is not None]
+    if left or _get_or_none(base, f"/api/collections/{cid}") is not None:
+        return "failed", f"still there after delete: {', '.join(left) or 'the collection'}"
+    return "deleted", f"collection + {len(members)} image(s)"
+
+
+def _clean_collection_batch(base, item):
+    """One of a collection's Batches. Deleting the collection normally removes it.
+    One still here is deleted only while its collection is on the record and
+    verifiably the harness's; otherwise nothing can prove whose it is."""
+    if _maybe_in_flight(item):
+        return "later", "its generation may still be running; kept on the record"
+    if _get_or_none(base, f"/api/gallery/batch/{item['id']}") is None:
+        return "gone", "already gone"
+    cid = item["owner"].get("collection_id")
+    with _created_lock:
+        coll = next((i for i in _created if i["kind"] == "collection" and i["id"] == cid), None)
+    full = _get_or_none(base, f"/api/collections/{cid}") if coll else None
+    if not (full and _collection_is_ours(coll, full.get("record") or {})):
+        return "kept", "its collection can't be verified as the harness's; nothing deleted"
+    return _clean_batch_assets(base, item, lambda m: m.get("collection_id") == cid)
+
+
+def _clean_chat_session(base, item):
+    """The guard session: the harness's title, no messages, created near the recorded time."""
+    sid = item["id"]
+    if item["owner"].get("title") != GUARD_SESSION_TITLE:
+        return "kept", "the record doesn't name the harness's session title; nothing deleted"
+    sess = _get_or_none(base, f"/api/chat/sessions/{sid}")
+    if sess is None:
+        return "gone", "already gone"
+    if (sess.get("title") != GUARD_SESSION_TITLE or sess.get("messages")
+            or not _created_near(item, sess.get("created_at"))):
+        return "kept", "it can't be shown to be the harness's; nothing deleted"
+    _delete_json(base, f"/api/chat/sessions/{sid}")
+    if _get_or_none(base, f"/api/chat/sessions/{sid}") is not None:
+        return "failed", "still there after delete"
+    return "deleted", "chat session"
+
+
+def _clean_video(base, item, wait_s):
+    """A video job: the harness's prompt, started near the recorded time. It can't be
+    cancelled once submitted, and deleting it while it renders would orphan the
+    finished file in S3, so wait (bounded) for it to finish."""
+    vid = item["id"]
+    if item["owner"].get("prompt") != VIDEO_PROMPT:
+        return "kept", "the record doesn't name the harness's video prompt; nothing deleted"
+    job = _get_or_none(base, f"/api/video/status/{vid}")
+    if job is None:
+        return "gone", "already gone"
+    if (job.get("job_id") != vid or job.get("original_prompt") != VIDEO_PROMPT
+            or not _created_near(item, job.get("started_at"))):
+        return "kept", "it can't be shown to be the harness's; nothing deleted"
+    deadline = time.time() + wait_s
+    while job.get("status") not in ("Completed", "Failed") and time.time() < deadline:
+        time.sleep(15)
+        job = _get_or_none(base, f"/api/video/status/{vid}")
+        if job is None:
+            return "gone", "already gone"
+    if job.get("status") not in ("Completed", "Failed"):
+        return "later", "still rendering; kept on the record, run --cleanup-only once it finishes"
+    _delete_json(base, f"/api/video/{vid}")
+    if _get_or_none(base, f"/api/video/status/{vid}") is not None:
+        return "failed", "still there after delete"
+    return "deleted", f"video ({job.get('status')}, local files + S3)"
+
+
+# Cleaning order: collections before their Batches (deleting a collection removes
+# its Batches, so those then read "already gone"); videos last, as they may wait.
+_CLEANERS = {
+    "image_batch": _clean_batch,
+    "collection": _clean_collection,
+    "collection_batch": _clean_collection_batch,
+    "chat_session": _clean_chat_session,
+    "video": _clean_video,
+}
+
+
+def cleanup(base, video_wait_s) -> list[dict]:
+    """Delete everything on the record that is verifiably the harness's own."""
+    order = list(_CLEANERS)
+    with _created_lock:
+        items = sorted(_created, key=lambda i: order.index(i["kind"]))
+    rows = []
+    for item in items:
+        fn = _CLEANERS[item["kind"]]
+        try:
+            if item.get("base", base) != base:   # made on another server: "not found" here means nothing
+                outcome, note = "later", f"made on {item['base']}; run --cleanup-only --base-url {item['base']}"
+            elif item["kind"] == "video":
+                outcome, note = fn(base, item, video_wait_s)
+            else:
+                outcome, note = fn(base, item)
+        except Exception as e:
+            outcome, note = "failed", f"{type(e).__name__}: {str(e)[:120]}"
+        if outcome in ("deleted", "gone"):
+            with _created_lock:
+                _created.remove(item)
+                _save_created()
+        status = {"deleted": "PASS", "gone": "PASS", "later": "WARN"}.get(outcome, "FAIL")
+        rows.append({"model": f"{item['kind']} {item['id']}", "key": item["kind"], "model_id": item["id"],
+                     "region": "", "route": item["kind"], "invoke_ok": status == "PASS",
+                     "detail": f"{outcome}: {note}", "status": status})
+        print(f"  {status} {item['kind']} {item['id']} — {outcome}: {note}", flush=True)
+    return rows
+
+
+def data_snapshot() -> dict:
+    """The ids now in the app's data folders (read-only), to compare before/after."""
+    d = ROOT / "data"
+    def names(sub, files=False):
+        p = d / sub
+        if not p.is_dir():
+            return set()
+        return {x.stem for x in p.glob("*.json")} if files else {x.name for x in p.iterdir() if x.is_dir()}
+    return {"image": names("images"), "collection": names("collections"),
+            "video": names("video"), "chat": names("chat", files=True)}
+
+
+def _read_meta(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def leftover_rows(before: dict) -> list[dict]:
+    """Compare the data folders with the snapshot taken before the run. A new item
+    that looks like the harness's but is still here is a FAIL (left in place, never
+    deleted here); anything else new was made by someone else during the run."""
+    d = ROOT / "data"
+    with _created_lock:
+        waiting = {i["id"] for i in _created}       # kept on the record (e.g. rendering)
+        tracked = set(_tracked_ids)
+    rows = []
+    for kind, ids in data_snapshot().items():
+        for ident in sorted(ids - before.get(kind, set())):
+            if kind == "image":
+                m = _read_meta(d / "images" / ident / "metadata.json")
+                bid = m.get("batch_id") or ident.rsplit("_o", 1)[0]   # folder = {batch_id}_o{n}_v{m}
+                ours = (bid in tracked or m.get("collection_id") in tracked
+                        or m.get("prompt") == IMAGE_PROMPT)
+                kept = bid in waiting or m.get("collection_id") in waiting
+            elif kind == "collection":
+                m = _read_meta(d / "collections" / ident / "metadata.json")
+                ours = ident in tracked or m.get("raw_ask") in (COLLECTION_ASK, COLLECTION_REF_ASK)
+                kept = ident in waiting
+            elif kind == "video":
+                m = _read_meta(d / "video" / ident / "job.json")
+                ours = ident in tracked or m.get("original_prompt") == VIDEO_PROMPT
+                kept = ident in waiting
+            else:
+                m = _read_meta(d / "chat" / f"{ident}.json")
+                ours = ident in tracked or m.get("title") == GUARD_SESSION_TITLE
+                kept = ident in waiting
+            if ours and not kept:
+                status, detail = "FAIL", "made by the harness and still here (left in place, not deleted)"
+            elif ours:
+                status, detail = "WARN", "made by the harness; kept on the record for --cleanup-only"
+            else:
+                status, detail = "WARN", "new during the run but not the harness's; left alone"
+            rows.append({"model": f"new {kind} {ident}", "key": kind, "model_id": ident, "region": "",
+                         "route": "leftover", "invoke_ok": status != "FAIL", "detail": detail, "status": status})
+    if not any(r["status"] == "FAIL" for r in rows):
+        rows.append({"model": "nothing the harness made is left behind", "key": "leftover", "model_id": "",
+                     "region": "", "route": "leftover", "invoke_ok": True,
+                     "detail": "data folders match the pre-run snapshot", "status": "PASS"})
+    return rows
 
 
 # ── Registry / routing consistency (no invocations) ─────────────────────────
@@ -1447,7 +1882,8 @@ def registry_checks(base, reg) -> list[dict]:
     for name, path, body in guards:
         got = _http_status(base, path, body)
         row("chat-guard", name, got == 400, f"HTTP {got} (want 400)")
-    sid = post_json(base, "/api/chat/sessions", {"title": "sanity-guard"}).get("session_id")
+    sid = post_json(base, "/api/chat/sessions", {"title": GUARD_SESSION_TITLE}).get("session_id")
+    track("chat_session", sid, title=GUARD_SESSION_TITLE)
     try:
         got = _http_status(base, f"/api/chat/sessions/{sid}",
                            {"messages": [{"role": "admin", "content": "x"}]}, "PUT")
@@ -1483,10 +1919,21 @@ def main():
     ap.add_argument("--video-timeout", type=int, default=600, help="per-video poll timeout (s)")
     ap.add_argument("--limit", type=int, default=0, help="cap invocations per stage (0=all)")
     ap.add_argument("--report", default=str(ROOT / "tools" / "sanity_report.json"))
+    ap.add_argument("--cleanup-only", action="store_true",
+                    help="delete what earlier runs recorded but did not clean up, then stop")
+    ap.add_argument("--keep-created", action="store_true",
+                    help="leave what this run creates (it stays on the record for --cleanup-only)")
     args = ap.parse_args()
 
     base = args.base_url.rstrip("/")
+    global _run_base
+    _run_base = base
     stages = [s.strip() for s in args.stages.split(",") if s.strip()]
+
+    # One harness run at a time: a second run would load this run's record and
+    # could clean up items this run is still testing. Held until the process exits.
+    print("Harness run lock: if another run is in progress, this waits for it to finish.", flush=True)
+    _safe_write().named_write_lock("sanity-harness").acquire()
     if args.log_path:
         global LOG_PATH
         LOG_PATH = Path(args.log_path)
@@ -1591,69 +2038,87 @@ def main():
     print(f"Model scope: {scope_note} | residency: {srv['residency'] or 'none (global. preferred)'} "
           f"| geos offered: {', '.join(sorted({g for p in _profile_map().values() for g in p})) or 'none'}")
 
-    if "registry" in stages:
-        print("\n=== STAGE REGISTRY — pins, categories, served ids, Region pickers, price order, Chat input guards ===")
-        record_stage("registry", registry_checks(base, reg))
+    # Content an earlier run recorded but didn't clean up (a crash or Ctrl+C):
+    # clean it first. --cleanup-only stops there.
+    if load_created():
+        print(f"\n=== CLEANUP — {len(_created)} item(s) an earlier run left on the record ===", flush=True)
+        record_stage("earlier", cleanup(base, args.video_timeout))
+    if args.cleanup_only:
+        stages = []
 
-    # Cross-platform concurrency preflight: measure the server's real parallelism and,
-    # if it serializes, RECOMMEND a multi-worker restart (portable) rather than forcing one.
-    # Probe = the app's own Fast LLM (whatever Region/profile it is pinned to).
-    if not args.skip_server_check and args.concurrency > 1 and set(stages) - {"registry"}:
-        pool = select_chat_models(reg, 1, 1, args.include_custom)
-        fast = ((reg.get("categories") or {}).get("fast_llm") or {})
-        probe = next((m for m in pool if _strip_geo(m["model_id"]) == _strip_geo(fast.get("current", ""))),
-                     None) or next((m for m in pool if "converse" in (m.get("invoke_api") or "")),
-                                   pool[0] if pool else None)
-        if probe:
-            preg = probe.get("region") or (probe.get("available_regions") or [""])[0]
-            print(f"Concurrency preflight: probing {probe.get('label')} @ {preg} ...", flush=True)
+    before = data_snapshot()
+    try:
+        if "registry" in stages:
+            print("\n=== STAGE REGISTRY — pins, categories, served ids, Region pickers, price order, Chat input guards ===")
+            record_stage("registry", registry_checks(base, reg))
+
+        # Cross-platform concurrency preflight: measure the server's real parallelism and,
+        # if it serializes, RECOMMEND a multi-worker restart (portable) rather than forcing one.
+        # Probe = the app's own Fast LLM (whatever Region/profile it is pinned to).
+        if not args.skip_server_check and args.concurrency > 1 and set(stages) - {"registry"}:
+            pool = select_chat_models(reg, 1, 1, args.include_custom)
+            fast = ((reg.get("categories") or {}).get("fast_llm") or {})
+            probe = next((m for m in pool if _strip_geo(m["model_id"]) == _strip_geo(fast.get("current", ""))),
+                         None) or next((m for m in pool if "converse" in (m.get("invoke_api") or "")),
+                                       pool[0] if pool else None)
+            if probe:
+                preg = probe.get("region") or (probe.get("available_regions") or [""])[0]
+                print(f"Concurrency preflight: probing {probe.get('label')} @ {preg} ...", flush=True)
+                try:
+                    bl, par, factor, n = preflight_concurrency(base, args.concurrency, probe, preg)
+                    print(f"  baseline={bl:.2f}s | {n} concurrent={par:.2f}s | parallelism≈{factor:.1f}x "
+                          f"(ideal ~{n}x)")
+                    if factor < n * 0.5:
+                        print("\nSERVER CONCURRENCY WARNING — not enough parallelism:\n"
+                              + _restart_recommendation(base, args.concurrency))
+                        sys.exit(2)
+                    print(f"  OK — server parallelizes; proceeding at concurrency={args.concurrency}.")
+                except Exception as e:
+                    print(f"  preflight probe failed ({e}); proceeding (use --skip-server-check to silence)")
+        if "chat" in stages:
+            chat_models = select_chat_models(reg, args.tiers, args.versions, args.include_custom)
             try:
-                bl, par, factor, n = preflight_concurrency(base, args.concurrency, probe, preg)
-                print(f"  baseline={bl:.2f}s | {n} concurrent={par:.2f}s | parallelism≈{factor:.1f}x "
-                      f"(ideal ~{n}x)")
-                if factor < n * 0.5:
-                    print("\nSERVER CONCURRENCY WARNING — not enough parallelism:\n"
-                          + _restart_recommendation(base, args.concurrency))
-                    sys.exit(2)
-                print(f"  OK — server parallelizes; proceeding at concurrency={args.concurrency}.")
-            except Exception as e:
-                print(f"  preflight probe failed ({e}); proceeding (use --skip-server-check to silence)")
-    if "chat" in stages:
-        chat_models = select_chat_models(reg, args.tiers, args.versions, args.include_custom)
-        try:
-            served = {m.get("key"): m for m in get_json(base, "/api/chat/models").get("models", [])}
-        except Exception:
-            served = {}
-        jobs = []
-        for m in chat_models:
-            routes = chat_routes(m, args.region_scope, served.get(m["key"]), srv["home_models"])
-            if args.geo_scope == "pinned":
-                routes = [r for r in routes if r["kind"].startswith(("pinned", "check:"))]
-            jobs += [(m, r) for r in routes]
-        run_stage("chat", chat_models, lambda m, rt: run_chat_route(base, reg, m, rt, args.max_tokens),
-                  jobs=jobs)
-    if {"excluded", "llm"} & set(stages):
-        _backend()  # in-process: the server's own modules, imported on this thread
-        sel = select_chat_models(reg, args.tiers, args.versions, args.include_custom)
-    if "excluded" in stages:
-        run_stage("excluded", sel, run_excluded,
-                  jobs=[(m, rt) for m in sel for rt in excluded_routes(m)])
-    if "llm" in stages:
-        run_stage("llm", sel, lambda m, job: run_llm(m, job, args.max_tokens), jobs=llm_jobs(reg, sel))
-    if "image" in stages:
-        run_stage("image", select_image_models(reg, args.include_custom),
-                  lambda m, r: run_image(base, m, r))
-    if "video" in stages:
-        run_stage("video", select_video_models(reg, args.include_custom),
-                  lambda m, r: run_video(base, m, r, args.video_timeout))
-    if "collections" in stages:
-        # One image model is enough to smoke the whole Collections flow (SPEC §18);
-        # capped to the first enabled image model to bound cost. A 2nd enabled model
-        # (when present) is passed through so run_collection can also verify the
-        # multi-model set path (every selected model must render) — SPEC §18.4.
-        _coll_models = select_image_models(reg, args.include_custom)
-        run_stage("collections", _coll_models[:1],
-                  lambda m, r: run_collection(base, m, r, extra_models=_coll_models[1:2]))
+                served = {m.get("key"): m for m in get_json(base, "/api/chat/models").get("models", [])}
+            except Exception:
+                served = {}
+            jobs = []
+            for m in chat_models:
+                routes = chat_routes(m, args.region_scope, served.get(m["key"]), srv["home_models"])
+                if args.geo_scope == "pinned":
+                    routes = [r for r in routes if r["kind"].startswith(("pinned", "check:"))]
+                jobs += [(m, r) for r in routes]
+            run_stage("chat", chat_models, lambda m, rt: run_chat_route(base, reg, m, rt, args.max_tokens),
+                      jobs=jobs)
+        if {"excluded", "llm"} & set(stages):
+            _backend()  # in-process: the server's own modules, imported on this thread
+            sel = select_chat_models(reg, args.tiers, args.versions, args.include_custom)
+        if "excluded" in stages:
+            run_stage("excluded", sel, run_excluded,
+                      jobs=[(m, rt) for m in sel for rt in excluded_routes(m)])
+        if "llm" in stages:
+            run_stage("llm", sel, lambda m, job: run_llm(m, job, args.max_tokens), jobs=llm_jobs(reg, sel))
+        if "image" in stages:
+            run_stage("image", select_image_models(reg, args.include_custom),
+                      lambda m, r: run_image(base, m, r))
+        if "video" in stages:
+            run_stage("video", select_video_models(reg, args.include_custom),
+                      lambda m, r: run_video(base, m, r, args.video_timeout))
+        if "collections" in stages:
+            # One image model is enough to smoke the whole Collections flow (SPEC §18);
+            # capped to the first enabled image model to bound cost. A 2nd enabled model
+            # (when present) is passed through so run_collection can also verify the
+            # multi-model set path (every selected model must render) — SPEC §18.4.
+            _coll_models = select_image_models(reg, args.include_custom)
+            run_stage("collections", _coll_models[:1],
+                      lambda m, r: run_collection(base, m, r, extra_models=_coll_models[1:2]))
+    finally:
+        # Runs even when a stage crashes or the run is interrupted.
+        if args.keep_created:
+            print(f"\n--keep-created: {len(_created)} item(s) stay on the record "
+                  f"({CREATED_PATH}) for --cleanup-only", flush=True)
+        elif not args.cleanup_only:
+            print("\n=== CLEANUP — everything this run created ===", flush=True)
+            record_stage("cleanup", cleanup(base, args.video_timeout) + leftover_rows(before))
 
     results["finished"] = datetime.now(timezone.utc).isoformat()
     Path(args.report).write_text(json.dumps(results, indent=2))
