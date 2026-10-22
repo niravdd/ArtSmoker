@@ -5,6 +5,7 @@ as static files, and ensures data directories exist on startup.
 """
 
 import logging
+import os
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -636,6 +637,36 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── Python replaced under the running server ──────────────────────────────
+# A package manager (Homebrew, apt, pyenv, …) can upgrade Python while the
+# server runs and delete the old install. The process keeps running, but modules
+# it imports for the first time afterwards fail ("No module named 'ctypes'") and
+# file responses can come back truncated. Only a restart fixes it. So when a
+# request fails, check whether that is the cause (once confirmed, it stays
+# confirmed: no further checks). Each such failure logs one line to the console,
+# and its response carries RESTART_HEADER so app.js can tell the user.
+
+RESTART_HEADER = "X-ArtSmoker-Restart-Required"
+_STDLIB_FILE = getattr(os, "__file__", None)   # the stdlib this process started from
+if not (_STDLIB_FILE and os.path.isfile(_STDLIB_FILE)):
+    _STDLIB_FILE = None                         # embedded/zip stdlib: nothing to check
+_python_replaced = False
+
+
+def _failure_is_python_replaced() -> bool:
+    """Called after a request fails: did it fail because Python was replaced?"""
+    global _python_replaced
+    if not _python_replaced:
+        if not _STDLIB_FILE or os.path.exists(_STDLIB_FILE):
+            return False
+        _python_replaced = True
+    logger.error(
+        "Request failed because Python was updated or removed while ArtSmoker was "
+        "running (%s no longer exists). Restart the server: stop it and start it "
+        "again.", _STDLIB_FILE)
+    return True
+
+
 # ── No-cache for frontend assets (development) ───────────────────────────
 
 class NoCacheStaticMiddleware(BaseHTTPMiddleware):
@@ -650,6 +681,9 @@ class NoCacheStaticMiddleware(BaseHTTPMiddleware):
         if not request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
+        # A failed request may mean Python was replaced underneath us (above).
+        if response.status_code >= 500 and _failure_is_python_replaced():
+            response.headers[RESTART_HEADER] = "python-replaced"
         return response
 
 
@@ -704,6 +738,12 @@ async def _unhandled_exception_handler(request, exc):
     except Exception:
         pass
     from starlette.responses import JSONResponse
+    # If Python was replaced underneath the server, that is why this failed: say
+    # so, rather than a bare 500.
+    if _failure_is_python_replaced():
+        return JSONResponse(
+            status_code=503, headers={RESTART_HEADER: "python-replaced"},
+            content={"detail": "The ArtSmoker server needs a restart: Python was updated while it was running."})
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 

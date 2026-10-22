@@ -7,6 +7,18 @@
 (function () {
     'use strict';
 
+    // When a request fails because Python was updated underneath the server
+    // (backend/app.py, _failure_is_python_replaced), the server marks the failed
+    // response with this header. Watch every fetch for it; the update monitor
+    // below tells the user.
+    const _nativeFetch = window.fetch.bind(window);
+    window.fetch = async function (...args) {
+        const resp = await _nativeFetch(...args);
+        const reason = resp.headers.get('X-ArtSmoker-Restart-Required');
+        if (reason) window.dispatchEvent(new CustomEvent('artsmoker:restart-required', { detail: reason }));
+        return resp;
+    };
+
     // ============================================================
     //  Routes
     // ============================================================
@@ -267,7 +279,7 @@
             const title = opts.title || 'Confirm';
             const detail = opts.detail || '';
             const confirmLabel = opts.confirmLabel || 'Continue';
-            const cancelLabel = opts.cancelLabel || 'Cancel';
+            const cancelLabel = opts.cancelLabel ?? 'Cancel';  // '' = OK-only dialog
             const danger = opts.danger || false;
             const btnClass = danger
                 ? 'bg-red-600 hover:bg-red-500 text-white'
@@ -347,8 +359,9 @@
     //  Boot
     // ============================================================
 
-    // Initialize i18n, then navigate
-    (async function _boot() {
+    // Initialize i18n, then navigate. Kept as a promise so code that can run
+    // before boot finishes (the restart-required dialog) can wait for strings.
+    const _booted = (async function _boot() {
         if (typeof I18n !== 'undefined') {
             await I18n.init();
             _renderLangSwitcher();
@@ -842,6 +855,42 @@
                 }
             }, interval);
         }
+
+        // A request failed because Python was updated underneath the server (see
+        // the fetch hook at the top). Tell the user once per server run, so a page
+        // reload doesn't repeat it; later failures only go to the console. Offer a
+        // one-click restart when our supervisor runs the server (it relaunches on
+        // the current Python), else explain how to restart it by hand.
+        let restartRequiredShown = false;
+        window.addEventListener('artsmoker:restart-required', async () => {
+            console.warn('ArtSmoker: a request failed because Python was updated while the server was running. Restart the server.');
+            if (restartRequiredShown || waitingForRestart) return;
+            restartRequiredShown = true;
+            // The first failures can come before boot finishes, so wait for the
+            // i18n strings before showing any text.
+            await _booted.catch(() => {});
+            let run = window._serverBootId;
+            if (!run) {
+                try { run = (await (await fetch('/api/health')).json()).boot_id; } catch { /* show anyway */ }
+            }
+            if (run && localStorage.getItem('artsmoker_restart_notified') === run) return;
+            if (run) localStorage.setItem('artsmoker_restart_notified', run);
+            let supervised = false;
+            try {
+                const resp = await fetch('/api/update-status');
+                if (resp.ok) supervised = !!(await resp.json()).supervised;
+            } catch { /* unreachable — fall back to the manual steps */ }
+            const restart = await window.showConfirm(t('artsmoker.ui.onboarding.python_replaced'), {
+                title: t('artsmoker.ui.onboarding.python_replaced_title'),
+                detail: t(supervised
+                    ? 'artsmoker.ui.onboarding.python_replaced_auto'
+                    : 'artsmoker.ui.onboarding.python_replaced_manual'),
+                confirmLabel: supervised ? t('artsmoker.ui.onboarding.restart_now') : t('artsmoker.ui.common.ok'),
+                cancelLabel: supervised ? t('artsmoker.ui.common.close') : '',
+                danger: true,
+            });
+            if (restart && supervised) triggerRestart(false);
+        });
 
         // Check once on page load (catch a restart that started while page was closed).
         // Then check every 24 hours (aligned with backend's periodic checker).
