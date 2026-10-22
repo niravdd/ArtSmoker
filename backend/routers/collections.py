@@ -688,6 +688,7 @@ async def generate_collection(body: GenerateCollectionRequest):
     saved_refs: list[str] = []
     if ref_anchor_imgs:
         cdir = cstore.collection_dir(cid)
+        cdir.mkdir(parents=True, exist_ok=True)
         for i, b in enumerate(ref_anchor_imgs):
             try:
                 (cdir / f"ref_{i}.png").write_bytes(b)

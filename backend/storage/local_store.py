@@ -183,7 +183,9 @@ class LocalStore:
         return path
 
     def load_generation_metadata(self, asset_id: str) -> dict | None:
-        path = self.generated_asset_dir(asset_id) / "metadata.json"
+        # A read must not create the asset's folder (generated_asset_dir does):
+        # a lookup of a missing or deleted asset would leave an empty one behind.
+        path = self.images_dir / asset_id / "metadata.json"
         if not path.exists():
             return None
         return json.loads(path.read_text())
@@ -195,7 +197,7 @@ class LocalStore:
         )
 
     def get_generated_file_path(self, asset_id: str, filename: str) -> Path | None:
-        path = self.generated_asset_dir(asset_id) / filename
+        path = self.images_dir / asset_id / filename   # read: don't create the folder
         return path if path.exists() else None
 
     def delete_generated_asset(self, asset_id: str) -> bool:

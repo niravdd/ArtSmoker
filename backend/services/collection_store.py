@@ -77,9 +77,10 @@ def is_valid_collection_id(collection_id: str | None) -> bool:
 def collection_dir(collection_id: str) -> Path:
     if not is_valid_collection_id(collection_id):
         raise ValueError(f"Invalid collection id: {collection_id!r}")
-    d = settings.collections_dir / collection_id
-    d.mkdir(parents=True, exist_ok=True)
-    return d
+    # Not created here: reads go through this too, and a lookup of a missing or
+    # deleted collection must not leave an empty folder. Writers create it
+    # (atomic_write_text creates the parent; reference images mkdir first).
+    return settings.collections_dir / collection_id
 
 
 def collection_write_lock(collection_id: str):
