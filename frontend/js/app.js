@@ -885,7 +885,7 @@
                 detail: t(supervised
                     ? 'artsmoker.ui.onboarding.python_replaced_auto'
                     : 'artsmoker.ui.onboarding.python_replaced_manual'),
-                confirmLabel: supervised ? t('artsmoker.ui.onboarding.restart_now') : t('artsmoker.ui.common.ok'),
+                confirmLabel: supervised ? t('artsmoker.ui.onboarding.python_replaced_restart') : t('artsmoker.ui.common.ok'),
                 cancelLabel: supervised ? t('artsmoker.ui.common.close') : '',
                 danger: true,
             });
