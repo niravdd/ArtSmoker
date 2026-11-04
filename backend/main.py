@@ -68,8 +68,10 @@ def _parse_host_port(argv):
                         help="Bind address (default: 127.0.0.1, or $ARTSMOKER_HOST)")
     parser.add_argument("--port", type=int, default=int(os.environ.get("ARTSMOKER_PORT", "8000")),
                         help="Bind port (default: 8000, or $ARTSMOKER_PORT)")
+    parser.add_argument("--reload", action="store_true",
+                        help="Development: restart the app when backend code changes")
     args, _unknown = parser.parse_known_args(argv)
-    return args.host, args.port
+    return args.host, args.port, args.reload
 
 
 def _setup_supervisor_logging():
@@ -106,7 +108,7 @@ def _setup_supervisor_logging():
     return log
 
 
-def _run_child(host, port):
+def _run_child(host, port, reload=False):
     """Child role: run uvicorn programmatically and honor an in-place restart.
 
     server.run() blocks until graceful shutdown — triggered by Ctrl-C/SIGTERM
@@ -123,6 +125,13 @@ def _run_child(host, port):
 
     log = logging.getLogger("artsmoker.supervisor")
 
+    if reload:
+        # Development: uvicorn's reloader restarts the app when backend code
+        # changes. The in-place auto-update restart doesn't apply in this mode.
+        uvicorn.run("backend.app:app", host=host, port=port, log_config=None,
+                    reload=True, reload_dirs=[str(PROJECT_ROOT / "backend")])
+        return 0
+
     # backend.app owns all logging (coloured console + append-only file); passing
     # log_config=None stops uvicorn from resetting the logging config on startup.
     config = uvicorn.Config("backend.app:app", host=host, port=port, log_config=None)
@@ -138,7 +147,7 @@ def _run_child(host, port):
     return 0
 
 
-def _supervise(host, port, child_cmd=None):
+def _supervise(host, port, child_cmd=None, reload=False):
     """Parent role: run the app in a child process, respawn on restart requests.
 
     Cross-OS: uses subprocess + exit codes (no os.execv / signal-based re-exec).
@@ -172,8 +181,11 @@ def _supervise(host, port, child_cmd=None):
     child_env = dict(os.environ)
     # Per-launch nonce: marks the child as supervised (auto_update.is_supervised()).
     child_env["ARTSMOKER_SUPERVISED"] = secrets.token_hex(8)
+    custom_cmd = child_cmd is not None
     if child_cmd is None:
         child_cmd = [sys.executable, "-m", "backend.main", "--host", str(host), "--port", str(port)]
+        if reload:
+            child_cmd.append("--reload")
 
     state = {"stopping": False, "proc": None}
 
@@ -238,6 +250,12 @@ def _supervise(host, port, child_cmd=None):
                           len(_restart_times), _RESTART_BURST_WINDOW)
                 return 1
             log.info("Child requested restart — respawning with current code.")
+            if not custom_cmd:
+                # An update may have changed requirements.txt (the git update
+                # method installs no packages): bring the environment up to date
+                # first. Instant when nothing changed.
+                from backend import environment
+                child_cmd[0] = environment.ensure()
             continue
         log.info("Child exited (code %s) with no restart request — supervisor exiting.", rc)
         return rc
@@ -254,12 +272,22 @@ def main(argv=None):
     import sys
 
     argv = list(sys.argv[1:] if argv is None else argv)
-    host, port = _parse_host_port(argv)
+
+    # Started by the user (not our own app child): check ArtSmoker's Python
+    # environment, fix it if needed, and continue in it (backend/environment.py).
+    # Runs before anything else, from whatever Python started us.
+    if not os.environ.get("ARTSMOKER_SUPERVISED") and not any(a in ("-h", "--help") for a in argv):
+        from backend import environment
+        py = environment.ensure()
+        if not environment.is_current(py):
+            environment.relaunch(py, argv)
+
+    host, port, reload = _parse_host_port(argv)
 
     if os.environ.get("ARTSMOKER_SUPERVISED"):
-        rc = _run_child(host, port)
+        rc = _run_child(host, port, reload)
     else:
-        rc = _supervise(host, port)
+        rc = _supervise(host, port, reload=reload)
     sys.exit(rc if isinstance(rc, int) else 0)
 
 

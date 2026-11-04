@@ -15,7 +15,7 @@
 7. **Verification** — test checklist to validate the build.
 
 **Coding conventions:**
-- **Backend**: Python 3.12–3.14, FastAPI with Pydantic v2 models, type hints everywhere, `async def` for route handlers. Services are plain synchronous functions (Bedrock calls are blocking). Use `logging.getLogger(__name__)` in every module.
+- **Backend**: Python 3.12+, FastAPI with Pydantic v2 models, type hints everywhere, `async def` for route handlers. Services are plain synchronous functions (Bedrock calls are blocking). Use `logging.getLogger(__name__)` in every module.
 - **Frontend**: Vanilla JS (no framework, no build step), Tailwind CSS via CDN, IIFE pattern for components (`(function() { 'use strict'; window.ComponentName = { render(), init(), onShow(), destroy() }; })();`). Components expose themselves on `window` and are wired up by `app.js`.
 - **Naming**: Backend uses `snake_case` for everything. Frontend uses `camelCase` for JS, `kebab-case` for CSS classes and HTML IDs. API field names are `snake_case` (matching Python models).
 - **Error handling**: Backend returns `HTTPException` with status codes (400, 404, 409, 502). Frontend shows errors via `window.showToast(message, 'error')`. All client-side errors are also sent to `POST /api/log` for server-side recording.
@@ -181,6 +181,7 @@ ArtSmoker/
 ├── backend/
 │   ├── app.py                     # FastAPI application: lifespan/startup, middleware, routers, app-level routes, static mount
 │   ├── main.py                    # Entry point — stable import target (re-exports `app`) + cross-platform supervisor (`python -m backend.main`)
+│   ├── environment.py             # Startup check of ArtSmoker's Python environment (.venv): validate, fix, continue (§9.1)
 │   ├── config.py                  # Settings (pydantic-settings, `ARTSMOKER_` env prefix, `.env`), paths, APP_VERSION
 │   ├── model_registry.json        # Base model registry (git-tracked; written by AWS Sync via promote_to_base)
 │   ├── prompt_templates.json      # Editable LLM directive prompts (runtime source of truth, §6)
@@ -758,7 +759,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 | Component | Technology | Reason |
 |-----------|-----------|--------|
-| Backend | FastAPI (Python 3.12–3.14) | Async, fast, Pydantic models, auto-docs |
+| Backend | FastAPI (Python 3.12+) | Async, fast, Pydantic models, auto-docs |
 | Frontend | Vanilla JS + Tailwind CSS | No build step, fast to iterate, lightweight |
 | AI Models | Bedrock (boto3) | Whatever Sync from AWS finds — e.g. Claude, Stable Diffusion 3.5 Large, Stable Image Ultra / Core, Stability AI editing, Nova Sonic |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) | Cascade of vector tracing methods |
@@ -2210,6 +2211,27 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 
 `backend/app.py` assembles the FastAPI application (`backend/main.py` is the thin supervisor/entry shim that lazily re-exports `app`). Build it in this exact order:
 
+<a id="91-python-environment"></a>
+### 9.1 Python environment (`backend/environment.py`)
+
+`python -m backend.main` (`main()`, supervisor role only) first calls `environment.ensure()` and, if the interpreter it returns isn't the one running, continues in it (`relaunch`: `os.execv` on POSIX; on Windows a child process whose exit code is passed through; `ARTSMOKER_ENV_RELAUNCHED` prevents a loop). `--help` skips the check. The module uses only the standard library and Python 3.8-compatible syntax, because it runs before the venv exists, possibly on an old system Python. `python -m backend.environment` runs only the check and fix, then prints the interpreter and exits (e.g. a systemd `ExecStartPre`).
+
+`ensure()`:
+1. **Someone else's prepared environment.** If the running interpreter isn't the project `.venv` and already has every package in `requirements.txt` installed (checked with `importlib.metadata`; lines with an environment marker are skipped), it is used as is and nothing is managed. Examples: another venv, conda, a container image.
+2. **Quick check, with no subprocess and no network.** `.venv` is intact: its `python` exists, the `home` in `pyvenv.cfg` exists, and its version is ≥ `MIN_PYTHON` (3.12, which `aws_sdk_bedrock_runtime` requires). It is up to date when `.venv/.artsmoker-env.json` records the SHA-256 of the current `requirements.txt`. Both true means continue.
+3. **Requirements changed**, or the venv was made by hand and has no fingerprint yet: `pip install -r requirements.txt` into `.venv`, an import check, then write the fingerprint. A failure falls through to a rebuild.
+4. **Broken or missing `.venv`:** rebuild.
+   - **Find** the installed base Pythons ≥ 3.12, newest first: `PATH`, the usual install directories (Homebrew, `/usr/local/bin`, `/usr/bin`, python.org frameworks) and, on Windows, `py -0p`. Venvs, free-threaded builds and the Windows Store alias are excluded.
+   - **Check** each with a pip dry run (`--only-binary :all:`, installs nothing). It passes only if every package in `requirements.txt` has a ready-made build for that version, so there is no upper version bound in code. A Python without pip, or no internet, can't be checked, and the install decides.
+   - **Build** on the first that passes: set the old `.venv` aside as `.venv.previous`, create the venv, install, check imports (`fastapi, uvicorn, pydantic_settings, boto3, PIL, numpy, rembg`; rembg pulls in the version-sensitive onnxruntime/numba), write the fingerprint, then delete the old one. If it fails, the old one is restored and the next Python is tried.
+   - **Explain** if none works: a plain message saying what to install, then exit 1.
+
+Messages go to the console and, unless `ARTSMOKER_LOG_TO_FILE=false`, append to the log file (`ARTSMOKER_LOG_FILE` or `logs/artsmoker.log`). Before respawning the app after an in-place restart, the supervisor runs `ensure()` again: instant when nothing changed, and it installs packages an update added (the git update method installs none itself).
+
+`--reload` (development) is passed to the app child, which runs `uvicorn.run("backend.app:app", reload=True, reload_dirs=[backend/])` instead of the restartable server.
+
+The application itself:
+
 1. **FastAPI app** with `title="ArtSmoker"`, `description="AI-Powered Game Asset Generation"`, and a `lifespan` handler.
 2. **Lifespan handler** (async context manager):
    - On startup: create data directories (`data/`, `data/styles/`, `data/images/`, `data/video/`, `data/chat/`) via `mkdir(parents=True, exist_ok=True)`.
@@ -2234,6 +2256,7 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 ```
 fastapi>=0.115
 uvicorn[standard]>=0.34
+gunicorn>=23.0; sys_platform != "win32"  # Multi-worker serving on Linux/macOS (README §4.2); gunicorn doesn't run on Windows
 boto3>=1.36
 python-multipart>=0.0.20
 pydantic>=2.10
@@ -2255,11 +2278,7 @@ smithy-http[awscrt]>=0.5.0     # CRT HTTP transport for the SDK above (duplex ev
 
 This is the exact list in `backend/requirements.txt`.
 
-For multi-user, shared test, or production deployments, also install `gunicorn` (Linux/macOS only):
-```
-pip install gunicorn
-```
-Use `gunicorn` whenever more than one person will access the app concurrently — not just in production. Solo development with `uvicorn --reload` is fine for a single developer.
+`gunicorn` (Linux/macOS only) is for multi-user, shared test, or production deployments. Use it whenever more than one person will access the app concurrently, not just in production. Solo development with `python -m backend.main --reload` is fine for a single developer.
 
 **External CLI tools** (optional, not Python packages — improve SVG quality):
 
@@ -2277,25 +2296,15 @@ If ffmpeg is not installed, Video Studio still generates and plays videos (strea
 
 | Requirement | macOS | Linux (Debian/Ubuntu) | Windows |
 |-------------|-------|-----------------------|---------|
-| Python 3.12–3.14 (`numba`, via `rembg`, doesn't support 3.15 yet) | `brew install python@3.14` or [python.org](https://www.python.org/downloads/) | `sudo apt install python3 python3-pip python3-venv` (Ubuntu 24.04+; older releases need a newer Python alongside) | [python.org](https://www.python.org/downloads/) (check "Add to PATH") |
+| Python 3.12+ that every package supports (§9.1 picks it) | `brew install python@3.14` or [python.org](https://www.python.org/downloads/) | `sudo apt install python3 python3-pip python3-venv` (Ubuntu 24.04+; older releases need a newer Python alongside) | [python.org](https://www.python.org/downloads/) (check "Add to PATH") |
 | AWS CLI | `brew install awscli` or [AWS installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | `sudo apt install awscli` or [AWS installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | [AWS MSI installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) |
 | Python command | `python3` / `pip3` | `python3` / `pip3` | `python` / `pip` |
 | ffmpeg (optional) | `brew install ffmpeg` | `sudo apt install ffmpeg` | [ffmpeg.org/download](https://ffmpeg.org/download.html) or `winget install ffmpeg` |
-| Venv activation | `source .venv/bin/activate` | `source .venv/bin/activate` | `.venv\Scripts\activate` |
-| Multi-user server | gunicorn (pip install) | gunicorn (pip install) | uvicorn with `--workers` flag (gunicorn not supported on Windows) |
+| Start | `python3 -m backend.main` (sets up `.venv` itself, §9.1) | `python3 -m backend.main` | `python -m backend.main` |
+| Multi-user server | `.venv/bin/gunicorn` | `.venv/bin/gunicorn` | uvicorn with `--workers` flag (gunicorn not supported on Windows) |
 | System fonts (Type Studio) | Detected from `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` | Detected from `/usr/share/fonts`, `/usr/local/share/fonts`, `~/.fonts`, `~/.local/share/fonts` | Not auto-detected — use global or style-specific custom fonts |
 
-**Installation without venv** (all platforms):
-
-```bash
-# macOS / Linux
-pip3 install --user -r backend/requirements.txt
-
-# Windows
-pip install -r backend\requirements.txt
-```
-
-> Note: On modern Linux distros (PEP 668), `pip install` outside a venv may require `--user` or `--break-system-packages`. Using a venv is recommended to avoid system conflicts.
+**Your own environment:** start `python -m backend.main` from any environment that already has the packages (§9.1 step 1), or run `uvicorn backend.main:app` / `gunicorn backend.main:app` from it directly. Those direct commands bypass the environment check.
 
 ## 11. Frontend Design System
 
@@ -2385,23 +2394,10 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 
 1. **Start backend**:
    ```bash
-   # macOS / Linux (with venv)
-   cd ArtSmoker && source .venv/bin/activate && uvicorn backend.main:app --reload
-
-   # macOS / Linux (without venv)
-   cd ArtSmoker && python3 -m uvicorn backend.main:app --reload
-
-   # Windows (with venv)
-   cd ArtSmoker && .venv\Scripts\activate && uvicorn backend.main:app --reload
-
-   # Windows (without venv)
-   cd ArtSmoker && python -m uvicorn backend.main:app --reload
+   cd ArtSmoker && python3 -m backend.main            # Windows: python -m backend.main; add --host / --port as needed
+   cd ArtSmoker && python3 -m backend.main --reload   # development: restart on backend code changes
    ```
-   To also get **in-place auto-restart** (so an auto-update — or the operator's Restart button — reloads the code without you re-launching), start it under the built-in cross-platform supervisor instead (works on every OS, including Windows):
-   ```bash
-   cd ArtSmoker && python -m backend.main            # add --host / --port as needed
-   ```
-   The supervisor runs the app (`backend.app:app`) in a child process and respawns it in place on a restart request; `Ctrl-C` / `SIGTERM` stops the whole thing cleanly. (`backend.main` re-exports `app`, so the `uvicorn`/`gunicorn` commands above target the same application.)
+   The environment is checked (and if needed fixed) first (§9.1). The supervisor runs the app (`backend.app:app`) in a child process and respawns it in place on a restart request, on every OS including Windows; `Ctrl-C` / `SIGTERM` stops the whole thing cleanly. (`backend.main` re-exports `app`, so `uvicorn backend.main:app` / `gunicorn backend.main:app` from an environment target the same application.)
 2. **Check startup output**: The console should show `Amazon Bedrock access OK (…) — N models reachable: …`, or a warning listing the checks that failed. If credentials are missing, a prominent error box explains what to configure.
 3. **Open frontend**: Navigate to `http://localhost:8000` — the frontend is served as static files by FastAPI. No separate web server needed.
 4. **Create a style profile**: Use the Style Library view to create a profile and upload reference images (or use directory import).
@@ -2752,7 +2748,7 @@ For a lightweight production deployment (1-2 concurrent users), an EC2 instance 
 - **Setup**:
   ```bash
   # Amazon Linux 2023
-  sudo dnf install python3.12 python3.12-pip git     # then: python3.12 -m venv .venv
+  sudo dnf install python3.12 python3.12-pip git
   # Ubuntu 24.04+
   sudo apt update && sudo apt install python3 python3-pip python3-venv git
 
@@ -2760,14 +2756,11 @@ For a lightweight production deployment (1-2 concurrent users), an EC2 instance 
   sudo apt install potrace                     # Ubuntu
 
   git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
-  python3 -m venv .venv
-  source .venv/bin/activate
-  pip install -r backend/requirements.txt
-  pip install gunicorn
+  python3 -m backend.environment               # sets up .venv (§9.1)
   ```
-- **Run with gunicorn** for production:
+- **Run with gunicorn** for production (as a systemd service, `ExecStartPre=/usr/bin/python3 -m backend.environment` re-checks the environment before each start):
   ```bash
-  gunicorn backend.main:app -w 2 -k uvicorn.workers.UvicornWorker \
+  .venv/bin/gunicorn backend.main:app -w 2 -k uvicorn.workers.UvicornWorker \
     --bind 0.0.0.0:8000 --timeout 300
   ```
   The `--timeout 300` (5 minutes) accommodates large batch generations with retries.
@@ -2847,7 +2840,7 @@ AWS App Runner
 
 **Changes required**:
 
-1. **Dockerfile**: Containerize the FastAPI app. Multi-stage build: Python 3.12–3.14 slim base, install requirements, copy backend + frontend, expose port 8000. Install `vtracer` binary for SVG conversion.
+1. **Dockerfile**: Containerize the FastAPI app. Multi-stage build: a Python 3.12+ slim base that every package supports, install requirements, copy backend + frontend, expose port 8000. Install `vtracer` binary for SVG conversion.
 
 2. **S3 storage backend**: Implement `S3Store` with the same interface as `LocalStore`. The `LocalStore` was designed with this migration in mind — same method signatures, just swap `Path.read_bytes()` for `s3.get_object()` and `Path.write_bytes()` for `s3.put_object()`. Add `ARTSMOKER_STORAGE_BACKEND=s3` and `ARTSMOKER_S3_BUCKET=artsmoker-data` to config.
 

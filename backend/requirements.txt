@@ -1,5 +1,6 @@
 fastapi>=0.115
 uvicorn[standard]>=0.34
+gunicorn>=23.0; sys_platform != "win32"  # Multi-worker serving on Linux/macOS (README §4.2); gunicorn doesn't run on Windows
 boto3>=1.36
 python-multipart>=0.0.20
 pydantic>=2.10

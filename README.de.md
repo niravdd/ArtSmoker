@@ -3,7 +3,7 @@
 # ArtSmoker
 > *Der Smoke-Test für Ihre Kunstwerke!*
 
-![Python](https://img.shields.io/badge/Python-3.12--3.14-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12%2B-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
@@ -16,7 +16,7 @@
 
 **Vom frischen Klon zum ersten generierten Asset in wenigen Minuten — unter macOS, Linux oder Windows.**
 
-**Sie benötigen:** Python **3.12, 3.13 oder 3.14** · Git · AWS-Anmeldeinformationen (`aws configure`, AWS SSO oder eine Instance-Rolle) mit Zugriff auf Amazon Bedrock. Am schnellsten richten Sie die Berechtigungen mit den verwalteten Richtlinien `AmazonBedrockFullAccess` + `AmazonBedrockMantleInferenceAccess` ein — [Details](#iam-permissions).
+**Sie benötigen:** Python **3.12 oder neuer** (z. B. 3.14) · Git · AWS-Anmeldeinformationen (`aws configure`, AWS SSO oder eine Instance-Rolle) mit Zugriff auf Amazon Bedrock. Am schnellsten richten Sie die Berechtigungen mit den verwalteten Richtlinien `AmazonBedrockFullAccess` + `AmazonBedrockMantleInferenceAccess` ein — [Details](#iam-permissions).
 
 > [!TIP]
 > 🤖 **Lieber erledigen lassen?** Öffnen Sie dieses Repository in **[Kiro](https://kiro.dev)**, der agentischen Entwicklungsumgebung von AWS, und bitten Sie: *„Richte ArtSmoker ein und starte es, indem du dem Quick Start in README.md folgst."* Der Agent von Kiro führt die Befehle für Sie aus.
@@ -25,28 +25,23 @@
 
 ```bash
 git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
-python3 --version                                   # muss 3.12, 3.13 oder 3.14 sein (sonst unten z. B. python3.14 verwenden)
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r backend/requirements.txt
-python -m backend.main
+python3 -m backend.main
 ```
 
 **Windows (PowerShell)**
 
 ```powershell
 git clone https://github.com/niravdd/ArtSmoker.git; cd ArtSmoker
-python --version                                    # muss 3.12, 3.13 oder 3.14 sein (sonst unten z. B. py -3.14 verwenden)
-python -m venv .venv; .venv\Scripts\activate
-pip install -r backend\requirements.txt
 python -m backend.main
 ```
+
+Beim ersten Start richtet ArtSmoker seine eigene Python-Umgebung für Sie ein (einmalig, einige Minuten): Es verwendet das neueste Python auf Ihrem Computer, das alle seine Pakete unterstützen. Spätere Starts erfolgen sofort, und falls dieses Python einmal entfernt oder ersetzt wird (etwa durch ein Homebrew-Update), richtet der nächste Start die Umgebung von selbst neu ein. Jedes `python3` kann ArtSmoker starten, auch ein älteres; ein geeignetes Python findet es selbst.
 
 Öffnen Sie dann **http://localhost:8000**. Beim ersten Start prüft ArtSmoker Ihre AWS-Anmeldeinformationen und durchsucht einmalig, welche Modelle Ihr Konto in jeder AWS-Region nutzen kann (in der Regel einige Minuten) — der Bildschirm **ArtSmoker wird eingerichtet** zeigt den Fortschritt an —, und schon können Sie generieren.
 
 | Hängen geblieben? | Weiter zu |
 |---|---|
-| Ihr `python3` ist nicht 3.12–3.14 (z. B. ist das System-`python3` von Amazon Linux 2023 Version 3.9; ein brandneues `python3` aus Homebrew kann 3.15 sein, was eine Abhängigkeit noch nicht unterstützt) | [3. Installation](#installation) |
-| PowerShell verweigert die Ausführung von `.venv\Scripts\activate` | [3.3 Windows](#install-windows) |
+| ArtSmoker meldet, dass kein Python auf diesem Computer seine Pakete ausführen kann | [3. Installation](#installation) |
 | Fehler bei AWS-Anmeldeinformationen, Berechtigungen oder der Erstnutzung von Claude | [2. Voraussetzungen](#get-started) · [2.2 IAM-Berechtigungen](#iam-permissions) |
 | Mehrere Benutzer, ein EC2-Server oder Produktivbetrieb | [4. Ausführen](#running) |
 
@@ -474,7 +469,7 @@ Die vier Muster, denen Sie begegnen werden:
 
 ## 📌 2. Voraussetzungen
 
-- **Python 3.12, 3.13 oder 3.14** — das SDK für die Nova-Sonic-Sprachfunktion (`aws_sdk_bedrock_runtime`) erfordert 3.12 oder neuer, und `numba` (genutzt von der lokalen Hintergrundentfernung über `rembg`) unterstützt 3.15 noch nicht
+- **Python 3.12 oder neuer** (z. B. 3.14) — das SDK für die Nova-Sonic-Sprachfunktion (`aws_sdk_bedrock_runtime`) erfordert 3.12 oder neuer. Eine brandneue Python-Version wird möglicherweise noch nicht von jedem Paket unterstützt; ArtSmoker prüft das selbst und verwendet das neueste installierte Python, das funktioniert
 - **AWS CLI** mit funktionierenden Anmeldeinformationen konfiguriert
 - **IAM-Berechtigungen** für den Bedrock-Zugriff (siehe unten)
 
@@ -764,65 +759,45 @@ ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not inst
 
 ## 📌 3. Installation
 
+ArtSmoker richtet seine eigene Python-Umgebung beim ersten Start ein. Zur Installation brauchen Sie daher nur Git und ein Python 3.12 oder neuer: klonen, starten, fertig.
+
 ### 📝 3.1 macOS
 
 ```bash
+brew install python@3.14 git          # oder Python von https://www.python.org/downloads/
 git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
-
-# Option A: Mit virtueller Umgebung (empfohlen)
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
-
-# Option B: Ohne virtuelle Umgebung (systemweite Installation)
-pip3 install -r backend/requirements.txt
+python3 -m backend.main
 ```
 
 > [!NOTE]
-> Installieren Sie Python auf macOS von [python.org](https://www.python.org/downloads/) oder über Homebrew. Das Standard-`python3` von Homebrew kann neuer als 3.14 sein (z. B. 3.15, das noch nicht unterstützt wird) — zeigt `python3 --version` eine solche Version an, führen Sie `brew install python@3.14` aus und erstellen Sie das venv mit `python3.14 -m venv .venv`. Das `python3` der Xcode-Kommandozeilenwerkzeuge ist zu alt.
+> Das Standard-`python3` von Homebrew kann neuer sein, als es alle Pakete bisher unterstützen. Das ist kein Problem: ArtSmoker verwendet das neueste installierte Python, das funktioniert. Wenn Sie `python@3.14` ausdrücklich installieren, verhindert das außerdem, dass Homebrew es entfernt, sobald seine anderen Werkzeuge auf ein neueres Python umsteigen.
 
 ### 📝 3.2 Linux (Debian/Ubuntu)
 
 ```bash
-# Python bei Bedarf installieren
-sudo apt update && sudo apt install python3 python3-pip python3-venv
-
+sudo apt update && sudo apt install -y git python3 python3-venv python3-pip
 git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
-
-# Option A: Mit virtueller Umgebung (empfohlen)
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
-
-# Option B: Ohne virtuelle Umgebung
-pip3 install --user -r backend/requirements.txt
+python3 -m backend.main
 ```
 
-> [!NOTE]
-> Auf manchen Linux-Distributionen erfordert `pip install` außerhalb eines venv das Flag `--user` oder `--break-system-packages` (PEP 668). Die Verwendung eines venv vermeidet dies vollständig.
-
 > [!IMPORTANT]
-> ArtSmoker benötigt **Python 3.12, 3.13 oder 3.14** — prüfen Sie das mit `python3 --version`. Liegt das `python3` Ihrer Distribution außerhalb dieses Bereichs (Ubuntu 24.04 liefert 3.12; Ubuntu 22.04 liefert 3.10, was zu alt ist), installieren Sie eine unterstützte Version parallel dazu und erstellen Sie das venv mit dieser. Unter **Amazon Linux 2023** bleibt das System-`python3` bei 3.9, neuere Versionen sind jedoch als Pakete verfügbar: `sudo dnf install -y python3.12`, danach `python3.12 -m venv .venv`.
+> ArtSmoker benötigt ein installiertes **Python 3.12 oder neuer**. Das `python3` von Ubuntu 24.04 ist 3.12; das von Ubuntu 22.04 ist 3.10 und damit zu alt. Installieren Sie dort also ein neueres parallel dazu (mit dem zugehörigen `-venv`-Paket, z. B. `python3.12 python3.12-venv`). Unter **Amazon Linux 2023** bleibt das System-`python3` bei 3.9; es kann ArtSmoker trotzdem starten, das dann `python3.12` findet, sobald Sie es installiert haben: `sudo dnf install -y python3.12 python3.12-pip`.
 
 <a id="install-windows"></a>
 
 ### 📝 3.3 Windows
 
 ```powershell
-git clone https://github.com/niravdd/ArtSmoker.git
-cd ArtSmoker
-
-# Option A: Mit virtueller Umgebung (empfohlen)
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r backend\requirements.txt
-
-# Option B: Ohne virtuelle Umgebung
-pip install -r backend\requirements.txt
+git clone https://github.com/niravdd/ArtSmoker.git; cd ArtSmoker
+python -m backend.main
 ```
 
 > [!NOTE]
-> Verwenden Sie unter Windows `python` (nicht `python3`). Installieren Sie Python 3.12, 3.13 oder 3.14 von [python.org](https://www.python.org/downloads/) — aktivieren Sie „Add to PATH" während der Installation. Sind mehrere Versionen installiert, wählen Sie eine über den Launcher aus: `py -3.14 -m venv .venv`. Verweigert PowerShell die Ausführung von `.venv\Scripts\activate` („running scripts is disabled"), erlauben Sie sie einmalig mit `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` oder verwenden Sie `.venv\Scripts\activate.bat` aus cmd. Die Schriftauswahl des Text-Studios erkennt Schriften aus `C:\Windows\Fonts` (die Systemschrifterkennung ist derzeit nur für macOS/Linux verfügbar — Windows-Nutzer können globale oder stilspezifische benutzerdefinierte Schriften verwenden).
+> Installieren Sie Python 3.12 oder neuer von [python.org](https://www.python.org/downloads/) und aktivieren Sie „Add python.exe to PATH". Verwenden Sie unter Windows `python` (nicht `python3`); ArtSmoker findet über den `py`-Launcher jede installierte Version. Es gibt keinen Aktivierungsschritt, daher spielt die Skriptrichtlinie von PowerShell keine Rolle. Die Schriftauswahl des Text-Studios erkennt Schriften aus `C:\Windows\Fonts` (die Systemschrifterkennung ist derzeit nur für macOS/Linux verfügbar — Windows-Nutzer können globale oder stilspezifische benutzerdefinierte Schriften verwenden).
+
+### 📝 3.4 Eigene Umgebung verwenden (optional)
+
+Starten Sie ArtSmoker aus einer Umgebung, die seine Pakete bereits enthält (ein von Ihnen aktiviertes venv, conda, ein Container-Image), verwendet es diese unverändert; es verwaltet ausschließlich den Ordner `.venv` innerhalb des Projekts. Um `.venv` einzurichten, ohne die App zu starten, etwa beim Vorbereiten eines Servers, führen Sie `python3 -m backend.environment` aus.
 
 <a id="running"></a>
 
@@ -830,23 +805,11 @@ pip install -r backend\requirements.txt
 
 ### 📝 4.1 Einzelentwicklung (alle Plattformen)
 
-Einzelprozess mit automatischem Neuladen bei Dateiänderungen — ideal für einen einzelnen lokal arbeitenden Entwickler:
+Starten Sie es wie gewohnt. Während Sie am Code arbeiten, ergänzen Sie `--reload`, damit die App neu startet, sobald sich Backend-Code ändert:
 
 ```bash
-# Mit venv (zuerst aktivieren)
-source .venv/bin/activate          # macOS / Linux
-.venv\Scripts\activate             # Windows
-
-uvicorn backend.main:app --reload
-```
-
-```bash
-# Ohne venv (bei systemweiter Installation)
-uvicorn backend.main:app --reload
-
-# Oder falls uvicorn nicht im PATH ist
-python3 -m uvicorn backend.main:app --reload     # macOS / Linux
-python -m uvicorn backend.main:app --reload       # Windows
+python3 -m backend.main             # macOS / Linux (Windows: python -m backend.main)
+python3 -m backend.main --reload    # Entwicklung: Neustart bei Änderungen am Backend-Code
 ```
 
 Öffnen Sie **http://localhost:8000** — das Frontend wird von FastAPI ausgeliefert, es ist kein separater Webserver nötig.
@@ -856,30 +819,23 @@ Beim Start zeigt die Konsole die Ergebnisse der AWS-Anmeldeinformationsvalidieru
 **Protokolle.** Zusätzlich zur Konsole schreibt ArtSmoker **standardmäßig** ein vollständiges, **anfügendes** (append-only) Protokoll nach `logs/artsmoker.log`, damit Sie eine frühere Sitzung auch nach dem Beenden der App noch einsehen können. Jeder Lauf wird von einem Sitzungs-Banner (Startzeit, Version, PID, Host) eingerahmt und mit einem Shutdown-Banner (Stoppzeit, Dauer) abgeschlossen. So ändern Sie den Pfad oder schalten es aus:
 
 ```bash
-ARTSMOKER_LOG_FILE=/var/log/artsmoker/app.log uvicorn backend.main:app   # eigener Pfad
-ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # Datei-Logging deaktivieren
+ARTSMOKER_LOG_FILE=/var/log/artsmoker/app.log python3 -m backend.main   # eigener Pfad
+ARTSMOKER_LOG_TO_FILE=false python3 -m backend.main                      # Datei-Logging deaktivieren
 ```
 
 (Oder setzen Sie `log_to_file` / `log_file` in einer lokalen `.env`. Bei mehreren Workern hängt jeder Worker an dieselbe Datei an.)
 
-**Selbst-Neustart (optional, alle Plattformen).** Die obigen Befehle funktionieren allesamt unverändert. Damit ArtSmoker sich zusätzlich **an Ort und Stelle selbst neu starten** kann — sodass ein Auto-Update oder die In-App-Schaltfläche **Jetzt neu starten** neuen Code lädt, ohne dass Sie erneut starten müssen — führen Sie es stattdessen unter dem integrierten plattformübergreifenden Supervisor aus:
-
-```bash
-python -m backend.main            # bei Bedarf --host / --port ergänzen; Ctrl-C beendet ihn sauber
-```
-
-Dies funktioniert auf **jedem Betriebssystem, einschließlich Windows**. Der Supervisor führt die App in einem Kindprozess aus und startet sie bei einer Neustartanforderung neu. (Der Betrieb unter gunicorn oder einem Dienstmanager wie systemd ermöglicht denselben Neustart an Ort und Stelle — siehe §4.2 und §6.)
+**Neustart an Ort und Stelle (alle Plattformen).** `python -m backend.main` führt die App unter einem kleinen integrierten Supervisor aus, und zwar auf **jedem Betriebssystem, einschließlich Windows**: Ein Auto-Update oder die In-App-Schaltfläche **Jetzt neu starten** lädt neuen Code, ohne dass Sie erneut starten müssen, und die Umgebung von ArtSmoker wird zuvor erneut geprüft. Ergänzen Sie bei Bedarf `--host` / `--port`; Ctrl-C beendet ihn sauber. (Mit `--reload` lösen stattdessen Codeänderungen den Neustart aus. gunicorn oder ein Dienstmanager wie systemd ermöglichen denselben Neustart an Ort und Stelle — siehe §4.2 und §6.)
 
 ### 📝 4.2 Mehrbenutzer / gemeinsame Testmaschine / Produktion (macOS / Linux)
 
 Für jede Umgebung mit mehr als einem gleichzeitigen Nutzer — ob eine gemeinsame Dev-/Test-Maschine, Staging oder Produktion — verwenden Sie **gunicorn** mit mehreren Workern:
 
-```bash
-# gunicorn installieren (einmalig, zusätzlich zu requirements.txt)
-pip install gunicorn
+gunicorn ist unter Linux und macOS in den Paketen von ArtSmoker enthalten. Dafür muss zuerst die Umgebung von ArtSmoker vorhanden sein: Starten Sie ArtSmoker einmal oder führen Sie `python3 -m backend.environment` aus.
 
+```bash
 # Mit gunicorn ausführen (Multi-Worker, verarbeitet gleichzeitige Nutzer)
-gunicorn backend.main:app \
+.venv/bin/gunicorn backend.main:app \
   -w 2 \
   -k uvicorn.workers.UvicornWorker \
   --bind 0.0.0.0:8000 \
@@ -894,7 +850,7 @@ gunicorn backend.main:app \
 | `--timeout 300` | 5-Minuten-Timeout für große Stapel-Generierungen mit Wiederholungen |
 
 > [!TIP]
-> **gunicorn** ist nur für Linux/macOS. Verwenden Sie unter Windows `uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2` für Multi-Worker-Betrieb.
+> **gunicorn** ist nur für Linux/macOS. Verwenden Sie unter Windows `.venv\Scripts\python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2` für Multi-Worker-Betrieb.
 
 > [!NOTE]
 > **Sicher für gleichzeitige Nutzer.** Alle Server-Schreibvorgänge — Bild-/Versions-Metadaten sowie die Modell- und Prompt-Registries — werden atomar geschrieben und **prozessübergreifend** serialisiert (POSIX-Dateisperren), sodass gleichzeitige Änderungen mehrerer Mitarbeiter auf einer gemeinsamen Maschine niemals eine Datei beschädigen oder ein Update verlieren. Das Datei-Logging funktioniert über alle Worker hinweg gleich — jeder hängt an dieselbe `logs/artsmoker.log` an.
@@ -945,14 +901,11 @@ aws ec2 associate-iam-instance-profile \
 
 ```bash
 # Installieren (einmalig)
-sudo yum install -y python3 python3-pip git   # Amazon Linux
-# sudo apt install -y python3 python3-pip python3-venv git   # Ubuntu
+sudo dnf install -y python3.12 python3.12-pip git   # Amazon Linux 2023
+# sudo apt install -y python3 python3-venv git      # Ubuntu 24.04
 
 git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
-pip install gunicorn
+python3 -m backend.environment     # richtet die Umgebung von ArtSmoker ein (einmalig, einige Minuten)
 
 # Optional: ffmpeg für Video-Vorschaubilder installieren
 sudo yum install -y ffmpeg   # Amazon Linux
@@ -970,8 +923,11 @@ After=network.target
 
 [Service]
 WorkingDirectory=/home/ec2-user/ArtSmoker
+# Prüft die Umgebung von ArtSmoker vor jedem Start erneut; baut sie bei Bedarf neu auf
+ExecStartPre=/usr/bin/python3 -m backend.environment
 ExecStart=/home/ec2-user/ArtSmoker/.venv/bin/gunicorn backend.main:app \
   -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
+TimeoutStartSec=900
 Restart=always
 User=ec2-user
 
@@ -990,6 +946,8 @@ sudo systemctl status artsmoker
 # Logs ansehen
 sudo journalctl -u artsmoker -f
 ```
+
+Da jeder Start die Umgebung von ArtSmoker erneut prüft, kann ein Python-Update des Betriebssystems den Dienst nicht lahmlegen: Der nächste Start richtet sie wieder ein. Ein Neuaufbau kann einige Minuten dauern, daher `TimeoutStartSec`.
 
 Öffnen Sie **http://YOUR_INSTANCE_IP:8000** — stellen Sie sicher, dass Ihre EC2-Sicherheitsgruppe eingehenden TCP-Verkehr auf 8000 zulässt.
 
@@ -1460,7 +1418,7 @@ Eine **Kostenschätzung** aktualisiert sich dynamisch basierend auf allen Auswah
 
 | Schicht | Technologie |
 |---------|-------------|
-| Backend | FastAPI (Python 3.12–3.14), boto3, Pydantic |
+| Backend | FastAPI (Python 3.12+), boto3, Pydantic |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
 | KI (LLM) | Schnelles LLM und Komplexes LLM — bei jedem Sync automatisch auf den neuesten Claude Sonnet bzw. Opus gerollt |
 | KI (Bild) | Amazon-Bedrock-Bildmodelle, die Sync findet (z. B. Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core); selbst gehosteter Katalog auf SageMaker (z. B. FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image) |
