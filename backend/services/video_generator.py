@@ -8,6 +8,7 @@ import base64
 import copy
 import json
 import logging
+import re
 import subprocess
 import tempfile
 import uuid
@@ -149,6 +150,13 @@ def start_video_generation(
     }
 
 
+def duration_seconds(value, default: int = 6) -> int:
+    """A requested video duration as whole seconds. Models express it
+    differently (Nova Reel: 6; Luma Ray: "5s"), so accept 6, "6", "5s", "5.0s"."""
+    m = re.match(r"\s*(\d+(?:\.\d+)?)", str(value)) if value not in (None, "") else None
+    return int(float(m.group(1))) if m else default
+
+
 def _build_video_body(
     family: dict,
     prompt: str,
@@ -199,7 +207,7 @@ def _build_video_body(
     # Duration — Nova Reel uses integer seconds in videoGenerationConfig
     if duration is not None:
         if "videoGenerationConfig" in body:
-            body["videoGenerationConfig"]["durationSeconds"] = int(duration)
+            body["videoGenerationConfig"]["durationSeconds"] = duration_seconds(duration)
         elif "duration" in body:
             # Luma Ray uses string like "5s"
             body["duration"] = str(duration) if str(duration).endswith("s") else f"{duration}s"

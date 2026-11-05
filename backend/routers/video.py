@@ -69,8 +69,14 @@ async def generate_video(req: VideoGenerateRequest):
     # region- and resolution-aware (video_pricing[model|region] when Sync-recorded,
     # else the model's base_price_per_second_usd). Uses the actual region the job
     # will run in and the requested output resolution (Luma Ray 540p < 720p).
-    dur = int(req.duration or 6)
+    from backend.services.video_generator import duration_seconds
+    from backend.services.model_registry import get_registry
     vid_cfg = get_video_model(req.model_key) if req.model_key else {}
+    # No duration in the request → the model's own default from its format family
+    # (what the render will actually use), e.g. Luma Ray's "5s".
+    _fam = get_registry().get("format_families", {}).get((vid_cfg or {}).get("format_family", ""), {})
+    _default_dur = ((_fam.get("parameters") or {}).get("duration") or {}).get("default")
+    dur = duration_seconds(req.duration if req.duration not in (None, "") else _default_dur)
     from backend.services.cost_tracker import resolve_video_price_per_sec
     _vregion = req.region_override or (vid_cfg.get("region") if vid_cfg else "") or ""
     price_per_sec = resolve_video_price_per_sec(vid_cfg, req.model_key or "", _vregion, req.resolution)
