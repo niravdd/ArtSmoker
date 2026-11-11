@@ -241,13 +241,16 @@ def price_list_token_rates(products: list[dict]) -> dict:
 
 # ── Agreement offers (Marketplace rate cards) ─────────────────────────────
 
-def agreement_rate_cards(model_ids, region: str = "us-east-1", workers: int = 4) -> dict:
+def agreement_rate_cards(model_ids, region: str = "us-east-1", workers: int = 4, progress=None) -> dict:
     """{model_id: [rateCard entries]} from bedrock:ListFoundationModelAgreementOffers.
 
     Only Marketplace-sold models have offers; first-party/open-weight models
     answer ValidationException and are simply absent (the Price List prices
     them). AccessDenied (role lacks the permission) is logged once and yields
-    {} — callers then fall back to the other sources."""
+    {} — callers then fall back to the other sources. `progress(msg)` (optional)
+    gets an "n of N" update every 10 models: AWS throttles this API, so the step
+    can take a minute or more."""
+    import time
     import boto3
     from botocore.config import Config
     client = boto3.Session().client(
@@ -271,13 +274,20 @@ def agreement_rate_cards(model_ids, region: str = "us-east-1", workers: int = 4)
             card.extend(term.get("rateCard", []) or [])
         return mid, card or None
 
+    ids = sorted({m for m in model_ids if m})
+    started = time.monotonic()
+    results = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        results = dict(pool.map(_one, sorted({m for m in model_ids if m})))
+        for i, (mid, card) in enumerate(pool.map(_one, ids), 1):
+            results[mid] = card
+            if progress and (i % 10 == 0 or i == len(ids)):
+                progress(f"Fetching Amazon Bedrock Marketplace prices ({i} of {len(ids)} models)...")
     if denied.is_set():
         logger.warning("Agreement-offer pricing skipped: the role lacks "
                        "bedrock:ListFoundationModelAgreementOffers (see SPEC §7)")
     cards = {m: c for m, c in results.items() if c}
-    logger.info("Fetched agreement-offer rate cards for %d model(s)", len(cards))
+    logger.info("Fetched agreement-offer rate cards for %d model(s) (%d queried, %.0fs)",
+                len(cards), len(ids), time.monotonic() - started)
     return cards
 
 

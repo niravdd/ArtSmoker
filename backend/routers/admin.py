@@ -22,6 +22,7 @@ from backend.services.model_registry import (
     update_video_model,
     update_video_settings,
 )
+from backend.services.prompt_templates import get_template
 
 logger = logging.getLogger(__name__)
 
@@ -1980,7 +1981,7 @@ def _official_pricing_model_ids(registry: dict) -> set:
     return ids
 
 
-def _fetch_llm_pricing(registry: dict | None = None) -> dict:
+def _fetch_llm_pricing(registry: dict | None = None, progress=None) -> dict:
     """Gather every official Amazon Bedrock price source (SPEC §14.1):
 
       * AWS Price List token rows — by display name AND by exact model id (the
@@ -2004,9 +2005,11 @@ def _fetch_llm_pricing(registry: dict | None = None) -> dict:
     offers: dict = {}
     if registry:
         try:
-            offers = op.agreement_rate_cards(_official_pricing_model_ids(registry))
+            offers = op.agreement_rate_cards(_official_pricing_model_ids(registry), progress=progress)
         except Exception as exc:
             logger.warning("Agreement-offer pricing skipped: %s", exc)
+    if progress:
+        progress("Reading prices from the Amazon Bedrock model cards...")
     try:
         cards = op.model_card_pricing()
     except Exception as exc:
@@ -2295,7 +2298,7 @@ def _sync_official_pricing(registry: dict, progress=None) -> int:
     after the region scan (needs available_regions + the media Price List
     sections recorded earlier in the same Sync). Mutates `registry` in place —
     the caller saves. Returns models priced."""
-    official = _fetch_llm_pricing(registry)
+    official = _fetch_llm_pricing(registry, progress)
     if not official:
         return 0
     n_llm = _apply_llm_pricing(registry, official)
