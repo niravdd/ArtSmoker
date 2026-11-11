@@ -141,7 +141,45 @@ The `custom_model_catalog.models.triposg` entry shows only "MIT License". The pr
 - **Background removal:** TripoSG's own scripts download RMBG-1.4 (NC). Our handler defaults to BiRefNet (`ARTSMOKER_BG_MODEL=birefnet`), so that part is already clean.
 - ⚖️ **Counsel question:** do the MIT-tagged TripoSG *weights* count as Hunyuan "Model Derivatives"?
 
-**Action (proposed; awaiting user OK).** Add the Tencent terms above to the `triposg` `license_agreement` (key_terms, dependencies, warnings). Follow the existing Hunyuan disclosure pattern. The same disclosure carries over to HoloPart, PartCrafter and FlexPart.
+**Done (commit `4f36099`).** The `triposg` catalog `license_agreement` now carries the Tencent terms (key_terms, dependencies, warnings).
+- The code only renders and combines what the registry says (`_pipeline_info` / `_summarize_licenses`).
+- An acceptance counts only for the licence name it was given to. When the terms change, the 3D tab offers **Review terms** (`POST /api/generate/3d/license-accept`), and generation returns 409 until the user accepts.
+- New catalog entries that reuse TripoSG code (HoloPart, PartCrafter, FlexPart) carry the same disclosure.
+
+### 2.4 SAM 3D family and rigging
+
+Verified against the code and docs on 2026-11-11.
+
+**SAM 3D Objects**
+- **Input and calls:** one image + one mask per call (`Inference.__call__(image, mask)`), with no batch API.
+- **Output:** amodal: it completes hidden geometry. Each object comes with its **layout in the camera frame** (`rotation` quaternion, `translation`, isotropic `scale`), and `make_scene()` composes the objects into one scene.
+- **Detail limits:**
+  - The coarse grid is 64³, and the paper notes "loss of details" on thin structures, hands and faces.
+  - The public wrapper defaults to `with_texture_baking=False, use_vertex_color=True`, so it outputs vertex colours.
+  - Baking gives a 1024² **base-colour-only** texture (no PBR).
+- **Resources:** ≥ 32 GB VRAM (official), about 8–12 s per object on an H100 (community report).
+- **Quality evidence:** human-preference wins of ≥ 5:1 over TRELLIS v1, HY3D-2.1 and TripoSG, but on **real photos**. There is **no comparison with TRELLIS.2** and no evidence on game art.
+- **Role for us:** the **layout + amodal proxy** for each part, not the hero mesh.
+
+**SAM 3D Body**
+- **Output:** image → **MHR** body in the camera frame (127 joints; LOD1 = 18,439 vertices). Covers body, hands and feet, and handles several people per image.
+- **No face or jaw expressions:** face expressions and the jaw are explicitly zeroed (`mhr_head.py`: `pred_face = … * 0`, `pred_pose_euler[:, -3:] = 0`).
+- **Training data:** real and photorealistic only. Stylised or chibi proportions are untested and likely weak.
+
+**MHR** (Apache-2.0)
+- 204 articulation parameters, 45 identity parameters and **72 FACS expression blendshapes**.
+- Artist-authored LBS skin weights and neural pose correctives.
+- 7 LODs (73,639 → 595 vertices), shipped as rigged FBX with identity and expression blendshapes.
+- No official engine integrations.
+
+**Auto-rigging**
+- Nothing in SAM 3D rigs an arbitrary mesh.
+- The established route is **fit a body, then transfer its skinning** (e.g. ECON's `avatarizer` transfers LBS weights by kNN, with a dress trick for skirts), plus Robust Skin Weights Transfer (MIT).
+- **Failure modes:** skirts and robes, long hair, capes, held props, and non-human or chibi characters.
+- **General commercial-safe rigger:** SkinTokens (MIT; uses Michelangelo GPL/LGPL, so isolate it). The alternatives are worse:
+  - **Puppeteer:** bundles PartField, which is non-commercial.
+  - **RigAnything:** non-commercial.
+  - **MagicArticulate:** releases only the skeleton part.
 
 ---
 
@@ -216,15 +254,21 @@ Both flows produce the same **Part Set**. The viewer, the package and the style 
 2. **In-place part images.** Qwen-Image-Edit-2511 (Apache-2.0) works on the **full original canvas, with no crop**: "only the {item}, same position and scale, plain background, complete hidden parts".
    - Then remove the background (BiRefNet or Bedrock remove-background).
    - Validate: the alpha must contain ≥ ~90% of the original mask, and the bbox drift must be ≤ a few %. Otherwise retry, or fall back to Qwen-Image-Layered.
-3. **Clean base body**, two options:
-   - (a) Qwen-Edit "same person, same pose, bald, fitted neutral bodysuit". Validate that its silhouette sits inside the dressed one and that keypoints are stable.
-   - (b) **SAM 3D Body → MHR**: a pose-matched, **rigged** Apache-2.0 body. The Unity Asset Store requires coverage, so the base is a mannequin or bodysuit, never nude.
+3. **Clean base body: both routes run** (user decision 2026-11-11: maximum quality, no compromises). The result is kept per asset, or both are offered as variants.
+   - (a) **Qwen-Edit bodysuit + TRELLIS.2:** "same person, same pose, bald, fitted neutral bodysuit", then TRELLIS.2 for full detail and PBR. This route matches the art style. Validate that its silhouette sits inside the dressed one and that keypoints are stable.
+   - (b) **SAM 3D Body → MHR:** a pose-matched, **rigged** Apache-2.0 body with 72 FACS expression blendshapes on fixed topology. This is the best rig and expression base for realistic proportions; for stylised or chibi characters it is untested and likely weak.
+   - The Unity Asset Store requires coverage, so the base is a mannequin or bodysuit, never nude.
+   - **Max-quality hybrid (P0 candidate):** wrap the MHR rig onto the TRELLIS.2 bodysuit mesh. Fit (b) to (a), then transfer the skeleton, skin weights and expression shapes. That combines (a)'s fidelity with (b)'s rig.
 4. **One normal 3D job per part.** Each job gets `part_set_id` and `part_id`. The existing poller and finalize handle them; finalize writes to the part set, not to the variants list.
 5. **Register** each part to the **dressed reference mesh** (the existing variant, or one generated first):
    - fit scale and translation by silhouette (same canvas = same camera);
    - refine with ICP against the matching labelled region of the reference (from G1 step 3);
    - run an anti-penetration pass: push garments outward along normals or shrink the body under them (Blender Shrinkwrap "Outside Surface" + offset).
-6. Alternative for props: **FlexPart** (mask-prompted parts in one frame; geometry only, then re-textured) as a P0 bake-off candidate.
+6. **Layout and occlusion via SAM 3D Objects** (max-quality path):
+   - SAM 3 masks go to SAM 3D Objects, which returns an amodal proxy per part with its camera-frame layout (R, t, s).
+   - Each part's hero mesh comes from TRELLIS.2 (PBR, high resolution). It is registered to its proxy by a similarity transform plus ICP, so every part shares one frame without depending on silhouette fitting.
+   - The proxies also guide the in-place images for parts that are heavily occluded.
+7. Alternative for props: **FlexPart** (mask-prompted parts in one frame; geometry only, then re-textured) as a P0 bake-off candidate.
 
 Cost: K parts take about K × 10–15 min, serially per endpoint. Example: 6 parts on g5.2xlarge ($1.52/hr in the catalog) take about 1–1.5 h and cost about $2. The estimate is shown before submitting (`threeDEstimate`).
 
@@ -328,9 +372,34 @@ For example, chibi or low-poly stylisation. This is a new 2D version through the
 - glTF morph targets require identical vertex counts.
 - No commercial-safe tool generates expression blendshapes from a static AI head. RigAnyFace has no code; OmniFaceRig is non-commercial; Polywink is a manual €499 service.
 
-So: v1 makes each expression a separate static head mesh, via a 2D expression edit and a head part. True blendshapes come later, by wrapping a licensed ARKit-52 template head onto the AI head (ties to the rigging roadmap).
+**With an MHR base this becomes possible.** MHR ships **72 FACS expression blendshapes** on a fixed topology (Apache-2.0).
+- If the base body is MHR, or the MHR rig is wrapped onto our base mesh (§5 step 3 hybrid), its expressions transfer with it. The result is true morph-target expression variants on the same head topology, as in the user's reference.
+- SAM 3D Body does not *estimate* the expression in the image (it is zeroed), so expressions are authored from MHR's named controls (`jawDrop`, `eyesClosed_L`, …), not copied from the picture.
+- **Without MHR** (non-humanoid, or a style MHR can't fit), v1 makes each expression a separate static head mesh via a 2D expression edit.
+
+## 8a. Rigging (the user's long-standing ask)
+
+Nothing generates a rig for an arbitrary mesh directly. The plan has three parts:
+1. **Humanoids with realistic or tight-fitting builds:** SAM 3D Body → MHR fitted to the same image → register to our mesh → transfer MHR's skeleton and LBS weights (and expression shapes) in headless Blender. This is ECON-style kNN / Robust Skin Weights Transfer. Socket props (gun, hat) are bound to hand/head bones instead of skinned.
+2. **Everything else** (stylised or chibi, skirts and robes, creatures): SkinTokens (MIT; Michelangelo isolated), as in the existing rigging research.
+3. **Garments from G1/G2:** weights transferred from the rigged body (Data Transfer, nearest face interpolated).
+
+The output is a rigged FBX/GLB package with standard bone-name maps per engine in the manifest.
 
 ---
+
+## 8b. Endpoints: new only, existing ones untouched
+
+User decision, 2026-11-11. The live endpoints were checked read-only that day: TripoSG, TRELLIS.2, Qwen-Image BF16, HunyuanImage 3.0 BF16/NF4, FLUX.2 dev and FLUX.1 dev.
+- Each container serves exactly one predictor (`PREDICTOR_TYPE`).
+- Segmentation, SAM 3D, mesh-input re-texturing and part labelling are new input types. Adding them to an existing endpoint would mean changing its handler and redeploying it.
+- So:
+  - **New catalog entry "3D Parts"** with its own predictor type and its own scale-to-zero async endpoint. It holds SAM 3 / 3.1, SAM 3D Objects, SAM 3D Body, GeoSAM2 and a TRELLIS.2 *mesh-input* texturer, loaded on demand and parked in host RAM between stages.
+    - Sized on a single L40S 48 GB (SAM 3D Objects needs ≥ 32 GB).
+    - It needs large host RAM for parking, so a `g6e.4xlarge` or above (exact choice in P0).
+    - New code path, so the existing handlers stay unchanged.
+  - **A fresh Qwen-Image-Edit-2511 BF16 deployment** (existing catalog entry) for the Character Kit images.
+  - The existing TRELLIS.2 / TripoSG endpoints are used only for their existing purpose: image → 3D per part.
 
 ## 9. Phases
 
@@ -341,10 +410,11 @@ So: v1 makes each expression a separate static head mesh, via a 2D expression ed
 | **P2** | three.js parts viewer + correction brush; Collections parity | Browser E2E; user QA |
 | **P3** | G2 Character Kit (in-place parts, base body, registration, fit pass) | P0 assets re-run |
 | **P4** | Styles (re-texture + materials variants) | — |
-| **P5** | Rigging / skin-weight transfer from a rigged base (MHR / SkinTokens); expression template-wrap | — |
+| **P5** | Rigging (§8a): MHR fit-and-transfer for humanoids, SkinTokens otherwise; MHR expression variants (§8.3) | Rig deforms cleanly in Blender plus one engine |
 
-## 10. Open decisions
+## 10. Decisions
 
-1. Approve the TripoSG licence-disclosure fix (§2.3), and send the ⚖️ weights question to counsel.
-2. P0 scheduling: which assets, and which endpoints to deploy (SAM 3 and/or SAM 2.1, GeoSAM2, TRELLIS.2 texturer, Qwen-Edit-2511).
-3. Base-body route for G2: Qwen-Edit bodysuit vs SAM 3D Body → MHR (rigged), or both.
+- ✅ TripoSG licence disclosure: done (§2.3). ⚖️ The weights question is still for counsel.
+- ✅ New endpoints only; existing deployments are untouched (§8b).
+- ✅ Base body: both routes, plus the MHR-onto-TRELLIS.2 hybrid; maximum quality (§5).
+- ⏳ P0: which assets to test (suggested: character, chair/table, tree), and when to deploy the new "3D Parts" + Qwen-Edit endpoints. SageMaker spend is planned with the user.
