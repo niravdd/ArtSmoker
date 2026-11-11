@@ -1409,7 +1409,7 @@ Code-block highlighting and the copy button are added **after** sanitising. Code
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/custom-models/catalog` | List all available custom models with deployment status. Checks Amazon SageMaker endpoint status for each. |
+| GET | `/api/custom-models/catalog` | List all available custom models with deployment status. The per-model checks (Amazon SageMaker endpoint status, cached 30 s; the S3 model-cache marker, cached per process) run in parallel before the response is built, using clients shared across calls (`_status_client`). `force=true` (**Refresh Status**) clears the endpoint-status cache. A status error other than "endpoint not found" is logged before it is reported as `NotFound`, and a load slower than 5 s logs a warning. The Model Settings tab times out after 20 s, retries once on a timeout or dropped connection, and sends every failure to `/api/log`. |
 | GET | `/api/custom-models/catalog/{key}` | Get detailed info for a specific model from the catalog. |
 | POST | `/api/custom-models/deploy` | Deploy a model. For HuggingFace: uploads handler to S3 → creates Amazon SageMaker endpoint (container pulls from HF). For others: download → S3 → endpoint. Body: `{model_key, endpoint_type ("async"/"realtime"), instance_type (optional)}`. |
 | GET | `/api/custom-models/status/{key}` | Check Amazon SageMaker endpoint deployment status (Creating, InService, Failed, etc.). Includes 15-minute warm-up awareness — InService does not mean ready (model download may still be in progress). |

@@ -227,6 +227,19 @@ def list_catalog(force: bool = False):
                     })
                 break
 
+    # The two per-model AWS checks (endpoint status, S3 cache marker) are one
+    # network round trip each and independent, so run them in parallel first.
+    # Both cache their results, so the loop below reads them instantly. One after
+    # another they took ~22 s on a cold start, past the browser's timeout.
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    started = time.monotonic()
+    visible = [k for k, m in catalog.items() if not m.get("hidden")]
+    endpoints = sorted({i["endpoint_name"] for k in visible for i in catalog_to_deployed.get(k, [])})
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(check_endpoint_status, endpoints))
+        list(pool.map(_check_cache_quick, visible))
+
     for key, model in catalog.items():
         if model.get("hidden"):
             continue
@@ -313,6 +326,10 @@ def list_catalog(force: bool = False):
     # bucket_locked: has dependencies → the UI shows a read-only record (no change
     # offered) since a deployed endpoint permanently binds this bucket.
     _deps = get_bucket_dependencies() if _bkt else {"locked": False, "reasons": []}
+    elapsed = time.monotonic() - started
+    if elapsed > 5:   # the browser gives up at 20 s; log slow loads so they can be traced
+        logger.warning("Custom Models catalog took %.1fs (%d models, %d endpoints checked%s)",
+                       elapsed, len(visible), len(endpoints), ", forced refresh" if force else "")
     return {
         "models": result,
         "bundles": _get_all_bundles_info(),

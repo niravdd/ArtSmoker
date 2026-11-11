@@ -222,7 +222,7 @@ def get_bucket_dependencies() -> dict:
     bucket = get_deployment_s3_bucket()
     if bucket:
         try:
-            s3 = boto3.client("s3", region_name=_get_region())
+            s3 = _status_client("s3")
             resp = s3.list_objects_v2(Bucket=bucket, Prefix=f"{S3_MODEL_PREFIX}/", MaxKeys=1)
             has_s3_data = resp.get("KeyCount", 0) > 0
         except Exception:
@@ -901,6 +901,33 @@ def update_endpoint_config(model_key: str) -> dict:
     }
 
 
+# Shared clients for the read-only status checks the Custom Models catalog runs
+# for every model on each load (S3 cache marker, endpoint status, readiness logs,
+# bucket contents). Building a client per call loads the service definition and
+# opens a new HTTPS connection: about 1 s each, so a cold catalog load took ~22 s,
+# past the browser's timeout. A built client is thread-safe; building one from
+# the default session is not, hence the lock. Each call site keeps its previous
+# settings: quick=True is the endpoint-status check's short timeouts and single
+# attempt; the others keep botocore's defaults (retries, no short read timeout).
+# Deploy/teardown paths keep their own clients.
+_status_clients: dict = {}
+_status_clients_lock = __import__("threading").Lock()
+
+
+def _status_client(service: str, quick: bool = False):
+    key = (service, _get_region(), quick)
+    with _status_clients_lock:
+        client = _status_clients.get(key)
+        if client is None:
+            config = None
+            if quick:
+                from botocore.config import Config as BotoConfig
+                config = BotoConfig(connect_timeout=5, read_timeout=10, retries={"max_attempts": 1})
+            client = boto3.client(service, region_name=key[1], config=config)
+            _status_clients[key] = client
+    return client
+
+
 # Cache endpoint status to avoid repeated slow SageMaker API calls
 _endpoint_status_cache: dict = {}  # endpoint_name → {"result": dict, "time": float}
 _ENDPOINT_CACHE_TTL = 30  # seconds
@@ -980,7 +1007,7 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
     - "Enabling ... offload" → almost ready
     """
     try:
-        logs_client = boto3.client("logs", region_name=_get_region())
+        logs_client = _status_client("logs")
         log_group = f"/aws/sagemaker/Endpoints/{endpoint_name}"
 
         # Find the main log stream (not data-log)
@@ -1360,9 +1387,7 @@ def check_endpoint_status(endpoint_name: str) -> dict:
         return cached["result"]
 
     try:
-        from botocore.config import Config as BotoConfig
-        sm = boto3.client("sagemaker", region_name=_get_region(),
-                          config=BotoConfig(connect_timeout=5, read_timeout=10, retries={"max_attempts": 1}))
+        sm = _status_client("sagemaker", quick=True)
         resp = sm.describe_endpoint(EndpointName=endpoint_name)
 
         # Detect warm-up: check if model is ACTUALLY ready by reading CloudWatch logs
@@ -1419,6 +1444,12 @@ def check_endpoint_status(endpoint_name: str) -> dict:
         _endpoint_status_cache[endpoint_name] = {"result": result, "time": _time.time()}
         return result
     except Exception as e:
+        # "Could not find endpoint" is the normal answer for a deleted endpoint.
+        # Anything else (timeout, throttling, expired credentials) is reported as
+        # NotFound too, so log it: otherwise a deployed model silently shows as
+        # not deployed.
+        if "Could not find endpoint" not in str(e):
+            logger.warning("Endpoint status check failed for %s (shown as NotFound): %s", endpoint_name, e)
         result = {"endpoint_name": endpoint_name, "status": "NotFound", "warming_up": False, "error": str(e)}
         _endpoint_status_cache[endpoint_name] = {"result": result, "time": _time.time()}
         return result
@@ -1794,7 +1825,7 @@ def check_model_cache_exists(model_key: str) -> dict:
         return {"cached": False}
 
     try:
-        s3 = boto3.client("s3", region_name=_get_region())
+        s3 = _status_client("s3")
         info_key = f"{S3_MODEL_PREFIX}/{model_key}/{_CACHE_SUBFOLDER}/.cache-info.json"
         resp = s3.get_object(Bucket=bucket, Key=info_key)
         cache_info = json.loads(resp["Body"].read().decode())

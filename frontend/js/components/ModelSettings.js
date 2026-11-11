@@ -2376,15 +2376,23 @@
 
         _customModelsLoaded: false,
 
-        async _loadCustomModels(modal, force = false) {
+        async _loadCustomModels(modal, force = false, attempt = 1) {
             const container = modal.querySelector('#ms-custom-models-content');
             if (!container) return;
 
+            const started = Date.now();
             try {
                 const controller = new AbortController();
                 const timeout = setTimeout(() => controller.abort(), 20000);
-                const resp = await fetch(`/api/custom-models/catalog${force ? '?force=true' : ''}`, { signal: controller.signal });
-                clearTimeout(timeout);
+                let resp;
+                try {
+                    resp = await fetch(`/api/custom-models/catalog${force ? '?force=true' : ''}`, { signal: controller.signal });
+                } catch (e) {
+                    e.requestFailed = true;      // timeout or dropped connection, not a rendering bug
+                    throw e;
+                } finally {
+                    clearTimeout(timeout);
+                }
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 const data = await resp.json();
                 const models = data.models || [];
@@ -2763,6 +2771,16 @@
                 });
 
             } catch (err) {
+                // Recorded in the server log (logs/artsmoker.log), so a failure the
+                // user only glimpses can still be traced afterwards.
+                const secs = ((Date.now() - started) / 1000).toFixed(1);
+                API.log('error', `Custom Models catalog load failed (attempt ${attempt}, ${secs}s): ${err.name}: ${err.message}`,
+                        err.requestFailed ? 'ModelSettings._loadCustomModels' : (err.stack || '').split('\n').slice(0, 3).join(' | '));
+                // A timeout or dropped connection is usually a slow first load: the
+                // server finishes it and caches the answers, so one retry succeeds.
+                if (attempt === 1 && err.requestFailed) {
+                    return this._loadCustomModels(modal, force, 2);
+                }
                 const msg = err.name === 'AbortError' ? t('artsmoker.ui.custom_models.load_timeout') : err.message;
                 // nosemgrep
                 container.innerHTML = html`<p class="text-xs text-red-400">${t('artsmoker.ui.custom_models.load_failed')}: ${msg}</p>`;
