@@ -561,52 +561,99 @@ def _pipeline_info(key: str, cfg: dict) -> dict:
     registry = get_registry()
     acceptances = registry.get("license_acceptances", {}) or {}
 
-    license_name = ""
-    license_url = ""
-    commercially_usable = None  # → "commercially_usable_outputs": are the pipeline's OUTPUTS usable commercially
-    accepted = None  # {license_name, accepted_at} or None
+    # Every licence that governs this pipeline's outputs, each with the acceptance
+    # on record. All text comes from the catalog (model_registry.json) — the code
+    # only combines it, so updating the registry updates every surface.
+    #   trellis2_full → the model's own license_agreement.
+    #   triposg       → the GEOMETRY model's license_agreement (TripoSG's own terms)
+    #                   PLUS the chosen TEXTURE BACKEND's license.
+    parts = []
     try:
         from backend.services.custom_models import get_catalog_model
         cat = get_catalog_model(catalog_key) or {}
-        if pipeline_type == "trellis2_full":
-            # Full pipeline: the model's own license_agreement is the contract.
-            la = cat.get("license_agreement", {}) or {}
-            license_name = la.get("license_name", cat.get("license", ""))
-            license_url = la.get("license_url", "")
-            # Registry-driven (was hardcoded True): the full pipeline's mesh bake
-            # (o_voxel.postprocess) hard-imports nvdiffrast — NVIDIA 1-Way Commercial,
-            # non-commercial for general users — so its license_agreement declares
-            # commercially_usable_outputs=false. (The commercial-safe path is TripoSG +
-            # Kaolin.) None if unset → the panel shows the license without a ✓.
-            commercially_usable = la.get("commercially_usable_outputs")
-            accepted = acceptances.get(catalog_key) or acceptances.get(key)
-        else:
-            # TripoSG: the active TEXTURE BACKEND carries the license that matters.
+        la = cat.get("license_agreement", {}) or {}
+        parts.append({
+            "role": "model",
+            "name": la.get("license_name", cat.get("license", "")),
+            "url": la.get("license_url", ""),
+            # Registry-driven: e.g. the full TRELLIS.2 bake hard-imports nvdiffrast,
+            # so its license_agreement declares commercially_usable_outputs=false.
+            # None if unset → the panel shows the license without a badge.
+            "commercially_usable_outputs": la.get("commercially_usable_outputs"),
+            "accepted": acceptances.get(catalog_key) or acceptances.get(key),
+            "accept_key": catalog_key,
+            "agreement": la,
+        })
+        if pipeline_type != "trellis2_full":
             # Fall back to the catalog's DEFAULT backend when the deployment didn't
             # persist an explicit choice (older TripoSG deploys stored no
-            # texture_backend, but generation still uses the default) — otherwise the
-            # license summary comes back empty and the panel silently hides.
+            # texture_backend, but generation still uses the default).
             tex_cfg = cat.get("texture_backends", {}) or {}
             tex_backend = dep.get("texture_backend") or tex_cfg.get("default") or ""
             tb = ((tex_cfg.get("options", {}) or {}).get(tex_backend, {}) or {})
             lic = tb.get("license", {}) or {}
-            license_name = lic.get("name", "")
-            license_url = lic.get("url", "")
-            commercially_usable = lic.get("commercially_usable_outputs")
-            # Texture-backend acceptance was recorded under "<model_key>:<backend>".
-            accepted = (acceptances.get(f"{key}:{tex_backend}")
-                        or acceptances.get(f"{catalog_key}:{tex_backend}")
-                        or acceptances.get(catalog_key))
+            tex_accepted = (acceptances.get(f"{key}:{tex_backend}")
+                            or acceptances.get(f"{catalog_key}:{tex_backend}"))
+            if lic.get("name"):
+                parts.append({
+                    # A backend without its own attestation is accepted together with
+                    # the model at deploy (no separate record) → it follows the model.
+                    "inherit": not tex_accepted and not lic.get("attestation_required"),
+                    "role": "texture",
+                    "name": lic.get("name", ""),
+                    "url": lic.get("url", ""),
+                    "commercially_usable_outputs": lic.get("commercially_usable_outputs"),
+                    # Texture-backend acceptance was recorded under "<model_key>:<backend>".
+                    "accepted": tex_accepted,
+                    "accept_key": f"{catalog_key}:{tex_backend}",
+                    "agreement": {
+                        "license_name": lic.get("name", ""),
+                        "license_url": lic.get("url", ""),
+                        "key_terms": lic.get("key_terms", []),
+                        "dependencies": lic.get("dependencies", []),
+                        "warnings": lic.get("warnings", []),
+                    },
+                })
     except Exception:
         pass
+    return _summarize_licenses(pipeline_type, parts)
 
+
+def _summarize_licenses(pipeline_type: str, parts: list) -> dict:
+    """Fold per-component licences into the instance's licence summary.
+
+    An acceptance counts only if it was given to the CURRENT licence name. When the
+    catalog's terms change (e.g. a newly disclosed upstream licence), an earlier
+    acceptance no longer covers them → `license_terms_updated`, and generation
+    asks the user to review and accept the current terms (`/license-accept`).
+    """
+    parts = [p for p in parts if p.get("name")]
+    comm = [p.get("commercially_usable_outputs") for p in parts]
+    if any(c is False for c in comm):
+        commercially_usable = False
+    elif comm and all(c is True for c in comm):
+        commercially_usable = True
+    else:
+        commercially_usable = None
+    own = [p for p in parts if not p.get("inherit")]
+    current = [p for p in own if (p.get("accepted") or {}).get("license_name") == p["name"]]
+    outdated = [p for p in own if p.get("accepted")
+                and (p["accepted"] or {}).get("license_name") != p["name"]]
+    accepted_at = max((p["accepted"].get("accepted_at", "") for p in current), default="")
     return {
         "pipeline_type": pipeline_type,
-        "license_name": license_name,
-        "license_url": license_url,
+        "license_name": " + ".join(p["name"] for p in parts),
+        "license_url": parts[0]["url"] if parts else "",
+        "licenses": [{"role": p["role"], "name": p["name"], "url": p["url"],
+                      "commercially_usable_outputs": p.get("commercially_usable_outputs")}
+                     for p in parts],
         "commercially_usable_outputs": commercially_usable,
-        "license_accepted": bool(accepted),
-        "license_accepted_at": (accepted or {}).get("accepted_at", ""),
+        "license_accepted": bool(own) and len(current) == len(own),
+        "license_accepted_at": accepted_at,
+        "license_terms_updated": bool(outdated),
+        # What the review dialog shows when the terms changed since acceptance.
+        "license_review": [{"accept_key": p["accept_key"], "agreement": p["agreement"]}
+                           for p in outdated],
     }
 
 
@@ -717,6 +764,25 @@ async def list_3d_instances(verify: bool = True):
     return {"instances": instances, "count": len(instances)}
 
 
+class LicenseAcceptRequest(BaseModel):
+    model_key: str
+
+
+@router.post("/license-accept")
+async def accept_updated_license(body: LicenseAcceptRequest):
+    """Record acceptance of a deployed 3D model's CURRENT licence terms, after the
+    catalog's terms changed since the deploy-time acceptance. Records exactly the
+    licences listed in the instance's `license_review` (names taken from the
+    catalog), then returns the refreshed licence summary."""
+    model_key, cfg = _find_triposg_model(body.model_key)
+    if not model_key or not cfg or model_key != body.model_key:
+        raise HTTPException(404, detail=f"'{body.model_key}' is not a deployed image-to-3D model.")
+    from backend.routers.custom_deploy import _record_license_acceptance
+    for item in _pipeline_info(model_key, cfg).get("license_review", []):
+        _record_license_acceptance(item["accept_key"], item["agreement"].get("license_name", ""))
+    return _pipeline_info(model_key, cfg)
+
+
 @router.get("/defaults")
 async def get_3d_defaults():
     """Return user's saved default 3D generation parameters."""
@@ -770,6 +836,13 @@ async def generate_3d(body: ThreeDGenerateRequest):
 
     if not endpoint_name or not enabled:
         raise HTTPException(400, detail="3D generation model is not deployed. Deploy from Custom Models first.")
+
+    # Licence terms changed in the catalog since the user accepted them → they
+    # must review and accept the current terms first (POST /license-accept).
+    if _pipeline_info(model_key, cfg).get("license_terms_updated"):
+        raise HTTPException(409, detail=(
+            "The licence terms for this 3D model were updated after you accepted them. "
+            "Open the 3D tab of any image to review and accept the current terms, then generate again."))
 
     # 3D generates from the version's CUTOUT (background-removed version image) —
     # the SAME artefact the Export tab shows, so the "SOURCE FOR 3D" preview and

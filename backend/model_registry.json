@@ -18455,7 +18455,7 @@
       },
       "trellis2_image_to_3d": {
         "label": "TRELLIS.2 (Full Image-to-3D)",
-        "description": "Microsoft TRELLIS.2 full pipeline \u2014 generates BOTH geometry and PBR texture from a single image in one model. MIT model + weights, but the mesh bake hard-imports nvdiffrast (NVIDIA 1-Way Commercial \u2014 non-commercial for general users), so the full pipeline is NOT commercial-clean; use the TripoSG + Kaolin path for commercial work. Review the license before commercial use.",
+        "description": "Microsoft TRELLIS.2 full pipeline \u2014 generates BOTH geometry and PBR texture from a single image in one model. MIT model + weights, but the mesh bake hard-imports nvdiffrast (NVIDIA 1-Way Commercial \u2014 non-commercial for general users), so the full pipeline is NOT commercial-clean. The TripoSG + Kaolin path avoids nvdiffrast, but TripoSG carries its own Tencent Hunyuan terms (no EU/UK/South Korea; 1M MAU threshold). Review the license before commercial use.",
         "category": "3d_generation",
         "studio": "image",
         "provider": "Microsoft Research",
@@ -18616,18 +18616,70 @@
         "category": "3d_generation",
         "studio": "image",
         "provider": "VAST AI",
-        "license": "MIT",
+        "license": "MIT + Tencent Hunyuan Community",
         "requires_hf_auth": false,
         "license_agreement": {
           "required": true,
-          "license_name": "MIT License",
-          "license_url": "https://opensource.org/licenses/MIT",
+          "license_name": "MIT (TripoSG weights) + Tencent Hunyuan Community Licenses (HunyuanDiT, FlashVDM code)",
+          "license_url": "https://github.com/VAST-AI-Research/TripoSG/blob/main/NOTICE",
+          "commercially_usable_outputs": true,
           "key_terms": [
-            "MIT open source license",
-            "Commercial use: Unrestricted",
-            "Modification and redistribution: Allowed"
+            "TripoSG weights (VAST-AI/TripoSG) — MIT",
+            "TripoSG's transformer is adapted from Tencent HunyuanDiT — Tencent Hunyuan Community License (14 May 2024): licensed worldwide except the European Union; above 100M monthly active users you must request a licence from Tencent",
+            "The triposg package also carries the Tencent Hunyuan FlashVDM Community License (19 Mar 2025): licensed worldwide except the European Union, United Kingdom and South Korea; above 1M monthly active users you must request a licence from Tencent. ArtSmoker runs TripoSG with the FlashVDM decoder off, but that code ships in the package",
+            "Outputs: \"Tencent claims no rights in Outputs You generate\" — commercial use of your meshes is allowed inside the licensed territory",
+            "Tencent Acceptable Use Policy applies — e.g. identify content as machine-generated when you publish it, and no military use",
+            "You must not use outputs to improve any other AI model",
+            "Distributions must keep the Tencent notices (TripoSG NOTICE); \"Powered by Tencent Hunyuan\" is encouraged, not required",
+            "Background removal uses BiRefNet (MIT) — TripoSG's bundled RMBG-1.4 (non-commercial) is used only if you opt in with ARTSMOKER_BG_MODEL=rmbg"
           ],
-          "warnings": []
+          "dependencies": [
+            {
+              "name": "VAST-AI/TripoSG",
+              "license": "MIT",
+              "url": "https://huggingface.co/VAST-AI/TripoSG",
+              "gated": false,
+              "commercially_usable_outputs": true,
+              "role": "Geometry weights (transformer, VAE, bundled DINOv2 image encoder)"
+            },
+            {
+              "name": "TripoSG transformer code (adapted from Tencent HunyuanDiT)",
+              "license": "Tencent Hunyuan Community License — excludes the EU; 100M MAU threshold",
+              "url": "https://github.com/VAST-AI-Research/TripoSG/blob/main/triposg/models/transformers/triposg_transformer.py",
+              "gated": false,
+              "commercially_usable_outputs": true,
+              "role": "Core geometry model code"
+            },
+            {
+              "name": "triposg package (Tencent Hunyuan FlashVDM)",
+              "license": "Tencent Hunyuan FlashVDM Community License — excludes the EU, UK and South Korea; 1M MAU threshold",
+              "url": "https://github.com/VAST-AI-Research/TripoSG/blob/main/triposg/LICENSE",
+              "gated": false,
+              "commercially_usable_outputs": true,
+              "role": "Package licence; the FlashVDM decoder is shipped but not used by ArtSmoker"
+            },
+            {
+              "name": "ZhengPeng7/BiRefNet",
+              "license": "MIT",
+              "url": "https://huggingface.co/ZhengPeng7/BiRefNet",
+              "gated": false,
+              "commercially_usable_outputs": true,
+              "role": "Background removal (default)"
+            },
+            {
+              "name": "briaai/RMBG-1.4",
+              "license": "BRIA RMBG-1.4 — non-commercial",
+              "url": "https://huggingface.co/briaai/RMBG-1.4",
+              "gated": false,
+              "commercially_usable_outputs": false,
+              "role": "Optional background removal — only when ARTSMOKER_BG_MODEL=rmbg"
+            }
+          ],
+          "warnings": [
+            "Not licensed in the European Union, United Kingdom or South Korea: the Tencent terms forbid using or displaying the model or its outputs outside the licensed territory.",
+            "If your products exceed 1M monthly active users, request a licence from Tencent before using TripoSG.",
+            "Review these Tencent terms with your legal team before a commercial release."
+          ]
         },
         "source": {
           "type": "huggingface",

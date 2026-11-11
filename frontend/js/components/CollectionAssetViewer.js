@@ -600,6 +600,7 @@
                 // nosemgrep
                 el.innerHTML = AV.threeDLicenseHTML(inst);
                 el.classList.remove('hidden');
+                AV.threeDBindLicenseReview(el, inst, updateLicense);
             };
             const applyPreset = () => {
                 const p = AV.THREE_D_QUALITY_PRESETS[$('cv3p-quality').value];

@@ -366,7 +366,7 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 | **TripoSG + 纹理后端** | TripoSG 构建网格；由所选纹理后端（TRELLIS.2 / Hunyuan3D-Paint）为其上色 | 取决于后端（见下文） | 取决于后端 | 几何模型与特定纹理器的自由组合 |
 | **TRELLIS.2（完整）** | 单一模型**同时**生成几何与 PBR 纹理（SLAT） | MIT 模型 + 权重 | ⚠️ **非商业烘焙** —— 网格导出硬性导入 `nvdiffrast`（NVIDIA 1-Way Commercial）；商业使用前请先审查 | 最简路径；原型与非商业用途 |
 
-> **商业用途：** **TripoSG + 纹理后端** 这条路径是商业安全的选择 —— 它的烘焙使用 **Kaolin (Apache-2.0)**。**完整 TRELLIS.2** 管线的模型本身为 MIT，但其 `o_voxel` 网格烘焙硬性导入 `nvdiffrast`（NVIDIA Source Code License，对普通用户为非商业），且不修补上游就无法替换 —— 因此除非你已厘清该依赖，否则请将完整管线的输出视为非商业。许可与每一项依赖都会在部署对话框中、以及再次在生成时展示。
+> **商业用途：** **TripoSG + 纹理后端** 这条路径不使用 NVIDIA 的非商业光栅化器 —— 它的烘焙使用 **Kaolin (Apache-2.0)**；但 TripoSG 自身的代码适用 **Tencent Hunyuan 社区许可证**：在欧盟、英国和韩国不授予许可，月活跃用户超过 100 万时须向 Tencent 申请许可。**完整 TRELLIS.2** 管线的模型本身为 MIT，但其 `o_voxel` 网格烘焙硬性导入 `nvdiffrast`（NVIDIA Source Code License，对普通用户为非商业），且不修补上游就无法替换 —— 因此除非你已厘清该依赖，否则请将完整管线的输出视为非商业。许可与每一项依赖都会在部署对话框中、以及再次在生成时展示。
 
 **3D 变体** —— 每个图像版本可保留多个 3D 成品（此处为 TripoSG 与 TRELLIS.2 完整管线），随时切换或设为默认；每个变体都记录生成它的确切模型与工具。
 
@@ -374,7 +374,7 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 **TripoSG 流程的工作原理：**
 
-1. **几何提取** —— 整流流变换器（TripoSG，15 亿参数，MIT 许可）使用有向距离场（SDF）表示，将单张 2D 图像转换为高保真 3D 网格。网格密度随质量预设而缩放（在最高八叉树分辨率下最多约 100 万面），以在面部和装备上呈现清晰细节。
+1. **几何提取** —— 整流流变换器（TripoSG，15 亿参数；权重采用 MIT 许可，部分代码采用 Tencent Hunyuan 社区许可证，部署对话框中会列出）使用有向距离场（SDF）表示，将单张 2D 图像转换为高保真 3D 网格。网格密度随质量预设而缩放（在最高八叉树分辨率下最多约 100 万面），以在面部和装备上呈现清晰细节。
 2. **纹理处理** —— 网格由**您在部署时选择的纹理后端**进行绘制（默认 **TRELLIS.2**，Microsoft，MIT —— 一种基于 SLAT/体素条件的纹理器，在 4096² 图集上生成完整 PBR 材质）。
 3. **PBR 输出** —— 导出为内嵌 PBR 贴图的 GLB，可在任意现代引擎中直接用于基于物理的渲染。
 
@@ -456,7 +456,8 @@ ArtSmoker 在原始网格之上附加的价值在于，一切都**按您的引�
 | 创作者 / 模型 | 模式 | 商业自托管的下一步 |
 |---|---|---|
 | **Alibaba** —— Qwen-Image、Qwen-Image-Edit | 1 | 无需购买（Apache-2.0）。保留许可证声明即可。 |
-| **Microsoft** —— TRELLIS.2 · **VAST** —— TripoSG | 1 | 无需购买（MIT）。注意：上游依赖（如 Meta DINOv3）有各自的访问门禁/条款。 |
+| **Microsoft** —— TRELLIS.2 | 1 | 无需购买（MIT）。注意：上游依赖（如 Meta DINOv3）有各自的访问门禁/条款。 |
+| **VAST** —— TripoSG | 2 | 权重为 MIT，但代码包含 Tencent Hunyuan 许可的部分（HunyuanDiT、FlashVDM）：**在欧盟、英国和韩国不授予许可**；超过 **100 万 MAU** 须向 Tencent 申请许可。在许可地域内，输出归您所有。 |
 | **Black Forest Labs** —— FLUX.2 [klein] 4B | 1 | 无需购买 —— Apache-2.0，可免费商业使用。 |
 | **Stability AI** —— SD 3.5（自托管） | 2 | 年总营收**低于 100 万美元**时免费且含商业使用（接受 HF 门禁*即是*许可证）。超过后许可证**自动终止** —— 请到 stability.ai/enterprise 申请企业许可证。**任何级别都必须带有 "Powered by Stability AI" 署名。** |
 | **Tencent** —— HunyuanImage 3.0 / Hunyuan3D | 2 | 阈值以下免费且含商业使用 —— **注意阈值按模型区分**：HunyuanImage 3.0 = 1 亿 MAU；**Hunyuan3D-2.1 = 仅 100 万 MAU**（超过请发邮件至 hunyuan3d@tencent.com）。**在欧盟、英国、韩国完全不授权**，无论规模大小。 |

@@ -159,7 +159,7 @@ Self-Hosted (Amazon SageMaker)
     +-- HunyuanImage 3.0 (NF4)  — Quantized variant (g7e.2xlarge)
     +-- FLUX.2 dev (NF4)        — Image generation (g6e.4xlarge)
     +-- Qwen-Image / Qwen-Image-Edit — text-to-image + reference/instruction editing (Apache-2.0)
-    +-- TripoSG                 — Image-to-3D geometry (MIT); paired with a texture backend
+    +-- TripoSG                 — Image-to-3D geometry (MIT weights + Tencent Hunyuan-licensed code); paired with a texture backend
     +-- TRELLIS.2               — Image-to-3D (geometry + PBR), or a texture backend for TripoSG (MIT)
     +-- Headless Blender        — GLB → FBX/USDZ engine export (server-provisioned, on demand)
     |
@@ -1610,6 +1610,13 @@ The pins match the commits the S3-cached wheels were compiled from. `_git_clone_
 
 > **⚠️ nvdiffrast license (full TRELLIS.2 pipeline).** The mesh/PBR bake (`o_voxel.postprocess.to_glb`) **hard-imports `nvdiffrast`**, which is under the **NVIDIA Source Code License (1-Way Commercial) — non-commercial for general users**, *not* MIT. It is an internal dependency of upstream `o_voxel` and cannot be swapped without patching microsoft/TRELLIS.2, so the full image-to-3D pipeline currently carries a non-commercial rasterizer dependency — surfaced in the deploy dialog (`license_agreement.dependencies` + `warnings`). **Review before commercial use.** The separate **TripoSG + texture-backend** path is unaffected: its bake defaults to **Kaolin (Apache-2.0)** via `ARTSMOKER_RASTERIZER`.
 
+> **⚠️ TripoSG carries Tencent Hunyuan licences.** The weights (`VAST-AI/TripoSG`) are MIT, but the code is not purely MIT:
+> - `triposg/models/transformers/triposg_transformer.py` is adapted from Tencent HunyuanDiT and embeds the **Tencent Hunyuan Community License**: the EU is excluded, and a licence is needed above 100M MAU.
+> - `triposg/LICENSE` is the **Tencent Hunyuan FlashVDM Community License**: the EU, UK and South Korea are excluded, and a licence is needed above 1M MAU. The handler runs with `use_flash_decoder=False`, but the code ships in the package.
+> - Tencent claims no rights in outputs, so commercial use is allowed inside the licensed territory. Outputs may not be used or displayed outside that territory, or used to improve other AI models, and the Tencent AUP applies (e.g. identify machine-generated content).
+>
+> All of this lives in the catalog entry's `license_agreement`: `key_terms`, `dependencies` and `warnings`. The code only renders and combines it (see "Licence summary" below).
+
 **Full-pipeline resourcing.** The standalone TRELLIS.2 pipeline's baseline is **`ml.g5.2xlarge`** (`recommended_instance`; A10G 24 GB, 32 GiB RAM). A measured image→3D run on it peaked at ~4.8 GB VRAM and took ~7.5 min, producing an ~18.8 MB PBR GLB. The CUDA extensions (o_voxel/cumesh/flex_gemm) and xformers build for the instance's GPU architecture (e.g. Ampere sm_86) via the arch-portable builder. The L40S family (`ml.g6e.*`, 48 GB) is over-provisioned for this workload at a higher cost, so it is offered only as a headroom option in `allowed_instances` (`g6e.xlarge`/`2xlarge`/`4xlarge`). `min_ram_gb: 28` is enforced, and the handler logs a per-run `TRELLIS.2 RESOURCE PEAK` line (VRAM alloc/reserved + host RAM avail/total).
 
 **Texture backends (TripoSG pipeline only).** The backend is chosen **per-deployment** (baked into the endpoint as `ARTSMOKER_TEXTURE_BACKEND`) from the catalog's `texture_backends.options`. Two are offered, each with a distinct license profile that is **disclosed in the deploy dialog and must be explicitly accepted** (`attestation_required`) before deployment proceeds.
@@ -1642,9 +1649,25 @@ The full TRELLIS.2 pipeline lists `birefnet` / `rmbg` / `trellis2`. To repoint o
 
 Because BiRefNet (MIT) does the real cutout at equal/better quality, **RMBG is not required** for any backend; it remains available as a disclosed opt-in. Both flags default to the commercial-clean MIT path.
 
-**Pipeline selection & license consent at generate time (AssetViewer 3D tab).** `GET /api/generate/3d/instances` returns every deployed image-to-3D instance (both pipelines) enriched with `pipeline_type` (`triposg` | `trellis2_full`), the active license summary (`license_name`, `license_url`, `commercial`), the **deploy-time acceptance on record** (`license_accepted`, `license_accepted_at`), and `est_cost_usd` (= instance hourly rate × typical latency). The AssetViewer shows a **pipeline chooser only when more than one generator is deployed** (with exactly one, it's auto-selected); each option displays its est. cost + time and a license panel. Consent is **not re-prompted** at generate time — the binding attestation happens at deploy (see below); the panel instead states *"License accepted at deploy on `<date>`"* (or warns if no acceptance is on record). The chosen pipeline + the accepted license are persisted into the asset's metadata (`three_d_versions[].pipeline`: `pipeline_type`, `license_name`, `commercial`, `license_accepted_at`) for full provenance, shown back in the 3D tab's "Models & Tools Used".
+**Pipeline selection & license consent at generate time (AssetViewer 3D tab).** `GET /api/generate/3d/instances` returns every deployed image-to-3D instance (both pipelines) enriched with the following:
+- `pipeline_type` (`triposg` | `trellis2_full`);
+- **the licence summary** (`_pipeline_info` → `_summarize_licenses`):
+  - `licenses[]` lists each governing licence: the model's own `license_agreement`, plus for TripoSG the chosen texture backend's `license`;
+  - `license_name` joins those names with " + ", and `license_url` is the model's link;
+  - `commercially_usable_outputs` is false if any licence says false, true only if every licence says true, otherwise unset;
+- **the acceptance on record** (`license_accepted`, `license_accepted_at`). An acceptance counts only for the licence name it was given to. A texture backend without its own attestation follows the model's acceptance;
+- `est_cost_usd` (instance hourly rate × typical latency).
 
-**Deploy-time acceptance (authoritative).** The Custom Models deploy dialog is where the user reads and accepts. For TripoSG it's the texture-backend `attestation_required` checkbox + dependency table; for the full TRELLIS.2 pipeline it's the model's `license_agreement` modal — which also renders the structured `dependencies[]` table (same per-model name/license/commercial/gated/role breakdown). Acceptances are recorded in the user registry (`license_acceptances`, keyed by model/backend with a timestamp); the generate-time UI reads this to show the "accepted on `<date>`" status.
+The AssetViewer shows a **pipeline chooser only when more than one generator is deployed**; with exactly one, it's auto-selected. Each option displays its est. cost + time and a licence panel that states *"License accepted at deploy on `<date>`"*, or warns if no acceptance is on record.
+
+**When the catalog's terms change after acceptance**, the instance reports `license_terms_updated` with `license_review[]` (the current agreements). In that case:
+- the panel shows the change with a **Review terms** button, which opens the same licence dialog as deploy;
+- `POST /api/generate/3d/license-accept {model_key}` records acceptance of exactly those current licence names;
+- `POST /api/generate/3d/` refuses with 409 until then. This also covers Collections bulk 3D.
+
+Otherwise consent is not re-prompted at generate time. The chosen pipeline + the accepted license are persisted into the asset's metadata (`three_d_versions[].pipeline`: `pipeline_type`, `license_name`, `commercial`, `license_accepted_at`) for full provenance, shown back in the 3D tab's "Models & Tools Used".
+
+**Deploy-time acceptance (authoritative).** The Custom Models deploy dialog is where the user reads and accepts. Every model whose `license_agreement.required` is set gets the `license_agreement` modal: TripoSG's own Tencent/MIT terms, and the full TRELLIS.2 pipeline's terms. A TripoSG texture backend with `attestation_required` adds its checkbox and dependency table. The modal also renders the structured `dependencies[]` table (same per-model name/license/commercial/gated/role breakdown). Acceptances are recorded in the user registry (`license_acceptances`, keyed by model/backend with a timestamp); the generate-time UI reads this to show the "accepted on `<date>`" status.
 
 > **GLB texture format note.** Generated GLBs encode their PBR atlas as **WebP** (`EXT_texture_webp`) to keep files compact (and within the SageMaker async response limit). This renders correctly in the in-app viewer (`model-viewer`), Blender 4.x, three.js, and modern Unity/Unreal glTF importers. macOS Preview/QuickLook converts GLB→USDZ and does **not** support WebP textures, so it renders the model black — a viewer limitation, not an asset defect. We intentionally keep WebP rather than degrade to PNG.
 >

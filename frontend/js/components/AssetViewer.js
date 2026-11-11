@@ -94,12 +94,21 @@
                 : (inst.commercially_usable_outputs === false
                     ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.asset_viewer.three_d_lic_noncommercial')}</span>`
                     : '');
-            const acceptedLine = inst.license_accepted
-                ? html`<p class="text-emerald-400/90">✓ ${t('artsmoker.ui.asset_viewer.three_d_lic_accepted')}${inst.license_accepted_at ? ' · ' + window.formatTimestamp(inst.license_accepted_at) : ''}</p>`
-                : html`<p class="text-amber-400/90">⚠ ${t('artsmoker.ui.asset_viewer.three_d_lic_not_recorded')}</p>`;
-            const link = inst.license_url
-                ? html` <a href="${inst.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline">${t('artsmoker.ui.asset_viewer.three_d_lic_view')}</a>`
-                : '';
+            // The catalog's terms changed after acceptance → ask for a review
+            // (threeDBindLicenseReview wires the button); else the usual status line.
+            const acceptedLine = inst.license_terms_updated
+                ? html`<div class="p-2 rounded bg-amber-500/10 border border-amber-500/20 space-y-1.5">
+                        <p class="text-amber-400/90">⚠ ${t('artsmoker.ui.asset_viewer.three_d_lic_terms_updated')}</p>
+                        <button type="button" class="av-3d-lic-review btn btn-xs px-2 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white">${t('artsmoker.ui.asset_viewer.three_d_lic_review')}</button>
+                    </div>`
+                : (inst.license_accepted
+                    ? html`<p class="text-emerald-400/90">✓ ${t('artsmoker.ui.asset_viewer.three_d_lic_accepted')}${inst.license_accepted_at ? ' · ' + window.formatTimestamp(inst.license_accepted_at) : ''}</p>`
+                    : html`<p class="text-amber-400/90">⚠ ${t('artsmoker.ui.asset_viewer.three_d_lic_not_recorded')}</p>`);
+            // One "View license" link per governing licence (model + texture backend).
+            const lics = (inst.licenses && inst.licenses.length)
+                ? inst.licenses
+                : [{ name: inst.license_name, url: inst.license_url }];
+            const links = lics.filter(l => l.url).map(l => html` <a href="${l.url}" target="_blank" rel="noopener" class="text-brand-accent underline">${lics.length > 1 ? l.name : t('artsmoker.ui.asset_viewer.three_d_lic_view')}</a>`);
             return html`
                 <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-brand-text-muted">${t('artsmoker.ui.asset_viewer.three_d_lic_label')}</span>
@@ -107,7 +116,34 @@
                     ${commercialBadge}
                 </div>
                 ${acceptedLine}
-                <p class="text-brand-text-dim">${t('artsmoker.ui.asset_viewer.three_d_lic_note')}${link}</p>`;
+                <p class="text-brand-text-dim">${t('artsmoker.ui.asset_viewer.three_d_lic_note')}${links}</p>`;
+        },
+
+        /** Wire the "Review terms" button rendered by threeDLicenseHTML: show each
+         *  updated licence in the deploy-time licence dialog, then record acceptance
+         *  of exactly those terms and refresh `inst` in place. Calls onDone() after. */
+        threeDBindLicenseReview(el, inst, onDone) {
+            const btn = el?.querySelector('.av-3d-lic-review');
+            if (!btn) return;
+            btn.addEventListener('click', async () => {
+                const MS = window.ModelSettings;
+                for (const item of (inst.license_review || [])) {
+                    const ok = await MS?._showLicenseAgreement?.(inst.label || inst.model_key, item.agreement);
+                    if (!ok) return;
+                }
+                try {
+                    const r = await fetch('/api/generate/3d/license-accept', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model_key: inst.model_key }),
+                    });
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    Object.assign(inst, await r.json());
+                } catch (e) {
+                    window.API?.log?.('error', `3D licence acceptance failed: ${e.message}`);
+                    window.showToast?.(t('artsmoker.ui.asset_viewer.three_d_lic_accept_failed'), 'error');
+                }
+                onDone?.();
+            });
         },
 
         /** S3-bucket preflight for 3D (custom endpoints need the deployment bucket).
@@ -3016,6 +3052,7 @@
                 // nosemgrep
                 licenseEl.innerHTML = this.threeDLicenseHTML(inst);
                 licenseEl.classList.remove('hidden');
+                this.threeDBindLicenseReview(licenseEl, inst, updateLicensePanel);
             };
 
             qualitySelect?.addEventListener('change', applyPreset);

@@ -366,7 +366,7 @@ A single 2D character image (left, in the PNG tab) becomes a fully-textured 3D m
 | **TripoSG + texture backend** | TripoSG builds the mesh; a chosen texture backend (TRELLIS.2 / Hunyuan3D-Paint) paints it | per backend (below) | per backend | Mixing geometry + a specific texturer |
 | **TRELLIS.2 (Full)** | One model generates **both** geometry and PBR texture (SLAT) | MIT model + weights | ⚠️ **Non-commercial bake** — the mesh export hard-imports `nvdiffrast` (NVIDIA 1-Way Commercial); review before commercial use | Simplest path; prototypes & non-commercial work |
 
-> **Commercial use:** the **TripoSG + texture backend** path is the commercial-safe route — its bake uses **Kaolin (Apache-2.0)**. The **full TRELLIS.2** pipeline is MIT for the model itself, but its `o_voxel` mesh bake hard-imports `nvdiffrast` (NVIDIA Source Code License, non-commercial for general users) and can't be swapped without patching upstream — so treat full-pipeline output as non-commercial unless you've cleared that dependency. The licence + every dependency is shown in the deploy dialog and again at generate time.
+> **Commercial use:** the **TripoSG + texture backend** path avoids NVIDIA's non-commercial rasterizer — its bake uses **Kaolin (Apache-2.0)** — but TripoSG's own code carries **Tencent Hunyuan community licenses**: no grant in the EU, UK or South Korea, and above 1M monthly active users you must request a license from Tencent. The **full TRELLIS.2** pipeline is MIT for the model itself, but its `o_voxel` mesh bake hard-imports `nvdiffrast` (NVIDIA Source Code License, non-commercial for general users) and can't be swapped without patching upstream — so treat full-pipeline output as non-commercial unless you've cleared that dependency. The licence + every dependency is shown in the deploy dialog and again at generate time.
 
 **3D variants** — Keep multiple 3D takes per image version (here TripoSG vs the TRELLIS.2 full pipeline), switch between them or set the default at any time; every variant records the exact models & tools that produced it.
 
@@ -374,7 +374,7 @@ A single 2D character image (left, in the PNG tab) becomes a fully-textured 3D m
 
 **How the TripoSG pipeline works:**
 
-1. **Geometry extraction** — a rectified flow transformer (TripoSG, 1.5B parameters, MIT-licensed) converts a single 2D image into a high-fidelity 3D mesh using a signed distance field (SDF) representation. Mesh density scales with the quality preset (up to ~1M faces at the highest octree resolution) for crisp detail on faces and gear.
+1. **Geometry extraction** — a rectified flow transformer (TripoSG, 1.5B parameters; MIT-licensed weights, with code under Tencent Hunyuan community licenses, shown in the deploy dialog) converts a single 2D image into a high-fidelity 3D mesh using a signed distance field (SDF) representation. Mesh density scales with the quality preset (up to ~1M faces at the highest octree resolution) for crisp detail on faces and gear.
 2. **Texturing** — the mesh is painted by a **texture backend you choose at deploy time** (default **TRELLIS.2**, Microsoft, MIT — a SLAT/voxel-conditioned texturer producing full PBR materials at a 4096² atlas).
 3. **PBR output** — exported as a GLB with embedded PBR maps, ready for physically-based rendering in any modern engine.
 
@@ -454,7 +454,8 @@ The four patterns you'll meet:
 | Creator / models | Pattern | Your next step for commercial self-hosting |
 |---|---|---|
 | **Alibaba** — Qwen-Image, Qwen-Image-Edit | 1 | Nothing to buy (Apache-2.0). Retain the license notices. |
-| **Microsoft** — TRELLIS.2 · **VAST** — TripoSG | 1 | Nothing to buy (MIT). Note: upstream deps (e.g. Meta DINOv3) carry their own gates/terms. |
+| **Microsoft** — TRELLIS.2 | 1 | Nothing to buy (MIT). Note: upstream deps (e.g. Meta DINOv3) carry their own gates/terms. |
+| **VAST** — TripoSG | 2 | Weights are MIT, but the code includes Tencent Hunyuan-licensed parts (HunyuanDiT, FlashVDM): **no grant in the EU, UK, or South Korea**; above **1M MAU** request a license from Tencent. Outputs are yours inside the licensed territory. |
 | **Black Forest Labs** — FLUX.2 [klein] 4B | 1 | Nothing to buy — Apache-2.0, free commercial use. |
 | **Stability AI** — SD 3.5 (self-hosted) | 2 | Free incl. commercial under **$1M total annual revenue** (the HF gate acceptance *is* the license). Above it the license **auto-terminates** — request an Enterprise license at stability.ai/enterprise. **"Powered by Stability AI" attribution is mandatory at every tier.** |
 | **Tencent** — HunyuanImage 3.0 / Hunyuan3D | 2 | Free incl. commercial below the threshold — **note it's per-model**: HunyuanImage 3.0 = 100M MAU; **Hunyuan3D-2.1 = only 1M MAU** (above: email hunyuan3d@tencent.com). **No grant at all in the EU, UK, or South Korea**, regardless of size. |

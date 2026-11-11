@@ -2577,7 +2577,9 @@
                             : `${t('artsmoker.ui.custom_models.failed')} — ${t('artsmoker.ui.custom_models.failed_autocleanup')}`;
                         const statusText = active ? t('artsmoker.ui.custom_models.active') : idle ? t('artsmoker.ui.custom_models.status_idle', { hint: cacheHint }) : warmingUp ? (m.warmup_detail || t('artsmoker.ui.custom_models.warming_up')) : scalingUp ? t('artsmoker.ui.custom_models.status_starting_instance') : deploying ? (m.deploy_progress || t('artsmoker.ui.custom_models.deploying')) : failed ? failText : t('artsmoker.ui.custom_models.not_deployed');
                         const authBadge = m.requires_hf_auth ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.custom_models.hf_auth')}</span>` : '';
-                        const licenseBadge = html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30">${m.license?.split(' ')[0] || '?'}</span>`;
+                        // Full licence label (truncated, full text on hover): a first-word
+                        // badge would show "MIT" for "MIT + Tencent Hunyuan Community".
+                        const licenseBadge = html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30 inline-block max-w-[12rem] truncate align-middle" title="${m.license || ''}">${m.license || '?'}</span>`;
                         const userBadge = m.user_added ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">${t('artsmoker.ui.custom_models.badge_user')}</span>` : '';
                         const statusDot = active ? 'bg-emerald-400' : idle ? 'bg-blue-400' : warmingUp ? 'bg-cyan-400 animate-pulse' : (deploying || scalingUp) ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
 
