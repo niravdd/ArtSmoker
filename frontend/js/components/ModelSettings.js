@@ -2778,6 +2778,8 @@
                         err.requestFailed ? 'ModelSettings._loadCustomModels' : (err.stack || '').split('\n').slice(0, 3).join(' | '));
                 // A timeout or dropped connection is usually a slow first load: the
                 // server finishes it and caches the answers, so one retry succeeds.
+                // A forced load (Refresh Status) retries forced, so it still shows
+                // the current status rather than the cached one.
                 if (attempt === 1 && err.requestFailed) {
                     return this._loadCustomModels(modal, force, 2);
                 }
